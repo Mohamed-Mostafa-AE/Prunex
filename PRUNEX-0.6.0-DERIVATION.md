@@ -12,7 +12,7 @@ Opponent: official Stockfish 1.3.1, checked out from the `sf_1.3.1` tag and buil
 
 Conditions: one thread, 64 MB hash, opening-book disabled where available, 10,000 nodes per move for each engine, 16 standard opening positions, two repeats, alternating colors. Result records and PGNs are emitted by the benchmark workflow.
 
-A preliminary 16-game equal-node trial of the Stockfish 4 core against Stockfish 1.3.1 produced 12 wins, 4 draws, and 0 losses for the Stockfish 4 core (87.5% score). The full Prunex-labelled 64-game validation is the release acceptance run; consult its artifact before quoting final figures.
+A preliminary 16-game equal-node trial of the Stockfish 4 core against Stockfish 1.3.1 produced 12 wins, 4 draws, and 0 losses for the Stockfish 4 core (87.5% score). The full Prunex-labelled 64-game validation completed successfully. **Prunex 0.6.0 scored 59 wins, 4 draws, and 1 loss (61/64 points; 95.31%)**. Prunex played 32 games as White and 32 as Black. The only loss was the Slav Defense with Prunex as Black. The 64-game PGN and JSON summary are included in the benchmark artifact.
 
 ## Legacy opponent compatibility
 
