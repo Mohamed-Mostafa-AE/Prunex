@@ -56,3 +56,11 @@ jobs:
           tar -tzf dist/engine-source.tar.gz | grep -q 'src/'
           grep -q 'GNU GENERAL PUBLIC LICENSE' dist/COPYING.txt
           test -f vercel.json
+
+      - name: Upload verified static deployment
+        uses: actions/upload-artifact@v6
+        with:
+          name: prunex-site-dist
+          path: website/dist/
+          if-no-files-found: error
+          retention-days: 7
