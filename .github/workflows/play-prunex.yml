@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'Prunex-0.5.1.zip'
+      - 'Prunex-0.5.2.zip'
       - 'web/**'
       - '.github/workflows/play-prunex.yml'
 
@@ -26,9 +26,9 @@ jobs:
 
       - name: Validate and extract Prunex source
         run: |
-          unzip -t Prunex-0.5.1.zip
+          unzip -t Prunex-0.5.2.zip
           mkdir -p source site
-          python3 -c "import zipfile; zipfile.ZipFile('Prunex-0.5.1.zip').extractall('source')"
+          python3 -c "import zipfile; zipfile.ZipFile('Prunex-0.5.2.zip').extractall('source')"
           test -f source/Prunex/src/main.cpp
 
       - name: Copy browser application
