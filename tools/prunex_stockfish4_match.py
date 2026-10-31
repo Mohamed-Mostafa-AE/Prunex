@@ -120,7 +120,7 @@ def main():
                     result["repeat"] = repeat + 1
                     results.append(result)
                     with pgn_path.open("a", encoding="utf-8") as handle:
-                        print(result["game"], file=handle, end="\\n\\n")
+                        print(result["game"], file=handle, end="\n\n")
                     print(json.dumps({key: value for key, value in result.items() if key != "game"}), flush=True)
     finally:
         prunex.quit()
