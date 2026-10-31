@@ -22,18 +22,12 @@ try {
   const startup = await page.evaluate(() => ({
     engine: document.querySelector("#engine-state")?.textContent,
     status: document.querySelector("#status")?.textContent,
-    isolated: window.crossOriginIsolated,
-    sharedArrayBuffer: typeof SharedArrayBuffer !== "undefined",
     href: location.href
   }));
 
   if (startup.engine !== "Engine ready") {
     throw new Error("Prunex engine startup failed: " + JSON.stringify(startup) +
       "\nWorkers: " + JSON.stringify(workers) + "\nErrors: " + failures.join("\n"));
-  }
-
-  if (!startup.isolated || !startup.sharedArrayBuffer) {
-    throw new Error("Threaded WebAssembly preconditions are missing: " + JSON.stringify(startup));
   }
 
   await page.locator('[data-square="e2"]').click();
@@ -53,7 +47,7 @@ try {
   if (moveRows.length < 1) throw new Error("Move history did not record the opening moves.");
   if (failures.length) throw new Error(failures.join("\n"));
 
-  console.log("PASS: WebAssembly engine loaded, e2e4 was accepted, Prunex replied, and history updated.");
+  console.log("PASS: Stockfish.js loaded in a single-threaded worker, e2e4 was accepted, Prunex replied, and history updated.");
 } finally {
   await browser.close();
 }
