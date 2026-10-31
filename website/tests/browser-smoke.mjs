@@ -19,7 +19,7 @@ try {
     () => {
       const state = document.querySelector("#engine-state")?.textContent;
       const status = document.querySelector("#status")?.textContent || "";
-      return state === "Engine ready" || status.startsWith("Engine failed") || status.startsWith("Engine worker failed");
+      return state === "Engine ready" || status.startsWith("Engine failed") || status.startsWith("Engine worker failed") || status.startsWith("DEBUG:");
     },
     undefined,
     { timeout: 60000 }
