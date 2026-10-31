@@ -44,7 +44,8 @@ jobs:
           git -C stockfish-source rev-parse HEAD > stockfish-source-commit.txt
           git -C stockfish-source describe --tags --always >> stockfish-source-commit.txt
           echo 'Build patch: upper bound of the second SafetyTable loop changed from i < 100 to i < 99 to avoid upstream out-of-bounds read of SafetyTable[i+1].' >> stockfish-source-commit.txt
-          cp stockfish-source/COPYING stockfish-GPL.txt
+          cp stockfish-source/Copying.txt stockfish-GPL.txt
+          tar --exclude=.git -czf stockfish-1.3.1-source-patched.tar.gz -C stockfish-source .
       - name: Upload binary, source snapshot, and license
         uses: actions/upload-artifact@v6
         with:
@@ -53,4 +54,5 @@ jobs:
             stockfish-source/src/stockfish
             stockfish-source-commit.txt
             stockfish-GPL.txt
+            stockfish-1.3.1-source-patched.tar.gz
           if-no-files-found: error
