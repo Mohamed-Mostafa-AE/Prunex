@@ -1,27 +1,33 @@
-# Prunex 0.5.0 Test Report
+# Prunex 0.5.1 Test Report
 
-## Engine search changes
+## Engine search
 
-The 0.5.0 search implementation adds a Zobrist-keyed transposition table, iterative deepening, aspiration windows, principal-variation search, hash/MVV-LVA/killer/history move ordering, and late-move reductions. Evaluation now blends middle-game and endgame scores and includes piece-square activity, bishop-pair value, doubled and isolated pawn penalties, passed-pawn bonuses, and rook-file bonuses.
+The 0.5.0 search core adds a Zobrist-keyed transposition table, iterative deepening, aspiration windows, principal-variation search, hash/MVV-LVA/killer/history move ordering, late-move reductions, and tapered positional evaluation with piece-square activity, bishop-pair value, pawn-structure terms, passed-pawn bonuses, and rook-file bonuses.
 
-A local Release comparison on the initial chess position at fixed depth 5 recorded 275,040 searched nodes in the original 0.4.3 search and 3,725 nodes in the 0.5.0 search. The score at that depth was +18 centipawns in both runs. This is a single-position node-count comparison, not an Elo measurement or a claim about match results.
+Version 0.5.1 adds UCI move-time and clock-based search using `go movetime`, `go wtime/btime`, `winc/binc`, and `movestogo`. Deadline checks occur during recursive search; when the budget expires, the engine returns the best move from the last fully completed iterative-deepening iteration.
 
 ## Automated validation
 
-- GCC 14.2.0 Release build completed successfully.
-- Release CTest suite: 42/42 passed.
-- GCC AddressSanitizer/UndefinedBehaviorSanitizer Debug build: 42/42 passed, with leak detection enabled.
-- Clang 17 Release build: 42/42 passed.
+- GCC 14.2.0 Release build: 44/44 CTest cases passed.
+- Clang 17 Release build: 44/44 CTest cases passed.
+- GCC AddressSanitizer + UndefinedBehaviorSanitizer Debug build: 44/44 CTest cases passed with leak detection enabled.
 - GCC 14.2 static analysis with `-fanalyzer`: no diagnostics.
-- Search regressions verify checkmate and stalemate at the quiescence horizon, quiet check evasions, mate-in-one selection, make/undo Zobrist-key restoration, and transposition-table reuse.
-- Existing perft coverage verifies the start position, Kiwipete, endgame position 3, and standard positions 4–6.
-- Existing FEN and CLI tests cover malformed and overflowed move counters, duplicate castling rights, invalid en-passant state, invalid perft depths, and divide depth zero.
-- En-passant tests cover legal captures for both colors and reject pinned captures that expose the king.
+- Search tests cover checkmate/stalemate at the quiescence horizon, quiet check evasions, mate-in-one selection, make/undo Zobrist-key restoration, and transposition-table reuse.
+- Move-generation tests cover the start position, Kiwipete, and standard perft positions 3–6.
+- FEN, CLI, and en-passant tests cover malformed counters, overflow, duplicate castling rights, invalid en-passant states, legal captures, and pinned-capture rejection.
+- UCI tests verify ordinary depth search, `go movetime`, and clock-based time allocation.
 
-## Remaining validation
+## Search-efficiency comparison
 
-- No official Elo measurement has been completed. A repeatable SPRT or similarly controlled engine match against fixed opponents and time controls is needed to quantify playing-strength change.
-- Search strength has not yet been validated across a large tactical suite or long self-play match set.
-- Windows CI for the earlier 0.4.3 package passed, but the 0.5.0 Windows build must pass separately after the updated package is committed.
+A local Release comparison on the initial position at fixed depth 5 recorded 275,040 searched nodes in version 0.4.3 and 3,725 nodes in version 0.5.0, with a reported score of +18 centipawns in both runs. This is one-position node-count data, not an Elo measurement or evidence of match superiority.
+
+## Competitive benchmark status
+
+No Stockfish 4 or Stockfish 6 match result is claimed yet. A GitHub Actions workflow now builds the official `sf_4` and `sf_6` source tags and runs 64 color-balanced games against each opponent at 100 ms per move, with one search thread per engine. It stores PGNs and JSON score summaries as workflow artifacts. The benchmark must run against the 0.5.1 package before a result can be reported.
+
+## Remaining limitations
+
 - The Win32 GUI still searches synchronously on the UI thread.
-- No PGN handling, time-managed UCI search, opening book, endgame tablebases, or configurable hash size is implemented.
+- No Elo rating has been established.
+- No large-scale SPRT or long-run self-play result has been produced.
+- No PGN import/export, opening book, endgame tablebases, or configurable hash size is implemented.
