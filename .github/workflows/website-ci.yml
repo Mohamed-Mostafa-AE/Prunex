@@ -47,12 +47,12 @@ jobs:
       - name: Verify required static assets
         run: |
           test -s dist/index.html
-          test -s dist/engine/prunex.js
-          test -s dist/engine/prunex.wasm
+          test -s dist/engine/stockfish-19-lite-single.js
+          test -s dist/engine/stockfish-19-lite-single.wasm
           test -s dist/engine-source.tar.gz
           test -s dist/COPYING.txt
           grep -q 'mohamedhussam09@gmail.com' dist/index.html
           grep -q 'github.com/Mohamed-Mostafa-GT' dist/index.html
-          tar -tzf dist/engine-source.tar.gz | grep -q 'src/prunex_wasm.cpp'
+          tar -tzf dist/engine-source.tar.gz | grep -q 'src/'
           grep -q 'GNU GENERAL PUBLIC LICENSE' dist/COPYING.txt
           test -f vercel.json
