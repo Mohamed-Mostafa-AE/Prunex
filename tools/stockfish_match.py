@@ -68,7 +68,7 @@ def play_game(prunex, opponent, prunex_white, opening, movetime_ms, game_number)
     else:
         score = 0.5
     game = chess.pgn.Game.from_board(board)
-    game.headers["Event"] = "Prunex 0.5.2 versus Stockfish"
+    game.headers["Event"] = "Prunex 0.5.1 versus Stockfish"
     game.headers["Site"] = "GitHub Actions"
     game.headers["Round"] = str(game_number)
     game.headers["White"] = prunex.id.get("name", "Prunex") if prunex_white else opponent.id.get("name", "Opponent")
@@ -118,7 +118,7 @@ def benchmark(prunex_path, opponent_path, opponent_label, outdir, movetime_ms, r
     losses = sum(item["score"] == 0.0 for item in results)
     points = sum(item["score"] for item in results)
     summary = {
-        "prunex": "0.5.2",
+        "prunex": "0.5.1",
         "opponent": opponent_label,
         "games": len(results),
         "wins": wins,
