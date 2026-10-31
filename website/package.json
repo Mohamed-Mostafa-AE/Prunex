@@ -7,10 +7,12 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test:browser": "node tests/browser-smoke.mjs"
+    "test:browser": "node tests/browser-smoke.mjs",
+    "prebuild": "node scripts/copy-engine.mjs"
   },
   "dependencies": {
-    "chess.js": "1.4.0"
+    "chess.js": "1.4.0",
+    "stockfish": "19.0.1"
   },
   "devDependencies": {
     "vite": "6.4.1",
