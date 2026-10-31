@@ -31,3 +31,9 @@ The console engine supports UCI, `--perft DEPTH`, `--perft-fen "FEN" DEPTH`, and
 The 42-test regression suite covers standard perft positions, FEN validation, en-passant legality, terminal positions, quiet check evasions, a mate-in-one search, make/undo hash restoration, and transposition-table reuse.
 
 See [TEST_REPORT.md](TEST_REPORT.md) for the test results and [WINDOWS_GUI_CHECKLIST.md](WINDOWS_GUI_CHECKLIST.md) for manual GUI verification. The repository's Windows Actions workflow builds the GUI and console binary and publishes them as workflow artifacts.
+
+## Stockfish benchmark
+
+The `Prunex versus Stockfish 4 and 6` GitHub Actions workflow builds the official Stockfish `sf_4` and `sf_6` source tags and runs 64 games against each version at fixed depth 6. Each of 16 opening positions is repeated twice with Prunex playing both colors. The workflow saves PGN files and JSON score summaries as downloadable artifacts.
+
+This is a fixed-depth, single-thread benchmark, not an equal-time tournament or an Elo measurement. Prunex's current UCI implementation does not yet implement `movetime`, `wtime`, or `btime`; do not interpret the results as a time-control rating. Only claim a win after the recorded match results support it.
