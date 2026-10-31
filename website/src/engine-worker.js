@@ -1,50 +1,68 @@
-const engineFactoryUrl = () => new URL("/engine/prunex.js", self.location.origin).href;
+let engine;
+let ready = false;
+let awaitingReady = false;
+let currentRequestId = null;
 
-let enginePromise;
-let activeRequest = 0;
+function startEngine() {
+  if (engine) return;
+  engine = new Worker("/engine/stockfish-19-lite-single.js");
+  engine.addEventListener("message", (event) => {
+    const line = String(event.data ?? "").trim();
+    if (!line) return;
 
-async function engine() {
-  if (!enginePromise) {
-    self.postMessage({ type: "debug", message: "importing engine module" });
-    enginePromise = import(/* @vite-ignore */ engineFactoryUrl()).then((factory) => {
-      self.postMessage({ type: "debug", message: "engine module imported" });
-      return factory.default({
-        locateFile: (path) => new URL("/engine/" + path, self.location.origin).toString()
-      });
-    }).then((module) => {
-      self.postMessage({ type: "debug", message: "WebAssembly instantiated; initializing C++" });
-      module._prunex_init();
-      self.postMessage({ type: "debug", message: "C++ engine initialized" });
-      return module;
-    });
-  }
-  return enginePromise;
+    if (line === "uciok") {
+      engine.postMessage("setoption name Hash value 64");
+      engine.postMessage("isready");
+      awaitingReady = true;
+      return;
+    }
+
+    if (line === "readyok" && awaitingReady) {
+      awaitingReady = false;
+      ready = true;
+      self.postMessage({ type: "ready" });
+      return;
+    }
+
+    if (line.startsWith("bestmove ")) {
+      self.postMessage({ type: "bestmove", requestId: currentRequestId, bestMove: line.split(/\s+/)[1] });
+      currentRequestId = null;
+      return;
+    }
+
+    if (line.startsWith("info ")) {
+      const match = line.match(/\bdepth (\d+).*?\bscore (cp|mate) (-?\d+)/);
+      if (match) self.postMessage({ type: "info", depth: Number(match[1]), scoreType: match[2], score: Number(match[3]) });
+    }
+  });
+  engine.addEventListener("error", (event) => {
+    self.postMessage({ type: "error", message: event.message || "Stockfish worker failed." });
+  });
+  engine.postMessage("uci");
 }
 
-self.addEventListener("message", async (event) => {
+self.addEventListener("message", (event) => {
   const data = event.data || {};
-  if (data.type === "cancel") {
-    activeRequest += 1;
-    return;
-  }
   if (data.type === "init") {
     try {
-      self.postMessage({ type: "debug", message: "worker received init request" });
-      await engine();
-      self.postMessage({ type: "ready" });
+      startEngine();
     } catch (error) {
       self.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) });
     }
     return;
   }
-  if (data.type !== "search") return;
-  const token = ++activeRequest;
-  try {
-    const module = await engine();
-    if (token !== activeRequest) return;
-    const bestMove = module.ccall("prunex_best_move", "string", ["string", "number", "number"], [data.fen, data.nodes, data.depth || 32]);
-    if (token === activeRequest) self.postMessage({ type: "bestmove", requestId: data.requestId, bestMove });
-  } catch (error) {
-    self.postMessage({ type: "error", requestId: data.requestId, message: error instanceof Error ? error.message : String(error) });
+  if (data.type === "cancel") {
+    if (engine) engine.postMessage("stop");
+    currentRequestId = null;
+    return;
+  }
+  if (data.type === "search") {
+    if (!ready || !engine) {
+      self.postMessage({ type: "error", requestId: data.requestId, message: "Engine is not ready." });
+      return;
+    }
+    currentRequestId = data.requestId;
+    engine.postMessage("position fen " + data.fen);
+    engine.postMessage("go nodes " + Math.max(10000, Math.min(2000000, Number(data.nodes) || 25000)));
   }
 });
