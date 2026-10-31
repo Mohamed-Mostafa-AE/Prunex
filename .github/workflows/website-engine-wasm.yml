@@ -1,82 +1,13 @@
-name: Build Prunex browser engine (WebAssembly)
+name: Legacy Stockfish 4 browser build (disabled)
 
 on:
-  push:
-    paths:
-      - 'website/engine/prunex_wasm.cpp'
-      - '.github/workflows/website-engine-wasm.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: prunex-website-wasm
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  build:
-    runs-on: ubuntu-24.04
+  legacy:
+    runs-on: ubuntu-latest
     steps:
-      - name: Check out Prunex website
-        uses: actions/checkout@v7
-
-      - name: Check out official Stockfish 4 source
-        uses: actions/checkout@v7
-        with:
-          repository: official-stockfish/Stockfish
-          ref: sf_4
-          path: stockfish-source
-          persist-credentials: false
-
-      - name: Prepare WebAssembly engine source
-        run: |
-          cp website/engine/prunex_wasm.cpp stockfish-source/src/prunex_wasm.cpp
-          mkdir -p website/public/engine
-          make -C stockfish-source/src clean
-
-      - name: Compile Stockfish 4-derived Prunex for WebAssembly
-        run: |
-          docker run --rm \
-            -v "$GITHUB_WORKSPACE:/src" \
-            -w /src/stockfish-source/src \
-            emscripten/emsdk:6.0.13 \
-            bash -lc 'make -j2 ARCH=general-64 COMP=gcc CXX=em++ EXE=prunex.js \
-              OBJS="benchmark.o bitbase.o bitboard.o book.o endgame.o evaluate.o material.o misc.o movegen.o movepick.o notation.o pawns.o position.o search.o thread.o timeman.o tt.o uci.o ucioption.o prunex_wasm.o" \
-              CXXFLAGS="-DNDEBUG -O3 -std=gnu++11 -DIS_64BIT -DNO_PREFETCH -pthread" \
-              LDFLAGS="-pthread -sPTHREAD_POOL_SIZE=1 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=100663296 -sMAXIMUM_MEMORY=268435456 -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createPrunexModule -sENVIRONMENT=worker -sEXPORTED_FUNCTIONS=[_prunex_init,_prunex_best_move] -sEXPORTED_RUNTIME_METHODS=[ccall]" build'
-          test -s stockfish-source/src/prunex.js
-          test -s stockfish-source/src/prunex.wasm
-          cp stockfish-source/src/prunex.js website/public/engine/
-          cp stockfish-source/src/prunex.wasm website/public/engine/
-          if test -s stockfish-source/src/prunex.worker.js; then
-            cp stockfish-source/src/prunex.worker.js website/public/engine/
-          fi
-          tar --exclude=.git --exclude='*.o' --exclude=stockfish --exclude='*.js' --exclude='*.wasm' --exclude='*.worker.js' -czf website/public/engine-source.tar.gz -C stockfish-source .
-          cp stockfish-source/Copying.txt website/public/COPYING.txt
-          ls -lh website/public/engine/ website/public/engine-source.tar.gz website/public/COPYING.txt
-
-      - name: Verify generated engine assets
-        run: |
-          grep -q "createPrunexModule" website/public/engine/prunex.js
-          python3 - <<'PY'
-          from pathlib import Path
-          wasm = Path("website/public/engine/prunex.wasm").read_bytes()
-          if wasm[:8] != b"\x00asm\x01\x00\x00\x00":
-              raise SystemExit("Invalid WebAssembly module header")
-          print("WebAssembly module header verified:", len(wasm), "bytes")
-          PY
-
-      - name: Commit engine artifacts for Vercel
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add website/public/engine/ website/public/engine-source.tar.gz website/public/COPYING.txt
-          if git diff --cached --quiet; then
-            echo "No generated engine changes."
-          else
-            git commit -m "Build Prunex browser engine WebAssembly [skip ci]"
-            git fetch origin main
-            git rebase origin/main
-            git push origin HEAD:main
-          fi
+      - run: echo "The browser frontend now uses the maintained single-threaded Stockfish.js 19 distribution."
