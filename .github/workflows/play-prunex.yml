@@ -38,7 +38,21 @@ jobs:
 
       - name: Compile C++ engine to WebAssembly
         run: |
-          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src emscripten/emsdk:6.0.13 em++             -O3             -std=c++20             -Isource/Prunex/src             web/wasm.cpp             -o site/prunex.js             -sMODULARIZE=1             -sEXPORT_NAME=createPrunexModule             -sENVIRONMENT=worker             -sALLOW_MEMORY_GROWTH=1             -sFILESYSTEM=0             -sNO_EXIT_RUNTIME=1             -sNO_ENTRY=1             "-sEXPORTED_FUNCTIONS=['_prunex_best_move']"             "-sEXPORTED_RUNTIME_METHODS=['ccall']"
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src emscripten/emsdk:6.0.13 em++ \
+            -O3 \
+            -std=c++20 \
+            -Isource/Prunex/src \
+            web/wasm.cpp \
+            -o site/prunex.js \
+            -sMODULARIZE=1 \
+            -sEXPORT_NAME=createPrunexModule \
+            -sENVIRONMENT=worker \
+            -sALLOW_MEMORY_GROWTH=1 \
+            -sFILESYSTEM=0 \
+            -sNO_EXIT_RUNTIME=1 \
+            --no-entry \
+            "-sEXPORTED_FUNCTIONS=['_prunex_best_move']" \
+            "-sEXPORTED_RUNTIME_METHODS=['ccall']"
           test -s site/prunex.js
           test -s site/prunex.wasm
 
