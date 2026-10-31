@@ -70,7 +70,7 @@ def play_game(prunex, stockfish, opponent_name, opening, prunex_white, nodes_per
     else:
         score = 0.5
     game = chess.pgn.Game.from_board(board)
-    game.headers["Event"] = "Prunex 0.6.0 (Stockfish 4-derived) vs official " + args.opponent_name
+    game.headers["Event"] = "Prunex 0.6.0 (Stockfish 4-derived) vs official " + opponent_name
     game.headers["Site"] = "GitHub Actions"
     game.headers["Round"] = str(number)
     game.headers["White"] = "Prunex 0.6.0" if prunex_white else opponent_name
