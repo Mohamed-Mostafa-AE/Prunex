@@ -557,7 +557,7 @@ function initMemory() {
     return;
   }
   {
-    var INITIAL_MEMORY = 134217728;
+    var INITIAL_MEMORY = 100663296;
     assert(INITIAL_MEMORY >= 65536, `INITIAL_MEMORY should be larger than STACK_SIZE, was ${INITIAL_MEMORY}! (STACK_SIZE=65536)`);
     /** @suppress {checkTypes} */ wasmMemory = new WebAssembly.Memory({
       "initial": INITIAL_MEMORY / 65536,
@@ -566,7 +566,7 @@ function initMemory() {
       // https://github.com/emscripten-core/emscripten/issues/14130
       // And in the pthreads case we definitely need to emit a maximum. So
       // always emit one.
-      "maximum": 8192,
+      "maximum": 4096,
       "shared": true
     });
   }
@@ -1023,7 +1023,7 @@ var PThread = {
     }
   },
   initMainThread() {
-    var pthreadPoolSize = 3;
+    var pthreadPoolSize = 1;
     // Start loading up the Worker pool, if requested.
     while (pthreadPoolSize--) {
       PThread.allocateUnusedWorker();
@@ -4611,7 +4611,7 @@ var getHeapMax = () => // Stay one Wasm page short of 4GB: while e.g. Chrome is 
 // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
 // for any code that deals with heap sizes, which would require special
 // casing all heap size related code to treat 0 specially.
-536870912;
+268435456;
 
 var alignMemory = (size, alignment) => {
   assert(alignment, "alignment argument is required");
