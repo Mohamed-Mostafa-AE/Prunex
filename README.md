@@ -54,3 +54,12 @@ For local play, download the `github-pages` artifact from the [browser build wor
 The `Play Prunex in the browser` workflow also builds a GitHub Pages artifact. To publish it, open **Settings → Pages** and select **GitHub Actions** as the build and deployment source. The intended project URL is `https://mohamed-mostafa-gt.github.io/Prunex/`. The first deployment is currently blocked because Pages is not enabled for the repository.
 
 The Pages site is public. GitHub Pages supports private source repositories only on paid GitHub plans; GitHub Free requires a public source repository. The source repository remains private.
+
+
+## Prunex 0.6.0 — verified Stockfish-derived release
+
+A separate GPLv3 release line, **Prunex 0.6.0 (Stockfish 4-derived)**, is built from the official Stockfish `sf_4` source tag. The engine reports its derivation in its UCI identity. It is not the independent Prunex 0.5.x search core.
+
+The 64-game equal-node benchmark against official Stockfish 1.3.1 (`sf_1.3.1`) scored **59 wins, 4 draws, 1 loss (95.31%)**. Each engine used one thread, 64 MB hash, and 10,000 nodes per move; 16 openings were played twice, with 32 games per color. The sole loss was the Slav Defense with Prunex as Black. Full PGN and JSON records, complete derived source, both GPLv3 licenses, and source provenance are in [GitHub Actions artifact run 41246071412](https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41246071412).
+
+See [PRUNEX-0.6.0-DERIVATION.md](PRUNEX-0.6.0-DERIVATION.md) for attribution, source tags, the documented Stockfish 1.3.1 compatibility patch, benchmark conditions, and accurate wording for this result.
