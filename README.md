@@ -12,7 +12,7 @@ These are classical techniques implemented in Prunex's own source. No Stockfish 
 
 Requirements: Visual Studio 2022 with Desktop development with C++, CMake 3.20+, and the Windows 10/11 SDK.
 
-Download and extract `Prunex.zip`, then open PowerShell in the extracted `Prunex` directory:
+Download and extract `Prunex-0.5.0.zip`, then open PowerShell in the extracted `Prunex` directory:
 
 ```powershell
 cmake -S . -B build -A x64
