@@ -48,7 +48,7 @@ def configure(engine, hash_size=64, contempt=None):
     if settings:
         engine.configure(settings)
 
-def play_game(prunex, stockfish, opponent_name, opening, prunex_white, nodes_per_move, prunex_contempt, number):
+def play_game(prunex, stockfish, prunex_name, opponent_name, opening, prunex_white, nodes_per_move, prunex_contempt, number):
     name, initial = opening
     board = initial.copy()
     game_token = object()
@@ -72,11 +72,11 @@ def play_game(prunex, stockfish, opponent_name, opening, prunex_white, nodes_per
     else:
         score = 0.5
     game = chess.pgn.Game.from_board(board)
-    game.headers["Event"] = "Prunex 0.6.0 (Stockfish 4-derived) vs official " + opponent_name
+    game.headers["Event"] = prunex_name + " vs official " + opponent_name
     game.headers["Site"] = "GitHub Actions"
     game.headers["Round"] = str(number)
-    game.headers["White"] = "Prunex 0.6.0" if prunex_white else opponent_name
-    game.headers["Black"] = opponent_name if prunex_white else "Prunex 0.6.0"
+    game.headers["White"] = prunex_name if prunex_white else opponent_name
+    game.headers["Black"] = opponent_name if prunex_white else prunex_name
     game.headers["Result"] = result_text
     game.headers["Opening"] = name
     game.headers["Termination"] = termination
@@ -96,6 +96,7 @@ def main():
     parser.add_argument("--prunex", required=True)
     parser.add_argument("--stockfish", required=True)
     parser.add_argument("--opponent-name", default="Stockfish 1.3.1")
+    parser.add_argument("--prunex-name", default="Prunex 0.6.0 (Stockfish 4-derived)")
     parser.add_argument("--output", default="benchmark-results")
     parser.add_argument("--nodes-per-move", type=int, default=10000)
     parser.add_argument("--opening-count", type=int, default=8)
@@ -127,7 +128,7 @@ def main():
             for repeat in range(args.repeats):
                 for prunex_white in (True, False):
                     number = len(results) + 1
-                    result = play_game(prunex, stockfish, args.opponent_name, opening, prunex_white, args.nodes_per_move, args.prunex_contempt, number)
+                    result = play_game(prunex, stockfish, args.prunex_name, args.opponent_name, opening, prunex_white, args.nodes_per_move, args.prunex_contempt, number)
                     result["repeat"] = repeat + 1
                     results.append(result)
                     with pgn_path.open("a", encoding="utf-8") as handle:
@@ -141,7 +142,7 @@ def main():
     losses = sum(item["score"] == 0.0 for item in results)
     points = sum(item["score"] for item in results)
     summary = {
-        "prunex": "0.6.0 (Stockfish 4-derived)",
+        "prunex": args.prunex_name,
         "opponent": args.opponent_name + " (official source tag)",
         "games": len(results),
         "wins": wins, "draws": draws, "losses": losses,
