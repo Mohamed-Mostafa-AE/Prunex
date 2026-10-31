@@ -43,8 +43,10 @@ def configure(engine, hash_size=64, contempt=None):
     for name, value in (("OwnBook", False),):
         if name in engine.options:
             settings[name] = value
-    if contempt is not None and "Contempt Factor" in engine.options:
-        settings["Contempt Factor"] = contempt
+    if contempt is not None:
+        for name in ("Contempt", "Contempt Factor"):
+            if name in engine.options:
+                settings[name] = contempt
     if settings:
         engine.configure(settings)
 
