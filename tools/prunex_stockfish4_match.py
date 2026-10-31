@@ -46,13 +46,13 @@ def configure(engine):
     if settings:
         engine.configure(settings)
 
-def play_game(prunex, stockfish, opening, prunex_white, movetime_ms, number):
+def play_game(prunex, stockfish, opening, prunex_white, nodes_per_move, number):
     name, initial = opening
     board = initial.copy()
     game_token = object()
     white = prunex if prunex_white else stockfish
     black = stockfish if prunex_white else prunex
-    limit = chess.engine.Limit(time=movetime_ms / 1000.0)
+    limit = chess.engine.Limit(nodes=nodes_per_move)
     start = time.monotonic()
     while not board.is_game_over(claim_draw=True) and board.ply() < 240:
         engine = white if board.turn == chess.WHITE else black
@@ -78,7 +78,7 @@ def play_game(prunex, stockfish, opening, prunex_white, movetime_ms, number):
     game.headers["Result"] = result_text
     game.headers["Opening"] = name
     game.headers["Termination"] = termination
-    game.headers["TimeControl"] = f"{movetime_ms}ms/move"
+    game.headers["NodeControl"] = f"{nodes_per_move} nodes/move"
     game.headers["PrunexColor"] = "White" if prunex_white else "Black"
     return {
         "game": game, "opening": name,
@@ -93,11 +93,11 @@ def main():
     parser.add_argument("--prunex", required=True)
     parser.add_argument("--stockfish", required=True)
     parser.add_argument("--output", default="benchmark-results")
-    parser.add_argument("--movetime-ms", type=int, default=50)
+    parser.add_argument("--nodes-per-move", type=int, default=10000)
     parser.add_argument("--repeats", type=int, default=2)
     args = parser.parse_args()
-    if not 10 <= args.movetime_ms <= 10000:
-        raise SystemExit("Move time must be between 10 and 10000 ms")
+    if not 1000 <= args.nodes_per_move <= 1000000:
+        raise SystemExit("Node count must be between 1000 and 1000000")
     if not 1 <= args.repeats <= 10:
         raise SystemExit("Repeats must be between 1 and 10")
     outdir = pathlib.Path(args.output)
@@ -116,7 +116,7 @@ def main():
             for repeat in range(args.repeats):
                 for prunex_white in (True, False):
                     number = len(results) + 1
-                    result = play_game(prunex, stockfish, opening, prunex_white, args.movetime_ms, number)
+                    result = play_game(prunex, stockfish, opening, prunex_white, args.nodes_per_move, number)
                     result["repeat"] = repeat + 1
                     results.append(result)
                     with pgn_path.open("a", encoding="utf-8") as handle:
@@ -136,7 +136,7 @@ def main():
         "wins": wins, "draws": draws, "losses": losses,
         "points": points,
         "score_percent": round(points * 100 / len(results), 2),
-        "movetime_ms_per_move": args.movetime_ms,
+        "nodes_per_move": args.nodes_per_move,
         "repeats": args.repeats,
         "openings": len(OPENINGS),
         "color_balance": {
