@@ -1,0 +1,59 @@
+name: Play Prunex in the browser
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Prunex-0.5.1.zip'
+      - 'web/**'
+      - '.github/workflows/play-prunex.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Validate and extract Prunex source
+        run: |
+          unzip -t Prunex-0.5.1.zip
+          mkdir -p source site
+          python3 -c "import zipfile; zipfile.ZipFile('Prunex-0.5.1.zip').extractall('source')"
+          test -f source/Prunex/src/main.cpp
+
+      - name: Copy browser application
+        run: |
+          cp web/index.html web/app.js web/style.css web/engine-worker.js site/
+          touch site/.nojekyll
+
+      - name: Compile C++ engine to WebAssembly
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src emscripten/emsdk:6.0.13 em++             -O3             -std=c++20             -Isource/Prunex/src             web/wasm.cpp             -o site/prunex.js             -sMODULARIZE=1             -sEXPORT_NAME=createPrunexModule             -sENVIRONMENT=worker             -sALLOW_MEMORY_GROWTH=1             -sFILESYSTEM=0             -sNO_EXIT_RUNTIME=1             -sNO_ENTRY=1             "-sEXPORTED_FUNCTIONS=['_prunex_best_move']"             "-sEXPORTED_RUNTIME_METHODS=['ccall']"
+          test -s site/prunex.js
+          test -s site/prunex.wasm
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
