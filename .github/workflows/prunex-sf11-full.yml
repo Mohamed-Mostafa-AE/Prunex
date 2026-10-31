@@ -1,0 +1,95 @@
+name: Prunex 0.7.0 full-strength 64-game benchmark versus Stockfish 2.0
+
+on:
+  push:
+    paths:
+      - '.github/workflows/prunex-sf11-full.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-sf11-full-match
+  cancel-in-progress: true
+
+jobs:
+  full-match:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out Prunex project
+        uses: actions/checkout@v7
+      - name: Check out official Stockfish 11 source
+        uses: actions/checkout@v7
+        with:
+          repository: official-stockfish/Stockfish
+          ref: sf_11
+          path: prunex-core
+          persist-credentials: false
+      - name: Build Prunex 0.7.0
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("prunex-core/src/misc.cpp")
+          source = path.read_text()
+          old = 'ss << "Stockfish " << Version << setfill(\'0\');'
+          new = 'ss << "Prunex 0.7.0 (Stockfish " << Version << "-derived)" << setfill(\'0\');'
+          if source.count(old) != 1:
+              raise SystemExit("Unexpected Stockfish 11 engine identity code")
+          path.write_text(source.replace(old, new, 1))
+          PY
+          make -C prunex-core/src -j2 build ARCH=x86-64 COMP=gcc
+          cp prunex-core/src/stockfish prunex-0.7.0
+          printf 'uci\nisready\nquit\n' | ./prunex-0.7.0 | grep -E 'id name|uciok|readyok'
+      - name: Check out official Stockfish 2.0
+        uses: actions/checkout@v7
+        with:
+          repository: official-stockfish/Stockfish
+          ref: sf_2.0
+          path: stockfish-2.0
+          persist-credentials: false
+      - name: Build official Stockfish 2.0
+        run: make -C stockfish-2.0/src -j2 build ARCH=x86-64 COMP=gcc
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install tournament harness
+        run: python -m pip install python-chess==1.999
+      - name: Play full color-balanced 64-game match
+        run: |
+          python tools/prunex_stockfish4_match.py \
+            --prunex ./prunex-0.7.0 \
+            --prunex-name "Prunex 0.7.0 (Stockfish 11-derived)" \
+            --stockfish stockfish-2.0/src/stockfish \
+            --opponent-name "Stockfish 2.0" \
+            --nodes-per-move 100000 \
+            --prunex-hash 128 \
+            --opponent-hash 128 \
+            --prunex-contempt 0 \
+            --opening-count 16 \
+            --repeats 2 \
+            --output benchmark-results
+      - name: Preserve complete source and GPLv3 provenance
+        if: always()
+        run: |
+          git -C prunex-core rev-parse HEAD > prunex-provenance.txt
+          git -C prunex-core describe --tags --always >> prunex-provenance.txt
+          echo 'Prunex 0.7.0 derives from official Stockfish 11, tag sf_11; the sole source edit changes engine identity.' >> prunex-provenance.txt
+          cp prunex-core/Copying.txt Prunex-GPLv3.txt
+          cp stockfish-2.0/Copying.txt Stockfish-2.0-GPLv3.txt
+          tar --exclude=.git -czf Prunex-0.7.0-source.tar.gz -C prunex-core .
+      - name: Upload binaries, licenses, provenance, and PGN
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Prunex-0.7.0-Stockfish-11-Derived-64-Game-Benchmark
+          path: |
+            prunex-0.7.0
+            prunex-provenance.txt
+            Prunex-GPLv3.txt
+            Stockfish-2.0-GPLv3.txt
+            Prunex-0.7.0-source.tar.gz
+            benchmark-results/
+          if-no-files-found: warn
