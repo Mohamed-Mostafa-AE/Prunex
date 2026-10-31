@@ -162,6 +162,11 @@ function onSquare(square) {
 
 worker.addEventListener("message", (event) => {
   const data = event.data || {};
+  if (data.type === "debug") {
+    stateEl.textContent = "Loading engine";
+    statusEl.textContent = "DEBUG: " + data.message;
+    return;
+  }
   if (data.type === "ready") {
     ready = true;
     render();
