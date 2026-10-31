@@ -180,6 +180,13 @@ worker.addEventListener("message", (event) => {
         render();
         return;
     }
+    if (data.type === "error" && data.requestId === undefined) {
+        engineBusy = false;
+        ready = false;
+        render();
+        setStatus("Engine startup failed: " + data.message, "error");
+        return;
+    }
     if (data.requestId !== requestId) return;
     engineBusy = false;
     if (data.type === "error") {
