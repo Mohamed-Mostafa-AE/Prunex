@@ -1,13 +1,13 @@
-import createPrunexModule from "/engine/prunex.js";
+const engineFactoryUrl = () => new URL("/engine/prunex.js", self.location.origin).href;
 
 let enginePromise;
 let activeRequest = 0;
 
 async function engine() {
   if (!enginePromise) {
-    enginePromise = createPrunexModule({
+    enginePromise = import(/* @vite-ignore */ engineFactoryUrl()).then((factory) => factory.default({
       locateFile: (path) => new URL("/engine/" + path, self.location.origin).toString()
-    }).then((module) => {
+    })).then((module) => {
       module._prunex_init();
       return module;
     });
