@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10151d">
+  <meta name="description" content="Play chess against Prunex, a C++ chess engine running locally in your browser through WebAssembly.">
+  <title>Play Prunex — Chess Engine</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="./">
+        <span class="brand-mark">P</span>
+        <span>PRUNEX <small>CHESS ENGINE</small></span>
+      </a>
+      <div class="engine-badge"><span class="pulse"></span><span id="engine-state" data-busy="false">Loading WebAssembly engine</span></div>
+    </header>
+
+    <section class="intro">
+      <p class="eyebrow">PRUNEX 0.5.1 · RUNNING IN YOUR BROWSER</p>
+      <h1>Make your move.</h1>
+      <p class="subtitle">Play as White against Prunex. The C++ engine runs on your device through WebAssembly — no account or server-side game session required.</p>
+    </section>
+
+    <section class="play-layout">
+      <div class="board-column">
+        <div class="board-topline"><span>YOU <b>WHITE</b></span><span class="versus">VS</span><span>PRUNEX <b>BLACK</b></span></div>
+        <div id="board" class="board" role="group" aria-label="Chessboard"></div>
+        <div class="board-actions">
+          <button id="flip" class="subtle-button" type="button">Flip board</button>
+          <button id="undo" class="subtle-button" type="button" disabled>Undo turn</button>
+          <button id="new-game" class="new-button" type="button">New game</button>
+        </div>
+        <div class="game-status"><span class="status-dot"></span><span id="status" aria-live="polite">Loading engine…</span></div>
+      </div>
+
+      <aside class="side-panel">
+        <div class="panel-section">
+          <p class="panel-label">ENGINE SETTINGS</p>
+          <label for="move-time">Think time per move</label>
+          <select id="move-time">
+            <option value="100">0.1 seconds · Fast</option>
+            <option value="250">0.25 seconds</option>
+            <option value="500" selected>0.5 seconds · Balanced</option>
+            <option value="1000">1 second</option>
+            <option value="2000">2 seconds · Stronger</option>
+            <option value="5000">5 seconds</option>
+          </select>
+          <label for="search-depth">Maximum search depth</label>
+          <select id="search-depth">
+            <option value="8">8</option>
+            <option value="10">10</option>
+            <option value="12" selected>12</option>
+          </select>
+          <label for="promotion">Pawn promotion</label>
+          <select id="promotion">
+            <option value="q" selected>Queen</option>
+            <option value="r">Rook</option>
+            <option value="b">Bishop</option>
+            <option value="n">Knight</option>
+          </select>
+        </div>
+        <div class="panel-section move-section">
+          <div class="moves-heading"><p class="panel-label">MOVE HISTORY</p><span>WHITE · BLACK</span></div>
+          <div id="move-list" class="move-list"><div class="empty-history">The game hasn't started.</div></div>
+        </div>
+        <div class="panel-footer">
+          <div class="local-tag"><span>●</span> LOCAL ENGINE</div>
+          <p>Search runs in a background worker. Higher think times may use more battery and CPU.</p>
+        </div>
+      </aside>
+    </section>
+
+    <footer class="footer">
+      <span>PRUNEX · C++20 / WEBASSEMBLY</span>
+      <span>Independent engine · No Elo rating claimed</span>
+    </footer>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
