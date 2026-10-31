@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - name: Install match harness
@@ -42,7 +42,7 @@ jobs:
           python tools/stockfish_match.py --prunex build/prunex --stockfish4 stockfish4/src/stockfish --stockfish6 stockfish6/src/stockfish --movetime-ms 100 --repeats 2 --output benchmark-results
       - name: Upload match results and PGNs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Prunex-Stockfish-4-6-Benchmark
           path: benchmark-results/
