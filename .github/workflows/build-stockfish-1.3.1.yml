@@ -22,8 +22,9 @@ jobs:
           persist-credentials: false
       - name: Compile official source with GCC
         run: |
+          sed -i 's/^CXX = icpc$/CXX = g++/' stockfish-source/src/Makefile
           make -C stockfish-source/src clean
-          make -C stockfish-source/src -j2 CXX=g++ CXXFLAGS="-DNDEBUG -O3 -fno-exceptions -fomit-frame-pointer -fno-rtti -fno-strict-aliasing -std=gnu++03"
+          make -C stockfish-source/src -j2 CXXFLAGS="-DNDEBUG -O3 -fno-exceptions -fomit-frame-pointer -fno-rtti -fno-strict-aliasing -std=gnu++03"
           file stockfish-source/src/stockfish
           ./stockfish-source/src/stockfish bench 4 1 8 default depth
       - name: Record provenance
