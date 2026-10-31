@@ -44,7 +44,7 @@ jobs:
             bash -lc 'make -j2 ARCH=general-64 COMP=gcc CXX=em++ EXE=prunex.js \
               OBJS="benchmark.o bitbase.o bitboard.o book.o endgame.o evaluate.o material.o misc.o movegen.o movepick.o notation.o pawns.o position.o search.o thread.o timeman.o tt.o uci.o ucioption.o prunex_wasm.o" \
               CXXFLAGS="-DNDEBUG -O3 -std=gnu++11 -DIS_64BIT -DNO_PREFETCH -pthread" \
-              LDFLAGS="-pthread -sPTHREAD_POOL_SIZE=3 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=134217728 -sMAXIMUM_MEMORY=536870912 -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createPrunexModule -sENVIRONMENT=worker -sEXPORTED_FUNCTIONS=[_prunex_init,_prunex_best_move] -sEXPORTED_RUNTIME_METHODS=[ccall]" build'
+              LDFLAGS="-pthread -sPTHREAD_POOL_SIZE=1 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=100663296 -sMAXIMUM_MEMORY=268435456 -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createPrunexModule -sENVIRONMENT=worker -sEXPORTED_FUNCTIONS=[_prunex_init,_prunex_best_move] -sEXPORTED_RUNTIME_METHODS=[ccall]" build'
           test -s stockfish-source/src/prunex.js
           test -s stockfish-source/src/prunex.wasm
           cp stockfish-source/src/prunex.js website/public/engine/
