@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'Prunex-0.5.1.zip'
+      - 'Prunex-0.5.2.zip'
       - '.github/workflows/stockfish-benchmark.yml'
 
 permissions:
@@ -23,14 +23,14 @@ jobs:
       - name: Upload source archive for reproducible local tuning
         uses: actions/upload-artifact@v6
         with:
-          name: Prunex-0.5.1-source
-          path: Prunex-0.5.1.zip
+          name: Prunex-0.5.2-source
+          path: Prunex-0.5.2.zip
           if-no-files-found: error
       - name: Install match harness
         run: python -m pip install python-chess==1.999
-      - name: Extract Prunex 0.5.1
+      - name: Extract Prunex 0.5.2
         run: |
-          python -c "import zipfile; zipfile.ZipFile('Prunex-0.5.1.zip').extractall('extracted')"
+          python -c "import zipfile; zipfile.ZipFile('Prunex-0.5.2.zip').extractall('extracted')"
       - name: Build Prunex
         run: |
           cmake -S extracted/Prunex -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
@@ -44,6 +44,14 @@ jobs:
         run: git clone --depth 1 --branch sf_6 https://github.com/official-stockfish/Stockfish.git stockfish6
       - name: Build Stockfish 6
         run: make -C stockfish6/src -j2 build ARCH=x86-64 COMP=gcc
+      - name: Upload Stockfish engines for local analysis
+        uses: actions/upload-artifact@v6
+        with:
+          name: Stockfish-4-6-Linux-x64
+          path: |
+            stockfish4/src/stockfish
+            stockfish6/src/stockfish
+          if-no-files-found: error
       - name: Run color-balanced equal-time matches
         run: |
           python tools/stockfish_match.py --prunex build/prunex --stockfish4 stockfish4/src/stockfish --stockfish6 stockfish6/src/stockfish --movetime-ms 100 --repeats 2 --output benchmark-results
