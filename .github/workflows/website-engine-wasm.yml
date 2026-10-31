@@ -76,5 +76,7 @@ jobs:
             echo "No generated engine changes."
           else
             git commit -m "Build Prunex browser engine WebAssembly [skip ci]"
-            git push
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
           fi
