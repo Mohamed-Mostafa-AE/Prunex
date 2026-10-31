@@ -37,3 +37,10 @@ See [TEST_REPORT.md](TEST_REPORT.md) and [WINDOWS_GUI_CHECKLIST.md](WINDOWS_GUI_
 The `Prunex versus Stockfish 4 and 6` GitHub Actions workflow builds the official `sf_4` and `sf_6` source tags from [the official Stockfish repository](https://github.com/official-stockfish/Stockfish). It runs 64 games against each version, using 16 opening positions, two repeats, and both colors for Prunex.
 
 Both sides receive the same 100 ms per move, with one search thread per engine. The workflow saves PGNs and JSON summaries as downloadable artifacts. This is a fixed-move-time match, not an Elo rating or a large-scale SPRT. The match results must be reviewed before claiming Prunex beats either opponent.
+## Play against Prunex in your browser
+
+The `web/` application provides a browser chessboard that runs the Prunex C++ engine compiled to WebAssembly. The engine runs in a Web Worker on the visitor's device. The page supports legal moves, move history, undo, board flip, promotion choice, and adjustable search time.
+
+The `Play Prunex in the browser` workflow compiles `Prunex-0.5.1.zip` with Emscripten and deploys the static site to GitHub Pages. To enable the first deployment, open **Settings → Pages** and select **GitHub Actions** as the build and deployment source. The intended project URL is `https://mohamed-mostafa-gt.github.io/Prunex/`.
+
+The Pages site is public. GitHub Pages supports private source repositories only on paid GitHub plans; GitHub Free requires a public source repository. The source repository is intentionally kept private unless its owner chooses otherwise.
