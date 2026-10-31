@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#10151d">
+    <meta name="description" content="Play chess against Prunex, a C++ chess engine running locally in your browser.">
+    <title>Prunex — Play Chess</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Prunex home">
+          <span class="brand-mark">P</span>
+          <span>PRUNEX</span>
+        </a>
+        <div class="engine-state"><span class="state-dot"></span><span id="engine-state">Starting engine</span></div>
+      </header>
+
+      <main class="layout">
+        <section class="play">
+          <div class="game-heading">
+            <div>
+              <p class="eyebrow">CHESS ENGINE · 0.6.0</p>
+              <h1>Make your move.</h1>
+            </div>
+            <span class="turn-pill" id="turn-label">YOU · WHITE</span>
+          </div>
+          <div class="board-frame">
+            <div id="board" class="board" role="group" aria-label="Chessboard"></div>
+          </div>
+          <div class="toolbar">
+            <button id="new-game" class="button button-primary">New game</button>
+            <button id="undo" class="button" disabled>Undo</button>
+            <button id="flip" class="button">Flip</button>
+            <label class="strength">
+              <span>Engine strength</span>
+              <select id="nodes">
+                <option value="10000">Quick</option>
+                <option value="25000" selected>Balanced</option>
+                <option value="50000">Strong</option>
+                <option value="100000">Deeper</option>
+                <option value="250000">Maximum</option>
+              </select>
+            </label>
+          </div>
+          <div class="status-row">
+            <span class="status-indicator"></span>
+            <span id="status" aria-live="polite">Loading engine…</span>
+          </div>
+        </section>
+
+        <aside class="sidebar">
+          <div class="sidebar-heading">
+            <h2>Moves</h2>
+            <span id="move-count">0 moves</span>
+          </div>
+          <div id="move-list" class="move-list">
+            <div class="empty">The game hasn't started.</div>
+          </div>
+          <div class="sidebar-note">
+            <span class="local-icon">●</span>
+            <span>Engine calculations run locally in your browser.</span>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-description">
+          <a class="footer-brand" href="/">PRUNEX</a>
+          <p>Prunex is an open-source chess engine project. The browser engine is derived from Stockfish 4 and distributed under GPLv3.</p>
+        </div>
+        <div class="footer-contact">
+          <span class="footer-label">CONTACT</span>
+          <a href="https://github.com/Mohamed-Mostafa-GT" target="_blank" rel="noreferrer">GitHub ↗</a>
+          <a href="mailto:mohamedhussam09@gmail.com">Email ↗</a>
+        </div>
+        <div class="footer-meta">© <span id="year"></span> PRUNEX</div>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
