@@ -35,18 +35,20 @@ def make_opening(name, tokens):
         board.push(move)
     return name, board
 
-def configure(engine):
+def configure(engine, hash_size=64, contempt=None):
     settings = {}
-    for name, value in (("Threads", 1), ("Hash", 64), ("Minimum Thinking Time", 0)):
+    for name, value in (("Threads", 1), ("Hash", hash_size), ("Minimum Thinking Time", 0)):
         if name in engine.options:
             settings[name] = value
     for name, value in (("OwnBook", False),):
         if name in engine.options:
             settings[name] = value
+    if contempt is not None and "Contempt Factor" in engine.options:
+        settings["Contempt Factor"] = contempt
     if settings:
         engine.configure(settings)
 
-def play_game(prunex, stockfish, opponent_name, opening, prunex_white, nodes_per_move, number):
+def play_game(prunex, stockfish, opponent_name, opening, prunex_white, nodes_per_move, prunex_contempt, number):
     name, initial = opening
     board = initial.copy()
     game_token = object()
@@ -79,6 +81,7 @@ def play_game(prunex, stockfish, opponent_name, opening, prunex_white, nodes_per
     game.headers["Opening"] = name
     game.headers["Termination"] = termination
     game.headers["NodeControl"] = f"{nodes_per_move} nodes/move"
+    game.headers["PrunexContempt"] = str(prunex_contempt)
     game.headers["PrunexColor"] = "White" if prunex_white else "Black"
     return {
         "game": game, "opening": name,
@@ -96,6 +99,9 @@ def main():
     parser.add_argument("--output", default="benchmark-results")
     parser.add_argument("--nodes-per-move", type=int, default=10000)
     parser.add_argument("--opening-count", type=int, default=8)
+    parser.add_argument("--prunex-contempt", type=int, default=0, choices=range(-50, 51))
+    parser.add_argument("--prunex-hash", type=int, default=64)
+    parser.add_argument("--opponent-hash", type=int, default=64)
     parser.add_argument("--repeats", type=int, default=1)
     args = parser.parse_args()
     if not 1000 <= args.nodes_per_move <= 1000000:
@@ -112,8 +118,8 @@ def main():
     results = []
     pgn_path = outdir / ("prunex-vs-" + args.opponent_name.lower().replace(" ", "-") + ".pgn")
     try:
-        configure(prunex)
-        configure(stockfish)
+        configure(prunex, args.prunex_hash, args.prunex_contempt)
+        configure(stockfish, args.opponent_hash, 0)
         prunex.ping()
         stockfish.ping()
         for index, opening_data in enumerate(selected_openings):
@@ -121,7 +127,7 @@ def main():
             for repeat in range(args.repeats):
                 for prunex_white in (True, False):
                     number = len(results) + 1
-                    result = play_game(prunex, stockfish, args.opponent_name, opening, prunex_white, args.nodes_per_move, number)
+                    result = play_game(prunex, stockfish, args.opponent_name, opening, prunex_white, args.nodes_per_move, args.prunex_contempt, number)
                     result["repeat"] = repeat + 1
                     results.append(result)
                     with pgn_path.open("a", encoding="utf-8") as handle:
@@ -142,6 +148,9 @@ def main():
         "points": points,
         "score_percent": round(points * 100 / len(results), 2),
         "nodes_per_move": args.nodes_per_move,
+        "prunex_contempt": args.prunex_contempt,
+        "prunex_hash_mb": args.prunex_hash,
+        "opponent_hash_mb": args.opponent_hash,
         "repeats": args.repeats,
         "openings": len(selected_openings),
         "color_balance": {
