@@ -46,7 +46,7 @@ def configure(engine):
     if settings:
         engine.configure(settings)
 
-def play_game(prunex, stockfish, opening, prunex_white, nodes_per_move, number):
+def play_game(prunex, stockfish, opponent_name, opening, prunex_white, nodes_per_move, number):
     name, initial = opening
     board = initial.copy()
     game_token = object()
@@ -73,8 +73,8 @@ def play_game(prunex, stockfish, opening, prunex_white, nodes_per_move, number):
     game.headers["Event"] = "Prunex 0.6.0 (Stockfish 4-derived) vs official " + args.opponent_name
     game.headers["Site"] = "GitHub Actions"
     game.headers["Round"] = str(number)
-    game.headers["White"] = "Prunex 0.6.0" if prunex_white else args.opponent_name
-    game.headers["Black"] = args.opponent_name if prunex_white else "Prunex 0.6.0"
+    game.headers["White"] = "Prunex 0.6.0" if prunex_white else opponent_name
+    game.headers["Black"] = opponent_name if prunex_white else "Prunex 0.6.0"
     game.headers["Result"] = result_text
     game.headers["Opening"] = name
     game.headers["Termination"] = termination
@@ -121,7 +121,7 @@ def main():
             for repeat in range(args.repeats):
                 for prunex_white in (True, False):
                     number = len(results) + 1
-                    result = play_game(prunex, stockfish, opening, prunex_white, args.nodes_per_move, number)
+                    result = play_game(prunex, stockfish, args.opponent_name, opening, prunex_white, args.nodes_per_move, number)
                     result["repeat"] = repeat + 1
                     results.append(result)
                     with pgn_path.open("a", encoding="utf-8") as handle:
