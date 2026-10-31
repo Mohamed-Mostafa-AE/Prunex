@@ -1,0 +1,85 @@
+name: Prunex 0.6.0 strength tuning versus Stockfish 2.0
+
+on:
+  push:
+    paths:
+      - '.github/workflows/prunex-sf2-tuning.yml'
+      - 'tools/prunex_stockfish4_match.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-sf2-tuning
+  cancel-in-progress: true
+
+jobs:
+  tune:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out Prunex project
+        uses: actions/checkout@v7
+
+      - name: Check out Stockfish 4 source for Prunex
+        uses: actions/checkout@v7
+        with:
+          repository: official-stockfish/Stockfish
+          ref: sf_4
+          path: prunex-core
+          persist-credentials: false
+
+      - name: Build Prunex 0.6.0
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("prunex-core/src/misc.cpp")
+          source = path.read_text()
+          old = 's << "Stockfish " << Version'
+          new = 's << "Prunex 0.6.0 (Stockfish " << Version << "-derived)"'
+          if source.count(old) != 1:
+              raise SystemExit("Unexpected Stockfish 4 UCI identification string")
+          path.write_text(source.replace(old, new, 1))
+          PY
+          make -C prunex-core/src -j2 build ARCH=x86-64 COMP=gcc
+          cp prunex-core/src/stockfish prunex-0.6.0
+
+      - name: Build official Stockfish 2.0
+        uses: actions/checkout@v7
+        with:
+          repository: official-stockfish/Stockfish
+          ref: sf_2.0
+          path: stockfish-2.0
+          persist-credentials: false
+
+      - name: Compile Stockfish 2.0
+        run: make -C stockfish-2.0/src -j2 build ARCH=x86-64 COMP=gcc
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install benchmark harness
+        run: python -m pip install python-chess==1.999
+
+      - name: Run baseline at 100k nodes, 128 MB hash
+        run: |
+          python tools/prunex_stockfish4_match.py             --prunex ./prunex-0.6.0             --stockfish stockfish-2.0/src/stockfish             --opponent-name "Stockfish 2.0"             --nodes-per-move 100000             --opening-count 8             --repeats 1             --prunex-hash 128             --opponent-hash 128             --prunex-contempt 0             --output tuning-results/baseline
+
+      - name: Run contempt 25 at 100k nodes, 128 MB hash
+        run: |
+          python tools/prunex_stockfish4_match.py             --prunex ./prunex-0.6.0             --stockfish stockfish-2.0/src/stockfish             --opponent-name "Stockfish 2.0"             --nodes-per-move 100000             --opening-count 8             --repeats 1             --prunex-hash 128             --opponent-hash 128             --prunex-contempt 25             --output tuning-results/contempt-25
+
+      - name: Run contempt 50 at 100k nodes, 128 MB hash
+        run: |
+          python tools/prunex_stockfish4_match.py             --prunex ./prunex-0.6.0             --stockfish stockfish-2.0/src/stockfish             --opponent-name "Stockfish 2.0"             --nodes-per-move 100000             --opening-count 8             --repeats 1             --prunex-hash 128             --opponent-hash 128             --prunex-contempt 50             --output tuning-results/contempt-50
+
+      - name: Upload tuning games and summaries
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Prunex-Stockfish-2.0-100k-node-contempt-tuning
+          path: tuning-results/
+          if-no-files-found: warn
