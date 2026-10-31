@@ -1,4 +1,4 @@
-name: Prunex 0.6.0 strength tuning versus Stockfish 2.0
+name: Prunex 0.6.0 full-strength benchmark versus Stockfish 2.0
 
 on:
   push:
@@ -11,18 +11,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: prunex-sf2-tuning
+  group: prunex-sf2-full-strength
   cancel-in-progress: true
 
 jobs:
-  tune:
+  full-benchmark:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
       - name: Check out Prunex project
         uses: actions/checkout@v7
 
-      - name: Check out Stockfish 4 source for Prunex
+      - name: Check out official Stockfish 4 source for Prunex
         uses: actions/checkout@v7
         with:
           repository: official-stockfish/Stockfish
@@ -44,8 +44,9 @@ jobs:
           PY
           make -C prunex-core/src -j2 build ARCH=x86-64 COMP=gcc
           cp prunex-core/src/stockfish prunex-0.6.0
+          printf 'uci\nisready\nquit\n' | ./prunex-0.6.0 | grep -E 'id name|uciok|readyok'
 
-      - name: Build official Stockfish 2.0
+      - name: Check out official Stockfish 2.0
         uses: actions/checkout@v7
         with:
           repository: official-stockfish/Stockfish
@@ -53,7 +54,7 @@ jobs:
           path: stockfish-2.0
           persist-credentials: false
 
-      - name: Compile Stockfish 2.0
+      - name: Build official Stockfish 2.0
         run: make -C stockfish-2.0/src -j2 build ARCH=x86-64 COMP=gcc
 
       - name: Set up Python
@@ -61,25 +62,46 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install benchmark harness
+      - name: Install reproducible benchmark harness
         run: python -m pip install python-chess==1.999
 
-      - name: Run baseline at 100k nodes, 128 MB hash
+      - name: Run full 64-game color-balanced tournament
         run: |
-          python tools/prunex_stockfish4_match.py             --prunex ./prunex-0.6.0             --stockfish stockfish-2.0/src/stockfish             --opponent-name "Stockfish 2.0"             --nodes-per-move 100000             --opening-count 8             --repeats 1             --prunex-hash 128             --opponent-hash 128             --prunex-contempt 0             --output tuning-results/baseline
+          python tools/prunex_stockfish4_match.py \
+            --prunex ./prunex-0.6.0 \
+            --stockfish stockfish-2.0/src/stockfish \
+            --opponent-name "Stockfish 2.0" \
+            --nodes-per-move 100000 \
+            --opening-count 16 \
+            --repeats 2 \
+            --prunex-hash 128 \
+            --opponent-hash 128 \
+            --prunex-contempt 0 \
+            --output benchmark-results
 
-      - name: Run contempt 25 at 100k nodes, 128 MB hash
+      - name: Preserve source provenance and GPLv3 licenses
+        if: always()
         run: |
-          python tools/prunex_stockfish4_match.py             --prunex ./prunex-0.6.0             --stockfish stockfish-2.0/src/stockfish             --opponent-name "Stockfish 2.0"             --nodes-per-move 100000             --opening-count 8             --repeats 1             --prunex-hash 128             --opponent-hash 128             --prunex-contempt 25             --output tuning-results/contempt-25
+          git -C prunex-core rev-parse HEAD > prunex-provenance.txt
+          git -C stockfish-2.0 rev-parse HEAD > stockfish2-provenance.txt
+          echo 'Prunex 0.6.0 is derived from official Stockfish 4 (sf_4); only its UCI identity string is changed.' >> prunex-provenance.txt
+          cp prunex-core/Copying.txt Prunex-GPLv3.txt
+          cp stockfish-2.0/Copying.txt Stockfish-2.0-GPLv3.txt
+          tar --exclude=.git -czf Prunex-0.6.0-source.tar.gz -C prunex-core .
+          tar --exclude=.git -czf Stockfish-2.0-source.tar.gz -C stockfish-2.0 .
 
-      - name: Run contempt 50 at 100k nodes, 128 MB hash
-        run: |
-          python tools/prunex_stockfish4_match.py             --prunex ./prunex-0.6.0             --stockfish stockfish-2.0/src/stockfish             --opponent-name "Stockfish 2.0"             --nodes-per-move 100000             --opening-count 8             --repeats 1             --prunex-hash 128             --opponent-hash 128             --prunex-contempt 50             --output tuning-results/contempt-50
-
-      - name: Upload tuning games and summaries
+      - name: Upload complete tournament and sources
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: Prunex-Stockfish-2.0-100k-node-contempt-tuning
-          path: tuning-results/
+          name: Prunex-0.6.0-Stockfish-2.0-100k-64-Game
+          path: |
+            prunex-0.6.0
+            Prunex-GPLv3.txt
+            Stockfish-2.0-GPLv3.txt
+            prunex-provenance.txt
+            stockfish2-provenance.txt
+            Prunex-0.6.0-source.tar.gz
+            Stockfish-2.0-source.tar.gz
+            benchmark-results/
           if-no-files-found: warn
