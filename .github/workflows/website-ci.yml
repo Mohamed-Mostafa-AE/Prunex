@@ -1,0 +1,43 @@
+name: Validate Prunex Vercel website
+
+on:
+  push:
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-ci.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build production website
+        run: npm run build
+      - name: Verify required static assets
+        run: |
+          test -s dist/index.html
+          test -s dist/engine/prunex.js
+          test -s dist/engine/prunex.wasm
+          grep -q 'mohamedhussam09@gmail.com' dist/index.html
+          grep -q 'github.com/Mohamed-Mostafa-GT' dist/index.html
+          test -f vercel.json
