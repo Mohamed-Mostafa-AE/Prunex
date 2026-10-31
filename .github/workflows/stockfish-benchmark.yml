@@ -1,0 +1,49 @@
+name: Prunex versus Stockfish 4 and 6
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Prunex-0.5.0.zip'
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install match harness
+        run: python -m pip install python-chess==1.999
+      - name: Extract Prunex 0.5.0
+        run: |
+          python -c "import zipfile; zipfile.ZipFile('Prunex-0.5.0.zip').extractall('extracted')"
+      - name: Build Prunex
+        run: |
+          cmake -S extracted/Prunex -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure
+      - name: Fetch Stockfish 4
+        run: git clone --depth 1 --branch sf_4 https://github.com/official-stockfish/Stockfish.git stockfish4
+      - name: Build Stockfish 4
+        run: make -C stockfish4/src -j2 build ARCH=x86-64 COMP=gcc
+      - name: Fetch Stockfish 6
+        run: git clone --depth 1 --branch sf_6 https://github.com/official-stockfish/Stockfish.git stockfish6
+      - name: Build Stockfish 6
+        run: make -C stockfish6/src -j2 build ARCH=x86-64 COMP=gcc
+      - name: Run color-balanced fixed-depth matches
+        run: |
+          python tools/stockfish_match.py --prunex build/prunex --stockfish4 stockfish4/src/stockfish --stockfish6 stockfish6/src/stockfish --depth 6 --repeats 2 --output benchmark-results
+      - name: Upload match results and PGNs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prunex-Stockfish-4-6-Benchmark
+          path: benchmark-results/
+          if-no-files-found: warn
