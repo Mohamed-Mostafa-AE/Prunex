@@ -94,12 +94,16 @@ def main():
     parser.add_argument("--stockfish", required=True)
     parser.add_argument("--output", default="benchmark-results")
     parser.add_argument("--nodes-per-move", type=int, default=10000)
-    parser.add_argument("--repeats", type=int, default=2)
+    parser.add_argument("--opening-count", type=int, default=8)
+    parser.add_argument("--repeats", type=int, default=1)
     args = parser.parse_args()
     if not 1000 <= args.nodes_per_move <= 1000000:
         raise SystemExit("Node count must be between 1000 and 1000000")
     if not 1 <= args.repeats <= 10:
         raise SystemExit("Repeats must be between 1 and 10")
+    if not 1 <= args.opening_count <= len(OPENINGS):
+        raise SystemExit(f"Opening count must be between 1 and {len(OPENINGS)}")
+    selected_openings = OPENINGS[:args.opening_count]
     outdir = pathlib.Path(args.output)
     outdir.mkdir(parents=True, exist_ok=True)
     prunex = chess.engine.SimpleEngine.popen_uci(args.prunex, timeout=120)
@@ -111,7 +115,7 @@ def main():
         configure(stockfish)
         prunex.ping()
         stockfish.ping()
-        for index, opening_data in enumerate(OPENINGS):
+        for index, opening_data in enumerate(selected_openings):
             opening = make_opening(*opening_data)
             for repeat in range(args.repeats):
                 for prunex_white in (True, False):
@@ -138,7 +142,7 @@ def main():
         "score_percent": round(points * 100 / len(results), 2),
         "nodes_per_move": args.nodes_per_move,
         "repeats": args.repeats,
-        "openings": len(OPENINGS),
+        "openings": len(selected_openings),
         "color_balance": {
             "prunex_white": sum(item["prunex_color"] == "White" for item in results),
             "prunex_black": sum(item["prunex_color"] == "Black" for item in results),
