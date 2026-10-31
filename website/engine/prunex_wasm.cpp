@@ -29,8 +29,10 @@ void prunex_init() {
   Bitbases::init_kpk();
   Search::init();
   Eval::init();
+  Options["Threads"] = std::string("1");
+  Options["Hash"] = std::string("32");
   Threads.init();
-  TT.set_size(64);
+  TT.set_size(32);
   Options["OwnBook"] = std::string("false");
   Options["Minimum Thinking Time"] = std::string("0");
   prunex_initialized = true;
