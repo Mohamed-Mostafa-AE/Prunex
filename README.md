@@ -34,13 +34,23 @@ See [TEST_REPORT.md](TEST_REPORT.md) and [WINDOWS_GUI_CHECKLIST.md](WINDOWS_GUI_
 
 ## Stockfish 4 and 6 benchmark
 
-The `Prunex versus Stockfish 4 and 6` GitHub Actions workflow builds the official `sf_4` and `sf_6` source tags from [the official Stockfish repository](https://github.com/official-stockfish/Stockfish). It runs 64 games against each version, using 16 opening positions, two repeats, and both colors for Prunex.
+The `Prunex versus Stockfish 4 and 6` GitHub Actions workflow builds the official `sf_4` and `sf_6` source tags from [the official Stockfish repository](https://github.com/official-stockfish/Stockfish). It ran 64 games against each version, using 16 opening positions, two repeats, both colors, one thread per engine, and equal 100 ms per move.
 
-Both sides receive the same 100 ms per move, with one search thread per engine. The workflow saves PGNs and JSON summaries as downloadable artifacts. This is a fixed-move-time match, not an Elo rating or a large-scale SPRT. The match results must be reviewed before claiming Prunex beats either opponent.
+**Measured Prunex 0.5.1 results:**
+
+| Opponent | Prunex wins | Draws | Prunex losses | Score |
+|---|---:|---:|---:|---:|
+| Stockfish 4 | 0 | 0 | 64 | 0% |
+| Stockfish 6 | 0 | 0 | 64 | 0% |
+
+Prunex did not beat either opponent in this benchmark. All 128 games ended by checkmate. This is a fixed-move-time test, not an Elo rating or a large-scale SPRT. PGNs and JSON summaries are available in the [completed tournament run](https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41235739463).
+
 ## Play against Prunex in your browser
 
 The `web/` application provides a browser chessboard that runs the Prunex C++ engine compiled to WebAssembly. The engine runs in a Web Worker on the visitor's device. The page supports legal moves, move history, undo, board flip, promotion choice, and adjustable search time.
 
-The `Play Prunex in the browser` workflow compiles `Prunex-0.5.1.zip` with Emscripten and deploys the static site to GitHub Pages. To enable the first deployment, open **Settings → Pages** and select **GitHub Actions** as the build and deployment source. The intended project URL is `https://mohamed-mostafa-gt.github.io/Prunex/`.
+For local play, download the compiled [Prunex browser build](Prunex-Web-Build.zip), extract it, double-click `start-server.bat`, and open `http://localhost:8000`. Python 3 and an internet connection for the chess.js library are required. The engine itself runs locally in your browser.
 
-The Pages site is public. GitHub Pages supports private source repositories only on paid GitHub plans; GitHub Free requires a public source repository. The source repository is intentionally kept private unless its owner chooses otherwise.
+The `Play Prunex in the browser` workflow also builds a GitHub Pages artifact. To publish it, open **Settings → Pages** and select **GitHub Actions** as the build and deployment source. The intended project URL is `https://mohamed-mostafa-gt.github.io/Prunex/`. The first deployment is currently blocked because Pages is not enabled for the repository.
+
+The Pages site is public. GitHub Pages supports private source repositories only on paid GitHub plans; GitHub Free requires a public source repository. The source repository remains private.
