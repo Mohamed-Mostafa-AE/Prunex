@@ -33,6 +33,17 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Build production website
         run: npm run build
+      - name: Install Chromium for browser test
+        run: npx playwright install --with-deps chromium
+      - name: Start production preview
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/prunex-preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/ >/dev/null && break
+            sleep 1
+          done
+      - name: Exercise the browser board and engine
+        run: npm run test:browser
       - name: Verify required static assets
         run: |
           test -s dist/index.html
