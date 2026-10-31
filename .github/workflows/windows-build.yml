@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Extract Prunex source archive
         shell: pwsh
-        run: Expand-Archive -LiteralPath Prunex-Cpp-0.4.3-Tested.zip -DestinationPath extracted
+        run: Expand-Archive -LiteralPath Prunex.zip -DestinationPath extracted
       - name: Configure
         run: cmake -S extracted/Prunex -B build -A x64
       - name: Build GUI and engine
