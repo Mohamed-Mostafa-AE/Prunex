@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/prunex-sf11-full.yml'
+      - 'tools/prunex_stockfish4_match.py'
   workflow_dispatch:
 
 permissions:
