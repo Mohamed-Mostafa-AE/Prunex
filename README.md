@@ -49,7 +49,7 @@ Prunex did not beat either opponent in this benchmark. All 128 games ended by ch
 
 The `web/` application provides a browser chessboard that runs the Prunex C++ engine compiled to WebAssembly. The engine runs in a Web Worker on the visitor's device. The page supports legal moves, move history, undo, board flip, promotion choice, and adjustable search time.
 
-For local play, download the compiled [Prunex browser build](Prunex-Web-Build.zip), extract it, double-click `start-server.bat`, and open `http://localhost:8000`. Python 3 and an internet connection for the chess.js library are required. The engine itself runs locally in your browser.
+For local play, download the `github-pages` artifact from the [browser build workflow run](https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41236751855), extract the ZIP and its `artifact.tar`, then run `py -3 -m http.server 8000` from the extracted site folder. Open `http://localhost:8000`. Python 3 and an internet connection for the chess.js library are required. The engine itself runs locally in your browser.
 
 The `Play Prunex in the browser` workflow also builds a GitHub Pages artifact. To publish it, open **Settings → Pages** and select **GitHub Actions** as the build and deployment source. The intended project URL is `https://mohamed-mostafa-gt.github.io/Prunex/`. The first deployment is currently blocked because Pages is not enabled for the repository.
 
