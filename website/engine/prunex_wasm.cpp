@@ -31,8 +31,8 @@ void prunex_init() {
   Eval::init();
   Threads.init();
   TT.set_size(64);
-  Options["OwnBook"] = "false";
-  Options["Minimum Thinking Time"] = "0";
+  Options["OwnBook"] = std::string("false");
+  Options["Minimum Thinking Time"] = std::string("0");
   prunex_initialized = true;
 }
 
