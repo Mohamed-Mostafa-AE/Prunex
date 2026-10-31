@@ -1,7 +1,5 @@
 import argparse
-import csv
 import json
-import os
 import pathlib
 import time
 
@@ -30,23 +28,29 @@ OPENINGS = [
 
 def create_opening(name, moves):
     board = chess.Board()
-    for move in moves:
-        parsed = chess.Move.from_uci(move)
-        if parsed not in board.legal_moves:
-            raise ValueError(f"Illegal opening move {move} in {name}")
-        board.push(parsed)
+    for token in moves:
+        move = chess.Move.from_uci(token)
+        if move not in board.legal_moves:
+            raise ValueError(f"Illegal opening move {token} in {name}")
+        board.push(move)
     return name, board
 
-def play_game(prunex, opponent, prunex_white, opening, depth, game_number):
+def configure_opponent(engine):
+    settings = {key: value for key, value in {"Threads": 1, "Hash": 64}.items() if key in engine.options}
+    if settings:
+        engine.configure(settings)
+
+def play_game(prunex, opponent, prunex_white, opening, movetime_ms, game_number):
     name, initial = opening
     board = initial.copy()
     game_token = object()
     white = prunex if prunex_white else opponent
     black = opponent if prunex_white else prunex
     started = time.monotonic()
+    limit = chess.engine.Limit(time=movetime_ms / 1000.0)
     while not board.is_game_over(claim_draw=True) and board.ply() < 240:
         engine = white if board.turn == chess.WHITE else black
-        result = engine.play(board, chess.engine.Limit(depth=depth), game=game_token)
+        result = engine.play(board, limit, game=game_token)
         if result.move is None or result.move not in board.legal_moves:
             raise RuntimeError(f"Illegal or missing move from {engine.id}: {result.move}")
         board.push(result.move)
@@ -64,16 +68,15 @@ def play_game(prunex, opponent, prunex_white, opening, depth, game_number):
     else:
         score = 0.5
     game = chess.pgn.Game.from_board(board)
-    game.headers["Event"] = "Prunex 0.5.0 engine benchmark"
+    game.headers["Event"] = "Prunex 0.5.1 versus Stockfish"
     game.headers["Site"] = "GitHub Actions"
     game.headers["Round"] = str(game_number)
     game.headers["White"] = prunex.id.get("name", "Prunex") if prunex_white else opponent.id.get("name", "Opponent")
     game.headers["Black"] = opponent.id.get("name", "Opponent") if prunex_white else prunex.id.get("name", "Prunex")
     game.headers["Result"] = result_text
     game.headers["Opening"] = name
-    game.headers["PlyCap"] = "240"
     game.headers["Termination"] = termination
-    game.headers["Depth"] = str(depth)
+    game.headers["TimeControl"] = f"{movetime_ms}ms/move"
     game.headers["PrunexColor"] = "White" if prunex_white else "Black"
     return {
         "game": game,
@@ -86,34 +89,36 @@ def play_game(prunex, opponent, prunex_white, opening, depth, game_number):
         "seconds": round(time.monotonic() - started, 3),
     }
 
-def benchmark(prunex_path, opponent_path, opponent_label, outdir, depth, repeats):
+def benchmark(prunex_path, opponent_path, opponent_label, outdir, movetime_ms, repeats):
     prunex = chess.engine.SimpleEngine.popen_uci(prunex_path, timeout=120)
     opponent = chess.engine.SimpleEngine.popen_uci(opponent_path, timeout=120)
     results = []
     pgn_path = outdir / f"{opponent_label.lower().replace(' ', '-')}.pgn"
     try:
+        configure_opponent(opponent)
         prunex.ping()
         opponent.ping()
-        for opening_index, opening_data in enumerate(OPENINGS):
+        for opening_data in OPENINGS:
             opening = create_opening(*opening_data)
             for repeat in range(repeats):
                 for prunex_white in (True, False):
                     number = len(results) + 1
-                    result = play_game(prunex, opponent, prunex_white, opening, depth, number)
+                    result = play_game(prunex, opponent, prunex_white, opening, movetime_ms, number)
                     result["opponent"] = opponent_label
                     result["repeat"] = repeat + 1
                     results.append(result)
                     with pgn_path.open("a", encoding="utf-8") as handle:
                         print(result["game"], file=handle, end="\n\n")
-                    print(json.dumps({k: v for k, v in result.items() if k != "game"}, ensure_ascii=False), flush=True)
+                    print(json.dumps({key: value for key, value in result.items() if key != "game"}, ensure_ascii=False), flush=True)
     finally:
         prunex.quit()
         opponent.quit()
-    wins = sum(x["score"] == 1.0 for x in results)
-    draws = sum(x["score"] == 0.5 for x in results)
-    losses = sum(x["score"] == 0.0 for x in results)
-    points = sum(x["score"] for x in results)
+    wins = sum(item["score"] == 1.0 for item in results)
+    draws = sum(item["score"] == 0.5 for item in results)
+    losses = sum(item["score"] == 0.0 for item in results)
+    points = sum(item["score"] for item in results)
     summary = {
+        "prunex": "0.5.1",
         "opponent": opponent_label,
         "games": len(results),
         "wins": wins,
@@ -121,17 +126,17 @@ def benchmark(prunex_path, opponent_path, opponent_label, outdir, depth, repeats
         "losses": losses,
         "points": points,
         "score_percent": round(points * 100 / len(results), 2),
-        "depth": depth,
+        "movetime_ms_per_move": movetime_ms,
         "color_balance": {
-            "prunex_white": sum(x["prunex_color"] == "White" for x in results),
-            "prunex_black": sum(x["prunex_color"] == "Black" for x in results),
+            "prunex_white": sum(item["prunex_color"] == "White" for item in results),
+            "prunex_black": sum(item["prunex_color"] == "Black" for item in results),
         },
-        "mean_plies": round(sum(x["plies"] for x in results) / len(results), 2),
-        "mean_game_seconds": round(sum(x["seconds"] for x in results) / len(results), 3),
+        "mean_plies": round(sum(item["plies"] for item in results) / len(results), 2),
+        "mean_game_seconds": round(sum(item["seconds"] for item in results) / len(results), 3),
     }
-    print(json.dumps(summary, indent=2), flush=True)
     with (outdir / f"{opponent_label.lower().replace(' ', '-')}.json").open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2)
+    print(json.dumps(summary, indent=2), flush=True)
     return summary
 
 def main():
@@ -140,18 +145,18 @@ def main():
     parser.add_argument("--stockfish4", required=True)
     parser.add_argument("--stockfish6", required=True)
     parser.add_argument("--output", default="benchmark-results")
-    parser.add_argument("--depth", type=int, default=6)
+    parser.add_argument("--movetime-ms", type=int, default=100)
     parser.add_argument("--repeats", type=int, default=2)
     args = parser.parse_args()
-    if not 1 <= args.depth <= 12:
-        raise SystemExit("Depth must be between 1 and 12")
+    if not 10 <= args.movetime_ms <= 10000:
+        raise SystemExit("Move time must be between 10 and 10000 milliseconds")
     if not 1 <= args.repeats <= 10:
         raise SystemExit("Repeats must be between 1 and 10")
     outdir = pathlib.Path(args.output)
     outdir.mkdir(parents=True, exist_ok=True)
     summaries = [
-        benchmark(args.prunex, args.stockfish4, "Stockfish 4", outdir, args.depth, args.repeats),
-        benchmark(args.prunex, args.stockfish6, "Stockfish 6", outdir, args.depth, args.repeats),
+        benchmark(args.prunex, args.stockfish4, "Stockfish 4", outdir, args.movetime_ms, args.repeats),
+        benchmark(args.prunex, args.stockfish6, "Stockfish 6", outdir, args.movetime_ms, args.repeats),
     ]
     with (outdir / "summary.json").open("w", encoding="utf-8") as handle:
         json.dump(summaries, handle, indent=2)
