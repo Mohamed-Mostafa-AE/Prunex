@@ -33,7 +33,7 @@ jobs:
                   break
           else:
               raise SystemExit('Expected Stockfish 1.3.1 SafetyTable loop was not found')
-          path.write_text('\\n'.join(lines) + '\\n')
+          path.write_text('\n'.join(lines) + '\n')
           PY
           make -C stockfish-source/src clean
           make -C stockfish-source/src -j2 CXXFLAGS="-DNDEBUG -O3 -fno-exceptions -fomit-frame-pointer -fno-rtti -fno-strict-aliasing -std=gnu++03"
