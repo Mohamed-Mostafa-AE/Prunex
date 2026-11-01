@@ -109,7 +109,9 @@ try {
   if (enlargedBoard < 630 || enlargedBoard > 650 || enlargedBoard <= boardAt590 + 35) {
     throw new Error("Board size slider must distinguish 590px from 640px: " + boardAt590 + " -> " + enlargedBoard);
   }
-  if (await page.locator(".opponent-label strong").textContent() !== "Prunex") throw new Error("Engine badge should be branded Prunex.");
+  if (await page.locator(".opponent-label strong").textContent() !== "Prunex 0.8.0") throw new Error("Engine badge should identify the browser build as Prunex 0.8.0.");
+  const engineNote = await page.locator(".engine-note").innerText();
+  if (!engineNote.includes("Stockfish 19 Lite")) throw new Error("Browser engine attribution should identify Stockfish 19 Lite.");
   const workspaceBackground = await page.locator(".workspace").evaluate(el => getComputedStyle(el).backgroundColor);
   const avatarBackground = await page.locator(".engine-avatar").evaluate(el => getComputedStyle(el).backgroundColor);
   if (workspaceBackground !== avatarBackground) throw new Error("Transparent Prunex mark background should match the dark board section.");
