@@ -3,121 +3,112 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0b1118">
+    <meta name="theme-color" content="#090b14">
     <meta name="color-scheme" content="dark">
-    <meta property="og:title" content="Prunex — Play Chess">
-    <meta property="og:description" content="Play chess in your browser against Stockfish.js 19, running locally in a Web Worker.">
+    <meta property="og:title" content="Prunex — Think Beyond the Board">
+    <meta property="og:description" content="Explore Prunex, an open-source chess-engine project. Play, edit positions, and explore chess analysis in your browser.">
     <meta property="og:type" content="website">
-    <meta name="description" content="Play chess in your browser against Stockfish.js 19, running locally in a Web Worker. Explore the Prunex chess-engine project.">
-    <title>Prunex — Play Chess</title>
+    <meta name="description" content="Prunex is an open-source chess-engine project exploring search, evaluation, and practical engine benchmarking. Play chess and edit positions in the browser.">
+    <link rel="icon" type="image/svg+xml" href="/prunex-mark.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Prunex — Think Beyond the Board</title>
   </head>
   <body>
     <div id="app">
       <header class="topbar">
-        <a class="brand" href="/" aria-label="Prunex home">
-          <span class="brand-mark">P</span>
-          <span>PRUNEX</span>
+        <a class="brand" href="#home" aria-label="Prunex home">
+          <img src="/prunex-mark.svg" alt="" class="brand-mark">
+          <span>PRUNEX<span class="brand-period">.</span></span>
         </a>
-        <div class="engine-state"><span class="state-dot"></span><span id="engine-state">Starting engine</span></div>
+        <nav class="nav-links" aria-label="Main navigation">
+          <a href="#play">Play</a><a href="#about">About</a><a href="#benchmark">Benchmark</a><a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Source ↗</a>
+        </nav>
+        <a class="top-cta" href="#play">Open the board <span>↗</span></a>
       </header>
 
-      <main class="layout">
-        <section class="play">
-          <div class="game-heading">
-            <div>
-              <p class="eyebrow">PRUNEX PLAY <span> / </span> BROWSER EDITION</p>
-              <h1>Make your move.</h1>
-              <p class="game-subtitle">A focused chessboard. A capable engine. No account required.</p>
+      <main>
+        <section class="hero" id="home">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span> AN OPEN-SOURCE CHESS ENGINE PROJECT</div>
+            <h1>Think beyond<br>the <span>board.</span></h1>
+            <p class="hero-lede">A study in search, evaluation, and the decisions that shape every position.</p>
+            <p class="hero-description">Prunex is an evolving chess-engine project built around the craft of computational chess. Explore positions, test ideas, and follow the engineering behind the game.</p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#play">Play in your browser <span>↗</span></a>
+              <a class="button button-quiet" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Explore the source <span>↗</span></a>
             </div>
-            <span class="turn-pill" id="turn-label">YOU · WHITE</span>
+            <div class="hero-meta"><span><i class="pulse-dot"></i> Browser demo</span><span>Open source</span><span>No account required</span></div>
           </div>
-          <div class="board-frame">
-            <div id="board" class="board" role="group" aria-label="Chessboard"></div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+            <div class="hero-glow"></div>
+            <div class="hero-knight-wrap"><img src="/prunex-mark.svg" class="hero-mark" alt=""></div>
+            <div class="hero-caption"><span>01 / THE PROJECT</span><span>SEARCH · EVALUATE · REFINE</span></div>
           </div>
-          <div class="toolbar">
-            <button id="new-game" class="button button-primary">New game</button>
-            <button id="undo" class="button" disabled>Undo</button>
-            <button id="flip" class="button">Flip</button>
-            <label class="strength">
-              <span>Engine strength</span>
-              <select id="nodes">
-                <option value="10000">Quick</option>
-                <option value="25000" selected>Balanced</option>
-                <option value="50000">Strong</option>
-                <option value="100000">Deeper</option>
-                <option value="250000">Maximum</option>
-              </select>
-            </label>
+          <div class="hero-bottom"><span>BUILT FOR THE LOVE OF CHESS</span><span>SCROLL TO EXPLORE ↓</span></div>
+        </section>
+
+        <section class="principles" aria-label="Project principles">
+          <article><span class="principle-index">01</span><div><h3>Search</h3><p>Explore candidate moves and look deeper into a position.</p></div></article>
+          <article><span class="principle-index">02</span><div><h3>Evaluate</h3><p>Study how positional features influence a decision.</p></div></article>
+          <article><span class="principle-index">03</span><div><h3>Experiment</h3><p>Benchmark carefully, document results, and iterate.</p></div></article>
+          <article><span class="principle-index">04</span><div><h3>Open source</h3><p>Keep the project and its development transparent.</p></div></article>
+        </section>
+
+        <section class="play-section section-wrap" id="play">
+          <div class="section-heading">
+            <div><div class="eyebrow"><span class="eyebrow-line"></span> INTERACTIVE WORKSPACE</div><h2>Make a move.<br><span>Explore a position.</span></h2></div>
+            <p>This browser demo gives you a place to play, load a custom position, and experiment with the board. Engine calculations run on your device.</p>
           </div>
-          <div class="status-row">
-            <span class="status-indicator"></span>
-            <span id="status" aria-live="polite">Loading engine…</span>
+
+          <div class="workspace">
+            <div class="board-column">
+              <div class="board-topline"><div class="opponent-label"><span class="engine-avatar">P</span><div><strong>Prunex browser opponent</strong><small id="engine-state">Starting engine</small></div></div><span class="turn-pill" id="turn-label">YOU · WHITE</span></div>
+              <div class="board-frame"><div id="board" class="board" role="group" aria-label="Chessboard"></div></div>
+              <div class="board-toolbar">
+                <button id="new-game" class="button button-primary">New game</button>
+                <button id="undo" class="button" disabled>↶ Undo</button>
+                <button id="flip" class="button">⇅ Flip board</button>
+                <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
+              </div>
+              <div class="status-row"><span class="status-indicator"></span><span id="status" aria-live="polite">Loading engine…</span><span class="status-hint" id="analysis-status">Local analysis</span></div>
+            </div>
+
+            <aside class="analysis-panel">
+              <div class="panel-heading"><div><span class="panel-kicker">GAME SESSION</span><h3>Move history</h3></div><span id="move-count">0 plies</span></div>
+              <div id="move-list" class="move-list"><div class="empty">Your game will appear here.</div></div>
+              <div class="engine-controls">
+                <div class="control-title"><span>ENGINE SETTINGS</span><span class="control-live">LOCAL</span></div>
+                <label class="setting-row"><span>Search budget</span><select id="nodes"><option value="10000">Quick · 10k nodes</option><option value="25000" selected>Balanced · 25k nodes</option><option value="50000">Strong · 50k nodes</option><option value="100000">Deep · 100k nodes</option><option value="250000">Maximum · 250k nodes</option></select></label>
+                <label class="setting-row"><span>Board theme</span><select id="theme"><option value="sage">Sage & ivory</option><option value="violet">Violet dusk</option><option value="slate">Slate & sand</option></select></label>
+                <div class="engine-note"><span class="local-dot"></span><span>Opponent: Stockfish.js 19 · Lite WASM<br>Runs locally in a dedicated browser worker.</span></div>
+              </div>
+            </aside>
+          </div>
+
+          <div class="editor-panel">
+            <div class="editor-intro"><span class="panel-kicker">POSITION EDITOR</span><h3>Your board, your position.</h3><p>Paste a valid FEN to load a custom position. This is useful for studying openings, puzzles, and endgames.</p></div>
+            <div class="fen-editor"><label for="fen-input">FEN POSITION</label><textarea id="fen-input" rows="2" spellcheck="false" aria-label="FEN position"></textarea><div class="fen-actions"><button id="load-fen" class="button button-primary">Load position</button><button id="copy-fen" class="button">Copy current FEN</button><button id="reset-position" class="button">Starting position</button><span id="fen-feedback" role="status"></span></div></div>
           </div>
         </section>
 
-        <aside class="sidebar">
-          <div class="sidebar-heading">
-            <h2>Moves</h2>
-            <span id="move-count">0 moves</span>
-          </div>
-          <div id="move-list" class="move-list">
-            <div class="empty">The game hasn't started.</div>
-          </div>
-          <div class="sidebar-note">
-            <span class="local-icon">●</span>
-            <span>Engine calculations run locally in your browser.</span>
-          </div>
-        </aside>
+        <section class="about-section section-wrap" id="about">
+          <div class="about-visual"><div class="about-orbit"></div><img src="/prunex-mark.svg" alt="Prunex knight emblem" class="about-mark"><span class="visual-caption">A PROJECT IN PROGRESS · EST. 2024</span></div>
+          <div class="about-copy"><div class="eyebrow"><span class="eyebrow-line"></span> ABOUT PRUNEX</div><h2>Engineering meets<br><span>the art of chess.</span></h2><p>Prunex is an open-source chess-engine project focused on understanding and improving the components behind strong play: move generation, search, evaluation, and performance.</p><p>The project evolves through implementation, testing, and transparent documentation. The browser workspace is one way to interact with chess positions while the underlying engine work continues.</p><a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Read the project documentation <span>↗</span></a></div>
+        </section>
+
+        <section class="benchmark-section section-wrap" id="benchmark">
+          <div class="benchmark-copy"><div class="eyebrow"><span class="eyebrow-line"></span> PERFORMANCE & PROVENANCE</div><h2>Measure the work.<br><span>Show the evidence.</span></h2><p>Engine strength is meaningful only when the conditions and software lineage are clear. Prunex publishes its benchmark methodology and supporting project notes in the repository.</p><a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex/tree/main/docs" target="_blank" rel="noreferrer">Explore benchmark documentation <span>↗</span></a></div>
+          <div class="benchmark-card"><div class="benchmark-card-top"><span>HISTORICAL MATCH RECORD</span><span class="record-tag">DOCUMENTED</span></div><div class="score-number">98.44<span>%</span></div><p class="score-label">64-game score · Prunex 0.8.0 vs Stockfish 2.0</p><div class="score-bars"><span style="width:96.875%"></span><span style="width:3.125%"></span></div><div class="score-legend"><span><i class="win-dot"></i> 62 wins</span><span><i class="draw-dot"></i> 2 draws</span><span><i class="loss-dot"></i> 0 losses</span></div><div class="benchmark-divider"></div><dl class="benchmark-specs"><div><dt>Search limit</dt><dd>100,000 nodes / move</dd></div><div><dt>Hash / threads</dt><dd>128 MB / 1</dd></div><div><dt>Color balance</dt><dd>32 games each color</dd></div></dl><p class="benchmark-caveat">Important context: the tested Prunex 0.8.0 tournament build is derived from Stockfish 19. This historical comparison is not evidence that the independent Prunex engine has achieved the same playing strength. The browser opponent above is a separate Stockfish.js 19 distribution.</p></div>
+        </section>
       </main>
 
       <footer class="footer">
-        <div class="footer-intro">
-          <a class="footer-brand" href="/" aria-label="Prunex home">PRUNEX<span class="footer-period">.</span></a>
-          <p class="footer-summary">An open-source chess-engine project exploring search, evaluation, and practical engine benchmarking. This page is a local-first browser interface: your moves are processed on your device, not sent to a game server.</p>
-          <div class="footer-contact">
-            <a href="https://github.com/Mohamed-Mostafa-GT" target="_blank" rel="noreferrer">GitHub <span>↗</span></a>
-            <a href="mailto:mohamedhussam09@gmail.com">Email <span>↗</span></a>
-          </div>
-        </div>
-
-        <div class="footer-column">
-          <span class="footer-label">HOW THIS PAGE IS BUILT</span>
-          <dl class="build-list">
-            <div><dt>Interface</dt><dd>Vanilla JavaScript · Vite 8.3.5</dd></div>
-            <div><dt>Chess rules</dt><dd>chess.js 1.4.0</dd></div>
-            <div><dt>Browser engine</dt><dd>Stockfish.js 19.0.1 · Lite single-threaded WASM</dd></div>
-            <div><dt>Execution</dt><dd>Dedicated Web Worker · local browser runtime</dd></div>
-            <div><dt>Build runtime</dt><dd>Node.js 22 · npm</dd></div>
-            <div><dt>Hosting</dt><dd>Vercel · Vite static output</dd></div>
-          </dl>
-        </div>
-
-        <div class="footer-column">
-          <span class="footer-label">ENGINE BENCHMARK</span>
-          <div class="footer-score">
-            <strong>98.44%</strong>
-            <span>Prunex 0.8.0 · 64-game score</span>
-          </div>
-          <p class="footer-detail">62 wins · 2 draws · 0 losses against an official Stockfish 2.0 source build. Equal 100,000 nodes per move, 128 MB hash, one thread, 16 openings, colors balanced.</p>
-          <a class="footer-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41253517143" target="_blank" rel="noreferrer">View benchmark run ↗</a>
-          <p class="footer-caveat">Benchmark engine: Stockfish 19-derived C++ build. This website's browser opponent is the separate Stockfish.js 19.0.1 distribution. Neither result demonstrates that the independent Prunex 0.5.x engine has reached this strength.</p>
-        </div>
-
-        <div class="footer-column">
-          <span class="footer-label">SOURCE & ATTRIBUTION</span>
-          <p class="footer-detail">The browser engine is an upstream Stockfish.js component. The tournament engine is derived from official Stockfish 19. Both are distributed under GPLv3. Their source and attribution must remain available with redistributed binaries.</p>
-          <div class="footer-resources">
-            <a href="https://github.com/Mohamed-Mostafa-GT/Prunex/tree/main/website" target="_blank" rel="noreferrer">Browser integration source ↗</a>
-            <a href="/COPYING.txt" target="_blank" rel="noreferrer">GPLv3 license ↗</a>
-            <a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Project source ↗</a>
-            <a href="https://github.com/official-stockfish/Stockfish" target="_blank" rel="noreferrer">Stockfish upstream ↗</a>
-          </div>
-        </div>
-
-        <div class="footer-bottom">
-          <span>© <span id="year"></span> PRUNEX · BUILT FOR THE LOVE OF CHESS</span>
-          <span>Open source · GPLv3 components · No account required</span>
-        </div>
+        <div class="footer-main"><a class="brand footer-brand" href="#home"><img src="/prunex-mark.svg" alt="" class="brand-mark"><span>PRUNEX<span class="brand-period">.</span></span></a><p>An open-source chess-engine project exploring search, evaluation, and practical engine benchmarking.</p><div class="footer-social"><a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub ↗</a><a href="mailto:mohamedhussam09@gmail.com">Email ↗</a></div></div>
+        <div class="footer-meta"><span>ENGINEERING THE NEXT MOVE.</span><span>© <span id="year"></span> PRUNEX · OPEN SOURCE</span></div>
+        <p class="license-note">The browser opponent is Stockfish.js, an upstream GPLv3-licensed component. Its license and corresponding source archive are available with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">View license ↗</a></p>
       </footer>
     </div>
     <script type="module" src="/src/main.js"></script>
