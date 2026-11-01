@@ -1,6 +1,6 @@
 # Stockfish 2.0 historical-engine match
 
-**Status: result transcribed; opponent binary verification pending.**
+**Status: match result transcribed; opponent version/build fingerprint checks passed locally. Raw game artifacts are not yet in the repository.**
 
 ## Reported result
 
@@ -9,7 +9,7 @@ A local WSL run supplied by the project owner on 2026-11-01 reports the followin
 | Field | Reported value |
 |---|---:|
 | Test engine | Prunex 0.8.0 (Stockfish 19-derived) |
-| Opponent | Official Stockfish 2.0 64-bit |
+| Opponent | Stockfish 2.0 64-bit (local UCI identity and bench signature checked) |
 | Games | 64 |
 | Wins | 63 |
 | Draws | 1 |
@@ -24,7 +24,24 @@ A local WSL run supplied by the project owner on 2026-11-01 reports the followin
 | Prunex as White / Black | 32 / 32 |
 | Draw reason | Threefold repetition |
 
-The local run reported all 64 games complete. The summary above is transcribed from the terminal output; it has not been independently recomputed from the PGN in this repository.
+The local run reported all 64 games complete. The summary is transcribed from the terminal output; the PGN and JSONL were not supplied for independent game-by-game recomputation.
+
+## Opponent executable identity checks
+
+The project owner ran these checks against the local executable at `benchmark-results/deep-1m-256mb/engines/stockfish-2.0`:
+
+| Check | Observed result |
+|---|---|
+| UCI `id name` | `Stockfish 2.0 64bit` |
+| UCI `id author` | `Tord Romstad, Marco Costalba, Joona Kiiski` |
+| `bench` nodes searched | **7,224,363** |
+| SHA-256 | `760f9c7435b4f498d0188b9ae5b81d6a92636328a932c020fb338a93195bcff2` |
+
+The 7,224,363-node result exactly matches the benchmark signature documented in the [official Stockfish 2.0 release announcement](https://stockfishchess.org/blog/2011/stockfish-2/). That announcement identifies the 2011-01-01 Stockfish 2.0 release and explains that the benchmark should end with this searched-node total.
+
+The UCI identification, matching historical benchmark signature, and recorded local SHA-256 together provide a strong practical version/build fingerprint. They are **not** a cryptographic publisher signature and do not independently establish the binary's download provenance. The SHA-256 above is the hash measured locally from the executable used for the check; it is not represented as an upstream-published checksum.
+
+See [verification.json](verification.json) for the structured record. The repository's [verification script](../../tools/verify_stockfish_2.py) can also be used to perform the checks against a local executable.
 
 ## Important interpretation
 
@@ -32,41 +49,14 @@ This benchmark compares the reported **Prunex 0.8.0 Stockfish 19-derived build**
 
 The 99.22% figure is the match score for this specific 64-game setup. It is not an Elo rating, a general strength estimate, or an SPRT result.
 
-## Ensuring the opponent is historical Stockfish 2.0—not Lichess
-
-The Stockfish project's own release announcement dates Stockfish 2.0 to **2011-01-01** and documents its build/benchmark signature: running `stockfish bench` should finish with **7,224,363 searched nodes**.
-
-- Official release announcement: https://stockfishchess.org/blog/2011/stockfish-2/
-- Lichess browser port project: https://github.com/lichess-org/stockfish.wasm
-
-The Lichess repository describes a WebAssembly port for browser analysis. It is not the historical native Stockfish 2.0 release binary.
-
-This terminal transcript labels the opponent "Official Stockfish 2.0", but it does not include the executable's UCI identification, `bench` signature, or SHA-256. A label printed by a tournament wrapper is not sufficient proof of executable identity. Therefore the opponent identity remains **pending verification** until the local executable passes both checks below.
-
-### Verify the exact opponent executable
-
-From the WSL shell, run the checker against the exact path used by the tournament:
-
-```bash
-python3 tools/verify_stockfish_2.py --engine "/absolute/path/to/the/stockfish-2.0-executable"
-```
-
-A passing check must report:
-
-- a UCI `id name` containing `Stockfish 2.0`;
-- a `stockfish bench` result of exactly `7224363` nodes;
-- the executable's SHA-256 hash.
-
-Save the complete JSON output with the benchmark artifacts. This check is a practical version/build fingerprint, not a cryptographic publisher signature; retain the original download/source and its provenance as well.
-
-## Raw artifacts
+## Raw artifacts and auditability
 
 The local tournament output named these files:
 
 - `benchmark-results/deep-1m-256mb/all-games.pgn`
 - `benchmark-results/deep-1m-256mb/results.jsonl`
 
-Those files were not present in the material supplied for this GitHub update, so they are not represented here as checked-in or independently audited. Add the original PGN, JSONL, opponent executable verification JSON, and executable SHA-256 before treating this as a fully reproducible public benchmark.
+Those files were not included in the material supplied for this GitHub update, so they are not checked into this repository and the game results have not been independently audited from the individual records. Add the original PGN and JSONL to make the match independently reviewable. Do not substitute reconstructed records for the original outputs.
 
 ## Reproduction settings
 
