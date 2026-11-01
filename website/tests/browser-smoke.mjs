@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage();
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const failures = [];
 const workers = [];
 const baseUrl = process.env.PRUNEX_BASE_URL || "http://127.0.0.1:4173/";
@@ -19,6 +19,17 @@ page.on("console", message => {
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
+
+  const launchLayout = await page.evaluate(() => ({
+    heroArt: document.querySelector(".hero-art"),
+    boardWidth: document.querySelector(".board-frame")?.getBoundingClientRect().width,
+    pieceImages: document.querySelectorAll("#board .piece-svg use").length
+  }));
+  if (launchLayout.heroArt) throw new Error("Hero artwork should be removed.");
+  if (!launchLayout.boardWidth || launchLayout.boardWidth > 550 || launchLayout.boardWidth < 480) {
+    throw new Error("Default board size is not launch-appropriate: " + JSON.stringify(launchLayout));
+  }
+  if (launchLayout.pieceImages !== 32) throw new Error("Cburnett SVG pieces did not render: " + JSON.stringify(launchLayout));
 
   const startup = await page.evaluate(() => ({
     engine: document.querySelector("#engine-state")?.textContent,
@@ -67,12 +78,17 @@ try {
   );
 
 
-  await page.locator("#board-size").evaluate(el => { el.value = "720"; el.dispatchEvent(new Event("input", { bubbles: true })); });
-  if (await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width)) < 700) {
-    throw new Error("Board size control did not enlarge the board.");
+  await page.locator("#board-size").evaluate(el => { el.value = "640"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+  const enlargedBoard = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
+  if (enlargedBoard < 620 || enlargedBoard > 650) throw new Error("Board size slider did not resize the board: " + enlargedBoard);
+  await page.locator("#piece-style").selectOption("letters");
+  if (await page.locator("#board").getAttribute("data-pieces") !== "letters" || !(await page.locator("#board .piece-letters").count())) {
+    throw new Error("Letter piece set did not render.");
   }
-  await page.locator("#piece-style").selectOption("bold");
-  if (await page.locator("#board").getAttribute("data-pieces") !== "bold") throw new Error("Piece style did not update.");
+  await page.locator("#piece-style").selectOption("unicode");
+  if (!(await page.locator("#board .piece-unicode").count())) throw new Error("Unicode piece set did not render.");
+  await page.locator("#piece-style").selectOption("cburnett");
+  if (await page.locator("#board .piece-svg use").count() !== 32) throw new Error("Cburnett SVG piece set did not restore.");
   await page.locator("#coordinates").uncheck();
   if (!(await page.locator("#board").evaluate(el => el.classList.contains("no-coordinates")))) throw new Error("Coordinate toggle did not update.");
   await page.locator("#legal-moves").uncheck();
@@ -99,7 +115,7 @@ try {
   }
 
   if (failures.length) throw new Error(failures.join("\n"));
-  console.log("PASS: startup, human move and engine reply, theme, FEN import and validation, reset, black-side play, and mobile layout.");
+  console.log("PASS: startup, human move and engine reply, compact board, resizing, three piece sets, themes, FEN import and validation, reset, black-side play, and mobile layout.");
 } finally {
   await browser.close();
 }
