@@ -1,4 +1,4 @@
-name: Validate Prunex Vercel website
+name: Validate Prunex website and dependencies
 
 on:
   push:
@@ -17,24 +17,38 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: website
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: website/package.json
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+
+      - name: Generate a temporary lockfile from exact direct dependency versions
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Audit the complete dependency tree
+        run: npm audit --audit-level=low
+
       - name: Build production website
         run: npm run build
+
       - name: Install Chromium for browser test
         run: npx playwright install --with-deps chromium
+
       - name: Start production preview
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/prunex-preview.log 2>&1 &
@@ -50,8 +64,10 @@ jobs:
             cat /tmp/prunex-preview.log
             exit 1
           fi
+
       - name: Exercise the browser board and engine
         run: npm run test:browser
+
       - name: Verify required static assets
         run: |
           test -s dist/index.html
