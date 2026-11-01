@@ -62,7 +62,7 @@ Each game's PGN is written atomically, then its result is appended and flushed t
 
 Do not delete or edit the results folder while a match is in progress. A different engine build or different settings will be rejected rather than mixed into the existing match. Use a separate output folder for a separate experiment.
 
-The benchmark runs inside WSL on your computer. Closing this chat or PowerShell has no effect on the detached process. You can monitor progress with `Get-Content .\\benchmark-results\\deep-1m-256mb\\progress.json` or follow the log with `Get-Content .\\benchmark-results\\deep-1m-256mb\\tournament.log -Wait`.
+The benchmark runs inside WSL on your computer. Closing this chat or PowerShell has no effect on the detached process. You can monitor progress with `Get-Content .\\benchmark-results\\deep-1m-256mb\\progress.json` or follow the log with `Get-Content .\\benchmark-results\\deep-1m-256mb\\tournament.log -Wait`. To stop it deliberately, send an interrupt to the runner from PowerShell: `wsl -d Ubuntu-22.04 pkill -INT -f '[p]runex_deep_match.py'`. Completed games remain saved.
 
 ## Before publishing the result
 
