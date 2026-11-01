@@ -2,10 +2,6 @@ name: Prunex versus Stockfish 4 and 6
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'Prunex-0.5.1.zip'
-      - '.github/workflows/stockfish-benchmark.yml'
 
 permissions:
   contents: read
