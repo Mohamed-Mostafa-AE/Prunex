@@ -29,7 +29,7 @@ The supplied PowerShell launcher uses WSL 2 so both historical Stockfish source 
 
    ```bash
    sudo apt update
-   sudo apt install -y git build-essential python3 python3-venv python3-pip
+   sudo apt install -y git build-essential python3 python3-venv python3-pip util-linux
    ```
 
 3. Open PowerShell in the Prunex repository folder and run:
@@ -57,9 +57,8 @@ The folder contains:
 - One PGN file per game.
 - `run-config.json`: engine hashes, UCI identities, settings, and source revisions.
 - `tournament.log`: console output from each run.
-- `run.lock`: a process lock that prevents duplicate runs.
 
-Each game's PGN is written atomically, then its result is appended and flushed to disk before the next game starts. The detached process continues if PowerShell or this chat closes. If Windows restarts, WSL is shut down, or the process is interrupted, completed games remain saved. Run the same PowerShell command again to resume; completed game IDs are skipped and an interrupted game is replayed from its opening. A lock prevents a second copy from running against the same results folder.
+Each game's PGN is written atomically, then its result is appended and flushed to disk before the next game starts. The detached process continues if PowerShell or this chat closes. If Windows restarts, WSL is shut down, or the process is interrupted, completed games remain saved. Run the same PowerShell command again to resume; completed game IDs are skipped and an interrupted game is replayed from its opening. A lock held in WSL's Linux filesystem prevents a second copy from running against the same results folder.
 
 Do not delete or edit the results folder while a match is in progress. A different engine build or different settings will be rejected rather than mixed into the existing match. Use a separate output folder for a separate experiment.
 
