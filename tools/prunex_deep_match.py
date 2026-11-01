@@ -46,7 +46,10 @@ def sha256_file(path):
 def atomic_json(path, value):
     path = pathlib.Path(path)
     temp = path.with_suffix(path.suffix + ".tmp")
-    temp.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    with temp.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
     os.replace(temp, path)
 
 
@@ -83,7 +86,10 @@ def read_results(path):
 def write_pgn(game, path):
     path = pathlib.Path(path)
     temp = path.with_suffix(path.suffix + ".tmp")
-    temp.write_text(str(game) + "\n", encoding="utf-8")
+    with temp.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(str(game) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
     os.replace(temp, path)
 
 
@@ -313,6 +319,7 @@ def main():
 
         schedule = make_schedule()
         records = read_results(results_path)
+        refresh_combined_pgn(outdir, records)
         expected_ids = {item["game_id"] for item in schedule}
         found_ids = {record["game_id"] for record in records}
         if not found_ids.issubset(expected_ids):
