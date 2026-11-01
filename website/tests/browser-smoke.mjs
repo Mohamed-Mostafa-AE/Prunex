@@ -21,11 +21,11 @@ try {
   await page.waitForTimeout(10000);
 
   const launchLayout = await page.evaluate(() => ({
-    heroArt: document.querySelector(".hero-art"),
+    heroSpecimen: document.querySelector(".hero-specimen"),
     boardWidth: document.querySelector(".board-frame")?.getBoundingClientRect().width,
     pieceImages: document.querySelectorAll("#board .piece-svg use").length
   }));
-  if (launchLayout.heroArt) throw new Error("Hero artwork should be removed.");
+  if (!launchLayout.heroSpecimen) throw new Error("The project specimen should render in the hero.");
   if (!launchLayout.boardWidth || launchLayout.boardWidth > 550 || launchLayout.boardWidth < 480) {
     throw new Error("Default board size is not launch-appropriate: " + JSON.stringify(launchLayout));
   }
