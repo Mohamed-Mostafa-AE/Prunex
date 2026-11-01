@@ -1,10 +1,6 @@
 name: Prunex 0.6.0 versus official Stockfish 2.0
 
 on:
-  push:
-    paths:
-      - '.github/workflows/prunex-0.6-stockfish2.yml'
-      - 'tools/prunex_stockfish4_match.py'
   workflow_dispatch:
 
 permissions:
