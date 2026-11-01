@@ -4,6 +4,7 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 const failures = [];
 const workers = [];
+const baseUrl = (process.env.PRUNEX_BASE_URL || "http://127.0.0.1:4173").replace(/\\/$/, "");
 
 page.on("pageerror", error => failures.push("pageerror: " + error.message));
 page.on("worker", worker => {
@@ -16,7 +17,7 @@ page.on("console", message => {
 });
 
 try {
-  await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle" });
+  await page.goto(baseUrl + "/", { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
 
   const startup = await page.evaluate(() => ({
