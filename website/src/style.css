@@ -122,7 +122,7 @@ h2 span { color: var(--blue); }
 .board-toolbar .button-primary:hover:not(:disabled) { background: #10538e; color: #fff; }
 .button:disabled { opacity: .35; cursor: not-allowed; }
 .compact-select { display: flex; align-items: center; gap: 7px; margin-left: auto; color: #aabfd8; font-size: 10px; }
-.compact-select select, .setting-row select { max-width: 100%; border: 1px solid #496b91; border-radius: 2px; padding: 8px 9px; background: #0d1c30; color: #e5ebe3; font-size: 10px; }
+.compact-select select, .setting-row select { max-width: 100%; border: 1px solid #496b91; border-radius: 2px; padding: 8px 9px; background: #0d1c30; color: #e6f0fb; font-size: 10px; }
 .board-size-control { margin: 13px 0 0; }
 .board-size-control label { display: flex; justify-content: space-between; color: #aabfd8; font: 9px var(--mono); }
 .board-size-control output { color: #dcecff; }
@@ -178,7 +178,7 @@ h2 span { color: var(--blue); }
 .benchmark-section { display: grid; grid-template-columns: minmax(0, .95fr) minmax(340px, .85fr); align-items: center; gap: clamp(40px, 8vw, 100px); border-top: 1px solid var(--line); }
 .benchmark-copy h2 { margin-bottom: 20px; }
 .benchmark-copy p { max-width: 500px; }
-.benchmark-card { padding: 23px; border: 1px solid #2c4968; background: #0d1c30; color: #edf1e9; }
+.benchmark-card { padding: 23px; border: 1px solid #2c4968; background: #0d1c30; color: #edf5fd; }
 .benchmark-card-top { display: flex; justify-content: space-between; gap: 12px; color: #aec8e3; font: 9px var(--mono); letter-spacing: .06em; }
 .record-tag { color: #8bcaff; }
 .score-number { margin-top: 23px; color: #f1f7ff; font: 600 59px/1 Manrope, sans-serif; letter-spacing: -.07em; }
