@@ -30,13 +30,21 @@
     "score_transcribed_from_user_terminal_output": true,
     "raw_pgn_in_repository": false,
     "raw_results_jsonl_in_repository": false,
-    "opponent_uci_id_verified": false,
-    "official_stockfish_2_0_bench_signature_verified": false,
-    "opponent_sha256_recorded": false
+    "opponent_uci_id_verified": true,
+    "official_stockfish_2_0_bench_signature_verified": true,
+    "opponent_sha256_recorded": true
   },
   "notes": [
     "The 99.22% is a match score, not an Elo rating.",
     "Prunex 0.8.0 is reported as Stockfish 19-derived; this is not a result for the independent Prunex 0.5.1 source currently described in the main repository README.",
-    "The opponent label comes from the local runner transcript; it does not independently establish which executable was launched."
-  ]
+    "The opponent label comes from the local runner transcript; it does not independently establish which executable was launched.",
+    "Opponent executable UCI identity and historical Stockfish 2.0 bench signature were checked locally on 2026-11-01; this is a practical build fingerprint, not cryptographic publisher authentication."
+  ],
+  "opponent_verification": {
+    "uci_id_name": "Stockfish 2.0 64bit",
+    "uci_id_author": "Tord Romstad, Marco Costalba, Joona Kiiski",
+    "official_bench_nodes_searched": 7224363,
+    "expected_bench_nodes_searched": 7224363,
+    "local_executable_sha256": "760f9c7435b4f498d0188b9ae5b81d6a92636328a932c020fb338a93195bcff2"
+  }
 }
