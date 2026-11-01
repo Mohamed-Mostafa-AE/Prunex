@@ -6,11 +6,12 @@ WORK_DIR="${PRUNEX_BENCHMARK_WORK_DIR:-$HOME/prunex-benchmark-work}"
 OUT_DIR="$REPO_ROOT/benchmark-results/deep-1m-256mb"
 mkdir -p "$WORK_DIR" "$OUT_DIR"
 
-if ! command -v flock; then
+if ! command -v flock >/dev/null; then
   echo "The flock utility is required; install util-linux in Ubuntu on WSL." >&2
   exit 1
 fi
-exec 9>"$OUT_DIR/run.lock"
+LOCK_KEY="$(printf '%s' "$OUT_DIR" | sha256sum | cut -d' ' -f1)"
+exec 9>"$WORK_DIR/$LOCK_KEY.lock"
 if ! flock -n 9; then
   echo "A benchmark process is already running in $OUT_DIR"
   exit 0
