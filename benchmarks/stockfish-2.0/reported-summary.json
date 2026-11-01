@@ -38,7 +38,8 @@
     "The 99.22% is a match score, not an Elo rating.",
     "Prunex 0.8.0 is reported as Stockfish 19-derived; this is not a result for the independent Prunex 0.5.1 source currently described in the main repository README.",
     "The opponent label comes from the local runner transcript; it does not independently establish which executable was launched.",
-    "Opponent executable UCI identity and historical Stockfish 2.0 bench signature were checked locally on 2026-11-01; this is a practical build fingerprint, not cryptographic publisher authentication."
+    "Opponent executable UCI identity and historical Stockfish 2.0 bench signature were checked locally on 2026-11-01; this is a practical build fingerprint, not cryptographic publisher authentication.",
+    "The illustrative 3,904 match-implied figure uses a nearby CCRL Stockfish 2.0.1 rating reference (3,062 ±19), not a published rating for the exact Stockfish 2.0 binary."
   ],
   "opponent_verification": {
     "uci_id_name": "Stockfish 2.0 64bit",
@@ -46,5 +47,28 @@
     "official_bench_nodes_searched": 7224363,
     "expected_bench_nodes_searched": 7224363,
     "local_executable_sha256": "760f9c7435b4f498d0188b9ae5b81d6a92636328a932c020fb338a93195bcff2"
+  },
+  "rating_estimate": {
+    "status": "illustrative_match_implied_projection_not_an_official_rating",
+    "anchor_engine": "Stockfish 2.0.1 64-bit",
+    "anchor_rating_list": "CCRL 40/15",
+    "anchor_rating": 3062,
+    "anchor_error_plus_minus": 19,
+    "anchor_source": "https://www.computerchess.org/cgi/engine_details.cgi?engine=Stockfish+2.0.1+64-bit",
+    "note": "The exact Stockfish 2.0 binary used in the match does not have a verified published CCRL rating in this record; 2.0.1 is used as a nearby patch-release proxy.",
+    "match_score_points": 63.5,
+    "match_games": 64,
+    "score_fraction": 0.9921875,
+    "inferred_elo_difference": 841.5214883823827,
+    "formula": "400 * log10(p / (1 - p))",
+    "match_implied_rating": 3903.521488382383,
+    "rounded_match_implied_rating": 3904,
+    "limitations": [
+      "This is an illustrative projection from one 64-game result, not an official Prunex Elo rating.",
+      "The match used a 1,000,000-nodes-per-move budget, while the CCRL anchor uses its own 40/15 hardware and opponent pool.",
+      "Ratings from separate testing pools and conditions are not directly interchangeable.",
+      "Prunex 0.8.0 is Stockfish 19-derived; this estimate does not apply to the independent Prunex 0.5.1 engine.",
+      "Raw PGN and JSONL were not supplied for an independent game-by-game audit."
+    ]
   }
 }
