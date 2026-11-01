@@ -29,9 +29,10 @@ try {
   if (await page.locator(".nav-logo").getAttribute("src") !== "/prunex-mark.png") throw new Error("Transparent Prunex mark is missing from navigation.");
   if (await page.locator("#about .about-mark").count()) throw new Error("The about section should explain engine architecture, not repeat the logo.");
   if (!(await page.locator("#about .architecture-card").count())) throw new Error("Engine architecture panel is missing.");
-  if ((await page.locator("#historical-elo").textContent()).trim() !== "≈3,904") throw new Error("Historical match-implied Elo estimate is missing.");
-  if (!(await page.locator("#historical-elo-caveat").textContent()).includes("not an official Prunex rating")) throw new Error("Historical Elo caveat is missing.");
-  if (!(await page.locator('.benchmark-source-links a[href*="computerchess.org"]').count())) throw new Error("CCRL rating reference link is missing.");
+  if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
+  const testingCopy = await page.locator("#testing").innerText();
+  if (!testingCopy.includes("44/44") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
+  if (/3,904|0\.8\.0|Stockfish 19-derived/i.test(testingCopy)) throw new Error("An unrelated match result is being presented as a Prunex rating.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
   if (favicon !== "/prunex-mark.png") throw new Error("Transparent Prunex mark is not configured as the favicon.");
   const markResponse = await page.request.get(new URL("/prunex-mark.png", baseUrl).toString());
