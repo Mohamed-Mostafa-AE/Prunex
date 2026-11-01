@@ -11,6 +11,10 @@ on:
       - '.github/workflows/website-ci.yml'
   workflow_dispatch:
 
+concurrency:
+  group: website-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
