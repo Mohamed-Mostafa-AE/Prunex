@@ -387,3 +387,7 @@ body {
  .turn-pill { font-size:7px; }
  .board-frame { padding:5px; }
 }
+
+.board-frame { overflow:visible; }
+.resize-grip { position:absolute; right:1px; bottom:1px; width:22px; height:22px; border:0; border-radius:5px 0 10px 0; background:linear-gradient(135deg,transparent 48%,#2ab9d5 49%,#2ab9d5 55%,transparent 56%,transparent 67%,#2ab9d5 68%,#2ab9d5 74%,transparent 75%); cursor:nwse-resize; touch-action:none; opacity:.8; }
+.resize-grip:hover { opacity:1; background-color:rgba(28,180,211,.14); }
