@@ -1,10 +1,6 @@
 name: Prunex 0.6.0 full-strength benchmark versus Stockfish 2.0
 
 on:
-  push:
-    paths:
-      - '.github/workflows/prunex-sf2-tuning.yml'
-      - 'tools/prunex_stockfish4_match.py'
   workflow_dispatch:
 
 permissions:
