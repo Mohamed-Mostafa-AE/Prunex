@@ -19,7 +19,7 @@ const boardSizeValue = $("#board-size-value");
 const pieceStyleSelect = $("#piece-style");
 const coordinatesToggle = $("#coordinates");
 const legalMovesToggle = $("#legal-moves");
-const promotionPicker = $("#promotion-picker");
+const promotionPicker = $("#promotion-picker");\nconst siteThemeToggle = $("#site-theme-toggle");
 const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
 const game = new Chess();
 
@@ -60,6 +60,15 @@ function savePreference(key, value) {
 }
 function loadPreference(key, fallback) {
   try { return localStorage.getItem("prunex-" + key) ?? fallback; } catch { return fallback; }
+}\nfunction applySiteTheme(theme) {
+  const selected = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.siteTheme = selected;
+  document.documentElement.style.colorScheme = selected;
+  const dark = selected === "dark";
+  siteThemeToggle.setAttribute("aria-pressed", String(dark));
+  siteThemeToggle.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  $("#theme-toggle-icon").textContent = dark ? "☀" : "☾";
+  $("#theme-toggle-label").textContent = dark ? "Light mode" : "Dark mode";
 }
 function setBoardSize(value, persist = true) {
   const size = Math.max(320, Math.min(640, Number(value) || 520));
@@ -70,7 +79,7 @@ function setBoardSize(value, persist = true) {
   if (persist) savePreference("board-size", size);
 }
 function applyPreferences() {
-  const theme = loadPreference("theme", "sage");
+  applySiteTheme(loadPreference("site-theme", "light"));\n  const theme = loadPreference("theme", "blue");
   const storedPieces = loadPreference("pieces", "cburnett");
   const pieces = ["cburnett", "unicode", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
   showCoordinates = loadPreference("coordinates", "true") !== "false";
@@ -330,6 +339,10 @@ $("#flip").addEventListener("click", () => {
 sideSelect.addEventListener("change", () => {
   humanColor = sideSelect.value;
   startNewGame();
+});\nsiteThemeToggle.addEventListener("click", () => {
+  const next = document.documentElement.dataset.siteTheme === "dark" ? "light" : "dark";
+  applySiteTheme(next);
+  savePreference("site-theme", next);
 });
 $("#theme").addEventListener("change", (event) => {
   boardEl.dataset.theme = event.target.value;

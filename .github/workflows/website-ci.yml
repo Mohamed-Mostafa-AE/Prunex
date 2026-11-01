@@ -45,7 +45,7 @@ jobs:
       - name: Required output assets
         run: |
           test -s dist/index.html
-          test -s dist/prunex-logo.jpg
+          test -s dist/prunex-mark.png
           test -s dist/engine/stockfish-19-lite-single.js
           test -s dist/engine/stockfish-19-lite-single.wasm
           test -s dist/COPYING.txt
