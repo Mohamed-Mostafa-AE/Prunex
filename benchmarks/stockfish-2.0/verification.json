@@ -1,0 +1,36 @@
+{
+  "record_type": "owner_supplied_local_opponent_binary_verification",
+  "verification_date": "2026-11-01",
+  "executable_path_on_owner_machine": "benchmark-results/deep-1m-256mb/engines/stockfish-2.0",
+  "checks": {
+    "uci_identity": {
+      "status": "passed",
+      "id_name": "Stockfish 2.0 64bit",
+      "id_author": "Tord Romstad, Marco Costalba, Joona Kiiski"
+    },
+    "official_historical_bench_signature": {
+      "status": "passed",
+      "command": "./benchmark-results/deep-1m-256mb/engines/stockfish-2.0 bench",
+      "observed_nodes_searched": 7224363,
+      "expected_nodes_searched": 7224363,
+      "match": true,
+      "total_time_ms": 6338,
+      "nodes_per_second": 1139849,
+      "reference": "https://stockfishchess.org/blog/2011/stockfish-2/"
+    },
+    "sha256": {
+      "status": "recorded",
+      "value": "760f9c7435b4f498d0188b9ae5b81d6a92636328a932c020fb338a93195bcff2",
+      "command": "sha256sum benchmark-results/deep-1m-256mb/engines/stockfish-2.0"
+    }
+  },
+  "interpretation": {
+    "identity_assessment": "Strong practical version/build fingerprint consistent with historical Stockfish 2.0.",
+    "limitations": [
+      "The checks are not a cryptographic publisher signature.",
+      "The executable download provenance was not independently established.",
+      "The SHA-256 is the locally measured executable hash, not an upstream-published checksum.",
+      "The 64-game PGN and JSONL were not supplied for independent game-by-game audit."
+    ]
+  }
+}
