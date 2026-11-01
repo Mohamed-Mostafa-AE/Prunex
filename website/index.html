@@ -69,6 +69,20 @@
                 <button id="flip" class="button">⇅ Flip board</button>
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
               </div>
+              <div class="board-size-control">
+                <label for="board-size"><span>BOARD SIZE</span><output id="board-size-value">640 px</output></label>
+                <input id="board-size" type="range" min="360" max="760" step="10" value="640">
+              </div>
+              <div id="promotion-picker" class="promotion-picker" hidden role="dialog" aria-modal="true" aria-label="Choose promotion piece">
+                <span>Promote pawn to</span>
+                <div class="promotion-options">
+                  <button type="button" data-promotion="q" aria-label="Promote to queen">♕</button>
+                  <button type="button" data-promotion="r" aria-label="Promote to rook">♖</button>
+                  <button type="button" data-promotion="b" aria-label="Promote to bishop">♗</button>
+                  <button type="button" data-promotion="n" aria-label="Promote to knight">♘</button>
+                  <button type="button" id="cancel-promotion" class="promotion-cancel">Cancel</button>
+                </div>
+              </div>
               <div class="status-row"><span class="status-indicator"></span><span id="status" aria-live="polite">Loading engine…</span><span class="status-hint" id="analysis-status">Local analysis</span></div>
             </div>
 
@@ -76,9 +90,12 @@
               <div class="panel-heading"><div><span class="panel-kicker">GAME SESSION</span><h3>Move history</h3></div><span id="move-count">0 plies</span></div>
               <div id="move-list" class="move-list"><div class="empty">Your game will appear here.</div></div>
               <div class="engine-controls">
-                <div class="control-title"><span>ENGINE SETTINGS</span><span class="control-live">LOCAL</span></div>
-                <label class="setting-row"><span>Search budget</span><select id="nodes"><option value="10000">Quick · 10k nodes</option><option value="25000" selected>Balanced · 25k nodes</option><option value="50000">Strong · 50k nodes</option><option value="100000">Deep · 100k nodes</option><option value="250000">Maximum · 250k nodes</option></select></label>
-                <label class="setting-row"><span>Board theme</span><select id="theme"><option value="sage">Sage & ivory</option><option value="violet">Violet dusk</option><option value="slate">Slate & sand</option></select></label>
+                <div class="control-title"><span>PLAY & APPEARANCE</span><span class="control-live">CUSTOMIZABLE</span></div>
+                <label class="setting-row"><span>Engine strength</span><select id="nodes"><option value="10000">Quick · 10k nodes</option><option value="25000" selected>Balanced · 25k nodes</option><option value="50000">Strong · 50k nodes</option><option value="100000">Deep · 100k nodes</option><option value="250000">Maximum · 250k nodes</option></select></label>
+                <label class="setting-row"><span>Board theme</span><select id="theme"><option value="sage">Sage & ivory</option><option value="brown">Tournament wood</option><option value="blue">Ocean blue</option><option value="slate">Slate & sand</option><option value="violet">Violet dusk</option><option value="mono">High contrast</option></select></label>
+                <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="standard">Standard</option><option value="classic">Classic serif</option><option value="bold">Bold contrast</option></select></label>
+                <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Show board coordinates</span></label>
+                <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Show legal-move hints</span></label>
                 <div class="engine-note"><span class="local-dot"></span><span>Stockfish.js 19 Lite · WebAssembly<br>Separate third-party browser opponent; not the independent Prunex engine.</span></div>
               </div>
             </aside>
