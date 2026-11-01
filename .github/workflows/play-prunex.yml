@@ -2,11 +2,6 @@ name: Play Prunex in the browser
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'Prunex-0.5.1.zip'
-      - 'web/**'
-      - '.github/workflows/play-prunex.yml'
 
 permissions:
   contents: read
