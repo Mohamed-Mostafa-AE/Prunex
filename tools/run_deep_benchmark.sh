@@ -93,6 +93,19 @@ fi
   echo "Build: local WSL Ubuntu; GCC; x86-64"
 } > "$WORK_DIR/source-revisions.txt"
 
+mkdir -p "$OUT_DIR/engines" "$OUT_DIR/licenses"
+if [ ! -x "$OUT_DIR/engines/prunex-0.8.0" ]; then
+  cp "$WORK_DIR/bin/prunex-0.8.0" "$OUT_DIR/engines/prunex-0.8.0"
+fi
+if [ ! -x "$OUT_DIR/engines/stockfish-2.0" ]; then
+  cp "$WORK_DIR/bin/stockfish-2.0" "$OUT_DIR/engines/stockfish-2.0"
+fi
+if [ ! -f "$OUT_DIR/source-revisions.txt" ]; then
+  cp "$WORK_DIR/source-revisions.txt" "$OUT_DIR/source-revisions.txt"
+fi
+cp "$WORK_DIR/prunex-core/Copying.txt" "$OUT_DIR/licenses/Prunex-GPLv3.txt"
+cp "$WORK_DIR/stockfish-2.0/Copying.txt" "$OUT_DIR/licenses/Stockfish-2.0-GPLv3.txt"
+
 echo
 echo "The tournament runs locally. It does not use GitHub Actions or a ChatGPT session."
 echo "Results folder: $OUT_DIR"
@@ -101,10 +114,10 @@ echo
 
 set -o pipefail
 OMP_NUM_THREADS=1 "$PYTHON" -u "$REPO_ROOT/tools/prunex_deep_match.py" \
-  --prunex "$WORK_DIR/bin/prunex-0.8.0" \
-  --stockfish "$WORK_DIR/bin/stockfish-2.0" \
+  --prunex "$OUT_DIR/engines/prunex-0.8.0" \
+  --stockfish "$OUT_DIR/engines/stockfish-2.0" \
   --output "$OUT_DIR" \
-  --provenance-file "$WORK_DIR/source-revisions.txt" \
+  --provenance-file "$OUT_DIR/source-revisions.txt" \
   --nodes-per-move 1000000 \
   --hash-mb 256 \
   --threads 1 \
