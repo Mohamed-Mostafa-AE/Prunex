@@ -8,6 +8,10 @@ Prunex 0.8.0 is derived from the official [Stockfish](https://github.com/officia
 
 **64-game confirmation against official Stockfish 2.0: 62 wins, 2 draws, 0 losses (98.44%)**. Both engines were built from official source tags and received 100,000 nodes per move and 128 MB hash; 16 openings were played twice with colors balanced (32 games per color). Both draws were threefold repetitions with Prunex playing Black (Nimzo-Indian, round 36; Grünfeld, round 62). The full PGN, JSON summary, executable, source archive, provenance, and licenses are preserved in [GitHub Actions artifact](https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41253517143). This is a strong result but not a perfect score. See [the benchmark report](docs/stockfish-2.0-benchmark.md) for the methodology and historical rating context.
 
+## Stockfish 2.0 drawn-game analysis
+
+A reproducible post-mortem of the two threefold-repetition draws (rounds 36 and 62), including evidence limits and follow-up experiments, is available in [the draw analysis](docs/stockfish-2.0-draw-analysis.md).
+
 ## Earlier Stockfish-derived lines
 
 - **0.7.0:** derived from official Stockfish 11.
