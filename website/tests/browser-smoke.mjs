@@ -33,6 +33,9 @@ try {
   if (await page.locator("#theme option").count() !== 2) throw new Error("Only the two blue board themes should be available.");
   if (await page.locator("#about .about-mark").count()) throw new Error("The about section should explain engine architecture, not repeat the logo.");
   if (!(await page.locator("#about .architecture-card").count())) throw new Error("Engine architecture panel is missing.");
+  if (!(await page.locator(".architecture-header").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Architecture card should show Prunex 0.8.0.");
+  if ((await page.locator(".architecture-header").innerText()).includes("0.5.1")) throw new Error("Stale Prunex 0.5.1 version remains in architecture card.");
+  if (!(await page.locator(".benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
   const testingCopy = await page.locator("#testing").innerText();
   if (!testingCopy.includes("44/44") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
