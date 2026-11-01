@@ -1,0 +1,42 @@
+{
+  "record_type": "owner_supplied_local_run_summary",
+  "run_date": "2026-11-01",
+  "reported_status": "complete",
+  "completed_games": 64,
+  "total_games": 64,
+  "remaining_games": 0,
+  "prunex": "Prunex 0.8.0 (Stockfish 19-derived)",
+  "opponent_label_from_runner": "Official Stockfish 2.0",
+  "wins": 63,
+  "draws": 1,
+  "losses": 0,
+  "points": 63.5,
+  "score_percent": 99.22,
+  "nodes_per_move": 1000000,
+  "hash_mb_each": 256,
+  "threads_each": 1,
+  "openings": 16,
+  "repeats": 2,
+  "color_balance": {
+    "prunex_white": 32,
+    "prunex_black": 32
+  },
+  "draw_reason": "THREEFOLD_REPETITION",
+  "raw_artifacts_reported_by_runner": {
+    "pgn": "benchmark-results/deep-1m-256mb/all-games.pgn",
+    "results_jsonl": "benchmark-results/deep-1m-256mb/results.jsonl"
+  },
+  "evidence_status": {
+    "score_transcribed_from_user_terminal_output": true,
+    "raw_pgn_in_repository": false,
+    "raw_results_jsonl_in_repository": false,
+    "opponent_uci_id_verified": false,
+    "official_stockfish_2_0_bench_signature_verified": false,
+    "opponent_sha256_recorded": false
+  },
+  "notes": [
+    "The 99.22% is a match score, not an Elo rating.",
+    "Prunex 0.8.0 is reported as Stockfish 19-derived; this is not a result for the independent Prunex 0.5.1 source currently described in the main repository README.",
+    "The opponent label comes from the local runner transcript; it does not independently establish which executable was launched."
+  ]
+}

@@ -42,6 +42,14 @@ The 44-case regression suite passed in recorded local runs with GCC Release, Cla
 
 Historical 64-game, 100 ms/move matches against Stockfish 4 and Stockfish 6 ended 0 wins, 0 draws, 64 losses for Prunex against each opponent. These results are not an Elo rating or evidence of competitive superiority.
 
+## Historical Stockfish 2.0 comparison
+
+A local 64-game run reported by the project owner on 2026-11-01 recorded **Prunex 0.8.0 (Stockfish 19-derived)** at 63 wins, 1 draw, and 0 losses against an opponent labelled Official Stockfish 2.0 (63.5/64 points; 99.22%). The run used 1,000,000 nodes per move, 256 MB hash per engine, one thread per engine, 16 openings, two repetitions, and 32 games with each colour.
+
+**This is not a result for the independent Prunex 0.5.1 source described above, and the match percentage is not an Elo rating.** The local transcript did not include the opponent executable's UCI ID, official Stockfish 2.0 benchmark signature, or SHA-256. The opponent's identity therefore remains pending independent verification. See [the benchmark report](benchmarks/stockfish-2.0/README.md) and run [the Stockfish 2.0 verifier](tools/verify_stockfish_2.py) against the exact local opponent executable.
+
+The original PGN and JSONL files were saved on the project owner's computer but were not supplied with this update, so they are not included in the repository yet.
+
 ## Website and browser demo
 
 Live site: https://prunex-play.vercel.app/
