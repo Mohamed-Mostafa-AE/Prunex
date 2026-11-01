@@ -20,7 +20,8 @@ if command -v lsb_release >/dev/null; then
   fi
 fi
 
-if [ ! -d "$WORK_DIR/venv" ]; then
+if [ ! -x "$WORK_DIR/venv/bin/python" ]; then
+  rm -rf "$WORK_DIR/venv"
   python3 -m venv "$WORK_DIR/venv"
 fi
 PYTHON="$WORK_DIR/venv/bin/python"
@@ -28,10 +29,12 @@ if ! "$PYTHON" -c "import chess, chess.engine, chess.pgn" >/dev/null 2>&1; then
   "$PYTHON" -m pip install "python-chess==1.999"
 fi
 
-if [ ! -d "$WORK_DIR/prunex-core/.git" ]; then
+if [ ! -d "$WORK_DIR/prunex-core/.git" ] || [ "$(git -C "$WORK_DIR/prunex-core" describe --tags --exact-match HEAD 2>/dev/null || true)" != "sf_19" ]; then
+  rm -rf "$WORK_DIR/prunex-core"
   git clone --depth 1 --branch sf_19 https://github.com/official-stockfish/Stockfish.git "$WORK_DIR/prunex-core"
 fi
-if [ ! -d "$WORK_DIR/stockfish-2.0/.git" ]; then
+if [ ! -d "$WORK_DIR/stockfish-2.0/.git" ] || [ "$(git -C "$WORK_DIR/stockfish-2.0" describe --tags --exact-match HEAD 2>/dev/null || true)" != "sf_2.0" ]; then
+  rm -rf "$WORK_DIR/stockfish-2.0"
   git clone --depth 1 --branch sf_2.0 https://github.com/official-stockfish/Stockfish.git "$WORK_DIR/stockfish-2.0"
 fi
 
@@ -51,14 +54,22 @@ else:
     raise SystemExit("Could not identify the Stockfish 19 UCI name line; no source changes were made.")
 PY
 
-echo "Building Prunex 0.8.0 from official Stockfish tag sf_19..."
-make -C "$WORK_DIR/prunex-core/src" -j2 build ARCH=x86-64 COMP=gcc
-echo "Building the opponent from official Stockfish tag sf_2.0..."
-make -C "$WORK_DIR/stockfish-2.0/src" -j2 build ARCH=x86-64 COMP=gcc
-
 mkdir -p "$WORK_DIR/bin"
-cp "$WORK_DIR/prunex-core/src/stockfish" "$WORK_DIR/bin/prunex-0.8.0"
-cp "$WORK_DIR/stockfish-2.0/src/stockfish" "$WORK_DIR/bin/stockfish-2.0"
+if [ ! -x "$WORK_DIR/bin/prunex-0.8.0" ]; then
+  echo "Checking the 64-game schedule and checkpoint recovery..."
+"$PYTHON" "$REPO_ROOT/tools/test_prunex_deep_match.py"
+
+echo "Building Prunex 0.8.0 from official Stockfish tag sf_19..."
+  make -C "$WORK_DIR/prunex-core/src" -j2 build ARCH=x86-64 COMP=gcc
+  cp "$WORK_DIR/prunex-core/src/stockfish" "$WORK_DIR/bin/prunex-0.8.0.tmp"
+  mv "$WORK_DIR/bin/prunex-0.8.0.tmp" "$WORK_DIR/bin/prunex-0.8.0"
+fi
+if [ ! -x "$WORK_DIR/bin/stockfish-2.0" ]; then
+  echo "Building the opponent from official Stockfish tag sf_2.0..."
+  make -C "$WORK_DIR/stockfish-2.0/src" -j2 build ARCH=x86-64 COMP=gcc
+  cp "$WORK_DIR/stockfish-2.0/src/stockfish" "$WORK_DIR/bin/stockfish-2.0.tmp"
+  mv "$WORK_DIR/bin/stockfish-2.0.tmp" "$WORK_DIR/bin/stockfish-2.0"
+fi
 
 {
   echo "Prunex source: official-stockfish/Stockfish"
