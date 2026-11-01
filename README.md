@@ -21,6 +21,8 @@ The 0.5.1 engine did not beat Stockfish 4 or Stockfish 6 in the recorded fixed-m
 
 ## Play in the browser
 
+**Live website:** https://prunex-play.vercel.app/
+
 The Vercel site is in `website/`. It contains a compact legal-move chessboard, engine play, move history, undo, board flip, and strength selection. Its browser opponent is Stockfish.js 19 lite single-threaded WebAssembly running locally in a Web Worker. The web engine is an upstream Stockfish component and is not the independently authored Prunex 0.5.x engine. The footer documents the browser stack, benchmark lineage, methodology, attribution, and contact links. The site CI builds and exercises a legal opening move and engine reply in Chromium.
 
 For local development:
