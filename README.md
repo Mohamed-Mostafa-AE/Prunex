@@ -44,11 +44,15 @@ Historical 64-game, 100 ms/move matches against Stockfish 4 and Stockfish 6 ende
 
 ## Historical Stockfish 2.0 comparison
 
-A local 64-game run reported by the project owner on 2026-11-01 recorded **Prunex 0.8.0 (Stockfish 19-derived)** at 63 wins, 1 draw, and 0 losses against an opponent labelled Official Stockfish 2.0 (63.5/64 points; 99.22%). The run used 1,000,000 nodes per move, 256 MB hash per engine, one thread per engine, 16 openings, two repetitions, and 32 games with each colour.
+A 64-game local run reported on 2026-11-01 recorded **Prunex 0.8.0 (Stockfish 19-derived)** at 63 wins, 1 draw, and 0 losses against a Stockfish 2.0-labelled opponent (63.5/64 points; 99.22%). The run used 1,000,000 nodes per move, 256 MB hash per engine, one thread per engine, 16 openings, two repetitions, and 32 games with each colour.
 
-**This is not a result for the independent Prunex 0.5.1 source described above, and the match percentage is not an Elo rating.** The local transcript did not include the opponent executable's UCI ID, official Stockfish 2.0 benchmark signature, or SHA-256. The opponent's identity therefore remains pending independent verification. See [the benchmark report](benchmarks/stockfish-2.0/README.md) and run [the Stockfish 2.0 verifier](tools/verify_stockfish_2.py) against the exact local opponent executable.
+The opponent executable's local UCI identification was `Stockfish 2.0 64bit`, with authors Tord Romstad, Marco Costalba, and Joona Kiiski. Its `bench` command returned **7,224,363 nodes**, matching the signature documented in the [Stockfish 2.0 release announcement](https://stockfishchess.org/blog/2011/stockfish-2/). Its locally measured SHA-256 was `760f9c7435b4f498d0188b9ae5b81d6a92636328a932c020fb338a93195bcff2`.
 
-The original PGN and JSONL files were saved on the project owner's computer but were not supplied with this update, so they are not included in the repository yet.
+These checks provide a strong practical version/build fingerprint, but are not a cryptographic publisher signature or independent proof of the binary's download provenance. The SHA-256 is the hash measured from the local executable used for verification.
+
+**Important:** This is not a result for the independently implemented Prunex 0.5.1 C++20 source described above. Prunex 0.8.0 is reported as Stockfish 19-derived. The 99.22% figure is the match score for this particular 64-game setup, not an Elo rating or a general strength estimate.
+
+See the [benchmark report](benchmarks/stockfish-2.0/README.md) and the [verification record](benchmarks/stockfish-2.0/verification.json). The original PGN and JSONL game records were retained on the project owner's computer and have not yet been added to this repository, so the match has not been independently audited from its individual games.
 
 ## Website and browser demo
 
