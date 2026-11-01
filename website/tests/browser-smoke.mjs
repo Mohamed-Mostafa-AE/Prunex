@@ -26,7 +26,10 @@ try {
     pieceImages: document.querySelectorAll("#board .piece-svg use").length
   }));
   if (!launchLayout.heroSpecimen) throw new Error("The project specimen should render in the hero.");
-  if (await page.locator(".nav-logo").getAttribute("src") !== "/prunex-mark.png") throw new Error("Transparent Prunex mark is missing from navigation.");
+  if (await page.locator(".nav-logo").getAttribute("src") !== "/prunex-mark.png?v=2") throw new Error("Transparent Prunex mark is missing from navigation.");
+  if (!(await page.locator(".engine-avatar img").count())) throw new Error("Prunex mark is missing from the engine badge.");
+  if ((await page.locator(".engine-avatar img").getAttribute("alt")) !== "Prunex") throw new Error("Engine badge logo alt text is missing.");
+  if (await page.locator("#theme option").count() !== 2) throw new Error("Only the two blue board themes should be available.");
   if (await page.locator("#about .about-mark").count()) throw new Error("The about section should explain engine architecture, not repeat the logo.");
   if (!(await page.locator("#about .architecture-card").count())) throw new Error("Engine architecture panel is missing.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
@@ -34,8 +37,8 @@ try {
   if (!testingCopy.includes("44/44") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
   if (/3,904|0\.8\.0|Stockfish 19-derived/i.test(testingCopy)) throw new Error("An unrelated match result is being presented as a Prunex rating.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
-  if (favicon !== "/prunex-mark.png") throw new Error("Transparent Prunex mark is not configured as the favicon.");
-  const markResponse = await page.request.get(new URL("/prunex-mark.png", baseUrl).toString());
+  if (favicon !== "/prunex-mark.png?v=2") throw new Error("Transparent Prunex mark is not configured as the favicon.");
+  const markResponse = await page.request.get(new URL("/prunex-mark.png?v=2", baseUrl).toString());
   if (!markResponse.ok()) throw new Error("Transparent Prunex mark failed to load: " + markResponse.status());
   await page.locator("#site-theme-toggle").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme did not activate.");
@@ -67,8 +70,8 @@ try {
     { timeout: 60000 }
   );
 
-  await page.locator("#theme").selectOption("violet");
-  if (await page.locator("#board").getAttribute("data-theme") !== "violet") {
+  await page.locator("#theme").selectOption("ice");
+  if (await page.locator("#board").getAttribute("data-theme") !== "ice") {
     throw new Error("Board theme did not update.");
   }
 
