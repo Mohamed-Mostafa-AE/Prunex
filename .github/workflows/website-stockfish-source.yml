@@ -1,9 +1,6 @@
 name: Package Stockfish.js 19 source and GPLv3 for the website
 
 on:
-  push:
-    paths:
-      - '.github/workflows/website-stockfish-source.yml'
   workflow_dispatch:
 
 permissions:
