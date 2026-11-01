@@ -1,16 +1,20 @@
 name: Windows x64 validation (Prunex 0.5.1)
 
-# Keep this workflow independently runnable and validate every change to the Windows source package.
-
 on:
   push:
     paths:
-      - 'Prunex-0.5.1.zip'
+      - 'src/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+      - '.clang-format'
       - '.github/workflows/windows-build.yml'
       - 'WINDOWS_GUI_CHECKLIST.md'
   pull_request:
     paths:
-      - 'Prunex-0.5.1.zip'
+      - 'src/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+      - '.clang-format'
       - '.github/workflows/windows-build.yml'
       - 'WINDOWS_GUI_CHECKLIST.md'
   workflow_dispatch:
@@ -28,56 +32,24 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-
-      - name: Validate source archive
-        shell: pwsh
-        run: |
-          $archive = Join-Path $PWD 'Prunex-0.5.1.zip'
-          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
-            Write-Error 'Prunex-0.5.1.zip is missing from the repository checkout.'
-            Get-ChildItem -Force | Format-Table Name, Length
-            exit 1
-          }
-          $file = Get-Item -LiteralPath $archive
-          if ($file.Length -lt 1000) {
-            throw "Source archive is unexpectedly small: $($file.Length) bytes."
-          }
-          Write-Host "Archive: $($file.FullName)"
-          Write-Host "Size: $($file.Length) bytes"
-          Get-FileHash -LiteralPath $archive -Algorithm SHA256 | Format-List
-
-      - name: Extract source archive
-        shell: pwsh
-        run: |
-          if (Test-Path -LiteralPath extracted) {
-            Remove-Item -LiteralPath extracted -Recurse -Force
-          }
-          Expand-Archive -LiteralPath 'Prunex-0.5.1.zip' -DestinationPath 'extracted' -Force
-          $cmakeFile = Join-Path $PWD 'extracted/Prunex/CMakeLists.txt'
-          if (-not (Test-Path -LiteralPath $cmakeFile -PathType Leaf)) {
-            Write-Host 'Extracted archive contents:'
-            Get-ChildItem -LiteralPath extracted -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
-            throw 'Expected extracted/Prunex/CMakeLists.txt was not found.'
-          }
-          Write-Host "CMake project found: $cmakeFile"
 
       - name: Configure Visual Studio 2022 x64
         shell: pwsh
         run: |
           cmake --version
-          cmake -S extracted/Prunex -B build -G 'Visual Studio 17 2022' -A x64
+          cmake -S . -B build -G 'Visual Studio 17 2022' -A x64
           if ($LASTEXITCODE -ne 0) { throw "CMake configuration failed with exit code $LASTEXITCODE." }
 
-      - name: Build GUI, console engine, and tests
+      - name: Build native GUI, console engine, and tests
         shell: pwsh
         run: |
           cmake --build build --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { throw "MSVC Release build failed with exit code $LASTEXITCODE." }
 
-      - name: Run CTest suite
+      - name: Run full regression suite
         shell: pwsh
         run: |
           ctest --test-dir build -C Release --output-on-failure
@@ -128,9 +100,6 @@ jobs:
             $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $Path))
             if ($bytes.Length -lt 64) { throw "Executable is too small: $Path" }
             $peOffset = [System.BitConverter]::ToInt32($bytes, 0x3c)
-            if ($peOffset -lt 0 -or ($peOffset + 6) -gt $bytes.Length) {
-              throw "Invalid PE header offset in $Path"
-            }
             $signature = [System.Text.Encoding]::ASCII.GetString($bytes, $peOffset, 4)
             if ($signature -ne "PE`0`0") { throw "Invalid PE signature in $Path" }
             return ('0x{0:X4}' -f [System.BitConverter]::ToUInt16($bytes, $peOffset + 4))
@@ -148,10 +117,9 @@ jobs:
           }
           foreach ($path in @('build/Release/Prunex.exe', 'build/Release/prunex-cli.exe')) {
             if (Test-Path -LiteralPath $path) {
-              $hash = Get-FileHash -LiteralPath $path -Algorithm SHA256
               $manifest.executables += [ordered]@{
                 path = $path
-                sha256 = $hash.Hash
+                sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
                 bytes = (Get-Item -LiteralPath $path).Length
                 peMachine = Get-PeMachine $path
               }
@@ -160,7 +128,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path build | Out-Null
           $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath build/windows-build-manifest.json
 
-      - name: Upload Windows x64 executables and test evidence
+      - name: Upload Windows build and test evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
