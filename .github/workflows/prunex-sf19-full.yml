@@ -1,4 +1,4 @@
-name: Prunex 0.8.0 perfect-score confirmation versus official Stockfish 2.0
+name: Prunex 0.8.0 deep-search benchmark versus official Stockfish 2.0
 
 on:
   push:
@@ -65,9 +65,9 @@ jobs:
             --prunex-name "Prunex 0.8.0 (Stockfish 19-derived)" \
             --stockfish stockfish-2.0/src/stockfish \
             --opponent-name "Stockfish 2.0" \
-            --nodes-per-move 100000 \
-            --prunex-hash 128 \
-            --opponent-hash 128 \
+            --nodes-per-move 1000000 \
+            --prunex-hash 256 \
+            --opponent-hash 256 \
             --prunex-contempt 0 \
             --opening-count 16 \
             --repeats 2 \
