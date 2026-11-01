@@ -38,17 +38,56 @@ try {
     () => {
       const moves = [...document.querySelectorAll(".move-row")].map(row => row.textContent);
       return moves.some(row => row.includes("e4")) &&
-        document.querySelector("#turn-label")?.textContent === "YOU · WHITE";
+        document.querySelector("#turn-label")?.textContent.includes("YOUR TURN");
     },
     undefined,
     { timeout: 60000 }
   );
 
+  await page.locator("#theme").selectOption("violet");
+  if (await page.locator("#board").getAttribute("data-theme") !== "violet") {
+    throw new Error("Board theme did not update.");
+  }
+
+  const kingsOnlyFen = "8/8/8/8/8/8/4k3/7K w - - 0 1";
+  await page.locator("#fen-input").fill(kingsOnlyFen);
+  await page.locator("#load-fen").click();
+  await page.waitForFunction(() => document.querySelectorAll("#board .piece").length === 2);
+  if (!(await page.locator("#status").textContent()).includes("Draw")) {
+    throw new Error("Custom FEN position did not load as expected.");
+  }
+
+  await page.locator("#fen-input").fill("not a fen");
+  await page.locator("#load-fen").click();
+  if (!(await page.locator("#fen-feedback").textContent()).length) {
+    throw new Error("Invalid FEN was not rejected with feedback.");
+  }
+
+  await page.locator("#reset-position").click();
+  await page.waitForFunction(() => document.querySelectorAll("#board .piece").length === 32);
+
+  await page.locator("#side").selectOption("b");
+  await page.waitForFunction(
+    () => document.querySelector("#turn-label")?.textContent.includes("YOUR TURN · BLACK"),
+    undefined,
+    { timeout: 60000 }
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobile = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: document.documentElement.scrollWidth,
+    board: document.querySelector("#board")?.getBoundingClientRect().width
+  }));
+  if (mobile.content > mobile.viewport + 1 || !mobile.board || mobile.board > mobile.viewport) {
+    throw new Error("Mobile layout overflows: " + JSON.stringify(mobile));
+  }
+
   const moveRows = await page.locator(".move-row").allTextContents();
   if (moveRows.length < 1) throw new Error("Move history did not record the opening moves.");
   if (failures.length) throw new Error(failures.join("\n"));
 
-  console.log("PASS: Stockfish.js loaded in a single-threaded worker, e2e4 was accepted, Prunex replied, and history updated.");
+  console.log("PASS: engine startup, legal human move, engine reply, board theme, FEN import/error handling, reset, black-side play, move history, and mobile layout.");
 } finally {
   await browser.close();
 }
