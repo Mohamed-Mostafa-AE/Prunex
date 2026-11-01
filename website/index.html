@@ -171,6 +171,30 @@
             <p class="benchmark-caveat">These results cover the native engine's recorded Linux test runs. They do not establish an Elo rating, and they do not replace a manual test of the Windows desktop application.</p>
           </div>
         </section>
+
+        <section class="match-section section-wrap" id="match-results">
+          <div class="benchmark-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span> ENGINE MATCH</div>
+            <h2>Prunex 0.8.0 vs Stockfish 2.0.</h2>
+            <p>In a 64-game match, the Prunex 0.8.0 benchmark build scored 63 wins, 1 draw, and 0 losses against Stockfish 2.0 64-bit.</p>
+            <p>The match used 1,000,000 nodes per move, a 256 MB hash, and one thread. Sixteen openings were each played twice with colors reversed.</p>
+            <p>The score converts to 99.22% and an Elo-model gap of approximately +842 points. Using CCRL's 3,062 rating for Stockfish 2.0.1 64-bit as a proxy baseline gives a formula-derived estimate of approximately 3,904 Elo.</p>
+            <a class="text-link" href="https://www.computerchess.org/cgi/engine_details.cgi?engine=Stockfish+2.0.1+64-bit" target="_blank" rel="noreferrer">View the CCRL Stockfish 2.0.1 rating reference <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="benchmark-card match-card">
+            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">64-GAME MATCH</span></div>
+            <div class="match-score">63–1–0</div>
+            <p class="score-label">Wins · Draws · Losses against Stockfish 2.0</p>
+            <div class="benchmark-divider"></div>
+            <dl class="benchmark-specs">
+              <div><dt>Match score</dt><dd>99.22%</dd></div>
+              <div><dt>Elo-model gap</dt><dd>+842</dd></div>
+              <div><dt>Opponent reference</dt><dd>3,062 Elo</dd></div>
+              <div><dt>Score-derived estimate</dt><dd>≈3,904 Elo</dd></div>
+            </dl>
+            <p class="benchmark-caveat">This is an experimental score-derived estimate, not an official or independently established rating. The baseline is CCRL's Stockfish 2.0.1 64-bit rating (used as a proxy for Stockfish 2.0); CCRL uses 40/15 testing, unlike this 1M-nodes-per-move match. The benchmarked Prunex 0.8.0 build is based on Stockfish 19, which is important context when interpreting this result.</p>
+          </div>
+        </section>
       </main>
 
       <footer class="footer">
