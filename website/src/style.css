@@ -362,8 +362,3 @@ h2 span { color: var(--blue); }
   .theme-toggle { min-height: 36px; padding: 0 8px; font-size: 10px; }
   .top-actions { gap: 7px; }
 }
-
-.benchmark-source-links { display: flex; flex-wrap: wrap; gap: 10px 17px; margin-top: 15px; }
-.benchmark-source-links a { color: #8bcaff; font-size: 10px; line-height: 1.5; text-decoration: none; border-bottom: 1px solid rgba(139, 202, 255, .45); padding-bottom: 3px; }
-.benchmark-source-links a:hover { color: #fff; border-color: #fff; }
-.benchmark-card .benchmark-specs + .benchmark-caveat { margin-top: 18px; }
