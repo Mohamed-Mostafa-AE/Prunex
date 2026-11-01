@@ -2,15 +2,15 @@
 
 **An independently developed chess engine, built from scratch in C++20.**
 
-The repository root is the main project folder. It contains the engine C++ source, Windows GUI, CMake build files, regression tests, and documentation. The root has no bundled ZIP archives.
+The repository root is the main project folder. It contains the complete C++ engine source, Windows GUI, CMake build files, tests, website, and documentation. The repository contains no ZIP archives.
 
-## Project structure
+## Project layout
 
-- `src/` — C++ engine and GUI implementation
-- `tests/` — engine regression tests
-- `CMakeLists.txt` — build configuration
-- `website/` — website and separate browser demo
-- `.github/workflows/` — Windows build and website CI
+- `src/` — C++ engine and GUI source
+- `tests/` — C++ regression tests
+- `CMakeLists.txt` — native build configuration
+- `website/` — project website and separate browser demo
+- `.github/workflows/` — website and Windows CI
 
 ## Build on Windows
 
