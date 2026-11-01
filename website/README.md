@@ -2,8 +2,10 @@
 
 Vite application. Vercel project root: `website/`. Build: `npm run build`; output: `dist/`.
 
-The main Prunex project is an independently developed C++20 chess engine built from scratch. The browser workspace is a separate interactive demonstration using `chess.js` for legal move handling and Stockfish.js 19 Lite single-threaded WebAssembly as the browser opponent. It runs in a Web Worker. It is not the independent Prunex 0.5.1 engine.
+The site uses the provided Prunex logo and a midnight, cyan, and blue palette.
 
-The site uses the supplied Prunex logo at `public/prunex-logo.jpg`. Stockfish.js and its GPLv3 license are installed and copied during the website build from the pinned npm dependency; generated engine files and archive downloads are not committed to the repository.
+The independent main project is the C++20 chess engine built from scratch. The website's browser workspace is a separate interactive demonstration using chess.js and Stockfish.js Lite, not the native Prunex search core.
 
-Vercel settings: root directory `website`, framework `Vite`, build command `npm run build`, output directory `dist/`.
+Stockfish.js and its GPLv3 license are installed/copied from pinned dependencies during the build; generated JS/WASM and archives are intentionally not stored in Git.
+
+Vercel project settings: root `website`, Vite, `npm run build`, output `dist/`.
