@@ -100,9 +100,19 @@ try {
   );
 
 
+  await page.setViewportSize({ width: 1440, height: 768 });
+  await page.locator("#board-size").evaluate(el => { el.value = "590"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+  const boardAt590 = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
+  if (boardAt590 < 580 || boardAt590 > 600) throw new Error("Board should reach 590px at a 768px viewport height: " + boardAt590);
   await page.locator("#board-size").evaluate(el => { el.value = "640"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   const enlargedBoard = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
-  if (enlargedBoard < 620 || enlargedBoard > 650) throw new Error("Board size slider did not resize the board: " + enlargedBoard);
+  if (enlargedBoard < 630 || enlargedBoard > 650 || enlargedBoard <= boardAt590 + 35) {
+    throw new Error("Board size slider must distinguish 590px from 640px: " + boardAt590 + " -> " + enlargedBoard);
+  }
+  if (await page.locator(".opponent-label strong").textContent() !== "Prunex") throw new Error("Engine badge should be branded Prunex.");
+  const workspaceBackground = await page.locator(".workspace").evaluate(el => getComputedStyle(el).backgroundColor);
+  const avatarBackground = await page.locator(".engine-avatar").evaluate(el => getComputedStyle(el).backgroundColor);
+  if (workspaceBackground !== avatarBackground) throw new Error("Transparent Prunex mark background should match the dark board section.");
   await page.locator("#piece-style").selectOption("letters");
   if (await page.locator("#board").getAttribute("data-pieces") !== "letters" || !(await page.locator("#board .piece-letters").count())) {
     throw new Error("Letter piece set did not render.");
