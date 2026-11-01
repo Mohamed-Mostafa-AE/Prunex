@@ -13,6 +13,13 @@ const nodesSelect = $("#nodes");
 const sideSelect = $("#side");
 const fenInput = $("#fen-input");
 const fenFeedback = $("#fen-feedback");
+const boardFrame = $(".board-frame");
+const boardSizeInput = $("#board-size");
+const boardSizeValue = $("#board-size-value");
+const pieceStyleSelect = $("#piece-style");
+const coordinatesToggle = $("#coordinates");
+const legalMovesToggle = $("#legal-moves");
+const promotionPicker = $("#promotion-picker");
 const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
 const game = new Chess();
 
@@ -29,8 +36,52 @@ let thinking = false;
 let requestId = 0;
 let lastMove = null;
 let humanColor = "w";
+let showCoordinates = true;
+let showLegalMoves = true;
+let pendingPromotion = null;
 
 const squareName = (row, col) => "abcdefgh"[col] + String(8 - row);
+
+
+function completePromotion(piece) {
+  if (!pendingPromotion) return;
+  const move = game.move({ ...pendingPromotion, promotion: piece });
+  if (!move) return;
+  lastMove = { from: move.from, to: move.to };
+  pendingPromotion = null;
+  promotionPicker.hidden = true;
+  selected = null;
+  legalTargets = [];
+  render();
+  search();
+}
+function savePreference(key, value) {
+  try { localStorage.setItem("prunex-" + key, String(value)); } catch {}
+}
+function loadPreference(key, fallback) {
+  try { return localStorage.getItem("prunex-" + key) ?? fallback; } catch { return fallback; }
+}
+function setBoardSize(value, persist = true) {
+  const size = Math.max(360, Math.min(760, Number(value) || 640));
+  boardFrame.style.setProperty("--board-size", size + "px");
+  boardSizeInput.value = String(size);
+  boardSizeValue.value = size + " px";
+  boardSizeValue.textContent = size + " px";
+  if (persist) savePreference("board-size", size);
+}
+function applyPreferences() {
+  const theme = loadPreference("theme", "sage");
+  const pieces = loadPreference("pieces", "standard");
+  showCoordinates = loadPreference("coordinates", "true") !== "false";
+  showLegalMoves = loadPreference("legal-moves", "true") !== "false";
+  $("#theme").value = theme;
+  pieceStyleSelect.value = pieces;
+  coordinatesToggle.checked = showCoordinates;
+  legalMovesToggle.checked = showLegalMoves;
+  boardEl.dataset.theme = theme;
+  boardEl.dataset.pieces = pieces;
+  setBoardSize(loadPreference("board-size", "640"), false);
+}
 
 function statusText() {
   if (game.isCheckmate()) return game.turn() === humanColor ? "Checkmate · Engine wins" : "Checkmate · You win";
@@ -48,6 +99,7 @@ function syncFen() {
 
 function renderBoard() {
   boardEl.replaceChildren();
+  boardEl.classList.toggle("no-coordinates", !showCoordinates);
   const rows = game.board();
   for (let vr = 0; vr < 8; vr += 1) {
     for (let vc = 0; vc < 8; vc += 1) {
@@ -62,7 +114,7 @@ function renderBoard() {
       button.setAttribute("aria-label", piece ? square + " " + (piece.color === "w" ? "white " : "black ") + piece.type : square);
       if (selected === square) button.classList.add("selected");
       if (lastMove && (lastMove.from === square || lastMove.to === square)) button.classList.add("last-move");
-      if (legalTargets.includes(square)) button.classList.add(piece ? "capture-target" : "move-target");
+      if (showLegalMoves && legalTargets.includes(square)) button.classList.add(piece ? "capture-target" : "move-target");
       if (piece) {
         const span = document.createElement("span");
         span.className = "piece " + (piece.color === "w" ? "white-piece" : "black-piece");
@@ -147,7 +199,13 @@ function onSquare(square) {
   if (selected) {
     if (legalTargets.includes(square)) {
       try {
-        const move = game.move({ from: selected, to: square, promotion: "q" });
+        const candidateMoves = game.moves({ square: selected, verbose: true }).filter(move => move.to === square);
+        if (candidateMoves.some(move => move.promotion)) {
+          pendingPromotion = { from: selected, to: square };
+          promotionPicker.hidden = false;
+          return;
+        }
+        const move = game.move({ from: selected, to: square });
         lastMove = { from: move.from, to: move.to };
         selected = null;
         legalTargets = [];
@@ -258,6 +316,29 @@ sideSelect.addEventListener("change", () => {
 });
 $("#theme").addEventListener("change", (event) => {
   boardEl.dataset.theme = event.target.value;
+  savePreference("theme", event.target.value);
+});
+pieceStyleSelect.addEventListener("change", event => {
+  boardEl.dataset.pieces = event.target.value;
+  savePreference("pieces", event.target.value);
+});
+coordinatesToggle.addEventListener("change", event => {
+  showCoordinates = event.target.checked;
+  savePreference("coordinates", showCoordinates);
+  renderBoard();
+});
+legalMovesToggle.addEventListener("change", event => {
+  showLegalMoves = event.target.checked;
+  savePreference("legal-moves", showLegalMoves);
+  renderBoard();
+});
+boardSizeInput.addEventListener("input", event => setBoardSize(event.target.value));
+promotionPicker.querySelectorAll("[data-promotion]").forEach(button => {
+  button.addEventListener("click", () => completePromotion(button.dataset.promotion));
+});
+$("#cancel-promotion").addEventListener("click", () => {
+  pendingPromotion = null;
+  promotionPicker.hidden = true;
 });
 $("#load-fen").addEventListener("click", () => {
   try {
@@ -301,6 +382,6 @@ $("#reset-position").addEventListener("click", () => {
 });
 
 $("#year").textContent = String(new Date().getFullYear());
-boardEl.dataset.theme = "sage";
+applyPreferences();
 worker.postMessage({ type: "init" });
 render();
