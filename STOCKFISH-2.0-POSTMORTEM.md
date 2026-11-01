@@ -62,3 +62,16 @@ The complete PGN and engine-analysis logs are more useful than isolated centipaw
 4. Re-run the 64-game benchmark at the selected settings and publish the PGN and JSON summary.
 
 The current engine is a Stockfish 4-derived GPLv3 release, not the independent Prunex 0.5.x search implementation. All public descriptions should retain that distinction.
+
+
+## Prunex 0.8.0 full confirmation (2026-10-31)
+
+The completed 64-game confirmation artifact is available from [GitHub Actions run 41253517143](https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41253517143). Its JSON summary and complete PGN were downloaded and inspected.
+
+- **Result:** 62 wins, 2 draws, 0 losses (63/64 points; 98.44%).
+- **Engines:** Prunex 0.8.0 derived from official Stockfish 19 (tag `sf_19`); opponent compiled from official Stockfish 2.0 (tag `sf_2.0`).
+- **Conditions:** 100,000 nodes per move, 128 MB hash each, one thread, 16 openings, two repetitions, 32 games per color, no opening book.
+- **Draws:** round 36, Nimzo-Indian Defense, and round 62, Grünfeld Defense. Both were recorded as threefold repetitions with Prunex Black. No losses occurred.
+- **Interpretation:** the 64-game result is a 98.44% score, not a perfect score. It is a benchmark of a Stockfish 19-derived GPLv3 engine against Stockfish 2.0, not evidence that the independent Prunex 0.5.x engine independently achieved this strength.
+
+The next experiment should investigate draw avoidance with controlled, documented changes and rerun the same color-balanced opening suite. Do not modify or suppress repetition adjudication to manufacture wins; report draws faithfully.
