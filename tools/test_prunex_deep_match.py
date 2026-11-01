@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from prunex_deep_match import OPENINGS, make_opening, make_schedule, make_summary, read_results
+from prunex_deep_match import OPENINGS, make_opening, make_schedule, make_summary, pending_games, read_results
 
 
 class DeepMatchTests(unittest.TestCase):
@@ -22,6 +22,16 @@ class DeepMatchTests(unittest.TestCase):
             games = [item for item in schedule if item["opening_index"] == opening_index]
             self.assertEqual(len(games), 4)
             self.assertEqual(sum(item["prunex_white"] for item in games), 2)
+
+    def test_resume_skips_completed_games_and_keeps_original_order(self):
+        schedule = make_schedule()
+        completed = {schedule[0]["game_id"], schedule[4]["game_id"], schedule[-1]["game_id"]}
+        pending = pending_games(schedule, completed)
+        self.assertEqual(len(pending), 61)
+        self.assertEqual([item["game_id"] for item in pending], [
+            item["game_id"] for item in schedule if item["game_id"] not in completed
+        ])
+        self.assertFalse(completed.intersection(item["game_id"] for item in pending))
 
     def test_truncated_last_record_is_discarded(self):
         with tempfile.TemporaryDirectory() as folder:
