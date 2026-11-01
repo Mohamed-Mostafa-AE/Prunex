@@ -1,11 +1,6 @@
 name: Prunex 0.6.0 — Stockfish-derived build and legacy benchmark
 
 on:
-  push:
-    paths:
-      - '.github/workflows/prunex-0.6-stockfish4.yml'
-      - 'tools/prunex_stockfish4_match.py'
-      - 'PRUNEX-0.6.0-DERIVATION.md'
   workflow_dispatch:
 
 permissions:
