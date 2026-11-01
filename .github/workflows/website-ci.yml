@@ -68,6 +68,12 @@ jobs:
       - name: Exercise the browser board and engine
         run: npm run test:browser
 
+      - name: Verify live Vercel board under production security headers
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          PRUNEX_BASE_URL: https://prunex-play.vercel.app
+        run: npm run test:browser
+
       - name: Verify required static assets
         run: |
           test -s dist/index.html
