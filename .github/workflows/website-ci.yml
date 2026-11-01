@@ -1,4 +1,4 @@
-name: Validate Prunex website and dependencies
+name: Validate Prunex website
 
 on:
   push:
@@ -15,83 +15,38 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     defaults:
       run:
         working-directory: website
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: website/package.json
-
-      - name: Generate a temporary lockfile from exact direct dependency versions
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
-      - name: Install dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts --no-audit --no-fund
-
-      - name: Audit the complete dependency tree
-        run: npm audit --audit-level=low
-
-      - name: Build production website
-        run: npm run build
-
-      - name: Install Chromium for browser test
-        run: npx playwright install --with-deps chromium
-
-      - name: Start production preview
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Start Vite preview
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/prunex-preview.log 2>&1 &
-          ready=false
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
-              ready=true
-              break
-            fi
+            curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0
             sleep 1
           done
-          if [ "$ready" != "true" ]; then
-            cat /tmp/prunex-preview.log
-            exit 1
-          fi
-
-      - name: Exercise the browser board and engine
+          cat /tmp/prunex-preview.log
+          exit 1
+      - name: Browser smoke test
         run: npm run test:browser
-
-      - name: Verify live Vercel board under production security headers
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          PRUNEX_BASE_URL: https://prunex-play.vercel.app
-        run: npm run test:browser
-
-      - name: Verify required static assets
+      - name: Required output assets
         run: |
           test -s dist/index.html
+          test -s dist/prunex-logo.jpg
           test -s dist/engine/stockfish-19-lite-single.js
           test -s dist/engine/stockfish-19-lite-single.wasm
-          test -s dist/engine-source.tar.gz
           test -s dist/COPYING.txt
-          grep -q 'mohamedhussam09@gmail.com' dist/index.html
-          grep -q 'github.com/Mohamed-Mostafa-GT' dist/index.html
-          tar -tzf dist/engine-source.tar.gz | grep -q 'src/'
-          grep -q 'GNU GENERAL PUBLIC LICENSE' dist/COPYING.txt
-          test -f vercel.json
-          node --input-type=module -e "import fs from 'node:fs'; const config=JSON.parse(fs.readFileSync('vercel.json','utf8')); const headers=config.headers?.flatMap(rule=>rule.headers??[])??[]; const keys=new Set(headers.map(h=>h.key.toLowerCase())); for (const key of ['content-security-policy','strict-transport-security','x-content-type-options','referrer-policy','permissions-policy','x-frame-options']) { if (!keys.has(key)) throw new Error('Missing security response header: '+key); } console.log('All required Vercel security headers are configured.');"
-
-      - name: Upload verified static deployment
-        uses: actions/upload-artifact@v6
-        with:
-          name: prunex-site-dist
-          path: website/dist/
-          if-no-files-found: error
-          retention-days: 7

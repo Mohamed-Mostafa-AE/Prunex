@@ -22,24 +22,18 @@ try {
 
   const startup = await page.evaluate(() => ({
     engine: document.querySelector("#engine-state")?.textContent,
-    status: document.querySelector("#status")?.textContent,
-    href: location.href
+    status: document.querySelector("#status")?.textContent
   }));
-
   if (startup.engine !== "Engine ready") {
-    throw new Error("Prunex engine startup failed: " + JSON.stringify(startup) +
+    throw new Error("Engine startup failed: " + JSON.stringify(startup) +
       "\nWorkers: " + JSON.stringify(workers) + "\nErrors: " + failures.join("\n"));
   }
 
   await page.locator('[data-square="e2"]').click();
   await page.locator('[data-square="e4"]').click();
-
-  await page.waitForFunction(
-    () => {
-      const moves = [...document.querySelectorAll(".move-row")].map(row => row.textContent);
-      return moves.some(row => row.includes("e4")) &&
-        document.querySelector("#turn-label")?.textContent.includes("YOUR TURN");
-    },
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")) &&
+    document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
     undefined,
     { timeout: 60000 }
   );
@@ -49,18 +43,17 @@ try {
     throw new Error("Board theme did not update.");
   }
 
-  const kingsOnlyFen = "8/8/8/8/8/8/4k3/7K w - - 0 1";
-  await page.locator("#fen-input").fill(kingsOnlyFen);
+  await page.locator("#fen-input").fill("8/8/8/8/8/8/4k3/7K w - - 0 1");
   await page.locator("#load-fen").click();
   await page.waitForFunction(() => document.querySelectorAll("#board .piece").length === 2);
   if (!(await page.locator("#status").textContent()).includes("Draw")) {
-    throw new Error("Custom FEN position did not load as expected.");
+    throw new Error("Custom FEN position failed.");
   }
 
   await page.locator("#fen-input").fill("not a fen");
   await page.locator("#load-fen").click();
   if (!(await page.locator("#fen-feedback").textContent()).length) {
-    throw new Error("Invalid FEN was not rejected with feedback.");
+    throw new Error("Invalid FEN was not rejected.");
   }
 
   await page.locator("#reset-position").click();
@@ -83,11 +76,8 @@ try {
     throw new Error("Mobile layout overflows: " + JSON.stringify(mobile));
   }
 
-  const moveRows = await page.locator(".move-row").allTextContents();
-  if (moveRows.length < 1) throw new Error("Move history did not record the opening moves.");
   if (failures.length) throw new Error(failures.join("\n"));
-
-  console.log("PASS: engine startup, legal human move, engine reply, board theme, FEN import/error handling, reset, black-side play, move history, and mobile layout.");
+  console.log("PASS: startup, human move and engine reply, theme, FEN import and validation, reset, black-side play, and mobile layout.");
 } finally {
   await browser.close();
 }
