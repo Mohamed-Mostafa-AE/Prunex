@@ -19,7 +19,8 @@ const boardSizeValue = $("#board-size-value");
 const pieceStyleSelect = $("#piece-style");
 const coordinatesToggle = $("#coordinates");
 const legalMovesToggle = $("#legal-moves");
-const promotionPicker = $("#promotion-picker");\nconst siteThemeToggle = $("#site-theme-toggle");
+const promotionPicker = $("#promotion-picker");
+const siteThemeToggle = $("#site-theme-toggle");
 const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
 const game = new Chess();
 
@@ -60,7 +61,8 @@ function savePreference(key, value) {
 }
 function loadPreference(key, fallback) {
   try { return localStorage.getItem("prunex-" + key) ?? fallback; } catch { return fallback; }
-}\nfunction applySiteTheme(theme) {
+}
+function applySiteTheme(theme) {
   const selected = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.siteTheme = selected;
   document.documentElement.style.colorScheme = selected;
@@ -79,7 +81,8 @@ function setBoardSize(value, persist = true) {
   if (persist) savePreference("board-size", size);
 }
 function applyPreferences() {
-  applySiteTheme(loadPreference("site-theme", "light"));\n  const theme = loadPreference("theme", "blue");
+  applySiteTheme(loadPreference("site-theme", "light"));
+  const theme = loadPreference("theme", "blue");
   const storedPieces = loadPreference("pieces", "cburnett");
   const pieces = ["cburnett", "unicode", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
   showCoordinates = loadPreference("coordinates", "true") !== "false";
@@ -339,7 +342,8 @@ $("#flip").addEventListener("click", () => {
 sideSelect.addEventListener("change", () => {
   humanColor = sideSelect.value;
   startNewGame();
-});\nsiteThemeToggle.addEventListener("click", () => {
+});
+siteThemeToggle.addEventListener("click", () => {
   const next = document.documentElement.dataset.siteTheme === "dark" ? "light" : "dark";
   applySiteTheme(next);
   savePreference("site-theme", next);
