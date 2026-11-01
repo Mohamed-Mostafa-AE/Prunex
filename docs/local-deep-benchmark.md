@@ -56,6 +56,9 @@ The folder contains:
 - `all-games.pgn`: the combined PGN.
 - One PGN file per game.
 - `run-config.json`: engine hashes, UCI identities, settings, and source revisions.
+- `engines/`: the exact two executables used in the match.
+- `licenses/`: the GPLv3 license files for both engine builds.
+- `source-revisions.txt`: the official tags and exact upstream commit hashes.
 - `tournament.log`: console output from each run.
 
 Each game's PGN is written atomically, then its result is appended and flushed to disk before the next game starts. The detached process continues if PowerShell or this chat closes. If Windows restarts, WSL is shut down, or the process is interrupted, completed games remain saved. Run the same PowerShell command again to resume; completed game IDs are skipped and an interrupted game is replayed from its opening. A lock held in WSL's Linux filesystem prevents a second copy from running against the same results folder.
