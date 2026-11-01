@@ -44,15 +44,23 @@ Historical 64-game, 100 ms/move matches against Stockfish 4 and Stockfish 6 ende
 
 ## Historical Stockfish 2.0 comparison
 
-A 64-game local run reported on 2026-11-01 recorded **Prunex 0.8.0 (Stockfish 19-derived)** at 63 wins, 1 draw, and 0 losses against a Stockfish 2.0-labelled opponent (63.5/64 points; 99.22%). The run used 1,000,000 nodes per move, 256 MB hash per engine, one thread per engine, 16 openings, two repetitions, and 32 games with each colour.
+A 64-game local run reported on 2026-11-01 recorded **Prunex 0.8.0 (Stockfish 19-derived)** at 63 wins, 1 draw, and 0 losses against a Stockfish 2.0 64-bit opponent (63.5/64 points; 99.22%). The run used 1,000,000 nodes per move, 256 MB hash per engine, one thread per engine, 16 openings, two repetitions, and 32 games with each colour.
 
-The opponent executable's local UCI identification was `Stockfish 2.0 64bit`, with authors Tord Romstad, Marco Costalba, and Joona Kiiski. Its `bench` command returned **7,224,363 nodes**, matching the signature documented in the [Stockfish 2.0 release announcement](https://stockfishchess.org/blog/2011/stockfish-2/). Its locally measured SHA-256 was `760f9c7435b4f498d0188b9ae5b81d6a92636328a932c020fb338a93195bcff2`.
+The opponent executable's local UCI identification was `Stockfish 2.0 64bit`, with authors Tord Romstad, Marco Costalba, and Joona Kiiski. Its `bench` command returned **7,224,363 nodes**, matching the signature documented in the [Stockfish 2.0 release announcement](https://stockfishchess.org/blog/2011/stockfish-2/). Its locally measured SHA-256 was `760f9c7435b4f498d0188b9ae5b81d6a92636328a932c020fb338a93195bcff2`. These checks give a strong practical version/build fingerprint, not cryptographic publisher authentication or independent proof of download provenance.
 
-These checks provide a strong practical version/build fingerprint, but are not a cryptographic publisher signature or independent proof of the binary's download provenance. The SHA-256 is the hash measured from the local executable used for verification.
+### Indicative Elo translation — not an official rating
 
-**Important:** This is not a result for the independently implemented Prunex 0.5.1 C++20 source described above. Prunex 0.8.0 is reported as Stockfish 19-derived. The 99.22% figure is the match score for this particular 64-game setup, not an Elo rating or a general strength estimate.
+The closest published CCRL reference identified for this historical release family is **Stockfish 2.0.1 at 3,062 ±19 Elo** on the CCRL 40/15 list. This is a nearby patch release and a reference point, not a published rating for the exact Stockfish 2.0 binary used in the match. See the [CCRL engine entry](https://www.computerchess.org/cgi/engine_details.cgi?engine=Stockfish+2.0.1+64-bit).
 
-See the [benchmark report](benchmarks/stockfish-2.0/README.md) and the [verification record](benchmarks/stockfish-2.0/verification.json). The original PGN and JSONL game records were retained on the project owner's computer and have not yet been added to this repository, so the match has not been independently audited from its individual games.
+Using the reported score of 63.5/64 (99.21875%), the standard Elo score conversion gives an indicative rating difference of approximately **+842 Elo**:
+
+`400 × log10((63.5 / 64) / (0.5 / 64)) ≈ 841.5`
+
+Adding that difference to the 3,062 reference gives a match-implied figure of approximately **3,904**. This is a mathematical projection from one 64-game result, **not an official Prunex Elo rating**. The CCRL reference uses a different time control, hardware and opponent pool from this 1,000,000-nodes-per-move match; rating values from different pools are not directly interchangeable. The [Stockfish FAQ](https://official-stockfish.github.io/docs/stockfish-wiki/Stockfish-FAQ.html#the-elo-rating-of-stockfish) explains why engine Elo requires controlled conditions and substantial game samples.
+
+**Important:** This comparison tests the reported **Prunex 0.8.0 Stockfish 19-derived build**. It is **not** a result for the independently implemented Prunex 0.5.1 C++20 source described above. The 99.22% result and 3,904 projection must not be attributed to the independent 0.5.1 engine.
+
+See the [benchmark report](benchmarks/stockfish-2.0/README.md) and the [verification record](benchmarks/stockfish-2.0/verification.json). The original PGN and JSONL game records remain on the project owner's computer and have not been added to this repository, so the 64 individual games have not been independently audited here.
 
 ## Website and browser demo
 
