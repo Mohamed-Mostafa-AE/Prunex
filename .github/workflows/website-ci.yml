@@ -38,10 +38,18 @@ jobs:
       - name: Start production preview
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/prunex-preview.log 2>&1 &
+          ready=false
           for i in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:4173/ >/dev/null && break
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              ready=true
+              break
+            fi
             sleep 1
           done
+          if [ "$ready" != "true" ]; then
+            cat /tmp/prunex-preview.log
+            exit 1
+          fi
       - name: Exercise the browser board and engine
         run: npm run test:browser
       - name: Verify required static assets
