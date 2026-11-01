@@ -19,8 +19,8 @@ if ($LASTEXITCODE -ne 0 -or -not $wslPid) {
     throw "The local benchmark could not be started inside WSL."
 }
 
-Write-Host "Local benchmark launched in the background (WSL PID $wslPid)."
-Write-Host "It will keep running if this PowerShell window or the ChatGPT conversation closes."
+Write-Host "Local benchmark launch request sent (WSL PID $wslPid)."
+Write-Host "The detached run continues if this PowerShell window or the ChatGPT conversation closes. An existing run is left alone."
 Write-Host "Progress: .\benchmark-results\deep-1m-256mb\progress.json"
 Write-Host "Log:      .\benchmark-results\deep-1m-256mb\tournament.log"
 Write-Host "Setup log: .\benchmark-results\deep-1m-256mb\launcher.log"
