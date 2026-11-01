@@ -57,6 +57,7 @@ The folder contains:
 - One PGN file per game.
 - `run-config.json`: engine hashes, UCI identities, settings, and source revisions.
 - `tournament.log`: console output from each run.
+- `run.lock`: a process lock that prevents duplicate runs.
 
 Each game's PGN is written atomically, then its result is appended and flushed to disk before the next game starts. The detached process continues if PowerShell or this chat closes. If Windows restarts, WSL is shut down, or the process is interrupted, completed games remain saved. Run the same PowerShell command again to resume; completed game IDs are skipped and an interrupted game is replayed from its opening. A lock prevents a second copy from running against the same results folder.
 
