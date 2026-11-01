@@ -55,11 +55,19 @@ else:
 PY
 
 mkdir -p "$WORK_DIR/bin"
-if [ ! -x "$WORK_DIR/bin/prunex-0.8.0" ]; then
-  echo "Checking the 64-game schedule and checkpoint recovery..."
+exec 9>"$OUT_DIR/run.lock"
+if ! flock -n 9; then
+  echo "A benchmark process is already running in $OUT_DIR"
+  exit 0
+fi
+echo "$" > "$OUT_DIR/runner.pid"
+trap 'rm -f "$OUT_DIR/runner.pid"' EXIT
+
+echo "Checking the 64-game schedule and checkpoint recovery..."
 "$PYTHON" "$REPO_ROOT/tools/test_prunex_deep_match.py"
 
-echo "Building Prunex 0.8.0 from official Stockfish tag sf_19..."
+if [ ! -x "$WORK_DIR/bin/prunex-0.8.0" ]; then
+  echo "Building Prunex 0.8.0 from official Stockfish tag sf_19..."
   make -C "$WORK_DIR/prunex-core/src" -j2 build ARCH=x86-64 COMP=gcc
   cp "$WORK_DIR/prunex-core/src/stockfish" "$WORK_DIR/bin/prunex-0.8.0.tmp"
   mv "$WORK_DIR/bin/prunex-0.8.0.tmp" "$WORK_DIR/bin/prunex-0.8.0"
