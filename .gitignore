@@ -52,11 +52,23 @@ Makefile
 install_manifest.txt
 compile_commands.json
 
+# Node / website build output
+node_modules/
+website/node_modules/
+website/dist/
+website/.vercel/
+website/playwright-report/
+website/test-results/
+
 # Temporary files
 *.tmp
 *.log
 *.bak
 *.swp
+.DS_Store
+
+# Local editor settings
+.vscode/
 
 # vcpkg
 vcpkg_installed/
