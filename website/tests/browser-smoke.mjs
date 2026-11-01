@@ -26,7 +26,7 @@ try {
     pieceImages: document.querySelectorAll("#board .piece-svg use").length
   }));
   if (!launchLayout.heroSpecimen) throw new Error("The project specimen should render in the hero.");
-  if (await page.locator(".nav-logo").getAttribute("src") !== "/prunex-mark.png?v=3") throw new Error("Transparent Prunex mark is missing from navigation.");
+  if (await page.locator(".nav-logo").getAttribute("src") !== "/prunex-mark.png?v=4") throw new Error("Transparent Prunex mark is missing from navigation.");
   if (!(await page.locator(".engine-avatar img").count())) throw new Error("Prunex mark is missing from the engine badge.");
   if ((await page.locator(".engine-avatar img").getAttribute("alt")) !== "Prunex logo") throw new Error("Engine badge logo alt text is missing.");
   await page.waitForFunction(() => { const img = document.querySelector(".engine-avatar img"); return img && img.complete && img.naturalWidth > 0; });
@@ -38,8 +38,8 @@ try {
   if (!testingCopy.includes("44/44") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
   if (/3,904|0\.8\.0|Stockfish 19-derived/i.test(testingCopy)) throw new Error("An unrelated match result is being presented as a Prunex rating.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
-  if (favicon !== "/prunex-mark.png?v=3") throw new Error("Transparent Prunex mark is not configured as the favicon.");
-  const markResponse = await page.request.get(new URL("/prunex-mark.png?v=3", baseUrl).toString());
+  if (favicon !== "/prunex-mark.png?v=4") throw new Error("Transparent Prunex mark is not configured as the favicon.");
+  const markResponse = await page.request.get(new URL("/prunex-mark.png?v=4", baseUrl).toString());
   if (!markResponse.ok()) throw new Error("Transparent Prunex mark failed to load: " + markResponse.status());
   await page.locator("#site-theme-toggle").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme did not activate.");
