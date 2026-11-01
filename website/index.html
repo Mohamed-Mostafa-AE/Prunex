@@ -152,14 +152,15 @@
           <div class="benchmark-copy">
             <div class="eyebrow"><span class="eyebrow-line"></span> TESTING & VERIFICATION</div>
             <h2>Evidence over claims.</h2>
-            <p>The Prunex 0.5.1 regression suite contains 44 tests. The reported Linux verification passed under GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer.</p>
-            <p>Historical 64-game matches at 100 ms per move finished 0–0–64 against Stockfish 4 and Stockfish 6. These are recorded match results, not an Elo rating or evidence of competitive strength.</p>
-            <a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex/blob/main/TEST_REPORT.md" target="_blank" rel="noreferrer">Read the complete test report <span aria-hidden="true">↗</span></a>
+            <p>The independent Prunex 0.5.1 core has a 44-case regression suite. Recorded Linux verification passed under GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer.</p>
+            <p>A separate local 64-game run of <strong>Prunex 0.8.0 (Stockfish 19-derived)</strong> recorded 63 wins, one draw, and no losses against a Stockfish 2.0 64-bit executable. The opponent's UCI identity and historical 7,224,363-node benchmark signature were checked against the Stockfish project's release note.</p>
+            <p>The score implies an illustrative figure of approximately <strong>3,904</strong> when converted using a nearby CCRL Stockfish 2.0.1 reference of 3,062 ±19. This is a match-based projection, not an official rating; the reference and match use different testing conditions. It does not rate the independent Prunex 0.5.1 engine.</p>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex/tree/main/benchmarks/stockfish-2.0" target="_blank" rel="noreferrer">Read the benchmark, verification record, and limitations <span aria-hidden="true">↗</span></a>
           </div>
           <div class="benchmark-card">
-            <div class="benchmark-card-top"><span>REGRESSION TESTS</span><span class="record-tag">LINUX VERIFICATION</span></div>
+            <div class="benchmark-card-top"><span>INDEPENDENT CORE TESTS</span><span class="record-tag">LINUX VERIFICATION</span></div>
             <div class="score-number">44<span>/44</span></div>
-            <p class="score-label">CTest cases passed in each listed configuration</p>
+            <p class="score-label">Prunex 0.5.1 CTest cases passed in each listed configuration</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
               <div><dt>GCC 14.2 Release</dt><dd>44 / 44 passed</dd></div>
@@ -167,7 +168,23 @@
               <div><dt>ASan + UBSan</dt><dd>44 / 44 passed</dd></div>
               <div><dt>GCC static analysis</dt><dd>No diagnostics</dd></div>
             </dl>
-            <p class="benchmark-caveat">These results do not replace native Windows GUI testing. Known limitations include synchronous search in the Windows GUI, no asynchronous UCI stop, and no independently established Elo rating.</p>
+            <div class="benchmark-divider"></div>
+            <div class="benchmark-card-top"><span>SEPARATE HISTORICAL MATCH</span><span class="record-tag">64 GAMES</span></div>
+            <div class="score-number">63–1–0<span>W–D–L</span></div>
+            <p class="score-label">Prunex 0.8.0 (Stockfish 19-derived) · 99.22% match score</p>
+            <dl class="benchmark-specs">
+              <div><dt>Opponent</dt><dd>Stockfish 2.0 64-bit</dd></div>
+              <div><dt>Search budget</dt><dd>1M nodes / move</dd></div>
+              <div><dt>CCRL 2.0.1 reference</dt><dd>3,062 ±19 Elo</dd></div>
+              <div><dt>Match-implied estimate</dt><dd id="historical-elo">≈3,904</dd></div>
+            </dl>
+            <p class="benchmark-caveat" id="historical-elo-caveat">The 3,904 figure is a score-based projection: 63.5/64 implies approximately +842 Elo, added to the 3,062 Stockfish 2.0.1 CCRL reference. It is not an official Prunex rating. The exact Stockfish 2.0 binary's published rating was not established; 2.0.1 is a nearby patch-release proxy, and CCRL conditions differ from this match. The result belongs to the Stockfish 19-derived 0.8.0 build, not independent Prunex 0.5.1. Original PGN/JSONL files are not yet published for independent audit.</p>
+            <div class="benchmark-source-links">
+              <a href="https://www.computerchess.org/cgi/engine_details.cgi?engine=Stockfish+2.0.1+64-bit" target="_blank" rel="noreferrer">CCRL rating reference ↗</a>
+              <a href="https://official-stockfish.github.io/docs/stockfish-wiki/Stockfish-FAQ.html#the-elo-rating-of-stockfish" target="_blank" rel="noreferrer">How engine Elo works ↗</a>
+              <a href="https://stockfishchess.org/blog/2011/stockfish-2/" target="_blank" rel="noreferrer">Stockfish 2.0 release ↗</a>
+            </div>
+            <p class="benchmark-caveat">The independent 0.5.1 test results do not replace native Windows GUI testing. Known limitations include synchronous GUI search, no asynchronous UCI stop, and no independently established Elo rating for the native 0.5.1 engine.</p>
           </div>
         </section>
       </main>
