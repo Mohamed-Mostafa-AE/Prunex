@@ -82,7 +82,8 @@ function setBoardSize(value, persist = true) {
 }
 function applyPreferences() {
   applySiteTheme(loadPreference("site-theme", "light"));
-  const theme = loadPreference("theme", "blue");
+  const savedTheme = loadPreference("theme", "blue");
+  const theme = ["blue", "ice"].includes(savedTheme) ? savedTheme : "blue";
   const storedPieces = loadPreference("pieces", "cburnett");
   const pieces = ["cburnett", "unicode", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
   showCoordinates = loadPreference("coordinates", "true") !== "false";
