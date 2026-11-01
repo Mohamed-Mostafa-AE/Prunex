@@ -6,6 +6,6 @@ The main Prunex project is an independently developed C++20 chess engine built f
 
 The site uses the supplied Prunex logo at `public/prunex-logo.jpg`.
 
-The Stockfish.js engine is a separate GPLv3-licensed upstream component. Its license is retained in `public/COPYING.txt`. The browser engine is installed from the pinned npm dependency during the Vite build; generated WASM/JS and copied source archives are not committed to this repository.
+The Stockfish.js engine is a separate GPLv3-licensed upstream component. Its license is retained in `public/COPYING.txt`. The browser engine is installed from the pinned npm dependency during the Vite build; generated WASM/JS and copied source archives are produced in the build output and are not committed to this repository.
 
 Vercel settings: root directory `website`, framework `Vite`, build command `npm run build`, output directory `dist`.
