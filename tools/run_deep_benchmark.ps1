@@ -14,12 +14,12 @@ if ($LASTEXITCODE -ne 0 -or -not $repoLinux) {
 
 $quotedRepo = $repoLinux.Replace("'", "'\''")
 $start = "cd '$quotedRepo' || exit 1; mkdir -p benchmark-results/deep-1m-256mb; nohup bash tools/run_deep_benchmark.sh > benchmark-results/deep-1m-256mb/launcher.log 2>&1 < /dev/null & echo `$!"
-$pid = (& wsl.exe -d $distro bash -lc $start).Trim()
-if ($LASTEXITCODE -ne 0 -or -not $pid) {
+$wslPid = (& wsl.exe -d $distro bash -lc $start).Trim()
+if ($LASTEXITCODE -ne 0 -or -not $wslPid) {
     throw "The local benchmark could not be started inside WSL."
 }
 
-Write-Host "Local benchmark launched in the background (WSL PID $pid)."
+Write-Host "Local benchmark launched in the background (WSL PID $wslPid)."
 Write-Host "It will keep running if this PowerShell window or the ChatGPT conversation closes."
 Write-Host "Progress: .\benchmark-results\deep-1m-256mb\progress.json"
 Write-Host "Log:      .\benchmark-results\deep-1m-256mb\tournament.log"
