@@ -75,3 +75,16 @@ The completed 64-game confirmation artifact is available from [GitHub Actions ru
 - **Interpretation:** the 64-game result is a 98.44% score, not a perfect score. It is a benchmark of a Stockfish 19-derived GPLv3 engine against Stockfish 2.0, not evidence that the independent Prunex 0.5.x engine independently achieved this strength.
 
 The next experiment should investigate draw avoidance with controlled, documented changes and rerun the same color-balanced opening suite. Do not modify or suppress repetition adjudication to manufacture wins; report draws faithfully.
+
+
+## Historical rating context and public claim guidance
+
+The often-repeated "3,200 Elo" figure should not be attached to Stockfish 2.0 without qualification. Elo is list-, hardware-, and time-control-dependent; there is no single official Stockfish Elo.
+
+- The CCRL engine-details page lists **Stockfish 2.0.1 64-bit at 3062 Elo** on its 40/15 list, and the 32-bit build at 3045. See [CCRL Stockfish 2.0.1 64-bit](https://www.computerchess.org/cgi/engine_details.cgi?engine=Stockfish+2.0.1+64-bit) and [CCRL Stockfish 2.0.1 32-bit](https://www.computerchess.org/cgi/engine_details.cgi?eng=Stockfish+2.0.1+32-bit&print=Details).
+- The official Stockfish release note says Stockfish 2.0.1 was a maintenance release with no functional change and no Elo increase over 2.0: [Stockfish 2.0.1 release note](https://stockfishchess.org/blog/2011/stockfish-2-0-1/).
+- The original Stockfish 2.0 release announcement describes the release as a new-year release and says only that an Elo gain over 1.9.1 was expected; it does not publish a 3,200 Elo rating: [Stockfish 2.0 release note](https://stockfishchess.org/blog/2011/stockfish-2/).
+
+For a careful public description, say: "Stockfish 2.0.1 has a CCRL 40/15 rating of 3062 for its 64-bit build; its official 2.0.1 release notes state there was no Elo change from 2.0." This is historical context, not an Elo estimate for the exact benchmark executable or its benchmark conditions.
+
+The Prunex result is a head-to-head tournament result under a fixed 64-game, 100,000-node-per-move test. It is **not** an independently measured Elo rating, does not establish that Prunex is 3,200 Elo, and should not be generalized to modern Stockfish. The tested Prunex 0.8.0 binary is derived from Stockfish 19; the source change in the benchmark workflow changes the UCI engine identity string. The website's Stockfish.js browser opponent is a separate upstream package.
