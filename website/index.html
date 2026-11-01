@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#10151d">
+    <meta name="theme-color" content="#0b1118">
+    <meta name="color-scheme" content="dark">
+    <meta property="og:title" content="Prunex — Play Chess">
+    <meta property="og:description" content="A clean, local-first chess experience powered by WebAssembly.">
+    <meta property="og:type" content="website">
     <meta name="description" content="Play chess against Prunex, a C++ chess engine running locally in your browser.">
     <title>Prunex — Play Chess</title>
   </head>
@@ -21,8 +25,9 @@
         <section class="play">
           <div class="game-heading">
             <div>
-              <p class="eyebrow">CHESS ENGINE · 0.6.0</p>
+              <p class="eyebrow">PRUNEX PLAY <span> / </span> BROWSER EDITION</p>
               <h1>Make your move.</h1>
+              <p class="game-subtitle">A focused chessboard. A capable engine. No account required.</p>
             </div>
             <span class="turn-pill" id="turn-label">YOU · WHITE</span>
           </div>
@@ -66,18 +71,53 @@
       </main>
 
       <footer class="footer">
-        <div class="footer-description">
-          <a class="footer-brand" href="/">PRUNEX</a>
-          <p>Prunex is an open-source chess project. The browser opponent uses Stockfish.js 19 (lite, single-threaded WASM), distributed under GPLv3.</p>
+        <div class="footer-intro">
+          <a class="footer-brand" href="/" aria-label="Prunex home">PRUNEX<span class="footer-period">.</span></a>
+          <p class="footer-summary">An open-source chess-engine project exploring search, evaluation, and practical engine benchmarking. This page is a local-first browser interface: your moves are processed on your device, not sent to a game server.</p>
+          <div class="footer-contact">
+            <a href="https://github.com/Mohamed-Mostafa-GT" target="_blank" rel="noreferrer">GitHub <span>↗</span></a>
+            <a href="mailto:mohamedhussam09@gmail.com">Email <span>↗</span></a>
+          </div>
         </div>
-        <div class="footer-contact">
-          <span class="footer-label">CONTACT</span>
-          <a href="https://github.com/Mohamed-Mostafa-GT" target="_blank" rel="noreferrer">GitHub ↗</a>
-          <a href="mailto:mohamedhussam09@gmail.com">Email ↗</a>
-          <a href="/engine-source.tar.gz" download>Source code ↓</a>
-          <a href="/COPYING.txt" target="_blank" rel="noreferrer">GPLv3 ↗</a>
+
+        <div class="footer-column">
+          <span class="footer-label">HOW THIS PAGE IS BUILT</span>
+          <dl class="build-list">
+            <div><dt>Interface</dt><dd>Vanilla JavaScript · Vite 6.4.1</dd></div>
+            <div><dt>Chess rules</dt><dd>chess.js 1.4.0</dd></div>
+            <div><dt>Browser engine</dt><dd>Stockfish.js 19.0.1 · Lite single-threaded WASM</dd></div>
+            <div><dt>Execution</dt><dd>Dedicated Web Worker · local browser runtime</dd></div>
+            <div><dt>Build runtime</dt><dd>Node.js 22 · npm</dd></div>
+            <div><dt>Hosting</dt><dd>Vercel · Vite static output</dd></div>
+          </dl>
         </div>
-        <div class="footer-meta">© <span id="year"></span> PRUNEX</div>
+
+        <div class="footer-column">
+          <span class="footer-label">ENGINE BENCHMARK</span>
+          <div class="footer-score">
+            <strong>98.44%</strong>
+            <span>Prunex 0.8.0 · 64-game score</span>
+          </div>
+          <p class="footer-detail">62 wins · 2 draws · 0 losses against an official Stockfish 2.0 source build. Equal 100,000 nodes per move, 128 MB hash, one thread, 16 openings, colors balanced.</p>
+          <a class="footer-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41253517143" target="_blank" rel="noreferrer">View benchmark run ↗</a>
+          <p class="footer-caveat">Benchmark engine: Stockfish 19-derived C++ build. This website's browser opponent is the separate Stockfish.js 19.0.1 distribution. Neither result demonstrates that the independent Prunex 0.5.x engine has reached this strength.</p>
+        </div>
+
+        <div class="footer-column">
+          <span class="footer-label">SOURCE & ATTRIBUTION</span>
+          <p class="footer-detail">The browser engine is an upstream Stockfish.js component. The tournament engine is derived from official Stockfish 19. Both are distributed under GPLv3. Their source and attribution must remain available with redistributed binaries.</p>
+          <div class="footer-resources">
+            <a href="/engine-source.tar.gz" download>Browser engine source ↓</a>
+            <a href="/COPYING.txt" target="_blank" rel="noreferrer">GPLv3 license ↗</a>
+            <a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Project source ↗</a>
+            <a href="https://github.com/official-stockfish/Stockfish" target="_blank" rel="noreferrer">Stockfish upstream ↗</a>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <span>© <span id="year"></span> PRUNEX · BUILT FOR THE LOVE OF CHESS</span>
+          <span>Open source · GPLv3 components · No account required</span>
+        </div>
       </footer>
     </div>
     <script type="module" src="/src/main.js"></script>
