@@ -333,6 +333,20 @@ legalMovesToggle.addEventListener("change", event => {
   renderBoard();
 });
 boardSizeInput.addEventListener("input", event => setBoardSize(event.target.value));
+const resizeGrip = $("#resize-board");
+resizeGrip.addEventListener("pointerdown", event => {
+  event.preventDefault();
+  resizeGrip.setPointerCapture(event.pointerId);
+});
+resizeGrip.addEventListener("pointermove", event => {
+  if (!resizeGrip.hasPointerCapture(event.pointerId)) return;
+  const rect = boardFrame.getBoundingClientRect();
+  setBoardSize(Math.round((event.clientX - rect.left) / 10) * 10);
+});
+resizeGrip.addEventListener("pointerup", event => {
+  if (resizeGrip.hasPointerCapture(event.pointerId)) resizeGrip.releasePointerCapture(event.pointerId);
+});
+resizeGrip.addEventListener("pointercancel", () => savePreference("board-size", boardSizeInput.value));
 promotionPicker.querySelectorAll("[data-promotion]").forEach(button => {
   button.addEventListener("click", () => completePromotion(button.dataset.promotion));
 });
