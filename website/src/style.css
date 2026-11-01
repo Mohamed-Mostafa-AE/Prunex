@@ -290,3 +290,47 @@ body {
   .hero-knight-wrap { width: min(74vw, 270px); }
   .about-mark { width: min(72%, 250px); }
 }
+
+/* Logo-aligned cyan, blue, and midnight visual system */
+:root {
+  color-scheme: dark;
+  --bg: #05090d;
+  --panel: #08131d;
+  --panel-soft: #0c1d2c;
+  --muted: #96a9b8;
+  --line: rgba(52, 190, 225, .18);
+  --violet: #21c2db;
+  --violet-bright: #54a9ed;
+  --mint: #5fe0d0;
+}
+body {
+  background: radial-gradient(ellipse at 12% 0%, rgba(20,172,205,.16), transparent 36rem),
+    radial-gradient(ellipse at 94% 18%, rgba(31,103,190,.16), transparent 34rem),
+    linear-gradient(180deg,#05090d 0%,#08131f 50%,#05090d 100%);
+  color: #eff8fc;
+}
+.nav-logo { width:138px; max-height:44px; object-fit:contain; display:block; }
+.brand-wordmark { color:#f3fbff; font-weight:850; letter-spacing:.24em; }
+.top-cta { border-color:rgba(49,190,224,.48); background:rgba(20,150,190,.11); }
+.top-cta:hover { background:rgba(20,150,190,.2); }
+.eyebrow,.panel-kicker,.control-title,.benchmark-card-top { color:#57b9dc; }
+.hero-glow { background:radial-gradient(circle,rgba(25,190,222,.22),rgba(29,93,178,.11) 42%,transparent 72%); }
+.orbit { border-color:rgba(55,180,218,.13); }
+.hero-knight-wrap {
+ width:min(76%,390px); border:1px solid rgba(58,183,221,.24); border-radius:22px;
+ background:#020609; box-shadow:0 0 84px rgba(10,130,182,.16);
+ overflow:hidden; transform:none; animation:none;
+}
+.hero-mark { display:block;width:100%;height:100%;object-fit:contain;filter:none; }
+.about-visual { border-color:rgba(55,179,222,.2);background:radial-gradient(circle,rgba(12,117,162,.17),rgba(5,11,17,.38) 64%,transparent 80%),#02070b; }
+.about-visual::before,.about-visual::after { border-color:rgba(44,170,215,.15); }
+.about-mark { width:min(72%,350px);filter:drop-shadow(0 0 24px rgba(16,146,203,.2));animation:none; }
+.about-orbit { background:rgba(20,150,195,.2); }
+.button-primary { border-color:rgba(46,195,225,.74);background:linear-gradient(115deg,#16b8d3,#2867bb);box-shadow:0 7px 26px rgba(23,133,190,.2),inset 0 1px rgba(255,255,255,.18); }
+.button-primary:hover:not(:disabled) { box-shadow:0 10px 32px rgba(27,146,203,.3); }
+.engine-avatar { background:linear-gradient(145deg,#13bfd5,#174f9e); }
+.workspace,.editor-panel,.benchmark-card { border-color:rgba(48,163,202,.22); }
+.engine-note { border-color:rgba(44,166,211,.2);background:rgba(22,117,156,.06); }
+.principles article { border-color:rgba(44,166,211,.15); }
+.footer { border-color:rgba(44,166,211,.2); }
+@media(max-width:620px) { .hero-knight-wrap{width:min(76vw,290px)}.about-mark{width:min(78%,270px)} }
