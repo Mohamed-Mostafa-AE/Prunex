@@ -29,6 +29,7 @@ try {
   if (await page.locator(".nav-logo").getAttribute("src") !== "/prunex-mark.png?v=2") throw new Error("Transparent Prunex mark is missing from navigation.");
   if (!(await page.locator(".engine-avatar img").count())) throw new Error("Prunex mark is missing from the engine badge.");
   if ((await page.locator(".engine-avatar img").getAttribute("alt")) !== "Prunex") throw new Error("Engine badge logo alt text is missing.");
+  await page.waitForFunction(() => { const img = document.querySelector(".engine-avatar img"); return img && img.complete && img.naturalWidth > 0; });
   if (await page.locator("#theme option").count() !== 2) throw new Error("Only the two blue board themes should be available.");
   if (await page.locator("#about .about-mark").count()) throw new Error("The about section should explain engine architecture, not repeat the logo.");
   if (!(await page.locator("#about .architecture-card").count())) throw new Error("Engine architecture panel is missing.");
