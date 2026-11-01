@@ -15,7 +15,7 @@ This remains a benchmark of a Stockfish 19-derived build, not a strength result 
 
 ## Windows setup
 
-The supplied PowerShell launcher uses WSL 2 so both historical Stockfish source trees can be built in a consistent Linux environment.
+The supplied PowerShell launcher uses WSL 2 so both historical Stockfish source trees can be built in a consistent Linux environment. It starts the match as a detached background process; closing PowerShell or this chat does not stop it.
 
 1. Install WSL 2 with Ubuntu 22.04 if it is not already installed. In an elevated PowerShell window:
 
@@ -38,7 +38,7 @@ The supplied PowerShell launcher uses WSL 2 so both historical Stockfish source 
    .\tools\run_deep_benchmark.ps1
    ```
 
-The first run downloads the two official source tags, builds both engines, and installs the pinned match-harness dependency in a dedicated Python virtual environment. It may take some time. The actual match is CPU-intensive and can take a long time at one million nodes per move.
+The first run downloads the two official source tags, builds both engines, installs the pinned match-harness dependency in a dedicated Python virtual environment, and runs the schedule/recovery checks before starting. It may take some time. The actual match is CPU-intensive and can take a long time at one million nodes per move. The launcher returns to PowerShell while the tournament continues in WSL.
 
 ## Results and recovery
 
@@ -58,11 +58,11 @@ The folder contains:
 - `run-config.json`: engine hashes, UCI identities, settings, and source revisions.
 - `tournament.log`: console output from each run.
 
-Each game's PGN is written atomically, then its result is appended and flushed to disk before the next game starts. If Windows restarts, WSL closes, the terminal is closed, or the process is interrupted, completed games remain saved. Run the same PowerShell command again to resume; completed game IDs are skipped and an interrupted game is replayed from its opening.
+Each game's PGN is written atomically, then its result is appended and flushed to disk before the next game starts. The detached process continues if PowerShell or this chat closes. If Windows restarts, WSL is shut down, or the process is interrupted, completed games remain saved. Run the same PowerShell command again to resume; completed game IDs are skipped and an interrupted game is replayed from its opening. A lock prevents a second copy from running against the same results folder.
 
 Do not delete or edit the results folder while a match is in progress. A different engine build or different settings will be rejected rather than mixed into the existing match. Use a separate output folder for a separate experiment.
 
-The benchmark runs inside WSL on your computer. Closing this chat has no effect on it. You can monitor progress in `progress.json` or `tournament.log`.
+The benchmark runs inside WSL on your computer. Closing this chat or PowerShell has no effect on the detached process. You can monitor progress with `Get-Content .\\benchmark-results\\deep-1m-256mb\\progress.json` or follow the log with `Get-Content .\\benchmark-results\\deep-1m-256mb\\tournament.log -Wait`.
 
 ## Before publishing the result
 
