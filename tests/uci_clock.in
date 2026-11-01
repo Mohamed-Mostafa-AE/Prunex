@@ -1,0 +1,5 @@
+uci
+isready
+position startpos
+go wtime 3000 btime 3000 winc 100 binc 100 movestogo 30
+quit

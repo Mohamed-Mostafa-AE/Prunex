@@ -1,0 +1,35 @@
+if(SCENARIO STREQUAL "legal_white")
+    set(fen "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
+    set(expected "e5d6: 1")
+    set(should_exist TRUE)
+elseif(SCENARIO STREQUAL "pinned_white")
+    set(fen "k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
+    set(expected "e5d6: 1")
+    set(should_exist FALSE)
+elseif(SCENARIO STREQUAL "legal_black")
+    set(fen "4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 1")
+    set(expected "d4e3: 1")
+    set(should_exist TRUE)
+elseif(SCENARIO STREQUAL "pinned_black")
+    set(fen "8/8/8/8/k2pP2R/8/8/K7 b - e3 0 1")
+    set(expected "d4e3: 1")
+    set(should_exist FALSE)
+else()
+    message(FATAL_ERROR "Unknown scenario: ${SCENARIO}")
+endif()
+
+execute_process(
+    COMMAND "${ENGINE}" --divide-fen "${fen}" 1
+    RESULT_VARIABLE result
+    OUTPUT_VARIABLE output
+    ERROR_VARIABLE error
+)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Perft failed for ${SCENARIO}: ${result}; ${error}")
+endif()
+if(should_exist AND NOT output MATCHES "${expected}")
+    message(FATAL_ERROR "Legal en-passant move was missing. Output: ${output}")
+endif()
+if(NOT should_exist AND output MATCHES "${expected}")
+    message(FATAL_ERROR "Pinned en-passant move must be rejected. Output: ${output}")
+endif()
