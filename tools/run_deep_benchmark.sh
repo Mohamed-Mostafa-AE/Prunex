@@ -6,6 +6,16 @@ WORK_DIR="${PRUNEX_BENCHMARK_WORK_DIR:-$HOME/prunex-benchmark-work}"
 OUT_DIR="$REPO_ROOT/benchmark-results/deep-1m-256mb"
 mkdir -p "$WORK_DIR" "$OUT_DIR"
 
+if ! command -v flock; then
+  echo "The flock utility is required; install util-linux in Ubuntu on WSL." >&2
+  exit 1
+fi
+exec 9>"$OUT_DIR/run.lock"
+if ! flock -n 9; then
+  echo "A benchmark process is already running in $OUT_DIR"
+  exit 0
+fi
+
 if ! command -v git >/dev/null || ! command -v make >/dev/null || ! command -v g++ >/dev/null || ! command -v python3 >/dev/null; then
   echo "Missing build tools. In Ubuntu on WSL, run:" >&2
   echo "sudo apt update && sudo apt install -y git build-essential python3 python3-venv python3-pip" >&2
@@ -55,12 +65,6 @@ else:
 PY
 
 mkdir -p "$WORK_DIR/bin"
-exec 9>"$OUT_DIR/run.lock"
-if ! flock -n 9; then
-  echo "A benchmark process is already running in $OUT_DIR"
-  exit 0
-fi
-
 echo "Checking the 64-game schedule and checkpoint recovery..."
 "$PYTHON" "$REPO_ROOT/tools/test_prunex_deep_match.py"
 
