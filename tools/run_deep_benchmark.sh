@@ -19,7 +19,7 @@ fi
 
 if ! command -v git >/dev/null || ! command -v make >/dev/null || ! command -v g++ >/dev/null || ! command -v python3 >/dev/null; then
   echo "Missing build tools. In Ubuntu on WSL, run:" >&2
-  echo "sudo apt update && sudo apt install -y git build-essential python3 python3-venv python3-pip" >&2
+  echo "sudo apt update && sudo apt install -y git build-essential python3 python3-venv python3-pip util-linux" >&2
   exit 1
 fi
 
