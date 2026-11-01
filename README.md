@@ -2,7 +2,7 @@
 
 **An independently developed chess engine, built from scratch in C++20.**
 
-The repository root is the main project folder. It contains the complete C++ engine source, Windows GUI, CMake build files, tests, website, and documentation. The repository contains no ZIP archives.
+The repository root is the main project folder. It contains the complete C++ engine source, Windows GUI, CMake build files, tests, website, and documentation. No ZIP archives are needed.
 
 ## Project layout
 
@@ -38,7 +38,7 @@ The 0.5.x search includes Zobrist position hashing, a transposition table, itera
 
 ## Verification
 
-The 44-case regression suite passed in the recorded local runs with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. GCC static analysis completed without diagnostics. See [TEST_REPORT.md](TEST_REPORT.md).
+The 44-case regression suite passed in recorded local runs with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. GCC static analysis completed without diagnostics. See [TEST_REPORT.md](TEST_REPORT.md).
 
 Historical 64-game, 100 ms/move matches against Stockfish 4 and Stockfish 6 ended 0 wins, 0 draws, 64 losses for Prunex against each opponent. These results are not an Elo rating or evidence of competitive superiority.
 
