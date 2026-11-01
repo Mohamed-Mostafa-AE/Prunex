@@ -53,6 +53,10 @@ The CCRL engine-details pages list:
 
 The official Stockfish release note states Stockfish 2.0.1 was a maintenance release with no functional change and no Elo increase over 2.0 ([official release note](https://stockfishchess.org/blog/2011/stockfish-2-0-1/)). Thus, the 2.0.1 ratings are useful historical context for 2.0, but they are not an Elo measurement of the exact CI binary.
 
+## Follow-up at a deeper node budget
+
+A separate 64-game follow-up at 1,000,000 nodes per move and 256 MB hash per engine is planned as a local Windows/WSL run. The earlier hosted attempt was interrupted and did not produce a completed result. The resumable local runner and its setup are documented in [the local benchmark guide](local-deep-benchmark.md). Until its summary records all 64 games, there is no deep-search result to report.
+
 ## What this result does and does not show
 
 It shows that the tested Stockfish 19-derived Prunex 0.8.0 build scored 98.44% against the tested official Stockfish 2.0 build under the stated node-limited conditions.
