@@ -13,9 +13,6 @@ on:
       - 'Prunex-0.5.1.zip'
       - '.github/workflows/windows-build.yml'
       - 'WINDOWS_GUI_CHECKLIST.md'
-      - 'Prunex-*.zip'
-      - 'src/**'
-      - 'CMakeLists.txt'
   workflow_dispatch:
 
 permissions:
