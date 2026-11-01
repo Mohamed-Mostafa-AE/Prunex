@@ -338,6 +338,7 @@ $("#theme").addEventListener("change", (event) => {
 pieceStyleSelect.addEventListener("change", event => {
   boardEl.dataset.pieces = event.target.value;
   savePreference("pieces", event.target.value);
+  renderBoard();
 });
 coordinatesToggle.addEventListener("change", event => {
   showCoordinates = event.target.checked;
