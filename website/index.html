@@ -3,20 +3,20 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f3f1eb">
-    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#f7faff">
+    <meta name="color-scheme" content="light dark">
     <meta property="og:title" content="Prunex — C++20 Chess Engine">
     <meta property="og:description" content="An independently developed chess engine in C++20. Read the source, review the tests, and try the separate browser demonstration.">
     <meta property="og:type" content="website">
     <meta name="description" content="Prunex is an independently developed C++20 chess engine with its own board representation, legal move generation, search, evaluation, and UCI interface.">
-    <link rel="icon" type="image/jpeg" href="/prunex-logo.jpg">
+    <link rel="icon" type="image/png" sizes="any" href="/prunex-mark.png">\n    <link rel="apple-touch-icon" href="/prunex-mark.png">
     <title>Prunex — C++20 Chess Engine</title>
   </head>
   <body>
     <div id="app">
       <header class="topbar">
         <a class="brand" href="#home" aria-label="Prunex home">
-          <img src="/prunex-logo.jpg" class="nav-logo" alt="">
+          <img src="/prunex-mark.png" class="nav-logo" alt="">
           <span>PRUNEX</span>
         </a>
         <nav class="nav-links" aria-label="Main navigation">
@@ -25,7 +25,7 @@
           <a href="#benchmark">Verification</a>
           <a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
-        <a class="top-cta" href="#play">Try the demo <span aria-hidden="true">↗</span></a>
+        <div class="top-actions"><button id="site-theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span id="theme-toggle-icon" aria-hidden="true">☾</span><span id="theme-toggle-label">Dark mode</span></button><a class="top-cta" href="#play">Try the demo <span aria-hidden="true">↗</span></a></div>
       </header>
 
       <main>
@@ -126,8 +126,25 @@
         </section>
 
         <section class="about-section section-wrap" id="about">
-          <div class="about-visual"><img src="/prunex-logo.jpg" alt="Prunex project logo" class="about-mark"><span class="visual-caption">PRUNEX · C++20</span></div>
-          <div class="about-copy"><div class="eyebrow"><span class="eyebrow-line"></span> THE PROJECT</div><h2>Understand the position.<br><span>Build the engine.</span></h2><p>Prunex 0.5.1 is an independently developed C++20 chess engine. Its own implementation covers board representation, position handling, legal move generation, search, evaluation, and the UCI interface.</p><p>The interactive board on this page is a separate demonstration powered by Stockfish.js 19 Lite. It is not the independent Prunex engine.</p><a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Explore the source and documentation <span aria-hidden="true">↗</span></a></div>
+          <div class="architecture-card">
+            <div class="architecture-header"><span>ENGINE ARCHITECTURE</span><span>PRUNEX 0.5.1</span></div>
+            <div class="architecture-stack">
+              <article class="architecture-row"><span class="architecture-number">01</span><div><strong>Position & move generation</strong><p>Custom board representation, position state, and legal move generation.</p></div></article>
+              <article class="architecture-row"><span class="architecture-number">02</span><div><strong>Search</strong><p>Zobrist hashing, transposition table, iterative deepening, aspiration windows, principal-variation search, move ordering, late-move reductions, and quiescence.</p></div></article>
+              <article class="architecture-row"><span class="architecture-number">03</span><div><strong>Evaluation</strong><p>Tapered positional evaluation to assess positions throughout the game.</p></div></article>
+              <article class="architecture-row"><span class="architecture-number">04</span><div><strong>Interfaces & build</strong><p>UCI command-line interface and a native Windows desktop GUI built with Win32.</p></div></article>
+            </div>
+            <div class="architecture-footer"><span>C++20</span><span>CMake</span><span>CTest</span><span>Win32 API</span><span>UCI</span></div>
+            <p class="architecture-note">The browser board is a separate Stockfish.js 19 Lite demonstration; it does not run this native engine.</p>
+          </div>
+          <div class="about-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span> INSIDE THE ENGINE</div>
+            <h2>Designed from<br><span>the board up.</span></h2>
+            <p>Prunex 0.5.1 is an independently developed chess engine written in C++20. The core implements its own position model, legal move generation, search, evaluation, and Universal Chess Interface (UCI) protocol support. It does not use Stockfish engine source code or Stockfish NNUE weights.</p>
+            <p>The search combines a transposition table and Zobrist position hashing with iterative deepening, aspiration windows, principal-variation search, move ordering, late-move reductions, and quiescence search. Evaluation uses a tapered positional model.</p>
+            <p>The native project is built with CMake. Its Windows GUI uses the Win32 API, while the engine can also be driven through its UCI interface.</p>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Explore source code and build instructions <span aria-hidden="true">↗</span></a>
+          </div>
         </section>
 
         <section class="benchmark-section section-wrap" id="benchmark">

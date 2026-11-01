@@ -26,6 +26,20 @@ try {
     pieceImages: document.querySelectorAll("#board .piece-svg use").length
   }));
   if (!launchLayout.heroSpecimen) throw new Error("The project specimen should render in the hero.");
+  if (await page.locator(".nav-logo").getAttribute("src") !== "/prunex-mark.png") throw new Error("Transparent Prunex mark is missing from navigation.");
+  if (await page.locator("#about .about-mark").count()) throw new Error("The about section should explain engine architecture, not repeat the logo.");
+  if (!(await page.locator("#about .architecture-card").count())) throw new Error("Engine architecture panel is missing.");
+  const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
+  if (favicon !== "/prunex-mark.png") throw new Error("Transparent Prunex mark is not configured as the favicon.");
+  const markResponse = await page.request.get(new URL("/prunex-mark.png", baseUrl).toString());
+  if (!markResponse.ok()) throw new Error("Transparent Prunex mark failed to load: " + markResponse.status());
+  await page.locator("#site-theme-toggle").click();
+  if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme did not activate.");
+  await page.reload({ waitUntil: "networkidle" });
+  if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme preference was not persisted.");
+  await page.locator("#site-theme-toggle").click();
+  if (await page.locator("html").getAttribute("data-site-theme") !== "light") throw new Error("Light theme did not restore.");
+
   if (!launchLayout.boardWidth || launchLayout.boardWidth > 550 || launchLayout.boardWidth < 480) {
     throw new Error("Default board size is not launch-appropriate: " + JSON.stringify(launchLayout));
   }
