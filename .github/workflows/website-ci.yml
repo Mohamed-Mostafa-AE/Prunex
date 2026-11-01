@@ -80,6 +80,7 @@ jobs:
           tar -tzf dist/engine-source.tar.gz | grep -q 'src/'
           grep -q 'GNU GENERAL PUBLIC LICENSE' dist/COPYING.txt
           test -f vercel.json
+          node --input-type=module -e "import fs from 'node:fs'; const config=JSON.parse(fs.readFileSync('vercel.json','utf8')); const headers=config.headers?.flatMap(rule=>rule.headers??[])??[]; const keys=new Set(headers.map(h=>h.key.toLowerCase())); for (const key of ['content-security-policy','strict-transport-security','x-content-type-options','referrer-policy','permissions-policy','x-frame-options']) { if (!keys.has(key)) throw new Error('Missing security response header: '+key); } console.log('All required Vercel security headers are configured.');"
 
       - name: Upload verified static deployment
         uses: actions/upload-artifact@v6
