@@ -1,10 +1,6 @@
 name: Prunex 0.7.0 strength test versus official Stockfish 2.0
 
 on:
-  push:
-    paths:
-      - '.github/workflows/prunex-sf11-qualification.yml'
-      - 'tools/prunex_stockfish4_match.py'
   workflow_dispatch:
 
 permissions:
