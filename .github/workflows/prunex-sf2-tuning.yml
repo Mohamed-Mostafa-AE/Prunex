@@ -92,7 +92,7 @@ jobs:
 
       - name: Upload complete tournament and sources
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Prunex-0.6.0-Stockfish-2.0-100k-64-Game
           path: |

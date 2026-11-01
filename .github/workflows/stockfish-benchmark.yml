@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Upload source archive for reproducible local tuning
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Prunex-0.5.1-source
           path: Prunex-0.5.1.zip
@@ -45,7 +45,7 @@ jobs:
       - name: Build Stockfish 6
         run: make -C stockfish6/src -j2 build ARCH=x86-64 COMP=gcc
       - name: Upload Stockfish engines for local analysis
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Stockfish-4-6-Linux-x64
           path: |
@@ -57,7 +57,7 @@ jobs:
           python tools/stockfish_match.py --prunex build/prunex --stockfish4 stockfish4/src/stockfish --stockfish6 stockfish6/src/stockfish --movetime-ms 100 --repeats 2 --output benchmark-results
       - name: Upload match results and PGNs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Prunex-Stockfish-4-6-Benchmark
           path: benchmark-results/

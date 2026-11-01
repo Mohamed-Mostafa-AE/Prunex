@@ -75,7 +75,7 @@ jobs:
           tar --exclude=.git -czf Prunex-0.7.0-source.tar.gz -C prunex-core .
       - name: Upload artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Prunex-0.7.0-SF11-1M-Qualification
           path: |

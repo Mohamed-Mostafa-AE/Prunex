@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload engine, source, licenses, provenance, and match records
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Prunex-0.6.0-Stockfish4-Derived-Benchmark-and-GPLv3-Source
           path: |

@@ -83,7 +83,7 @@ jobs:
           tar --exclude=.git -czf Prunex-0.7.0-source.tar.gz -C prunex-core .
       - name: Upload qualification games and source
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Prunex-0.7.0-Stockfish-11-Derived-Qualification
           path: |
