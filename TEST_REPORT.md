@@ -1,42 +1,44 @@
-# Prunex 0.5.1 Test Report
+# Prunex 0.5.1 test report
 
-## Engine search
+## Current verification
 
-The 0.5.0 search core adds a Zobrist-keyed transposition table, iterative deepening, aspiration windows, principal-variation search, hash/MVV-LVA/killer/history move ordering, late-move reductions, and tapered positional evaluation with piece-square activity, bishop-pair value, pawn-structure terms, passed-pawn bonuses, and rook-file bonuses.
+The cleaned source was rebuilt and the full CTest suite was rerun in the current Linux environment.
 
-Version 0.5.1 adds UCI move-time and clock-based search using `go movetime`, `go wtime/btime`, `winc/binc`, and `movestogo`. Deadline checks occur during recursive search; when the budget expires, the engine returns the best move from the last fully completed iterative-deepening iteration.
+| Configuration | Result |
+|---|---:|
+| GCC 14.2.0 Release | 44/44 passed |
+| Clang 17 Release | 44/44 passed |
+| GCC Debug with AddressSanitizer and UndefinedBehaviorSanitizer | 44/44 passed |
+| GCC `-fanalyzer` build | Completed without diagnostics |
 
-## Automated validation
+The sanitizer run used leak detection. These results do not replace native Windows GUI testing.
 
-- GCC 14.2.0 Release build: 44/44 CTest cases passed.
-- Clang 17 Release build: 44/44 CTest cases passed.
-- GCC AddressSanitizer + UndefinedBehaviorSanitizer Debug build: 44/44 CTest cases passed with leak detection enabled.
-- GCC 14.2 static analysis with `-fanalyzer`: no diagnostics.
-- Search tests cover checkmate/stalemate at the quiescence horizon, quiet check evasions, mate-in-one selection, make/undo Zobrist-key restoration, and transposition-table reuse.
-- Move-generation tests cover the start position, Kiwipete, and standard perft positions 3–6.
-- FEN, CLI, and en-passant tests cover malformed counters, overflow, duplicate castling rights, invalid en-passant states, legal captures, and pinned-capture rejection.
-- UCI tests verify ordinary depth search, `go movetime`, and clock-based time allocation.
+## Test coverage
 
-## Search-efficiency comparison
+The 44 CTest cases cover:
 
-A local Release comparison on the initial position at fixed depth 5 recorded 275,040 searched nodes in version 0.4.3 and 3,725 nodes in version 0.5.0, with a reported score of +18 centipawns in both runs. This is one-position node-count data, not an Elo measurement or evidence of match superiority.
+- Start-position perft and standard reference positions, including Kiwipete and endgame cases.
+- Checkmate, stalemate, quiet check evasions, and search regression positions.
+- Legal en-passant captures and rejection of pinned en-passant captures for both sides.
+- UCI startup, `isready`, ordinary search, `go movetime`, and clock-based time allocation.
+- Rejection of malformed FEN input, invalid counters, invalid en-passant states, and invalid perft arguments.
 
-## Competitive benchmark results
+## Historical match results
 
-A completed fixed-move-time tournament played 64 games against each official Stockfish build, using 16 opening positions repeated twice with both colors for Prunex. Both engines used one search thread and 100 ms per move.
+The supplied fixed-move-time match records show the following results for Prunex 0.5.1:
 
-| Opponent | Prunex wins | Draws | Prunex losses | Score |
+| Opponent | Wins | Draws | Losses | Score |
 |---|---:|---:|---:|---:|
 | Stockfish 4 | 0 | 0 | 64 | 0% |
 | Stockfish 6 | 0 | 0 | 64 | 0% |
 
-All 128 games ended with a checkmate. The mean game lengths were 58.22 plies against Stockfish 4 and 60.97 plies against Stockfish 6. The benchmark artifacts include complete PGNs and JSON summaries.
+These matches used 100 ms per move. They are not an Elo measurement, a controlled SPRT, or evidence that Prunex is stronger than either opponent.
 
-Prunex 0.5.1 did not beat Stockfish 4 or Stockfish 6 under these settings. These results indicate that its playing strength remains substantially below both opponents at the tested 100 ms per move; they are not an Elo rating or a controlled SPRT estimate.
+## Known limitations and tests still required
 
-## Remaining limitations
-
-- The Win32 GUI still searches synchronously on the UI thread.
-- No Elo rating has been established.
-- No large-scale SPRT or long-run self-play result has been produced.
-- No PGN import/export, opening book, endgame tablebases, or configurable hash size is implemented.
+- The Windows GUI still searches synchronously on the UI thread. Long searches can make the window temporarily unresponsive.
+- The UCI `stop` command is not implemented as asynchronous cancellation.
+- The Windows GUI has not been manually exercised on a Windows 10/11 desktop as part of this Linux verification.
+- The separate online website uses Stockfish.js 19 as its browser opponent; browser website tests do not measure the independent native engine's strength.
+- No independent Elo rating, large-scale SPRT, or long-running self-play result is available.
+- The independent engine has no standalone project license in the supplied source package.

@@ -1,48 +1,57 @@
-# Prunex 0.8.0
+# Prunex 0.5.1
 
-Prunex is a chess-engine project with two distinct code lines: the independently authored C++ 0.5.x engine, and the stronger GPLv3 Stockfish-derived 0.6–0.8 release line. The two must not be conflated.
+**An independently developed chess engine, written from scratch in C++20.**
 
-## Current benchmark candidate: Prunex 0.8.0
+Prunex is a personal chess-engine project. The independent engine core implements its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. It does not use Stockfish engine source code or Stockfish NNUE weights.
 
-Prunex 0.8.0 is derived from the official [Stockfish](https://github.com/official-stockfish/Stockfish) source tag `sf_19`. The sole source modification in this candidate changes the UCI engine display name to identify the Prunex build. Search, evaluation, and NNUE implementation remain Stockfish 19's. This is a transparent, GPLv3-compliant derivative, not a claim that the 0.5.x search core has reached Stockfish 19 strength.
+The source package is `Prunex-0.5.1.zip`. It contains the C++ source, Windows GUI, CMake build, and regression tests.
 
-**64-game confirmation against official Stockfish 2.0: 62 wins, 2 draws, 0 losses (98.44%)**. Both engines were built from official source tags and received 100,000 nodes per move and 128 MB hash; 16 openings were played twice with colors balanced (32 games per color). Both draws were threefold repetitions with Prunex playing Black (Nimzo-Indian, round 36; Grünfeld, round 62). The full PGN, JSON summary, executable, source archive, provenance, and licenses are preserved in [GitHub Actions artifact](https://github.com/Mohamed-Mostafa-GT/Prunex/actions/runs/41253517143). This is a strong result but not a perfect score. See [the benchmark report](docs/stockfish-2.0-benchmark.md) for the methodology and historical rating context.
+## Build
 
-## Stockfish 2.0 drawn-game analysis
+Requirements: CMake 3.20 or newer and a C++20 compiler. On Windows, use Visual Studio 2022 with **Desktop development with C++** installed.
 
-A reproducible post-mortem of the two threefold-repetition draws (rounds 36 and 62), including evidence limits and follow-up experiments, is available in [the draw analysis](docs/stockfish-2.0-draw-analysis.md).
+Extract the source archive, then run these commands from the extracted `Prunex` directory.
 
-## Local deep-search follow-up
+Windows:
 
-A separate 64-game follow-up at 1,000,000 nodes per move and 256 MB hash per engine is prepared to run locally on Windows through WSL. It has **not** been completed and has no result to report yet. The local runner saves each finished game and resumes after interruption; see [the setup and methodology](docs/local-deep-benchmark.md). Do not confuse it with the completed 100,000-node confirmation above.
+```powershell
+cmake -S . -B build -A x64
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
+```
 
-## Earlier Stockfish-derived lines
+Linux:
 
-- **0.7.0:** derived from official Stockfish 11.
-- **0.6.0:** derived from official Stockfish 4. Its 64-game match against official Stockfish 1.3.1 scored 59 wins, 4 draws, 1 loss (95.31%) at 10,000 nodes per move, but against Stockfish 2.0 it scored only 18 wins, 30 draws, 16 losses (51.56%) in the 10,000-node 64-game baseline. A 100,000-node test scored 16 wins, 28 draws, 20 losses (46.88%). The weaker Black-side performance and repetition cycles are documented in [the analysis report](docs/stockfish-2.0-analysis.md).
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
 
-## Independent Prunex 0.5.x engine
+## Search and evaluation
 
-The earlier 0.5.x engine remains the independent Prunex C++ search-core line. It uses a custom C++20 search/evaluation implementation. Its 44-test regression suite covers perft, FEN validation, en-passant legality, terminal positions, quiet check evasions, mate-in-one selection, make/undo hash restoration, transposition-table reuse, and UCI move-time/clock search.
+The 0.5.x engine includes Zobrist position hashing, a transposition table, iterative deepening, aspiration windows, principal-variation search, move ordering, late-move reductions, quiescence search, and tapered positional evaluation. Version 0.5.1 adds move-time and clock-based UCI time allocation.
 
-The 0.5.1 engine did not beat Stockfish 4 or Stockfish 6 in the recorded fixed-move-time test (0/64 against each). See `TEST_REPORT.md` for the details. The existence of the 0.8.0 derivative should not be represented as evidence that the independent 0.5.x engine has independently achieved this strength.
+## Tests and benchmark results
 
-## Play in the browser
+The regression suite contains 44 CTest cases. The cleaned source has been verified locally with GCC Release (44/44), Clang Release (44/44), and GCC AddressSanitizer/UndefinedBehaviorSanitizer (44/44). GCC static analysis completed without diagnostics. See [TEST_REPORT.md](TEST_REPORT.md) for coverage and limitations.
+
+The recorded 64-game fixed-move-time matches against Stockfish 4 and Stockfish 6 ended 0 wins, 0 draws, and 64 losses for Prunex against each opponent. These are historical results, not an Elo rating or evidence of competitive superiority.
+
+## Browser demo
 
 **Live website:** https://prunex-play.vercel.app/
 
-The Vercel site is in `website/`. It contains a compact legal-move chessboard, engine play, move history, undo, board flip, and strength selection. Its browser opponent is Stockfish.js 19 lite single-threaded WebAssembly running locally in a Web Worker. The web engine is an upstream Stockfish component and is not the independently authored Prunex 0.5.x engine. The footer documents the browser stack, benchmark lineage, methodology, attribution, and contact links. The site CI builds and exercises a legal opening move and engine reply in Chromium.
+The browser workspace is a separate demo. Its current opponent is Stockfish.js 19 Lite running locally in a Web Worker. It is not the independent Prunex 0.5.1 search core. The website identifies this distinction.
 
-For local development:
+## Current limitations
 
-```bash
-cd website
-npm install
-npm run dev
-```
+- The Windows GUI performs search on the UI thread, so longer searches can temporarily block interaction.
+- UCI `stop` is not implemented as asynchronous cancellation.
+- Native Windows GUI runtime testing is not included in the Linux test results.
+- The independent engine has no independently established Elo rating.
+- No large-scale SPRT or long-run self-play result is available.
 
-For Vercel, set the project root directory to `website`, framework to Vite, build command to `npm run build`, and output directory to `dist`. The website CI validates the production build in Chromium, makes a legal opening move, checks that the engine replies, and uploads a verified static artifact.
+## Licensing
 
-## Source and licensing
-
-Stockfish-derived release lines and the browser Stockfish.js component are GPLv3-licensed. Their upstream source, provenance, and license are provided with their corresponding release/website artifacts. Preserve the upstream copyright and GPLv3 notices in all redistributions.
+The supplied project source did not include a standalone license for the independent engine. The repository remains private; choose and add a license before public redistribution. The browser demo uses Stockfish.js 19, a separately licensed third-party component, with its notices and source archive retained in the website deployment.
