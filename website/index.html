@@ -37,12 +37,6 @@
             </div>
             <div class="hero-meta"><span><i class="pulse-dot"></i> Browser demo</span><span>Source available</span><span>No account required</span></div>
           </div>
-          <div class="hero-art" aria-hidden="true">
-            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
-            <div class="hero-glow"></div>
-            <div class="hero-knight-wrap"><img src="/prunex-logo.jpg" class="hero-mark" alt="Prunex circuit-tree logo and wordmark"></div>
-            <div class="hero-caption"><span>01 / THE PROJECT</span><span>SEARCH · EVALUATE · REFINE</span></div>
-          </div>
           <div class="hero-bottom"><span>BUILT FOR THE LOVE OF CHESS</span><span>SCROLL TO EXPLORE ↓</span></div>
         </section>
 
@@ -70,8 +64,9 @@
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
               </div>
               <div class="board-size-control">
-                <label for="board-size"><span>BOARD SIZE</span><output id="board-size-value">640 px</output></label>
-                <input id="board-size" type="range" min="360" max="760" step="10" value="640">
+                <label for="board-size"><span>PREFERRED BOARD SIZE</span><output id="board-size-value">520 px</output></label>
+                <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred chessboard size">
+                <span class="board-size-note">Use the slider or drag the lower-right corner.</span>
               </div>
               <div id="promotion-picker" class="promotion-picker" hidden role="dialog" aria-modal="true" aria-label="Choose promotion piece">
                 <span>Promote pawn to</span>
@@ -93,7 +88,7 @@
                 <div class="control-title"><span>PLAY & APPEARANCE</span><span class="control-live">CUSTOMIZABLE</span></div>
                 <label class="setting-row"><span>Engine strength</span><select id="nodes"><option value="10000">Quick · 10k nodes</option><option value="25000" selected>Balanced · 25k nodes</option><option value="50000">Strong · 50k nodes</option><option value="100000">Deep · 100k nodes</option><option value="250000">Maximum · 250k nodes</option></select></label>
                 <label class="setting-row"><span>Board theme</span><select id="theme"><option value="sage">Sage & ivory</option><option value="brown">Tournament wood</option><option value="blue">Ocean blue</option><option value="slate">Slate & sand</option><option value="violet">Violet dusk</option><option value="mono">High contrast</option></select></label>
-                <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="standard">Standard</option><option value="classic">Classic serif</option><option value="bold">Bold contrast</option></select></label>
+                <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="cburnett">Staunton · Lichess classic</option><option value="unicode">Unicode pieces</option><option value="letters">Letter notation</option></select></label>
                 <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Show board coordinates</span></label>
                 <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Show legal-move hints</span></label>
                 <div class="engine-note"><span class="local-dot"></span><span>Stockfish.js 19 Lite · WebAssembly<br>Separate third-party browser opponent; not the independent Prunex engine.</span></div>
@@ -139,7 +134,7 @@
       <footer class="footer">
         <div class="footer-main"><a class="brand footer-brand" href="#home"><span class="brand-wordmark">PRUNEX</span></a><p>An independently developed chess engine built from scratch in C++20.</p><div class="footer-social"><a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub ↗</a><a href="mailto:mohamedhussam09@gmail.com">Email ↗</a></div></div>
         <div class="footer-meta"><span>ENGINEERING THE NEXT MOVE.</span><span>© <span id="year"></span> PRUNEX · C++20</span></div>
-        <p class="license-note">The browser opponent is Stockfish.js, an upstream GPLv3-licensed component. Its license and corresponding source archive are available with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">View license ↗</a></p>
+        <p class="license-note">The browser opponent is Stockfish.js, an upstream GPLv3-licensed component. Its license and corresponding source archive are available with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">Stockfish license ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
       </footer>
     </div>
     <script type="module" src="/src/main.js"></script>

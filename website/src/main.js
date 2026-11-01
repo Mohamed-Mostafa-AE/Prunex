@@ -62,7 +62,7 @@ function loadPreference(key, fallback) {
   try { return localStorage.getItem("prunex-" + key) ?? fallback; } catch { return fallback; }
 }
 function setBoardSize(value, persist = true) {
-  const size = Math.max(360, Math.min(760, Number(value) || 640));
+  const size = Math.max(320, Math.min(640, Number(value) || 520));
   boardFrame.style.setProperty("--board-size", size + "px");
   boardSizeInput.value = String(size);
   boardSizeValue.value = size + " px";
@@ -71,7 +71,8 @@ function setBoardSize(value, persist = true) {
 }
 function applyPreferences() {
   const theme = loadPreference("theme", "sage");
-  const pieces = loadPreference("pieces", "standard");
+  const storedPieces = loadPreference("pieces", "cburnett");
+  const pieces = ["cburnett", "unicode", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
   showCoordinates = loadPreference("coordinates", "true") !== "false";
   showLegalMoves = loadPreference("legal-moves", "true") !== "false";
   $("#theme").value = theme;
@@ -80,7 +81,7 @@ function applyPreferences() {
   legalMovesToggle.checked = showLegalMoves;
   boardEl.dataset.theme = theme;
   boardEl.dataset.pieces = pieces;
-  setBoardSize(loadPreference("board-size", "640"), false);
+  setBoardSize(loadPreference("board-size", "520"), false);
 }
 
 function statusText() {
@@ -118,7 +119,23 @@ function renderBoard() {
       if (piece) {
         const span = document.createElement("span");
         span.className = "piece " + (piece.color === "w" ? "white-piece" : "black-piece");
-        span.textContent = glyph[piece.color][piece.type];
+        const pieceSet = boardEl.dataset.pieces || "cburnett";
+        if (pieceSet === "cburnett") {
+          const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.classList.add("piece-svg");
+          svg.setAttribute("viewBox", "0 0 45 45");
+          svg.setAttribute("aria-hidden", "true");
+          const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+          use.setAttribute("href", "/pieces/cburnett.svg#" + piece.color + piece.type.toUpperCase());
+          svg.append(use);
+          span.append(svg);
+        } else if (pieceSet === "letters") {
+          span.classList.add("piece-letters");
+          span.textContent = piece.type.toUpperCase();
+        } else {
+          span.classList.add("piece-unicode");
+          span.textContent = glyph[piece.color][piece.type];
+        }
         button.append(span);
       }
       if (vc === 0) {
@@ -334,19 +351,22 @@ legalMovesToggle.addEventListener("change", event => {
 });
 boardSizeInput.addEventListener("input", event => setBoardSize(event.target.value));
 const resizeGrip = $("#resize-board");
-resizeGrip.addEventListener("pointerdown", event => {
-  event.preventDefault();
-  resizeGrip.setPointerCapture(event.pointerId);
-});
-resizeGrip.addEventListener("pointermove", event => {
-  if (!resizeGrip.hasPointerCapture(event.pointerId)) return;
-  const rect = boardFrame.getBoundingClientRect();
-  setBoardSize(Math.round((event.clientX - rect.left) / 10) * 10);
-});
-resizeGrip.addEventListener("pointerup", event => {
-  if (resizeGrip.hasPointerCapture(event.pointerId)) resizeGrip.releasePointerCapture(event.pointerId);
-});
-resizeGrip.addEventListener("pointercancel", () => savePreference("board-size", boardSizeInput.value));
+if (resizeGrip) {
+  resizeGrip.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    resizeGrip.setPointerCapture(event.pointerId);
+  });
+  resizeGrip.addEventListener("pointermove", event => {
+    if (!resizeGrip.hasPointerCapture(event.pointerId)) return;
+    const rect = boardFrame.getBoundingClientRect();
+    setBoardSize(Math.round((event.clientX - rect.left) / 10) * 10);
+  });
+  resizeGrip.addEventListener("pointerup", event => {
+    if (resizeGrip.hasPointerCapture(event.pointerId)) resizeGrip.releasePointerCapture(event.pointerId);
+    savePreference("board-size", boardSizeInput.value);
+  });
+  resizeGrip.addEventListener("pointercancel", () => savePreference("board-size", boardSizeInput.value));
+}
 promotionPicker.querySelectorAll("[data-promotion]").forEach(button => {
   button.addEventListener("click", () => completePromotion(button.dataset.promotion));
 });
