@@ -152,6 +152,9 @@ def make_schedule():
                 })
     return schedule
 
+def pending_games(schedule, completed_ids):
+    return [item for item in schedule if item["game_id"] not in completed_ids]
+
 
 def play_game(prunex, opponent, item, args, round_number):
     opening_name, initial_board = make_opening(*item["opening"])
@@ -331,8 +334,9 @@ def main():
         print("Settings: 1,000,000 nodes/move | 256 MB hash each | 1 thread each", flush=True)
         print(f"Completed already: {len(records)}/64. Resuming at the next unfinished game.", flush=True)
 
+        pending_ids = {item["game_id"] for item in pending_games(schedule, found_ids)}
         for round_number, item in enumerate(schedule, start=1):
-            if item["game_id"] in found_ids:
+            if item["game_id"] not in pending_ids:
                 continue
 
             print(
