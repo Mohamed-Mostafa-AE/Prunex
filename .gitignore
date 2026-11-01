@@ -1,3 +1,6 @@
+# Prunex local benchmark output
+benchmark-results/
+
 # Prerequisites
 *.d
 
@@ -42,8 +45,6 @@
 build/
 Build/
 build-*/
-
-# CMake generated files
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
