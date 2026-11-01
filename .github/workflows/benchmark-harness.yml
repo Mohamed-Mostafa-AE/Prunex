@@ -1,18 +1,6 @@
 name: Check local benchmark harness
 
 on:
-  push:
-    paths:
-      - 'tools/prunex_deep_match.py'
-      - 'tools/test_prunex_deep_match.py'
-      - 'tools/run_deep_benchmark.sh'
-      - '.github/workflows/benchmark-harness.yml'
-  pull_request:
-    paths:
-      - 'tools/prunex_deep_match.py'
-      - 'tools/test_prunex_deep_match.py'
-      - 'tools/run_deep_benchmark.sh'
-      - '.github/workflows/benchmark-harness.yml'
 
 permissions:
   contents: read
