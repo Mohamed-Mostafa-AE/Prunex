@@ -12,6 +12,10 @@ Prunex 0.8.0 is derived from the official [Stockfish](https://github.com/officia
 
 A reproducible post-mortem of the two threefold-repetition draws (rounds 36 and 62), including evidence limits and follow-up experiments, is available in [the draw analysis](docs/stockfish-2.0-draw-analysis.md).
 
+## Local deep-search follow-up
+
+A separate 64-game follow-up at 1,000,000 nodes per move and 256 MB hash per engine is prepared to run locally on Windows through WSL. It has **not** been completed and has no result to report yet. The local runner saves each finished game and resumes after interruption; see [the setup and methodology](docs/local-deep-benchmark.md). Do not confuse it with the completed 100,000-node confirmation above.
+
 ## Earlier Stockfish-derived lines
 
 - **0.7.0:** derived from official Stockfish 11.
