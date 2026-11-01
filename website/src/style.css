@@ -56,6 +56,7 @@ h1 span { color: var(--green); }
 .specimen-head, .specimen-foot { display: flex; justify-content: space-between; color: #6e796f; font: 9px var(--mono); letter-spacing: .08em; }
 .mini-board { display: grid; grid-template-columns: repeat(8, 1fr); margin: 18px auto; width: 100%; aspect-ratio: 1; border: 7px solid #26352e; }
 .mini-board span { display: grid; place-items: center; aspect-ratio: 1; color: #26352e; font: clamp(14px, 2vw, 24px)/1 "DejaVu Sans", serif; }
+.mini-board span:nth-child(n + 49) { color: #fffdf5; -webkit-text-stroke: .55px #35433b; text-shadow: 0 1px 1px rgba(0,0,0,.22); }
 .mini-board span:nth-child(16n + 1), .mini-board span:nth-child(16n + 3), .mini-board span:nth-child(16n + 5), .mini-board span:nth-child(16n + 7), .mini-board span:nth-child(16n + 10), .mini-board span:nth-child(16n + 12), .mini-board span:nth-child(16n + 14), .mini-board span:nth-child(16n + 16) { background: #a7b6a6; }
 .mini-board span:nth-child(16n + 2), .mini-board span:nth-child(16n + 4), .mini-board span:nth-child(16n + 6), .mini-board span:nth-child(16n + 8), .mini-board span:nth-child(16n + 9), .mini-board span:nth-child(16n + 11), .mini-board span:nth-child(16n + 13), .mini-board span:nth-child(16n + 15) { background: #e7e4d8; }
 .specimen-terminal { padding: 14px 15px; background: #1d2a24; color: #d9e4da; font: 10px/1.9 var(--mono); }
