@@ -1,4 +1,4 @@
-name: Windows x64 build and tests
+name: Windows x64 validation (Prunex 0.5.1)
 
 # Keep this workflow independently runnable and validate every change to the Windows source package.
 
@@ -8,9 +8,6 @@ on:
       - 'Prunex-0.5.1.zip'
       - '.github/workflows/windows-build.yml'
       - 'WINDOWS_GUI_CHECKLIST.md'
-      - 'Prunex-*.zip'
-      - 'src/**'
-      - 'CMakeLists.txt'
   pull_request:
     paths:
       - 'Prunex-0.5.1.zip'
