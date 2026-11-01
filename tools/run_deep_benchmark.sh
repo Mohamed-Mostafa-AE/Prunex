@@ -60,8 +60,6 @@ if ! flock -n 9; then
   echo "A benchmark process is already running in $OUT_DIR"
   exit 0
 fi
-echo "$" > "$OUT_DIR/runner.pid"
-trap 'rm -f "$OUT_DIR/runner.pid"' EXIT
 
 echo "Checking the 64-game schedule and checkpoint recovery..."
 "$PYTHON" "$REPO_ROOT/tools/test_prunex_deep_match.py"
