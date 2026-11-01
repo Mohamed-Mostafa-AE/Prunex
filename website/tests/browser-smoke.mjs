@@ -38,8 +38,12 @@ try {
   if (!(await page.locator(".benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
   const testingCopy = await page.locator("#testing").innerText();
+  const matchCopy = await page.locator("#match-results").innerText();
+  if (!matchCopy.includes("63–1–0") || !matchCopy.includes("99.22%") || !matchCopy.includes("≈3,904 Elo")) {
+    throw new Error("The Stockfish 2.0 match result and estimate are missing.");
+  }
+  if (!matchCopy.includes("Stockfish 19")) throw new Error("The benchmark engine provenance is missing.");
   if (!testingCopy.includes("44/44") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
-  if (/3,904|0\.8\.0|Stockfish 19-derived/i.test(testingCopy)) throw new Error("An unrelated match result is being presented as a Prunex rating.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
   if (favicon !== "/prunex-mark.png?v=4") throw new Error("Transparent Prunex mark is not configured as the favicon.");
   const markResponse = await page.request.get(new URL("/prunex-mark.png?v=4", baseUrl).toString());
