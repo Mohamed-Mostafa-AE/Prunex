@@ -67,7 +67,7 @@ try {
   );
 
 
-  await page.locator("#board-size").fill("720");
+  await page.locator("#board-size").evaluate(el => { el.value = "720"; el.dispatchEvent(new Event("input", { bubbles: true })); });
   if (await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width)) < 700) {
     throw new Error("Board size control did not enlarge the board.");
   }
@@ -79,6 +79,7 @@ try {
   await page.locator("#theme").selectOption("blue");
   await page.locator("#flip").click();
   if (!(await page.locator("#board").evaluate(el => el.querySelector('[data-square="h1"]') !== null))) throw new Error("Board flip failed.");
+  await page.locator("#side").selectOption("w");
   await page.locator("#fen-input").fill("7k/P7/8/8/8/8/8/7K w - - 0 1");
   await page.locator("#load-fen").click();
   await page.locator('[data-square="a7"]').click();
