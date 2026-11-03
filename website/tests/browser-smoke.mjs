@@ -34,7 +34,10 @@ try {
     throw new Error("The evaluation bar should return when re-enabled.");
   }
   if (!(await page.evaluate(() => Boolean(window.AudioContext || window.webkitAudioContext)))) {
-    throw new Error("The browser should support the original synthesized board sounds.");
+    throw new Error("The browser should support synthesized board sounds.");
+  }
+  if ((await page.locator("#nodes option").allTextContents()).some(label => /nodes/i.test(label))) {
+    throw new Error("Opponent strength labels should not expose internal node counts.");
   }
 
   const launchLayout = await page.evaluate(() => ({
@@ -467,6 +470,10 @@ try {
   if (!(await page.locator("#move-list .move-grade").count()) ||
       !(await page.locator("#review-summary").innerText()).includes("%")) {
     throw new Error("Post-game review should grade the played move and calculate player accuracy.");
+  }
+  const accuracyValues = await page.locator(".review-player strong").allTextContents();
+  if (accuracyValues.some(value => Number.parseFloat(value) > 100 || Number.parseFloat(value) < 0)) {
+    throw new Error("Review accuracy must remain between 0% and 100%.");
   }
 
   const touchContext = await browser.newContext({
