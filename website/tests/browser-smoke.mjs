@@ -99,6 +99,7 @@ try {
   if (await page.locator("#game-result-copy").textContent() !== "A hard-fought game, and a mutually agreed refusal to lose.") {
     throw new Error("Draw result copy is incorrect.");
   }
+  await page.screenshot({ path: "artifacts/game-result-draw-desktop.png" });
   await page.locator("#game-result-review").click();
   if (await page.locator("#game-result-dialog").isVisible()) {
     throw new Error("Review moves should dismiss the result dialog.");
@@ -172,6 +173,7 @@ try {
       await page.locator("#game-result-copy").textContent() !== "A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.") {
     throw new Error("Win result copy is incorrect.");
   }
+  await page.screenshot({ path: "artifacts/game-result-win-desktop.png" });
   await page.locator("#game-result-review").click();
 
   await page.locator("#side").selectOption("b");
@@ -188,6 +190,10 @@ try {
       await page.locator("#game-result-copy").textContent() !== "Looks like the engine had the better day. Bad news: Prunex is still improving, so this might not be your last defeat.") {
     throw new Error("Loss result copy is incorrect.");
   }
+  await page.screenshot({ path: "artifacts/game-result-loss-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: "artifacts/game-result-loss-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator("#game-result-new-game").click();
   await page.waitForFunction(
     () => document.querySelector("#turn-label")?.textContent.includes("YOUR TURN · BLACK"),
