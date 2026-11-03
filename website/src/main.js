@@ -1221,6 +1221,8 @@ function startNewGame() {
   selected = null;
   legalTargets = [];
   lastMove = null;
+  queuedPremove = null;
+  annotations = [];
   render();
   search();
 }
@@ -1407,6 +1409,19 @@ $("#flip").addEventListener("click", () => {
   boardEl.classList.toggle("board-flipped", flipped);
   renderBoard();
 });
+clearMarksButton.addEventListener("click",()=>{annotations=[];bestMoveHint=null;renderBoard();});
+boardEl.addEventListener("contextmenu",event=>{if(showAnnotations)event.preventDefault();});
+boardEl.addEventListener("pointerdown",event=>{
+  if(event.button===2&&showAnnotations){
+    const square=event.target.closest?.(".square[data-square]")?.dataset.square;
+    if(square){event.preventDefault();dragState={pointerId:event.pointerId,from:square,dragging:true,annotation:true};}
+    return;
+  }
+  onBoardPointerDown(event);
+});
+document.addEventListener("pointermove",onBoardPointerMove,{passive:false});
+document.addEventListener("pointerup",onBoardPointerUp);
+document.addEventListener("pointercancel",event=>{if(dragState?.pointerId===event.pointerId){dragState=null;clearDragGhost();}});
 sideSelect.addEventListener("change", () => {
   primeAudio();
   humanColor = sideSelect.value;
@@ -1434,8 +1449,14 @@ coordinatesToggle.addEventListener("change", event => {
 legalMovesToggle.addEventListener("change", event => {
   showLegalMoves = event.target.checked;
   savePreference("legal-moves", showLegalMoves);
-  renderBoard();
+  renderBoardHighlights();
 });
+moveMethodSelect.addEventListener("change",event=>{moveMethod=event.target.value;savePreference("move-method",moveMethod);selected=null;legalTargets=[];renderBoardHighlights();});
+bestMoveDisplaySelect.addEventListener("change",event=>{bestMoveDisplay=event.target.value;savePreference("best-move-display",bestMoveDisplay);renderBoard();});
+soundStyleSelect.addEventListener("change",event=>{soundStyle=event.target.value;savePreference("sound-style",soundStyle);primeAudio();});
+highlightLastMoveToggle.addEventListener("change",event=>{highlightLastMove=event.target.checked;savePreference("highlight-last-move",highlightLastMove);renderBoardHighlights();});
+premovesToggle.addEventListener("change",event=>{premovesEnabled=event.target.checked;savePreference("premoves",premovesEnabled);if(!premovesEnabled)queuedPremove=null;renderBoardHighlights();});
+annotationsToggle.addEventListener("change",event=>{showAnnotations=event.target.checked;savePreference("board-annotations",showAnnotations);if(!showAnnotations)annotations=[];renderBoard();});
 soundToggle.addEventListener("change", event => {
   soundEnabled = event.target.checked;
   savePreference("defeat-sound", soundEnabled);
@@ -1486,6 +1507,9 @@ $("#load-fen").addEventListener("click", () => {
     reviewMovesSnapshot = null;
     reviewPly = null;
     moveAnalysis = [];
+    queuedPremove = null;
+    annotations = [];
+    bestMoveHint = null;
     savedGameFen = null;
     currentArchiveRecord = null;
     gameReviewPanel.hidden = true;
