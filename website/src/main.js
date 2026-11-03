@@ -649,10 +649,15 @@ function renderBoard() {
     layer.setAttribute("class", "annotation-layer");
     layer.setAttribute("viewBox", "0 0 800 800");
     const center = name => { let x="abcdefgh".indexOf(name[0]), y=8-Number(name[1]); if(flipped){x=7-x;y=7-y;} return {x:(x+.5)*100,y:(y+.5)*100}; };
+    const defs=document.createElementNS("http://www.w3.org/2000/svg","defs");
+    const marker=document.createElementNS("http://www.w3.org/2000/svg","marker");
+    marker.setAttribute("id","annotation-head");marker.setAttribute("markerWidth","8");marker.setAttribute("markerHeight","8");
+    marker.setAttribute("refX","6");marker.setAttribute("refY","3");marker.setAttribute("orient","auto");
+    const head=document.createElementNS("http://www.w3.org/2000/svg","path");head.setAttribute("d","M0,0 L6,3 L0,6 Z");marker.append(head);defs.append(marker);layer.append(defs);
     for (const item of annotations.filter(item => item.from && item.to)) {
       const from=center(item.from),to=center(item.to),line=document.createElementNS("http://www.w3.org/2000/svg","line");
       line.setAttribute("x1",from.x);line.setAttribute("y1",from.y);line.setAttribute("x2",to.x);line.setAttribute("y2",to.y);
-      line.setAttribute("class","annotation-arrow");layer.append(line);
+      line.setAttribute("class","annotation-arrow");line.setAttribute("marker-end","url(#annotation-head)");layer.append(line);
     }
     boardEl.append(layer);
   }
