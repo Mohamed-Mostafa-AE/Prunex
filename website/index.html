@@ -80,7 +80,15 @@
           <div class="workspace">
             <div class="board-column">
               <div class="board-topline"><div class="opponent-label"><span class="engine-avatar"><img src="/prunex-mark.png?v=3" alt="Prunex logo"></span><div><strong>Prunex 0.8.0</strong><small id="engine-state">Starting engine</small></div></div><span class="turn-pill" id="turn-label">YOU · WHITE</span></div>
-              <div class="board-frame">
+              <div class="board-stage">
+                <div class="evaluation-column" aria-label="Engine evaluation">
+                  <div class="evaluation-track" aria-hidden="true">
+                    <div id="evaluation-fill" class="evaluation-fill" style="height:50%"></div>
+                    <span class="evaluation-midline"></span>
+                  </div>
+                  <output id="evaluation-label" class="evaluation-label" aria-live="polite" aria-label="White advantage">0.00</output>
+                </div>
+                <div class="board-frame">
                 <div id="board" class="board" role="group" aria-label="Chessboard" tabindex="-1"></div>
                 <button id="resize-board" class="resize-grip" type="button" aria-label="Drag to resize chessboard" title="Drag to resize"></button>
                 <div id="game-result-dialog" class="game-result-overlay" role="dialog" aria-modal="false" aria-labelledby="game-result-title" aria-describedby="game-result-subtitle game-result-copy" hidden>
@@ -103,10 +111,12 @@
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
               <div class="board-toolbar">
                 <button id="new-game" class="button button-primary">New game</button>
                 <button id="undo" class="button" disabled>↶ Undo</button>
+                <button id="return-live" class="button" type="button" hidden>↩ Back to live</button>
                 <button id="flip" class="button">⇅ Flip board</button>
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
               </div>
@@ -138,6 +148,7 @@
                 <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="cburnett">Staunton · Classic</option><option value="unicode">Unicode pieces</option><option value="letters">Letter notation</option></select></label>
                 <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Show coordinates</span></label>
                 <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Show legal-move hints</span></label>
+                <label class="setting-toggle"><input id="move-sounds" type="checkbox" checked><span>Prunex move and result sounds</span></label>
                 <div class="engine-note"><span class="local-dot"></span><span>Prunex 0.8.0 browser build, powered by Stockfish 19 Lite. The strength setting controls its search budget, not an Elo rating.</span></div>
               </div>
             </aside>
