@@ -668,10 +668,10 @@ function renderBoard() {
       const reviewedGradeRaw = reviewPly > 0 ? moveAnalysis[reviewPly - 1]?.grade : null;
       const reviewedGrade = reviewedGradeRaw === "MISSED_WIN" ? "MISS" : reviewedGradeRaw;
       const reviewBadge = reviewedMove?.to === square && !!reviewedGrade &&
-        ["BRILLIANT","GREAT","BEST","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(reviewedGrade);
+        ["APEX","BRILLIANT","GREAT","BEST","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(reviewedGrade);
       const engineBadge = bestMoveDisplay !== "off" && bestMoveHint?.to === square;
       const gradeGlyph = {
-        BRILLIANT:"✦", GREAT:"◆", BEST:"★", EXCELLENT:"✓", GOOD:"✓",
+        APEX:"✧", BRILLIANT:"✦", GREAT:"◆", BEST:"★", EXCELLENT:"✓", GOOD:"✓",
         INACCURACY:"!", MISTAKE:"!", BLUNDER:"×", MISS:"↘"
       };
       if (reviewBadge || engineBadge) {
@@ -770,6 +770,8 @@ function buildMoveButton(move, ply, currentPly) {
     const badge = document.createElement("span");
     badge.className = "move-grade";
     badge.dataset.grade = grade.grade;
+    if (Number.isFinite(grade.expectedPointLoss)) badge.dataset.expectedPointLoss = grade.expectedPointLoss.toFixed(4);
+    if (Number.isFinite(grade.depth)) badge.dataset.reviewDepth = String(grade.depth);
     badge.textContent = grade.grade === "MISSED_WIN" ? "MISS" : grade.grade;
     badge.title = grade.description || grade.grade.replaceAll("_", " ").toLowerCase();
     cell.append(badge);
@@ -786,40 +788,83 @@ function scoreToCentipawns(result) {
   return result.score;
 }
 
+function centipawnsToExpectedPoints(scoreCp) {
+  if (!Number.isFinite(scoreCp)) return null;
+  if (scoreCp >= 10000) return 0.9999;
+  if (scoreCp <= -10000) return 0.0001;
+  return 1 / (1 + Math.exp(-scoreCp / 400));
+}
+
+function expectedPointsFromEvaluation(result) {
+  if (!result) return null;
+  const wdl = result.wdl;
+  if (wdl && Number.isFinite(wdl.win) && Number.isFinite(wdl.draw) && Number.isFinite(wdl.loss)) {
+    const total = wdl.win + wdl.draw + wdl.loss;
+    if (total > 0) return Math.max(0, Math.min(1, (wdl.win + 0.5 * wdl.draw) / total));
+  }
+  return centipawnsToExpectedPoints(scoreToCentipawns(result));
+}
+
+function expectedPointLoss(beforeExpectedPoints, afterMoverExpectedPoints) {
+  if (!Number.isFinite(beforeExpectedPoints) || !Number.isFinite(afterMoverExpectedPoints)) return null;
+  return Math.max(0, Math.min(1, beforeExpectedPoints - afterMoverExpectedPoints));
+}
+
 const PIECE_VALUES = { p: 100, n: 320, b: 335, r: 500, q: 900, k: 20000 };
 
-function classifyMove(move, nextMove, beforeScore, afterScore, lossCp, ply) {
-  if (move.san.includes("#")) {
-    return { grade: "BEST", lossCp: 0, description: "Checkmate delivered" };
-  }
-  if (!Number.isFinite(lossCp)) return { grade: "UNRATED", lossCp: null, description: "Engine score unavailable" };
-  const nextTakesMovedPiece = nextMove &&
+function isPieceSacrifice(move, nextMove) {
+  return !!nextMove &&
     nextMove.to === move.to &&
     nextMove.captured === move.piece &&
     (PIECE_VALUES[move.piece] || 0) >= 320;
-  if (nextTakesMovedPiece && lossCp <= 20) {
-    return { grade: "BRILLIANT", lossCp, description: "A sound piece sacrifice confirmed by engine analysis" };
+}
+
+function classifyMove(move, nextMove, beforeScore, afterScore, lossCp, ply,
+  pointLoss, beforeExpectedPoints, afterMoverExpectedPoints) {
+  if (move.san.includes("#")) {
+    return { grade: "BEST", lossCp: 0, expectedPointLoss: 0, description: "Checkmate delivered" };
   }
-  if (beforeScore >= 300 && afterScore < 0) {
-    return { grade: "MISS", lossCp, description: "A winning continuation was missed and the advantage disappeared" };
+  const loss = Number.isFinite(pointLoss) ? Math.max(0, Math.min(1, pointLoss)) :
+    Number.isFinite(lossCp) && Number.isFinite(beforeScore)
+      ? expectedPointLoss(centipawnsToExpectedPoints(beforeScore), centipawnsToExpectedPoints(beforeScore - lossCp))
+      : null;
+  if (!Number.isFinite(loss)) {
+    return { grade: "UNRATED", lossCp: null, expectedPointLoss: null, description: "Engine score unavailable" };
   }
-  if (lossCp <= 8 && (move.san.includes("+") || move.san.includes("#"))) {
-    return { grade: "GREAT", lossCp, description: "A precise forcing move" };
+  if (Number.isFinite(beforeExpectedPoints) && beforeExpectedPoints >= 0.78 &&
+      Number.isFinite(afterMoverExpectedPoints) && afterMoverExpectedPoints <= 0.50) {
+    return { grade: "MISS", lossCp, expectedPointLoss: loss, description: "A winning continuation was missed and the advantage disappeared" };
   }
-  if (lossCp <= 8) return { grade: "BEST", lossCp, description: "Matches the engine's top-quality continuation" };
-  if (lossCp <= 20) return { grade: "EXCELLENT", lossCp, description: "Very close to the engine's preferred move" };
-  if (lossCp <= 50) return { grade: "GOOD", lossCp, description: "A sound move" };
-  if (lossCp <= 100) return { grade: "INACCURACY", lossCp, description: "A small but measurable evaluation drop" };
-  if (lossCp <= 200) return { grade: "MISTAKE", lossCp, description: "A meaningful evaluation drop" };
-  return { grade: "BLUNDER", lossCp, description: "A large evaluation drop" };
+  if (isPieceSacrifice(move, nextMove) && loss <= 0.02 &&
+      Number.isFinite(beforeExpectedPoints) && beforeExpectedPoints <= 0.78 &&
+      Number.isFinite(afterMoverExpectedPoints) && afterMoverExpectedPoints >= 0.20) {
+    return { grade: "BRILLIANT", lossCp, expectedPointLoss: loss, description: "A sound piece sacrifice confirmed by engine analysis" };
+  }
+  if (loss <= 0.005) return { grade: "BEST", lossCp, expectedPointLoss: loss, description: "Near-zero expected-points loss" };
+  if (loss <= 0.02) return { grade: "EXCELLENT", lossCp, expectedPointLoss: loss, description: "Almost preserves the engine's expected result" };
+  if (loss <= 0.05) return { grade: "GOOD", lossCp, expectedPointLoss: loss, description: "A sound move with a small expected-result loss" };
+  if (loss <= 0.10) return { grade: "INACCURACY", lossCp, expectedPointLoss: loss, description: "A measurable expected-result loss" };
+  if (loss <= 0.20) return { grade: "MISTAKE", lossCp, expectedPointLoss: loss, description: "A significant expected-result loss" };
+  return { grade: "BLUNDER", lossCp, expectedPointLoss: loss, description: "A major expected-result loss" };
 }
 
 function reviewAccuracy(color, analysis = moveAnalysis) {
-  const played = analysis.filter(move => move.color === color && Number.isFinite(move.lossCp));
+  const played = analysis.filter(move => move.color === color &&
+    (Number.isFinite(move.expectedPointLoss) || Number.isFinite(move.lossCp)));
   if (!played.length) return null;
-  const averageLoss = played.reduce((total, move) => total + move.lossCp, 0) / played.length;
-  // Prunex's review metric is an estimate, not Chess.com's proprietary accuracy formula.
-  return Math.round(Math.max(0, Math.min(100, 100 * Math.exp(-averageLoss / 180))) * 10) / 10;
+  const losses = played.map(move => {
+    if (Number.isFinite(move.expectedPointLoss)) return Math.max(0, Math.min(1, move.expectedPointLoss));
+    if (Number.isFinite(move.lossCp) && Number.isFinite(move.beforeScore)) {
+      return expectedPointLoss(
+        centipawnsToExpectedPoints(move.beforeScore),
+        centipawnsToExpectedPoints(move.beforeScore - move.lossCp)
+      ) ?? 0;
+    }
+    return 0;
+  });
+  const averageExpectedPointLoss = losses.reduce((total, value) => total + value, 0) / losses.length;
+  // Prunex Accuracy v2: average expected points retained, not a copy of CAPS2.
+  return Math.round(Math.max(0, Math.min(100, 100 * (1 - averageExpectedPointLoss))) * 10) / 10;
 }
 
 function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analysis), blackAccuracy = reviewAccuracy("b", analysis)) {
@@ -842,7 +887,7 @@ function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analy
 
   reviewKeyMoments.replaceChildren();
   const moments = [...analysis]
-    .filter(item => ["BRILLIANT","GREAT","BLUNDER","MISS","MISSED_WIN","MISTAKE","INACCURACY"].includes(item.grade))
+    .filter(item => ["APEX","BRILLIANT","GREAT","BLUNDER","MISS","MISSED_WIN","MISTAKE","INACCURACY"].includes(item.grade))
     .sort((a, b) => (b.lossCp || 0) - (a.lossCp || 0))
     .slice(0, 4);
   for (const moment of moments) {
@@ -863,9 +908,9 @@ function requestNextReviewPosition() {
   if (!analyzingGame || reviewAnalysisIndex >= reviewAnalysisPositions.length) return;
   const fen = reviewAnalysisPositions[reviewAnalysisIndex];
   enginePositionTurn = new Chess(fen).turn();
-  // Each position gets the same share of the selected game-review budget.
-  // A larger preset therefore always gives every position more search time.
-  const perPositionMs = Math.max(50, Math.floor(reviewBudgetMs / reviewAnalysisPositions.length));
+  // Each position receives the full selected time budget, so longer games
+  // receive more total analysis instead of making every search shallower.
+  const perPositionMs = reviewBudgetMs;
   requestId += 1;
   evaluating = true;
   setEvaluationPending();
@@ -917,14 +962,14 @@ function analyzeCurrentGame() {
   reviewAnalysisPositions = positions;
   reviewAnalysisResults = [];
   reviewAnalysisIndex = 0;
-  const strengthBudgets = { "10000": 8000, "25000": 12000, "50000": 15000, "100000": 20000, "250000": 25000 };
-  reviewBudgetMs = strengthBudgets[nodesSelect.value] || 12000;
+  const strengthBudgets = { "10000": 150, "25000": 350, "50000": 600, "100000": 1000, "250000": 1800 };
+  reviewBudgetMs = strengthBudgets[nodesSelect.value] || 350;
   reviewSummary.textContent = "Prunex is checking every position and grading each move.";
   reviewKeyMoments.replaceChildren();
   reviewProgress.hidden = false;
   reviewProgressFill.style.width = "0%";
   reviewProgressLabel.textContent = "Analyzing 0 / " + positions.length + " positions";
-  reviewDepth.textContent = "ENGINE REVIEW · " + Math.round(reviewBudgetMs / 1000) + "S";
+  reviewDepth.textContent = "ENGINE REVIEW · " + reviewBudgetMs + "MS / POSITION";
   statusEl.textContent = "Reviewing " + positions.length + " engine positions…";
   stateEl.textContent = "Analyzing game…";
   stateEl.dataset.busy = "true";
@@ -960,30 +1005,76 @@ async function completeGameReview(results) {
   const scored = [];
   const count = Math.min(moves.length, results.length);
   for (let index = 0; index < count; index += 1) {
-    const before = scoreToCentipawns(results[index]);
-    const afterRaw = results[index + 1] ? scoreToCentipawns(results[index + 1]) : null;
+    const beforeResult = results[index];
+    const afterResult = results[index + 1] || null;
+    const before = scoreToCentipawns(beforeResult);
+    const afterRaw = scoreToCentipawns(afterResult);
     const terminalLastMove = index === moves.length - 1 && (game.isGameOver() || game.isCheckmate());
     const afterFromMoverPerspective = Number.isFinite(afterRaw) ? -afterRaw :
       terminalLastMove && game.isCheckmate() ? 100000 :
       terminalLastMove && game.isDraw() ? 0 : null;
     const lossCp = Number.isFinite(before) && Number.isFinite(afterFromMoverPerspective)
-      ? Math.max(0, before - afterFromMoverPerspective)
-      : null;
-    const classification = classifyMove(moves[index], moves[index + 1], before, afterFromMoverPerspective, lossCp, index + 1);
-    const engineBest = results[index]?.bestMove;
-    if (engineBest && engineBest !== "(none)" && engineBest === moves[index].from + moves[index].to + (moves[index].promotion || "") && classification.grade !== "BRILLIANT") {
-      classification.grade = "BEST"; classification.lossCp = 0;
-      classification.description = "Matches Prunex's top move at the selected review budget";
+      ? Math.max(0, before - afterFromMoverPerspective) : null;
+
+    const beforeExpectedPoints = expectedPointsFromEvaluation(beforeResult);
+    const opponentExpectedPoints = expectedPointsFromEvaluation(afterResult);
+    const afterMoverExpectedPoints = Number.isFinite(opponentExpectedPoints) ? 1 - opponentExpectedPoints :
+      terminalLastMove && game.isCheckmate() ? 1 :
+      terminalLastMove && game.isDraw() ? 0.5 : null;
+    const pointLoss = expectedPointLoss(beforeExpectedPoints, afterMoverExpectedPoints);
+
+    const classification = classifyMove(
+      moves[index], moves[index + 1], before, afterFromMoverPerspective,
+      lossCp, index + 1, pointLoss, beforeExpectedPoints, afterMoverExpectedPoints
+    );
+    const engineBest = beforeResult?.bestMove;
+    const engineBestMatches = !!engineBest && engineBest !== "(none)" &&
+      engineBest === moves[index].from + moves[index].to + (moves[index].promotion || "");
+    const secondBest = beforeResult?.secondBest;
+    const secondBestExpectedPoints = expectedPointsFromEvaluation(secondBest);
+    const uniqueMoveGap = Number.isFinite(beforeExpectedPoints) && Number.isFinite(secondBestExpectedPoints)
+      ? Math.max(0, beforeExpectedPoints - secondBestExpectedPoints) : null;
+    const sacrifice = isPieceSacrifice(moves[index], moves[index + 1]);
+
+    // Apex is deliberately rare: an exact engine-top sacrifice with a large
+    // same-depth expected-points gap over the runner-up.
+    const isApex = engineBestMatches && sacrifice &&
+      Number.isFinite(pointLoss) && pointLoss <= 0.005 &&
+      Number.isFinite(uniqueMoveGap) && uniqueMoveGap >= 0.16 &&
+      Number.isFinite(beforeExpectedPoints) && beforeExpectedPoints >= 0.20 && beforeExpectedPoints <= 0.80;
+    if (isApex) {
+      classification.grade = "APEX";
+      classification.expectedPointLoss = pointLoss;
+      classification.description = "A rare engine-confirmed sacrifice with a decisive same-depth advantage over the runner-up";
+    } else if (engineBestMatches && classification.grade === "BRILLIANT") {
+      // Preserve Brilliant when the stricter Apex uniqueness test is not met.
+    } else if (engineBestMatches && Number.isFinite(uniqueMoveGap) && uniqueMoveGap >= 0.08 &&
+        Number.isFinite(pointLoss) && pointLoss <= 0.02) {
+      classification.grade = "GREAT";
+      classification.expectedPointLoss = pointLoss;
+      classification.description = "The engine's best move by a clear margin in a critical position";
+    } else if (engineBestMatches && classification.grade !== "MISS") {
+      classification.grade = "BEST";
+      classification.lossCp = 0;
+      classification.expectedPointLoss = 0;
+      classification.description = "Matches Prunex's top move at the selected analysis budget";
     }
+
     scored.push({
       ply: index + 1,
       color: moves[index].color,
       san: moves[index].san,
       beforeScore: before,
       afterScore: afterFromMoverPerspective,
+      beforeExpectedPoints,
+      afterExpectedPoints: afterMoverExpectedPoints,
+      expectedPointLoss: classification.expectedPointLoss ?? pointLoss,
+      uniqueMoveGap,
       lossCp: classification.lossCp,
       grade: classification.grade,
-      depth: results[index]?.depth || 0,
+      depth: beforeResult?.depth || 0,
+      selDepth: beforeResult?.selDepth || 0,
+      nodes: beforeResult?.nodes || 0,
       description: classification.description
     });
   }
@@ -994,8 +1085,7 @@ async function completeGameReview(results) {
   const depths = results.map(item => item.depth || 0).filter(value => value > 0);
   const averageDepth = depths.length ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
   const deepestDepth = depths.length ? Math.max(...depths) : 0;
-  reviewDepth.textContent = "ENGINE REVIEW · " + Math.round(reviewBudgetMs / 1000) +
-    "S · AVG DEPTH " + averageDepth;
+  reviewDepth.textContent = "ENGINE REVIEW · " + reviewBudgetMs + "MS / POSITION · AVG DEPTH " + averageDepth;
   reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
     " moves graded · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
@@ -1004,7 +1094,6 @@ async function completeGameReview(results) {
   stateEl.textContent = "Review complete";
   stateEl.dataset.busy = "false";
 }
-
 function renderMoves() {
   const history = reviewMovesSnapshot || game.history({ verbose: true });
   const currentPly = reviewMovesSnapshot ? reviewPly : history.length;
