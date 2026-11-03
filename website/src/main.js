@@ -24,6 +24,7 @@ const legalMovesToggle = $("#legal-moves");
 const moveMethodSelect = $("#move-method");
 const bestMoveDisplaySelect = $("#best-move-display");
 const soundStyleSelect = $("#sound-style");
+const previewSoundButton = $("#preview-move-sound");
 const highlightLastMoveToggle = $("#highlight-last-move");
 const premovesToggle = $("#enable-premoves");
 const annotationsToggle = $("#board-annotations");
@@ -137,8 +138,8 @@ function loadPreference(key, fallback) {
   try { return localStorage.getItem("prunex-" + key) ?? fallback; } catch { return fallback; }
 }
 
-function primeAudio() {
-  if (!soundEnabled || audioContext) return audioContext;
+function primeAudio(force = false) {
+  if ((!soundEnabled && !force) || audioContext) return audioContext;
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return null;
   try {
@@ -169,24 +170,46 @@ function playTone(context, frequency, duration, options = {}) {
   oscillator.stop(start + duration + 0.025);
 }
 
-function playMoveSound(move) {
-  if (!soundEnabled || !move) return;
-  const context = primeAudio();
+function playMoveSound(move, preview = false) {
+  if ((!soundEnabled && !preview) || !move) return;
+  const context = primeAudio(preview);
   if (!context) return;
+  // Short percussive sound profiles made from filtered noise, not synthetic beeps.
+  const profiles = {
+    wood: { duration: 0.078, frequency: 920, q: 0.82, volume: 0.040, decay: 3.8, lowpass: 1800 },
+    felt: { duration: 0.052, frequency: 570, q: 0.48, volume: 0.026, decay: 5.8, lowpass: 1050 },
+    ceramic: { duration: 0.060, frequency: 1850, q: 1.05, volume: 0.030, decay: 4.6, lowpass: 3600 }
+  };
+  const profile = profiles[soundStyle] || profiles.wood;
   const now = context.currentTime;
-  const duration = soundStyle === "soft" ? 0.045 : 0.062;
+  const duration = move.captured ? profile.duration * 1.2 : profile.duration;
   const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
   const samples = buffer.getChannelData(0);
-  for (let i=0;i<samples.length;i++) samples[i]=(Math.random()*2-1)*Math.pow(1-i/samples.length,soundStyle==="soft"?6:4);
-  const noise = context.createBufferSource(), filter = context.createBiquadFilter(), noiseGain = context.createGain();
-  noise.buffer=buffer; filter.type="bandpass"; filter.frequency.value=soundStyle==="soft"?1050:1550; filter.Q.value=.65;
-  noiseGain.gain.setValueAtTime(.0001,now); noiseGain.gain.exponentialRampToValueAtTime(soundStyle==="soft"?.018:.032,now+.003); noiseGain.gain.exponentialRampToValueAtTime(.0001,now+duration);
-  noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(context.destination); noise.start(now); noise.stop(now+duration);
-  const body=context.createOscillator(), bodyGain=context.createGain();
-  body.type="sine"; body.frequency.setValueAtTime(move.captured?240:move.promotion?360:295,now); body.frequency.exponentialRampToValueAtTime(move.captured?115:155,now+.045);
-  bodyGain.gain.setValueAtTime(.0001,now); bodyGain.gain.exponentialRampToValueAtTime(soundStyle==="soft"?.018:.028,now+.004); bodyGain.gain.exponentialRampToValueAtTime(.0001,now+.055);
-  body.connect(bodyGain); bodyGain.connect(context.destination); body.start(now); body.stop(now+.06);
-  if(move.captured)playTone(context,190,.045,{delay:.035,volume:.018,type:"sine"});
+  for (let i = 0; i < samples.length; i += 1) {
+    const t = i / samples.length;
+    const transient = Math.exp(-profile.decay * t);
+    const slightBody = 1 + 0.12 * Math.sin(t * Math.PI * 7) * (1 - t);
+    samples[i] = (Math.random() * 2 - 1) * transient * slightBody;
+  }
+  const source = context.createBufferSource();
+  const band = context.createBiquadFilter();
+  const low = context.createBiquadFilter();
+  const gain = context.createGain();
+  source.buffer = buffer;
+  band.type = "bandpass";
+  band.frequency.setValueAtTime(profile.frequency, now);
+  band.Q.value = profile.q;
+  low.type = "lowpass";
+  low.frequency.value = profile.lowpass;
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(move.captured ? profile.volume * 1.1 : profile.volume, now + 0.003);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  source.connect(band);
+  band.connect(low);
+  low.connect(gain);
+  gain.connect(context.destination);
+  source.start(now);
+  source.stop(now + duration);
 }
 
 function playGameEndSound(result) {
@@ -471,7 +494,7 @@ function applyPreferences() {
   showEvaluation = loadPreference("show-evaluation", "true") !== "false";
   moveMethod = ["both","drag","click"].includes(loadPreference("move-method","both")) ? loadPreference("move-method","both") : "both";
   bestMoveDisplay = ["off","highlight","arrow"].includes(loadPreference("best-move-display","off")) ? loadPreference("best-move-display","off") : "off";
-  soundStyle = ["wood","soft"].includes(loadPreference("sound-style","wood")) ? loadPreference("sound-style","wood") : "wood";
+  soundStyle = ["wood","felt","ceramic"].includes(loadPreference("sound-style","wood")) ? loadPreference("sound-style","wood") : "wood";
   highlightLastMove = loadPreference("highlight-last-move","true") !== "false";
   pieceAnimationEnabled = loadPreference("piece-animation","true") !== "false";
   premovesEnabled = loadPreference("premoves","true") !== "false";
@@ -585,7 +608,11 @@ function renderBoard() {
       button.dataset.square = square;
       button.setAttribute("aria-label", piece ? square + " " + (piece.color === "w" ? "white " : "black ") + piece.type : square);
       if (selected === square) button.classList.add("selected");
-      if (highlightLastMove && lastMove && (lastMove.from === square || lastMove.to === square)) button.classList.add("last-move");
+      if (highlightLastMove && lastMove && (lastMove.from === square || lastMove.to === square)) {
+        button.classList.add("last-move");
+        if (lastMove.from === square) button.classList.add("last-move-from");
+        if (lastMove.to === square) button.classList.add("last-move-to");
+      }
       if (showLegalMoves && legalTargets.includes(square)) button.classList.add(piece ? "capture-target" : "move-target");
       if (bestMoveDisplay !== "off" && bestMoveHint?.from === square) button.classList.add("best-move-from");
       if (bestMoveDisplay !== "off" && bestMoveHint?.to === square) button.classList.add("best-move-to");
@@ -667,7 +694,11 @@ function renderBoardHighlights() {
   boardEl.querySelectorAll(".square").forEach(button => {
     const square=button.dataset.square,piece=game.get(square);
     button.classList.toggle("selected",selected===square);
-    button.classList.toggle("last-move",highlightLastMove&&!!lastMove&&(lastMove.from===square||lastMove.to===square));
+    const isLastFrom = highlightLastMove && lastMove?.from === square;
+    const isLastTo = highlightLastMove && lastMove?.to === square;
+    button.classList.toggle("last-move", isLastFrom || isLastTo);
+    button.classList.toggle("last-move-from", isLastFrom);
+    button.classList.toggle("last-move-to", isLastTo);
     button.classList.toggle("move-target",showLegalMoves&&legalTargets.includes(square)&&!piece);
     button.classList.toggle("capture-target",showLegalMoves&&legalTargets.includes(square)&&!!piece);
     button.classList.toggle("best-move-from",bestMoveDisplay!=="off"&&bestMoveHint?.from===square);
@@ -1478,7 +1509,8 @@ legalMovesToggle.addEventListener("change", event => {
 });
 moveMethodSelect.addEventListener("change",event=>{moveMethod=event.target.value;savePreference("move-method",moveMethod);selected=null;legalTargets=[];renderBoardHighlights();});
 bestMoveDisplaySelect.addEventListener("change",event=>{bestMoveDisplay=event.target.value;savePreference("best-move-display",bestMoveDisplay);renderBoard();});
-soundStyleSelect.addEventListener("change",event=>{soundStyle=event.target.value;savePreference("sound-style",soundStyle);primeAudio();});
+soundStyleSelect.addEventListener("change",event=>{soundStyle=event.target.value;savePreference("sound-style",soundStyle);});
+previewSoundButton.addEventListener("click",()=>{primeAudio(true);playMoveSound({captured:false,promotion:false},true);});
 highlightLastMoveToggle.addEventListener("change",event=>{highlightLastMove=event.target.checked;savePreference("highlight-last-move",highlightLastMove);renderBoardHighlights();});
 pieceAnimationToggle.addEventListener("change",event=>{pieceAnimationEnabled=event.target.checked;savePreference("piece-animation",pieceAnimationEnabled);});
 premovesToggle.addEventListener("change",event=>{premovesEnabled=event.target.checked;savePreference("premoves",premovesEnabled);if(!premovesEnabled)queuedPremove=null;renderBoardHighlights();});
