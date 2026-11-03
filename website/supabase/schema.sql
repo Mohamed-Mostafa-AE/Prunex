@@ -54,9 +54,9 @@ alter table public.prunex_position_memory enable row level security;
 
 -- New Supabase tables are not automatically exposed to the Data API.
 -- Explicitly grant only the columns the browser needs. Ownership ids remain hidden.
-revoke all on table public.prunex_games from anon, public;
-revoke all on table public.prunex_game_reviews from anon, public;
-revoke all on table public.prunex_position_memory from anon, public;
+revoke all on table public.prunex_games from anon, authenticated, public;
+revoke all on table public.prunex_game_reviews from anon, authenticated, public;
+revoke all on table public.prunex_position_memory from anon, authenticated, public;
 
 grant usage on schema public to authenticated;
 
