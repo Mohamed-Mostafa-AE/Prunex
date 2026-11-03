@@ -19,8 +19,19 @@ page.on("console", message => {
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
-  if (!(await page.locator("#move-sounds").isChecked())) {
-    throw new Error("Prunex move sounds should be enabled by default.");
+  if (!(await page.locator("#defeat-sound").isChecked())) {
+    throw new Error("The approved defeat sound should be enabled by default.");
+  }
+  if (!(await page.locator("#show-evaluation").isChecked())) {
+    throw new Error("The evaluation bar should be visible by default.");
+  }
+  await page.locator("#show-evaluation").uncheck();
+  if (await page.locator("#evaluation-column").isVisible()) {
+    throw new Error("The evaluation bar should be fully removable from the board layout.");
+  }
+  await page.locator("#show-evaluation").check();
+  if (!(await page.locator("#evaluation-column").isVisible())) {
+    throw new Error("The evaluation bar should return when re-enabled.");
   }
   if (!(await page.evaluate(() => Boolean(window.AudioContext || window.webkitAudioContext)))) {
     throw new Error("The browser should support the original synthesized board sounds.");
@@ -403,6 +414,35 @@ try {
   await page.keyboard.press("Escape");
   if (await page.locator("#game-result-dialog").isVisible()) {
     throw new Error("Escape should dismiss the board-scoped result popup.");
+  }
+
+  await page.waitForFunction(() =>
+    Number.parseInt(document.querySelector("#game-archive-count")?.textContent || "0", 10) >= 1,
+    undefined,
+    { timeout: 15000 }
+  );
+  if (!(await page.locator("#game-archive-list .archive-game").count())) {
+    throw new Error("Completed games should be saved in the local game archive.");
+  }
+
+  await page.locator("#side").selectOption("w");
+  await page.locator("#fen-input").fill("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1");
+  await page.locator("#load-fen").click();
+  await page.locator('[data-square="f7"]').click();
+  await page.locator('[data-square="g7"]').click();
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#turn-label").textContent() !== "CHECKMATE · YOU WON") {
+    throw new Error("A one-move checkmate should update the turn indicator to a win.");
+  }
+  await page.locator("#game-result-review").click();
+  await page.waitForFunction(() =>
+    document.querySelector("#review-progress-label")?.textContent.includes("Analysis complete"),
+    undefined,
+    { timeout: 60000 }
+  );
+  if (!(await page.locator("#move-list .move-grade").count()) ||
+      !(await page.locator("#review-summary").innerText()).includes("%")) {
+    throw new Error("Post-game review should grade the played move and calculate player accuracy.");
   }
 
   const touchContext = await browser.newContext({
