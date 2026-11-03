@@ -240,10 +240,18 @@ try {
   const screenshotCheckmateFen = "r1b1kbn1/pp1p1pp1/8/2p1n3/3pP3/3K1pq1/PPPB4/RN1Q1B2 w - - 0 1";
   await page.locator("#fen-input").fill(screenshotCheckmateFen);
   await page.locator("#load-fen").click();
-  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
-  if (await page.locator("#turn-label").textContent() !== "CHECKMATE · YOU LOST" ||
-      !(await page.locator("#status").textContent()).includes("Checkmate")) {
-    throw new Error("The screenshot position should be recognized as checkmate, not shown as White to move.");
+  await page.waitForTimeout(100);
+  const screenshotPositionState = await page.evaluate(() => ({
+    feedback: document.querySelector("#fen-feedback")?.textContent,
+    status: document.querySelector("#status")?.textContent,
+    turn: document.querySelector("#turn-label")?.textContent,
+    fen: document.querySelector("#fen-input")?.value,
+    overlayHidden: document.querySelector("#game-result-dialog")?.hidden
+  }));
+  if (screenshotPositionState.overlayHidden ||
+      screenshotPositionState.turn !== "CHECKMATE · YOU LOST" ||
+      !screenshotPositionState.status?.includes("Checkmate")) {
+    throw new Error("Screenshot position did not load as checkmate: " + JSON.stringify(screenshotPositionState));
   }
   await page.locator("#game-result-review").click();
 
