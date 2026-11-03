@@ -158,6 +158,26 @@ try {
   if (!(await page.locator("#return-live").isVisible())) {
     throw new Error("Review mode should offer a way back to the live game.");
   }
+  if (!(await page.locator("#move-prev").isEnabled()) || !(await page.locator("#move-next").isEnabled())) {
+    throw new Error("Previous and next move arrows should be available while reviewing an interior position.");
+  }
+  await page.locator("#move-prev").click();
+  if (!(await page.locator("#fen-input").inputValue()).includes(" w ") ||
+      await page.locator("#move-position-label").textContent() !== "0 / 3") {
+    throw new Error("Previous-move arrow should step back to the starting position.");
+  }
+  await page.locator("#move-next").click();
+  if (!(await page.locator("#fen-input").inputValue()).includes(" b ")) {
+    throw new Error("Next-move arrow should restore the next reviewed position.");
+  }
+  await page.keyboard.press("ArrowLeft");
+  if (!(await page.locator("#fen-input").inputValue()).includes(" w ")) {
+    throw new Error("Left arrow key should step back one move during review.");
+  }
+  await page.keyboard.press("ArrowRight");
+  if (!(await page.locator("#fen-input").inputValue()).includes(" b ")) {
+    throw new Error("Right arrow key should step forward one move during review.");
+  }
   await page.locator("#return-live").click();
   if (await page.locator("#fen-input").inputValue() !== livePositionFen ||
       await page.locator("#return-live").isVisible()) {
@@ -524,6 +544,10 @@ try {
   }
   if (!(await page.locator(".piece-quality-marker").count())) {
     throw new Error("A reviewed Best/Brilliant move should display its quality marker over the destination piece.");
+  }
+  const moveGrades = await page.locator("#move-list .move-grade").allTextContents();
+  if (!moveGrades.some(grade => ["BEST","BRILLIANT","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(grade))) {
+    throw new Error("Game Review should use the expanded move-quality classification vocabulary.");
   }
   const accuracyValues = await page.locator(".review-player strong").allTextContents();
   if (accuracyValues.some(value => Number.parseFloat(value) > 100 || Number.parseFloat(value) < 0)) {
