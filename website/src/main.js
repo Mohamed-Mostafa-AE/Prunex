@@ -578,6 +578,218 @@ function buildMoveButton(move, ply, currentPly) {
   return button;
 }
 
+function buildMoveButton(move, ply, currentPly) {
+  const cell = document.createElement("div");
+  cell.className = "move-cell";
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "move-notation";
+  button.textContent = move.san;
+  button.dataset.ply = String(ply);
+  button.setAttribute("aria-label", "Go to position after " + move.san);
+  if (ply === currentPly) {
+    button.classList.add("is-current");
+    button.setAttribute("aria-current", "step");
+  }
+  button.addEventListener("click", () => goToPly(ply));
+  cell.append(button);
+  const grade = moveAnalysis[ply - 1];
+  if (grade?.grade) {
+    const badge = document.createElement("span");
+    badge.className = "move-grade";
+    badge.dataset.grade = grade.grade;
+    badge.textContent = grade.grade === "MISSED_WIN" ? "MISSED" : grade.grade;
+    badge.title = grade.description || grade.grade.replaceAll("_", " ").toLowerCase();
+    cell.append(badge);
+  }
+  return cell;
+}
+
+function scoreToCentipawns(result) {
+  if (!result || !Number.isFinite(result.score)) return null;
+  if (result.scoreType === "mate") {
+    const distance = Math.min(900, Math.abs(result.score));
+    return Math.sign(result.score || 1) * (10000 - distance);
+  }
+  return result.score;
+}
+
+const PIECE_VALUES = { p: 100, n: 320, b: 335, r: 500, q: 900, k: 20000 };
+
+function classifyMove(move, nextMove, beforeScore, afterScore, lossCp, ply) {
+  if (!Number.isFinite(lossCp)) return { grade: "UNRATED", lossCp: null, description: "Engine score unavailable" };
+  const nextTakesMovedPiece = nextMove &&
+    nextMove.to === move.to &&
+    nextMove.captured === move.piece &&
+    (PIECE_VALUES[move.piece] || 0) >= 320;
+  if (nextTakesMovedPiece && lossCp <= 20) {
+    return { grade: "BRILLIANT", lossCp, description: "A sound piece sacrifice confirmed by engine analysis" };
+  }
+  if (beforeScore >= 300 && afterScore < 0) {
+    return { grade: "MISSED_WIN", lossCp, description: "A winning advantage slipped away" };
+  }
+  if (lossCp <= 8 && (move.san.includes("+") || move.san.includes("#"))) {
+    return { grade: "GREAT", lossCp, description: "A precise forcing move" };
+  }
+  if (lossCp <= 8) return { grade: "BEST", lossCp, description: "Matches the engine's top-quality continuation" };
+  if (lossCp <= 20) return { grade: "EXCELLENT", lossCp, description: "Very close to the engine's preferred move" };
+  if (lossCp <= 50) return { grade: "GOOD", lossCp, description: "A sound move" };
+  if (lossCp <= 100) return { grade: "INACCURACY", lossCp, description: "A small but measurable evaluation drop" };
+  if (lossCp <= 200) return { grade: "MISTAKE", lossCp, description: "A meaningful evaluation drop" };
+  return { grade: "BLUNDER", lossCp, description: "A large evaluation drop" };
+}
+
+function reviewAccuracy(color, analysis = moveAnalysis) {
+  const played = analysis.filter(move => move.color === color && Number.isFinite(move.lossCp));
+  if (!played.length) return null;
+  const averageLoss = played.reduce((total, move) => total + move.lossCp, 0) / played.length;
+  // Prunex's review metric is an estimate, not Chess.com's proprietary accuracy formula.
+  return Math.round(1000 * Math.max(0, Math.min(100, 100 * Math.exp(-averageLoss / 180)))) / 10;
+}
+
+function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analysis), blackAccuracy = reviewAccuracy("b", analysis)) {
+  reviewSummary.replaceChildren();
+  const playerCard = (color, accuracy) => {
+    const card = document.createElement("div");
+    card.className = "review-player";
+    const label = document.createElement("small");
+    label.textContent = color === humanColor ? "YOU · " + (color === "w" ? "WHITE" : "BLACK") :
+      "PRUNEX · " + (color === "w" ? "WHITE" : "BLACK");
+    const score = document.createElement("strong");
+    score.textContent = accuracy === null ? "—" : accuracy.toFixed(1) + "%";
+    const grade = document.createElement("span");
+    const count = analysis.filter(item => item.color === color).length;
+    grade.textContent = count + " moves reviewed";
+    card.append(label, score, grade);
+    return card;
+  };
+  reviewSummary.append(playerCard("w", whiteAccuracy), playerCard("b", blackAccuracy));
+
+  reviewKeyMoments.replaceChildren();
+  const moments = [...analysis]
+    .filter(item => item.grade === "BRILLIANT" || item.grade === "BLUNDER" || item.grade === "MISSED_WIN" || item.grade === "MISTAKE")
+    .sort((a, b) => (b.lossCp || 0) - (a.lossCp || 0))
+    .slice(0, 4);
+  for (const moment of moments) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "review-moment";
+    const label = document.createElement("span");
+    label.textContent = (moment.color === "w" ? "White " : "Black ") + moment.san + " · " + moment.grade.replaceAll("_", " ");
+    const score = document.createElement("small");
+    score.textContent = moment.grade === "BRILLIANT" ? "SACRIFICE" : Math.round(moment.lossCp) + " cp lost";
+    button.append(label, score);
+    button.addEventListener("click", () => goToPly(moment.ply));
+    reviewKeyMoments.append(button);
+  }
+}
+
+function analyzeCurrentGame() {
+  const moves = reviewMovesSnapshot || game.history({ verbose: true });
+  if (!moves.length) {
+    reviewSummary.textContent = "There are no played moves to analyze yet.";
+    reviewProgress.hidden = true;
+    return;
+  }
+  if (moves.length > MAX_REVIEW_PLIES) {
+    reviewProgressLabel.textContent = "Reviewing the first " + MAX_REVIEW_PLIES + " plies. Longer games are capped for browser performance.";
+  }
+
+  cancelSearch();
+  const replay = new Chess(initialFen);
+  const positions = [replay.fen()];
+  const analyzedMoves = moves.slice(0, MAX_REVIEW_PLIES);
+  for (const move of analyzedMoves) {
+    const applied = replay.move({
+      from: move.from, to: move.to, promotion: move.promotion || undefined
+    });
+    if (!applied) {
+      reviewSummary.textContent = "Could not reconstruct this game's move history.";
+      return;
+    }
+    positions.push(replay.fen());
+  }
+
+  requestId += 1;
+  analyzingGame = true;
+  evaluating = false;
+  thinking = false;
+  moveAnalysis = [];
+  reviewSummary.textContent = "Prunex is checking every position and grading each move.";
+  reviewKeyMoments.replaceChildren();
+  reviewProgress.hidden = false;
+  reviewProgressFill.style.width = "0%";
+  reviewProgressLabel.textContent = "Analyzing 0 / " + positions.length + " positions";
+  reviewDepth.textContent = "ENGINE DEPTH " + REVIEW_DEPTH;
+  statusEl.textContent = "Reviewing " + positions.length + " engine positions…";
+  stateEl.textContent = "Analyzing game…";
+  stateEl.dataset.busy = "true";
+  worker.postMessage({
+    type: "analyze-game",
+    requestId,
+    positions,
+    depth: REVIEW_DEPTH
+  });
+}
+
+function startGameReview() {
+  dismissGameResult(false);
+  if (!currentArchiveRecord && game.isGameOver()) void persistCompletedGame();
+  const history = game.history({ verbose: true });
+  reviewMovesSnapshot = history.map(move => ({
+    color: move.color,
+    from: move.from,
+    to: move.to,
+    promotion: move.promotion || null,
+    piece: move.piece,
+    captured: move.captured || null,
+    san: move.san
+  }));
+  reviewPly = history.length;
+  gameReviewPanel.hidden = false;
+  if (moveAnalysis.length && moveAnalysis.length === history.length) {
+    renderReviewSummary(moveAnalysis);
+    render();
+    return;
+  }
+  render();
+  analyzeCurrentGame();
+}
+
+async function completeGameReview(results) {
+  const moves = reviewMovesSnapshot || game.history({ verbose: true });
+  const scored = [];
+  const count = Math.min(moves.length, Math.max(0, results.length - 1));
+  for (let index = 0; index < count; index += 1) {
+    const before = scoreToCentipawns(results[index]);
+    const afterFromMoverPerspective = -scoreToCentipawns(results[index + 1]);
+    const lossCp = Number.isFinite(before) && Number.isFinite(afterFromMoverPerspective)
+      ? Math.max(0, before - afterFromMoverPerspective)
+      : null;
+    const classification = classifyMove(moves[index], moves[index + 1], before, afterFromMoverPerspective, lossCp, index + 1);
+    scored.push({
+      ply: index + 1,
+      color: moves[index].color,
+      san: moves[index].san,
+      beforeScore: before,
+      afterScore: afterFromMoverPerspective,
+      lossCp: classification.lossCp,
+      grade: classification.grade,
+      description: classification.description
+    });
+  }
+  moveAnalysis = scored;
+  analyzingGame = false;
+  reviewProgress.hidden = false;
+  reviewProgressFill.style.width = "100%";
+  reviewProgressLabel.textContent = "Analysis complete · " + scored.length + " moves graded";
+  renderReviewSummary(scored);
+  render();
+  await saveReviewedGame();
+  stateEl.textContent = "Review complete";
+  stateEl.dataset.busy = "false";
+}
+
 function renderMoves() {
   const history = reviewMovesSnapshot || game.history({ verbose: true });
   const currentPly = reviewMovesSnapshot ? reviewPly : history.length;
