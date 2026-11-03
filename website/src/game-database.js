@@ -202,7 +202,7 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
         await getRemoteUserId();
         const { data, error } = await supabase
           .from("prunex_games")
-          .select("id, created_at, result, human_color, pgn")
+          .select("id, created_at, result, human_color, pgn, initial_fen, moves")
           .order("created_at", { ascending: false })
           .limit(limit);
         if (error) throw error;
