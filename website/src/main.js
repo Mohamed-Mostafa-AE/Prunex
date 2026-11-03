@@ -20,6 +20,7 @@ const moveListEl = $("#move-list");
 const moveCountEl = $("#move-count");
 const undoButton = $("#undo");
 const nodesSelect = $("#nodes");
+const reviewBudgetSelect = $("#review-budget");
 const sideSelect = $("#side");
 const fenInput = $("#fen-input");
 const fenFeedback = $("#fen-feedback");
@@ -83,7 +84,7 @@ let moveAnalysis = [];
 let reviewAnalysisPositions = [];
 let reviewAnalysisResults = [];
 let reviewAnalysisIndex = 0;
-let reviewBudgetMs = 12000;
+let reviewBudgetMs = 30000;
 let bestMoveHint = null;
 let bestMoveDisplay = "off";
 let moveMethod = "both";
@@ -410,7 +411,7 @@ async function persistCompletedGame() {
       initialFen,
       finalFen,
       pgn: game.pgn(),
-      opponentVersion: "Prunex 0.8.0 browser opponent",
+      opponentVersion: "Prunex Play · Stockfish 19 Lite",
       moves,
       analysis: null,
       whiteAccuracy: null,
@@ -890,14 +891,13 @@ function analyzeCurrentGame() {
   reviewAnalysisPositions = positions;
   reviewAnalysisResults = [];
   reviewAnalysisIndex = 0;
-  const strengthBudgets = { "10000": 150, "25000": 350, "50000": 600, "100000": 1000, "250000": 1800 };
-  reviewBudgetMs = strengthBudgets[nodesSelect.value] || 350;
-  reviewSummary.textContent = "Prunex is checking every position and grading each move.";
+  reviewBudgetMs = Number(reviewBudgetSelect.value) || 30000;
+  reviewSummary.textContent = "Prunex Play is checking every position with Stockfish 19 Lite at the selected analysis budget.";
   reviewKeyMoments.replaceChildren();
   reviewProgress.hidden = false;
   reviewProgressFill.style.width = "0%";
   reviewProgressLabel.textContent = "Analyzing 0 / " + positions.length + " positions";
-  reviewDepth.textContent = "ENGINE REVIEW · " + reviewBudgetMs + "MS / POSITION";
+  reviewDepth.textContent = "PRUNEX ANALYSIS · " + Math.round(reviewBudgetMs / 1000) + "S / POSITION";
   statusEl.textContent = "Reviewing " + positions.length + " engine positions…";
   stateEl.textContent = "Analyzing game…";
   stateEl.dataset.busy = "true";
@@ -1017,13 +1017,12 @@ async function completeGameReview(results) {
   const depths = results.map(item => item.depth || 0).filter(value => value > 0);
   const averageDepth = depths.length ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
   const deepestDepth = depths.length ? Math.max(...depths) : 0;
-  reviewDepth.textContent = "ENGINE REVIEW · " + reviewBudgetMs + "MS / POSITION · AVG DEPTH " + averageDepth;
+  reviewDepth.textContent = "PRUNEX ANALYSIS · " + Math.round(reviewBudgetMs / 1000) + "S / POSITION · AVG DEPTH " + averageDepth;
   const wdlPositionCount = results.filter(item => item.wdl &&
     Number.isFinite(item.wdl.win) && Number.isFinite(item.wdl.draw) && Number.isFinite(item.wdl.loss)).length;
   reviewMethodNote.textContent = wdlPositionCount
-    ? "Accuracy and move grades use Stockfish WDL expected points on " + wdlPositionCount +
-      " / " + results.length + " positions, with a centipawn fallback where WDL is unavailable. MultiPV comparisons are depth-matched."
-    : "Stockfish centipawn evaluations are converted to expected points as a fallback. WDL output was not available in this engine build.";
+    ? "Stockfish 19 Lite supplies search and WDL evaluations. Prunex applies its own move grading, Apex checks, and expected-points accuracy metric; this is not Chess.com's proprietary CAPS2 formula."
+    : "Stockfish centipawn evaluations are converted using Prunex's expected-points model. WDL output was not available in this engine build.";
   reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
     " moves graded · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
