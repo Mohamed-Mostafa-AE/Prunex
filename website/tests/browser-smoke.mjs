@@ -516,6 +516,7 @@ try {
   if (await page.locator("#turn-label").textContent() !== "CHECKMATE · YOU WON") {
     throw new Error("A one-move checkmate should update the turn indicator to a win.");
   }
+  await page.locator("#review-budget").selectOption("3000");
   await page.locator("#game-result-review").click();
   try {
     await page.waitForFunction(() => {
