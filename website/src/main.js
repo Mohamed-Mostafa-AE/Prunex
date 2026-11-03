@@ -32,6 +32,7 @@ const gameReviewPanel = $("#game-review-panel");
 const reviewProgress = $("#review-progress");
 const reviewProgressFill = $("#review-progress-fill");
 const reviewProgressLabel = $("#review-progress-label");
+const reviewDepth = $("#review-depth");
 const reviewSummary = $("#review-summary");
 const reviewKeyMoments = $("#review-key-moments");
 const archiveCount = $("#game-archive-count");
