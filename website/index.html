@@ -157,6 +157,7 @@
                   <span id="review-progress-label">Preparing analysis…</span>
                 </div>
                 <div id="review-summary" class="review-summary"></div>
+                <p id="review-method-note" class="review-method-note">Game review evaluates each position independently.</p>
                 <div id="review-key-moments" class="review-key-moments"></div>
               </section>
               <section class="game-archive" id="game-archive">
@@ -173,7 +174,7 @@
                 <details class="settings-group" open>
                   <summary><span>PLAY</span><small>Strength · input · premoves</small></summary>
                   <div class="settings-group-body">
-                    <label class="setting-row"><span>Opponent strength</span><select id="nodes"><option value="10000">Quick · 8s review</option><option value="25000" selected>Balanced · 12s review</option><option value="50000">Strong · 15s review</option><option value="100000">Deep · 20s review</option><option value="250000">Maximum · 25s review</option></select></label>
+                    <label class="setting-row"><span>Opponent strength</span><select id="nodes"><option value="10000">Quick · 150ms / position</option><option value="25000" selected>Balanced · 350ms / position</option><option value="50000">Strong · 600ms / position</option><option value="100000">Deep · 1s / position</option><option value="250000">Maximum · 1.8s / position</option></select></label>
                     <label class="setting-row"><span>Move input</span><select id="move-method"><option value="both">Drag or click</option><option value="drag">Drag only</option><option value="click">Click squares</option></select></label>
                     <label class="setting-toggle"><input id="enable-premoves" type="checkbox" checked><span>Enable premoves</span></label>
                   </div>
@@ -227,7 +228,7 @@
                   </div>
                 </details>
 
-                <p class="engine-review-note">Longer review presets allocate more search time to every position. Deeper search can change an evaluation when it finds a stronger line.</p>
+                <p class="engine-review-note">Each position gets the selected search time. Longer games take longer to review. Accuracy uses Stockfish WDL expected points where available.</p>
                 <div class="engine-note"><span class="local-dot"></span><span>Prunex 0.8.0 · Browser opponent powered by Stockfish 19 Lite</span></div>
               </div>
             </aside>
