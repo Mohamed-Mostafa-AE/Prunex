@@ -142,11 +142,12 @@ function startEngine() {
     if (line === "readyok" && awaitingReady) {
       awaitingReady = false;
       ready = true;
-      self.postMessage({ type: "ready" });
       if (pendingJob) {
         const nextJob = pendingJob;
         pendingJob = null;
         startJob(nextJob);
+      } else {
+        self.postMessage({ type: "ready" });
       }
       return;
     }
@@ -211,14 +212,9 @@ self.addEventListener("message", (event) => {
       self.postMessage({ type: "error", requestId: data.requestId, message: "The game review position list is invalid." });
       return;
     }
-    if (activeJob && (activeJob.cancelled || stopping)) {
-      // A previous UCI stop did not finish. Reinitialize the child engine
-      // rather than leaving the new analysis queued indefinitely.
-      restartEngineForJob(data);
-    } else if (activeJob) {
-      pendingJob = data;
-      stopActiveJob();
-    } else if (stopping) {
+    if (activeJob || stopping) {
+      // Replace stale/in-flight work. A review or fresh position must never
+      // be held behind an old search that has not returned bestmove.
       restartEngineForJob(data);
     } else {
       startJob(data);
