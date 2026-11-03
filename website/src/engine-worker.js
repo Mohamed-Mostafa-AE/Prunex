@@ -149,9 +149,16 @@ function restartEngineForJob(job) {
 
 function startEngine() {
   if (engine) return;
-  // Stockfish 19 Lite is the third-party UCI engine; Prunex owns the
-  // orchestration, review pipeline, WDL interpretation, and move grading.
-  engine = new Worker("/engine/stockfish-19-lite-single.js");
+  // The upstream UCI worker remains unmodified. Prunex owns this worker's
+  // request scheduling, review orchestration, WDL interpretation, and grading.
+  if (!self.crossOriginIsolated || typeof SharedArrayBuffer === "undefined") {
+    self.postMessage({
+      type: "error",
+      message: "This browser session cannot start multi-threaded analysis. Open Prunex in a browser that supports cross-origin isolation."
+    });
+    return;
+  }
+  engine = new Worker("/engine/stockfish-19.js");
   engine.addEventListener("message", (event) => {
     const line = String(event.data ?? "").trim();
     if (!line) return;
@@ -163,7 +170,12 @@ function startEngine() {
     }
 
     if (line === "uciok") {
-      engine.postMessage("setoption name Hash value 128");
+      engine.postMessage("setoption name Hash value 256");
+      if (availableOptions.has("Threads")) {
+        const hardwareThreads = Math.max(1, Number(self.navigator?.hardwareConcurrency) || 4);
+        const searchThreads = Math.max(1, Math.min(8, hardwareThreads));
+        engine.postMessage("setoption name Threads value " + searchThreads);
+      }
       if (availableOptions.has("UCI_ShowWDL")) engine.postMessage("setoption name UCI_ShowWDL value true");
       engine.postMessage("isready");
       awaitingReady = true;
@@ -239,7 +251,7 @@ function startEngine() {
     activeJob = null;
     pendingJob = null;
     stopping = false;
-    self.postMessage({ type: "error", message: event.message || "Stockfish worker failed." });
+    self.postMessage({ type: "error", message: event.message || "Prunex analysis worker failed." });
   });
   engine.postMessage("uci");
 }

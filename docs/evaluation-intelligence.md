@@ -2,9 +2,9 @@
 
 ## Engine identity and scope
 
-The browser product is branded **Prunex Play**. Its third-party chess engine is **Stockfish.js 19 Lite**. The Prunex-owned code is the application, UCI worker orchestration, analysis scheduling, expected-points interpretation, move-quality grading, Apex checks, archive integration, and presentation. The interface must not imply that the Stockfish engine binary or its NNUE network was independently authored by Prunex.
+The browser product is branded **Prunex Play**. Its browser analysis build is **Stockfish.js 19 Full (multi-threaded)**. The Prunex-owned code is the application, UCI worker orchestration, analysis scheduling, expected-points interpretation, move-quality grading, Apex checks, archive integration, and presentation. The interface must not imply that the upstream engine binary or its NNUE network was independently authored by Prunex.
 
-Stockfish is GPL-3.0. Keep its license, source/corresponding-source access, and attribution intact for every distributed build. Any modifications to Stockfish itself must be published under GPL-3.0 with the corresponding source. See the upstream [Stockfish repository and terms](https://github.com/official-stockfish/Stockfish).
+The browser build is distributed under GPL-3.0. Keep the upstream license, source/corresponding-source access, and attribution intact for every distributed build. Any modifications to the upstream engine itself must be published under GPL-3.0 with the corresponding source. See the upstream [Stockfish repository and terms](https://github.com/official-stockfish/Stockfish) and the [Stockfish.js browser port](https://github.com/nmrugg/stockfish.js).
 
 ## Maximum review budget
 
@@ -15,7 +15,7 @@ Game Review has a separate analysis budget from opponent playing strength. The d
 - Expected-points interpretation is separate from Stockfish's raw centipawn/WDL output.
 - Move grades and the Prunex Apex criteria are application-level rules, not Stockfish classifications.
 - Accuracy is Prunex's own metric and is not represented as Chess.com's proprietary CAPS2.
-- WDL from Stockfish is preferred when present; calibrated centipawn conversion is the fallback.
+- UCI WDL output is preferred when present; calibrated centipawn conversion is the fallback.
 
 ## Calibration dataset format
 
@@ -27,7 +27,7 @@ The calibration trainer consumes UTF-8 JSONL, one row per independently labeled 
 {"gameId": "game-002", "scoreCp": 12, "result": 0.5}
 ```
 
-- `scoreCp`: Stockfish centipawn score from the side-to-move perspective at the sampled position.
+- `scoreCp`: centipawn score from the side-to-move perspective at the sampled position.
 - `result`: eventual game score for that same side to move: 1 win, 0.5 draw, 0 loss.
 - Exclude terminal positions and invalid games. Avoid duplicate positions and split by game, not by individual position, when preparing production datasets to prevent leakage.
 - Use a representative mix of openings, middlegames, endgames, rating levels, and time controls. Prefer a large, clean corpus of completed games; do not treat a few user games as sufficient training data.

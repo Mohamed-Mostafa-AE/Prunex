@@ -4,8 +4,10 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const failures = [];
 const workers = [];
+const requests = [];
 const baseUrl = process.env.PRUNEX_BASE_URL || "http://127.0.0.1:4173/";
 
+page.on("request", request => requests.push(request.url()));
 page.on("pageerror", error => failures.push("pageerror: " + error.message));
 page.on("worker", worker => {
   workers.push(worker.url());
@@ -280,7 +282,17 @@ try {
   }
   if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX PLAY") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
-  if (!engineNote.includes("Stockfish 19 Lite")) throw new Error("Browser engine attribution should identify Stockfish 19 Lite.");
+  if (!engineNote.includes("PRUNEX PLAY") || /Stockfish/i.test(engineNote)) {
+    throw new Error("The analysis panel should keep its focus on the Prunex experience.");
+  }
+  const licenseNote = await page.locator(".license-note").innerText();
+  if (!licenseNote.includes("Stockfish.js 19 Full") || !licenseNote.includes("GPLv3")) {
+    throw new Error("The browser engine's license and attribution notice is missing.");
+  }
+  if (!requests.some(url => url.includes("/engine/stockfish-19.js")) ||
+      !requests.some(url => url.includes("/engine/stockfish-19.wasm"))) {
+    throw new Error("The full analysis worker and its WebAssembly network were not loaded.");
+  }
   const workspaceBackground = await page.locator(".workspace").evaluate(el => getComputedStyle(el).backgroundColor);
   const avatarBackground = await page.locator(".engine-avatar").evaluate(el => getComputedStyle(el).backgroundColor);
   if (workspaceBackground !== avatarBackground) throw new Error("Transparent Prunex mark background should match the dark board section.");

@@ -2,7 +2,7 @@
 
 Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
 
-> **Important distinction:** The browser demo is not the native C++ engine. It uses `chess.js` for game rules and Stockfish.js Lite as its opponent. The native engine is a separate C++ implementation.
+> **Important distinction:** The browser demo is not the native C++ engine. It uses `chess.js` for game rules and the Stockfish.js 19 Full multi-threaded browser build for its opponent and analysis. The native engine is a separate C++ implementation.
 
 ## Project components
 
@@ -61,11 +61,11 @@ See [docs/testing.md](docs/testing.md) for the test coverage, benchmark provenan
 
 **Website:** https://prunex-play.vercel.app/
 
-The browser demo is a separate web experience. It uses Stockfish.js Lite as its opponent; it does not run the native C++ Prunex engine. The third-party engine and chess-piece artwork retain their own licenses and notices in `website/public/`.
+The browser demo is a separate web experience. It uses Stockfish.js 19 Full (multi-threaded) as its opponent and analysis engine; it does not run the native C++ Prunex engine. The third-party engine and chess-piece artwork retain their own licenses and notices in `website/public/`.
 
 ## Browser engine and evaluation
 
-The browser experience is branded **Prunex Play** and uses **Stockfish.js 19 Lite** as its underlying UCI engine. The Prunex-owned layer handles browser integration, review orchestration, expected-points interpretation, move classifications, and the Prunex Apex criteria. It does not claim Stockfish's engine or NNUE network as original Prunex code. Stockfish GPLv3 attribution, license, and corresponding-source information are retained in the website build.
+The browser experience is branded **Prunex Play** and uses **Stockfish.js 19 Full (multi-threaded)** as its underlying UCI engine. The Prunex-owned layer handles browser integration, review orchestration, expected-points interpretation, move classifications, and the Prunex Apex criteria. It does not claim the upstream engine or NNUE network as original Prunex code. GPLv3 attribution, license, and corresponding-source information are retained in the website build. The full browser build is approximately 94 MB and uses cross-origin isolation to enable shared-memory multithreading.
 
 Game Review defaults to a 30-second search budget per non-terminal position. This is a time budget, not a guaranteed depth. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for calibration training, validation, benchmarking, and the separate upstream NNUE-training path.
 

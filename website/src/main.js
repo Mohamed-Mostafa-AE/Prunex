@@ -411,7 +411,7 @@ async function persistCompletedGame() {
       initialFen,
       finalFen,
       pgn: game.pgn(),
-      opponentVersion: "Prunex Play · Stockfish 19 Lite",
+      opponentVersion: "Prunex Play · Full analysis",
       moves,
       analysis: null,
       whiteAccuracy: null,
@@ -878,8 +878,8 @@ function analyzeCurrentGame() {
       reviewSummary.textContent = "Could not reconstruct this game's move history.";
       return;
     }
-    // Terminal positions are known from the game rules; do not ask Stockfish
-    // to search a board where no legal move exists.
+    // Terminal positions are known from the game rules; do not search a
+    // board where no legal move exists.
     if (!replay.isGameOver()) positions.push(replay.fen());
   }
 
@@ -892,7 +892,7 @@ function analyzeCurrentGame() {
   reviewAnalysisResults = [];
   reviewAnalysisIndex = 0;
   reviewBudgetMs = Number(reviewBudgetSelect.value) || 30000;
-  reviewSummary.textContent = "Prunex Play is checking every position with Stockfish 19 Lite at the selected analysis budget.";
+  reviewSummary.textContent = "Prunex is analyzing every position at the selected analysis budget.";
   reviewKeyMoments.replaceChildren();
   reviewProgress.hidden = false;
   reviewProgressFill.style.width = "0%";
@@ -1021,8 +1021,8 @@ async function completeGameReview(results) {
   const wdlPositionCount = results.filter(item => item.wdl &&
     Number.isFinite(item.wdl.win) && Number.isFinite(item.wdl.draw) && Number.isFinite(item.wdl.loss)).length;
   reviewMethodNote.textContent = wdlPositionCount
-    ? "Stockfish 19 Lite supplies search and WDL expected points. Prunex applies its own move grading, Apex checks, and expected-points accuracy metric; this is not Chess.com's proprietary CAPS2 formula."
-    : "Stockfish centipawn evaluations are converted using Prunex's expected-points model. WDL output was not available in this engine build.";
+    ? "Prunex compares expected points before and after each move, then applies its own move grading, Apex checks, and accuracy metric. This is not Chess.com's proprietary CAPS2 formula."
+    : "Prunex converts position evaluations into expected points before applying its move-grading and accuracy model.";
   reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
     " moves graded · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
