@@ -687,7 +687,8 @@ function analyzeCurrentGame() {
   const replay = new Chess(initialFen);
   const positions = [replay.fen()];
   const analyzedMoves = moves.slice(0, MAX_REVIEW_PLIES);
-  for (const move of analyzedMoves) {
+  for (let index = 0; index < analyzedMoves.length; index += 1) {
+    const move = analyzedMoves[index];
     const applied = replay.move({
       from: move.from, to: move.to, promotion: move.promotion || undefined
     });
@@ -695,7 +696,9 @@ function analyzeCurrentGame() {
       reviewSummary.textContent = "Could not reconstruct this game's move history.";
       return;
     }
-    positions.push(replay.fen());
+    // Terminal positions are known from the game rules; do not ask Stockfish
+    // to search a board where no legal move exists.
+    if (!replay.isGameOver()) positions.push(replay.fen());
   }
 
   requestId += 1;
@@ -750,8 +753,11 @@ async function completeGameReview(results) {
   const count = Math.min(moves.length, Math.max(0, results.length - 1));
   for (let index = 0; index < count; index += 1) {
     const before = scoreToCentipawns(results[index]);
-    const afterRaw = scoreToCentipawns(results[index + 1]);
-    const afterFromMoverPerspective = Number.isFinite(afterRaw) ? -afterRaw : null;
+    const afterRaw = results[index + 1] ? scoreToCentipawns(results[index + 1]) : null;
+    const terminalLastMove = index === moves.length - 1 && (game.isGameOver() || game.isCheckmate());
+    const afterFromMoverPerspective = Number.isFinite(afterRaw) ? -afterRaw :
+      terminalLastMove && game.isCheckmate() ? 100000 :
+      terminalLastMove && game.isDraw() ? 0 : null;
     const lossCp = Number.isFinite(before) && Number.isFinite(afterFromMoverPerspective)
       ? Math.max(0, before - afterFromMoverPerspective)
       : null;
