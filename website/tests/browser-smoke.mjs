@@ -435,11 +435,27 @@ try {
     throw new Error("A one-move checkmate should update the turn indicator to a win.");
   }
   await page.locator("#game-result-review").click();
-  await page.waitForFunction(() =>
-    document.querySelector("#review-progress-label")?.textContent.includes("Analysis complete"),
-    undefined,
-    { timeout: 60000 }
-  );
+  try {
+    await page.waitForFunction(() => {
+      const label = document.querySelector("#review-progress-label")?.textContent || "";
+      return label.includes("Analysis complete") || label.includes("Game analysis failed");
+    }, undefined, { timeout: 30000 });
+  } catch (error) {
+    const reviewState = await page.evaluate(() => ({
+      progress: document.querySelector("#review-progress-label")?.textContent,
+      summary: document.querySelector("#review-summary")?.textContent,
+      engine: document.querySelector("#engine-state")?.textContent,
+      status: document.querySelector("#status")?.textContent,
+      busy: document.querySelector("#engine-state")?.dataset.busy,
+      reviewVisible: !document.querySelector("#game-review-panel")?.hidden
+    }));
+    await page.screenshot({ path: "artifacts/game-review-debug.png" });
+    throw new Error("Post-game analysis did not complete: " + JSON.stringify(reviewState) +
+      "; browser errors: " + failures.join(" | ") + "; " + error.message);
+  }
+  if ((await page.locator("#review-progress-label").textContent()).includes("Game analysis failed")) {
+    throw new Error("Post-game analysis failed: " + await page.locator("#review-progress-label").textContent());
+  }
   if (!(await page.locator("#move-list .move-grade").count()) ||
       !(await page.locator("#review-summary").innerText()).includes("%")) {
     throw new Error("Post-game review should grade the played move and calculate player accuracy.");
