@@ -278,7 +278,7 @@ try {
   if (enlargedBoard < 630 || enlargedBoard > 650 || enlargedBoard <= boardAt590 + 35) {
     throw new Error("Board size slider must distinguish 590px from 640px: " + boardAt590 + " -> " + enlargedBoard);
   }
-  if (await page.locator(".opponent-label strong").textContent() !== "Prunex 0.8.0") throw new Error("Engine badge should identify the browser build as Prunex 0.8.0.");
+  if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX PLAY") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
   if (!engineNote.includes("Stockfish 19 Lite")) throw new Error("Browser engine attribution should identify Stockfish 19 Lite.");
   const workspaceBackground = await page.locator(".workspace").evaluate(el => getComputedStyle(el).backgroundColor);
