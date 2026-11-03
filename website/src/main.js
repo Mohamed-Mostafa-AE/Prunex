@@ -14,6 +14,7 @@ const sideSelect = $("#side");
 const fenInput = $("#fen-input");
 const fenFeedback = $("#fen-feedback");
 const boardFrame = $(".board-frame");
+const boardStage = $(".board-stage");
 const boardSizeInput = $("#board-size");
 const boardSizeValue = $("#board-size-value");
 const pieceStyleSelect = $("#piece-style");
@@ -206,6 +207,7 @@ function applySiteTheme(theme) {
 function setBoardSize(value, persist = true) {
   const size = Math.max(320, Math.min(640, Number(value) || 520));
   boardFrame.style.setProperty("--board-size", size + "px");
+  boardStage.style.setProperty("--board-size", size + "px");
   boardSizeInput.value = String(size);
   boardSizeValue.value = size + " px";
   boardSizeValue.textContent = size + " px";
