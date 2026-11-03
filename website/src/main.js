@@ -782,6 +782,8 @@ function buildMoveButton(move, ply, currentPly) {
     badge.dataset.grade = grade.grade;
     if (Number.isFinite(grade.expectedPointLoss)) badge.dataset.expectedPointLoss = grade.expectedPointLoss.toFixed(4);
     if (Number.isFinite(grade.depth)) badge.dataset.reviewDepth = String(grade.depth);
+    if (Number.isFinite(grade.uniqueMoveGap)) badge.dataset.uniqueMoveGap = grade.uniqueMoveGap.toFixed(4);
+    if (grade.evaluationSource) badge.dataset.evaluationSource = grade.evaluationSource;
     badge.textContent = grade.grade === "MISSED_WIN" ? "MISS" : grade.grade;
     badge.title = grade.description || grade.grade.replaceAll("_", " ").toLowerCase();
     cell.append(badge);
