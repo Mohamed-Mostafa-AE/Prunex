@@ -718,7 +718,9 @@ function requestNextReviewPosition() {
   if (!analyzingGame || reviewAnalysisIndex >= reviewAnalysisPositions.length) return;
   const fen = reviewAnalysisPositions[reviewAnalysisIndex];
   enginePositionTurn = new Chess(fen).turn();
-  const perPositionMs = Math.max(80, Math.floor(reviewBudgetMs / reviewAnalysisPositions.length));
+  // Each position gets the same share of the selected game-review budget.
+  // A larger preset therefore always gives every position more search time.
+  const perPositionMs = Math.max(50, Math.floor(reviewBudgetMs / reviewAnalysisPositions.length));
   requestId += 1;
   evaluating = true;
   setEvaluationPending();
@@ -836,6 +838,7 @@ async function completeGameReview(results) {
       afterScore: afterFromMoverPerspective,
       lossCp: classification.lossCp,
       grade: classification.grade,
+      depth: results[index]?.depth || 0,
       description: classification.description
     });
   }
@@ -843,7 +846,13 @@ async function completeGameReview(results) {
   analyzingGame = false;
   reviewProgress.hidden = false;
   reviewProgressFill.style.width = "100%";
-  reviewProgressLabel.textContent = "Analysis complete · " + scored.length + " moves graded";
+  const depths = results.map(item => item.depth || 0).filter(value => value > 0);
+  const averageDepth = depths.length ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
+  const deepestDepth = depths.length ? Math.max(...depths) : 0;
+  reviewDepth.textContent = "ENGINE REVIEW · " + Math.round(reviewBudgetMs / 1000) +
+    "S · AVG DEPTH " + averageDepth;
+  reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
+    " moves graded · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
   render();
   await saveReviewedGame();
@@ -1175,14 +1184,19 @@ worker.addEventListener("message", async (event) => {
         scoreType: data.scoreType || null,
         score: Number.isFinite(data.score) ? data.score : null,
         depth: data.depth || 0,
+        selDepth: data.selDepth || 0,
+        nodes: data.nodes || 0,
         bestMove: data.bestMove || null
       });
 
       reviewAnalysisIndex += 1;
       const completed = reviewAnalysisResults.length;
       const total = reviewAnalysisPositions.length;
+      const achievedDepths = reviewAnalysisResults.map(item => item.depth).filter(Number.isFinite);
+      const deepestCompleted = achievedDepths.length ? Math.max(...achievedDepths) : 0;
       reviewProgressFill.style.width = Math.round((completed / total) * 100) + "%";
-      reviewProgressLabel.textContent = "Analyzing " + completed + " / " + total + " positions";
+      reviewProgressLabel.textContent = "Analyzing " + completed + " / " + total +
+        " positions · deepest completed depth " + deepestCompleted;
       if (reviewAnalysisIndex < total) {
         requestNextReviewPosition();
       } else {
