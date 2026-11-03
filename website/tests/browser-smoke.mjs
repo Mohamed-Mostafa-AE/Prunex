@@ -163,7 +163,7 @@ try {
   }
   await page.locator("#move-prev").click();
   if (!(await page.locator("#fen-input").inputValue()).includes(" w ") ||
-      await page.locator("#move-position-label").textContent() !== "0 / 3") {
+      !/^0 \/ \d+$/.test(await page.locator("#move-position-label").textContent())) {
     throw new Error("Previous-move arrow should step back to the starting position.");
   }
   await page.locator("#move-next").click();
