@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f7faff">
     <meta name="color-scheme" content="light dark">
     <meta property="og:title" content="Prunex — C++20 Chess Engine">
@@ -80,7 +80,30 @@
           <div class="workspace">
             <div class="board-column">
               <div class="board-topline"><div class="opponent-label"><span class="engine-avatar"><img src="/prunex-mark.png?v=3" alt="Prunex logo"></span><div><strong>Prunex 0.8.0</strong><small id="engine-state">Starting engine</small></div></div><span class="turn-pill" id="turn-label">YOU · WHITE</span></div>
-              <div class="board-frame"><div id="board" class="board" role="group" aria-label="Chessboard"></div><button id="resize-board" class="resize-grip" type="button" aria-label="Drag to resize chessboard" title="Drag to resize"></button></div>
+              <div class="board-frame">
+                <div id="board" class="board" role="group" aria-label="Chessboard" tabindex="-1"></div>
+                <button id="resize-board" class="resize-grip" type="button" aria-label="Drag to resize chessboard" title="Drag to resize"></button>
+                <div id="game-result-dialog" class="game-result-overlay" role="dialog" aria-modal="false" aria-labelledby="game-result-title" aria-describedby="game-result-subtitle game-result-copy" hidden>
+                  <div class="game-result-panel">
+                    <div class="game-result-topline">
+                      <span class="game-result-kicker">PRUNEX / GAME REPORT</span>
+                      <span id="game-result-tone" class="game-result-tone">VICTORY</span>
+                    </div>
+                    <button id="game-result-close" class="game-result-close" type="button" aria-label="Close game result">×</button>
+                    <span class="game-result-rule" aria-hidden="true"></span>
+                    <h2 id="game-result-title" class="game-result-title">Well, well, well.</h2>
+                    <p id="game-result-subtitle" class="game-result-subtitle">The engine has been humbled.</p>
+                    <p id="game-result-copy" class="game-result-copy">A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.</p>
+                    <div class="game-result-footer">
+                      <span class="game-result-footer-note">GAME COMPLETE</span>
+                      <div class="game-result-actions">
+                        <button id="game-result-review" class="button" type="button">Review moves</button>
+                        <button id="game-result-new-game" class="button button-primary" type="button">Play again</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="board-toolbar">
                 <button id="new-game" class="button button-primary">New game</button>
                 <button id="undo" class="button" disabled>↶ Undo</button>
@@ -88,9 +111,9 @@
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
               </div>
               <div class="board-size-control">
-                <label for="board-size"><span>BOARD SIZE</span><output id="board-size-value">520 px</output></label>
-                <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred chessboard size">
-                <span class="board-size-note">Adjust with the slider or drag the board corner.</span>
+                <label for="board-size"><span>MAX BOARD SIZE</span><output id="board-size-value">520 px</output></label>
+                <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred maximum chessboard size">
+                <span class="board-size-note">Sets the preferred maximum; the board scales down to fit smaller screens.</span>
               </div>
               <div id="promotion-picker" class="promotion-picker" hidden role="dialog" aria-modal="true" aria-label="Choose promotion piece">
                 <span>Promote pawn to</span>
@@ -203,26 +226,6 @@
         <p class="license-note">The Prunex 0.8.0 browser build uses Stockfish.js 19 Lite, distributed under GPLv3. Its license and corresponding source code are included with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">License ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
       </footer>
 
-      <dialog id="game-result-dialog" class="game-result-dialog" aria-labelledby="game-result-title" aria-describedby="game-result-subtitle game-result-copy">
-        <div class="game-result-panel">
-          <div class="game-result-topline">
-            <span class="game-result-kicker">PRUNEX / GAME REPORT</span>
-            <span id="game-result-tone" class="game-result-tone">VICTORY</span>
-          </div>
-          <button id="game-result-close" class="game-result-close" type="button" aria-label="Close game result">×</button>
-          <span class="game-result-rule" aria-hidden="true"></span>
-          <h2 id="game-result-title" class="game-result-title">Well, well, well.</h2>
-          <p id="game-result-subtitle" class="game-result-subtitle">The engine has been humbled.</p>
-          <p id="game-result-copy" class="game-result-copy">A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.</p>
-          <div class="game-result-footer">
-            <span class="game-result-footer-note">GAME COMPLETE</span>
-            <div class="game-result-actions">
-              <button id="game-result-review" class="button" type="button">Review moves</button>
-              <button id="game-result-new-game" class="button button-primary" type="button">Play again</button>
-            </div>
-          </div>
-        </div>
-      </dialog>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

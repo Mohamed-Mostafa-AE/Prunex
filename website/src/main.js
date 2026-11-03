@@ -20,7 +20,8 @@ const pieceStyleSelect = $("#piece-style");
 const coordinatesToggle = $("#coordinates");
 const legalMovesToggle = $("#legal-moves");
 const promotionPicker = $("#promotion-picker");
-const gameResultDialog = $("#game-result-dialog");
+const gameResultOverlay = $("#game-result-dialog");
+const gameResultClose = $("#game-result-close");
 const gameResultTone = $("#game-result-tone");
 const gameResultTitle = $("#game-result-title");
 const gameResultSubtitle = $("#game-result-subtitle");
@@ -114,10 +115,15 @@ function statusText() {
 }
 
 
+function dismissGameResult(restoreBoardFocus = true) {
+  gameResultOverlay.hidden = true;
+  if (restoreBoardFocus) boardEl.focus({ preventScroll: true });
+}
+
 function syncGameResult() {
   if (!game.isGameOver()) {
     shownResultFen = null;
-    if (gameResultDialog.open) gameResultDialog.close();
+    if (!gameResultOverlay.hidden) dismissGameResult(false);
     return;
   }
 
@@ -151,14 +157,17 @@ function syncGameResult() {
     };
   }
 
-  gameResultDialog.dataset.result = result.kind;
+  gameResultOverlay.dataset.result = result.kind;
   gameResultTone.textContent = result.label;
   gameResultTitle.textContent = result.title;
   gameResultSubtitle.textContent = result.subtitle;
   gameResultCopy.textContent = result.copy;
   shownResultFen = resultFen;
 
-  if (!gameResultDialog.open) gameResultDialog.showModal();
+  if (gameResultOverlay.hidden) {
+    gameResultOverlay.hidden = false;
+    gameResultClose.focus({ preventScroll: true });
+  }
 }
 
 function syncFen() {
@@ -378,11 +387,17 @@ worker.addEventListener("error", (event) => {
 });
 
 $("#new-game").addEventListener("click", startNewGame);
-$("#game-result-close").addEventListener("click", () => gameResultDialog.close());
-$("#game-result-review").addEventListener("click", () => gameResultDialog.close());
+gameResultClose.addEventListener("click", () => dismissGameResult());
+$("#game-result-review").addEventListener("click", () => dismissGameResult());
 $("#game-result-new-game").addEventListener("click", () => {
-  gameResultDialog.close();
+  dismissGameResult();
   startNewGame();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !gameResultOverlay.hidden) {
+    event.preventDefault();
+    dismissGameResult();
+  }
 });
 undoButton.addEventListener("click", () => {
   if (thinking) return;

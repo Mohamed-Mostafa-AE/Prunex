@@ -99,7 +99,39 @@ try {
   if (await page.locator("#game-result-copy").textContent() !== "A hard-fought game, and a mutually agreed refusal to lose.") {
     throw new Error("Draw result copy is incorrect.");
   }
-  await page.screenshot({ path: "artifacts/game-result-draw-desktop.png" });
+  const resultScope = await page.locator("#game-result-dialog").evaluate(element => {
+    const frame = element.closest(".board-frame");
+    const board = document.querySelector("#board");
+    const overlayRect = element.getBoundingClientRect();
+    const boardRect = board.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return {
+      parentIsBoardFrame: element.parentElement === frame,
+      ariaModal: element.getAttribute("aria-modal"),
+      overlayMatchesBoard: Math.abs(overlayRect.left - boardRect.left) < 2 &&
+        Math.abs(overlayRect.top - boardRect.top) < 2 &&
+        Math.abs(overlayRect.width - boardRect.width) < 2 &&
+        Math.abs(overlayRect.height - boardRect.height) < 2,
+      overlayInsideFrame: overlayRect.left >= frameRect.left &&
+        overlayRect.right <= frameRect.right &&
+        overlayRect.top >= frameRect.top &&
+        overlayRect.bottom <= frameRect.bottom,
+      openNativeDialogs: document.querySelectorAll("dialog[open]").length
+    };
+  });
+  if (!resultScope.parentIsBoardFrame || resultScope.ariaModal !== "false" ||
+      !resultScope.overlayMatchesBoard || !resultScope.overlayInsideFrame ||
+      resultScope.openNativeDialogs !== 0) {
+    throw new Error("Game-result popup must be confined to the chessboard: " + JSON.stringify(resultScope));
+  }
+
+  await page.locator("#site-theme-toggle").click();
+  if (await page.locator("html").getAttribute("data-site-theme") !== "dark" ||
+      !(await page.locator("#game-result-dialog").isVisible())) {
+    throw new Error("The page outside the chessboard should remain interactive while the result popup is open.");
+  }
+  await page.locator("#site-theme-toggle").click();
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-draw-desktop.png" });
   await page.locator("#game-result-review").click();
   if (await page.locator("#game-result-dialog").isVisible()) {
     throw new Error("Review moves should dismiss the result dialog.");
@@ -173,7 +205,7 @@ try {
       await page.locator("#game-result-copy").textContent() !== "A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.") {
     throw new Error("Win result copy is incorrect.");
   }
-  await page.screenshot({ path: "artifacts/game-result-win-desktop.png" });
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-win-desktop.png" });
   await page.locator("#game-result-review").click();
 
   await page.locator("#side").selectOption("b");
@@ -190,9 +222,9 @@ try {
       await page.locator("#game-result-copy").textContent() !== "Looks like the engine had the better day. Bad news: Prunex is still improving, so this might not be your last defeat.") {
     throw new Error("Loss result copy is incorrect.");
   }
-  await page.screenshot({ path: "artifacts/game-result-loss-desktop.png" });
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-loss-desktop.png" });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: "artifacts/game-result-loss-mobile.png" });
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-loss-mobile.png" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator("#game-result-new-game").click();
   await page.waitForFunction(
@@ -213,7 +245,153 @@ try {
     throw new Error("Mobile layout overflows: " + JSON.stringify(mobile));
   }
 
-  if (failures.length) throw new Error(failures.join("\n"));
+  const deviceViewports = [
+    { width: 280, height: 653, name: "foldable-compact" },
+    { width: 320, height: 568, name: "phone-small" },
+    { width: 360, height: 800, name: "phone-compact" },
+    { width: 390, height: 844, name: "phone-tall" },
+    { width: 540, height: 720, name: "split-screen-phone" },
+    { width: 600, height: 800, name: "compact-tablet" },
+    { width: 673, height: 841, name: "foldable-unfolded" },
+    { width: 768, height: 1024, name: "tablet-portrait" },
+    { width: 800, height: 800, name: "square-display" },
+    { width: 844, height: 390, name: "phone-landscape" },
+    { width: 1024, height: 768, name: "tablet-landscape" },
+    { width: 1024, height: 1024, name: "square-tablet" },
+    { width: 1080, height: 1920, name: "kiosk-portrait" },
+    { width: 1280, height: 800, name: "laptop" },
+    { width: 1920, height: 1080, name: "desktop" },
+    { width: 2560, height: 1440, name: "wide-desktop" }
+  ];
+  const screenshotViewports = new Set([
+    "phone-small", "split-screen-phone", "foldable-unfolded",
+    "tablet-portrait", "square-tablet", "phone-landscape",
+    "desktop", "wide-desktop"
+  ]);
+
+  for (const device of deviceViewports) {
+    await page.setViewportSize({ width: device.width, height: device.height });
+    const layout = await page.evaluate(() => {
+      const root = document.documentElement;
+      const app = document.querySelector("#app")?.getBoundingClientRect();
+      const workspace = document.querySelector(".workspace")?.getBoundingClientRect();
+      const board = document.querySelector(".board-frame")?.getBoundingClientRect();
+      const sections = [
+        ".topbar", ".nav-links", ".top-actions", ".hero", ".principles",
+        ".workspace", ".board-frame", ".editor-panel", ".about-section",
+        ".benchmark-section", ".match-section", ".footer"
+      ];
+      const outside = sections.flatMap(selector => {
+        const element = document.querySelector(selector);
+        if (!element) return [];
+        const rect = element.getBoundingClientRect();
+        return rect.left < -1 || rect.right > root.clientWidth + 1
+          ? [{ selector, left: Math.round(rect.left), right: Math.round(rect.right) }]
+          : [];
+      });
+      return {
+        viewport: root.clientWidth,
+        documentWidth: Math.max(root.scrollWidth, document.body.scrollWidth),
+        app: app ? { left: Math.round(app.left), right: Math.round(app.right) } : null,
+        workspaceWidth: workspace ? Math.round(workspace.width) : null,
+        board: board ? { width: Math.round(board.width), height: Math.round(board.height) } : null,
+        outside
+      };
+    });
+
+    if (layout.documentWidth > device.width + 1 || layout.app?.left < -1 ||
+        layout.app?.right > device.width + 1 || layout.outside.length) {
+      throw new Error("Responsive overflow at " + device.name + " (" +
+        device.width + "x" + device.height + "): " + JSON.stringify(layout));
+    }
+    if (!layout.board || Math.abs(layout.board.width - layout.board.height) > 1 ||
+        layout.board.width > layout.workspaceWidth + 1) {
+      throw new Error("Chessboard sizing failed at " + device.name + ": " + JSON.stringify(layout));
+    }
+    if (screenshotViewports.has(device.name)) {
+      await page.screenshot({
+        path: "artifacts/responsive-" + device.name + ".png",
+        fullPage: ["phone-small", "tablet-portrait", "square-tablet", "desktop"].includes(device.name)
+      });
+    }
+  }
+
+  await page.locator("#side").selectOption("w");
+  await page.locator("#fen-input").fill("7k/6Q1/5K2/8/8/8/8/8 b - - 0 1");
+  await page.locator("#load-fen").click();
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  for (const device of [
+    { width: 280, height: 560, name: "modal-compact" },
+    { width: 320, height: 568, name: "modal-phone" },
+    { width: 844, height: 390, name: "modal-landscape" }
+  ]) {
+    await page.setViewportSize({ width: device.width, height: device.height });
+    const dialog = await page.locator("#game-result-dialog").evaluate(element => {
+      const board = document.querySelector("#board");
+      const boardFrame = element.closest(".board-frame");
+      const overlay = element.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const frame = boardFrame.getBoundingClientRect();
+      const panel = element.querySelector(".game-result-panel").getBoundingClientRect();
+      return {
+        overlay: { left: overlay.left, top: overlay.top, width: overlay.width, height: overlay.height },
+        board: { left: boardRect.left, top: boardRect.top, width: boardRect.width, height: boardRect.height },
+        frame: { left: frame.left, top: frame.top, width: frame.width, height: frame.height },
+        overlayMatchesBoard: Math.abs(overlay.left - boardRect.left) < 2 &&
+          Math.abs(overlay.top - boardRect.top) < 2 &&
+          Math.abs(overlay.width - boardRect.width) < 2 &&
+          Math.abs(overlay.height - boardRect.height) < 2,
+        overlayInsideFrame: overlay.left >= frame.left &&
+          overlay.right <= frame.right &&
+          overlay.top >= frame.top &&
+          overlay.bottom <= frame.bottom,
+        panelInsideOverlay: panel.left >= overlay.left &&
+          panel.right <= overlay.right &&
+          panel.top >= overlay.top &&
+          panel.bottom <= overlay.bottom,
+        panelScrollsWhenNeeded: getComputedStyle(element.querySelector(".game-result-panel")).overflowY === "auto"
+      };
+    });
+    if (!dialog.overlayMatchesBoard || !dialog.overlayInsideFrame ||
+        !dialog.panelInsideOverlay || !dialog.panelScrollsWhenNeeded) {
+      throw new Error("Result popup escaped its board at " + device.name + ": " + JSON.stringify(dialog));
+    }
+    if (device.name !== "modal-landscape") {
+      await page.screenshot({ path: "artifacts/responsive-" + device.name + ".png" });
+    }
+  }
+  await page.keyboard.press("Escape");
+  if (await page.locator("#game-result-dialog").isVisible()) {
+    throw new Error("Escape should dismiss the board-scoped result popup.");
+  }
+
+  const touchContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true
+  });
+  const touchPage = await touchContext.newPage();
+  try {
+    await touchPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    const touchTargets = await touchPage.evaluate(() => ({
+      coarsePointer: matchMedia("(pointer: coarse)").matches,
+      themeToggle: parseFloat(getComputedStyle(document.querySelector(".theme-toggle")).minHeight),
+      topCta: parseFloat(getComputedStyle(document.querySelector(".top-cta")).minHeight),
+      boardButton: parseFloat(getComputedStyle(document.querySelector(".board-toolbar .button")).minHeight),
+      promotionButton: parseFloat(getComputedStyle(document.querySelector(".promotion-options button")).minHeight),
+      navLink: parseFloat(getComputedStyle(document.querySelector(".nav-links a")).minHeight)
+    }));
+    if (!touchTargets.coarsePointer || touchTargets.themeToggle < 44 ||
+        touchTargets.topCta < 44 || touchTargets.boardButton < 42 ||
+        touchTargets.promotionButton < 44 || touchTargets.navLink < 40) {
+      throw new Error("Touch target sizing failed: " + JSON.stringify(touchTargets));
+    }
+  } finally {
+    await touchContext.close();
+  }
+
+  if (failures.length) throw new Error(failures.join("\\n"));
   console.log("PASS: startup, human move and engine reply, compact board, resizing, three piece sets, themes, FEN import and validation, reset, black-side play, and mobile layout.");
 } finally {
   await browser.close();
