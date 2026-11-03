@@ -65,8 +65,10 @@ const squareName = (row, col) => "abcdefgh"[col] + String(8 - row);
 
 function completePromotion(piece) {
   if (!pendingPromotion) return;
+  if (evaluating) cancelSearch();
   const move = game.move({ ...pendingPromotion, promotion: piece });
   if (!move) return;
+  playMoveSound(move);
   lastMove = { from: move.from, to: move.to };
   pendingPromotion = null;
   promotionPicker.hidden = true;
@@ -358,50 +360,186 @@ function renderBoard() {
   }
 }
 
+function buildMoveButton(move, ply, currentPly) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "move-notation";
+  button.textContent = move.san;
+  button.dataset.ply = String(ply);
+  button.setAttribute("aria-label", "Go to position after " + move.san);
+  if (ply === currentPly) {
+    button.classList.add("is-current");
+    button.setAttribute("aria-current", "step");
+  }
+  button.addEventListener("click", () => goToPly(ply));
+  return button;
+}
+
 function renderMoves() {
-  const history = game.history({ verbose: true });
+  const history = reviewMovesSnapshot || game.history({ verbose: true });
+  const currentPly = reviewMovesSnapshot ? reviewPly : history.length;
   moveListEl.replaceChildren();
-  if (!history.length) {
+
+  if (history.length) {
+    const startButton = document.createElement("button");
+    startButton.type = "button";
+    startButton.className = "move-start";
+    startButton.textContent = "Starting position";
+    startButton.dataset.ply = "0";
+    if (currentPly === 0) {
+      startButton.classList.add("is-current");
+      startButton.setAttribute("aria-current", "step");
+    }
+    startButton.addEventListener("click", () => goToPly(0));
+    moveListEl.append(startButton);
+  } else {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.textContent = "Your game will appear here.";
     moveListEl.append(empty);
   }
+
   for (let i = 0; i < history.length; i += 2) {
     const row = document.createElement("div");
     row.className = "move-row";
     const number = document.createElement("span");
     number.className = "move-number";
     number.textContent = String(Math.floor(i / 2) + 1) + ".";
-    const white = document.createElement("span");
-    white.textContent = history[i]?.san || "";
-    const black = document.createElement("span");
-    black.textContent = history[i + 1]?.san || "";
+    const white = buildMoveButton(history[i], i + 1, currentPly);
+    const black = history[i + 1]
+      ? buildMoveButton(history[i + 1], i + 2, currentPly)
+      : document.createElement("span");
+    if (!history[i + 1]) black.className = "move-blank";
     row.append(number, white, black);
     moveListEl.append(row);
   }
-  moveListEl.scrollTop = moveListEl.scrollHeight;
-  moveCountEl.textContent = history.length + " plies";
+
+  const active = moveListEl.querySelector(".move-notation.is-current, .move-start.is-current");
+  if (active) active.scrollIntoView({ block: "nearest" });
+  else if (!reviewMovesSnapshot) moveListEl.scrollTop = moveListEl.scrollHeight;
+  moveCountEl.textContent = reviewMovesSnapshot
+    ? "Viewing " + currentPly + " / " + history.length + " plies"
+    : history.length + " plies";
 }
+
+function goToPly(ply) {
+  const sourceMoves = reviewMovesSnapshot || game.history({ verbose: true }).map(move => ({
+    from: move.from, to: move.to, promotion: move.promotion, san: move.san
+  }));
+  if (!reviewMovesSnapshot) reviewMovesSnapshot = sourceMoves;
+  const targetPly = Math.max(0, Math.min(sourceMoves.length, Number(ply) || 0));
+
+  cancelSearch();
+  game.load(initialFen);
+  for (let i = 0; i < targetPly; i += 1) {
+    const saved = sourceMoves[i];
+    const applied = game.move({ from: saved.from, to: saved.to, promotion: saved.promotion });
+    if (!applied) {
+      reviewMovesSnapshot = null;
+      reviewPly = null;
+      throw new Error("Could not restore the selected move-history position.");
+    }
+  }
+
+  reviewPly = targetPly;
+  const previous = targetPly ? sourceMoves[targetPly - 1] : null;
+  lastMove = previous ? { from: previous.from, to: previous.to } : null;
+  selected = null;
+  legalTargets = [];
+  pendingPromotion = null;
+  promotionPicker.hidden = true;
+  render();
+  if (!game.isGameOver()) evaluatePosition();
+}
+
+function returnToLive() {
+  if (!reviewMovesSnapshot) return;
+  const savedMoves = reviewMovesSnapshot;
+  cancelSearch();
+  game.load(initialFen);
+  for (const saved of savedMoves) {
+    const applied = game.move({ from: saved.from, to: saved.to, promotion: saved.promotion });
+    if (!applied) throw new Error("Could not restore the live game position.");
+  }
+  reviewMovesSnapshot = null;
+  reviewPly = null;
+  const previous = savedMoves[savedMoves.length - 1];
+  lastMove = previous ? { from: previous.from, to: previous.to } : null;
+  selected = null;
+  legalTargets = [];
+  render();
+  search();
+}
+
 
 function render() {
   renderBoard();
   renderMoves();
   syncFen();
+
+  const gameOver = game.isGameOver();
   statusEl.textContent = statusText();
-  statusEl.dataset.kind = game.isGameOver() ? "finished" : game.isCheck() ? "check" : thinking ? "thinking" : "";
-  stateEl.textContent = !ready ? "Starting engine" : thinking ? "Calculating a reply…" : "Engine ready";
-  stateEl.dataset.busy = String(thinking);
-  turnEl.textContent = game.turn() === humanColor ? "YOUR TURN · " + (humanColor === "w" ? "WHITE" : "BLACK") : "ENGINE · " + (humanColor === "w" ? "BLACK" : "WHITE");
-  undoButton.disabled = thinking || game.history().length === 0;
+  statusEl.dataset.kind = gameOver ? "finished" : game.isCheck() ? "check" : thinking ? "thinking" : evaluating ? "evaluating" : "";
+  stateEl.textContent = !ready ? "Starting engine" : thinking ? "Calculating a reply…" : evaluating ? "Evaluating position…" : "Engine ready";
+  stateEl.dataset.busy = String(thinking || evaluating);
+
+  if (game.isCheckmate()) {
+    turnEl.textContent = game.turn() === humanColor ? "CHECKMATE · YOU LOST" : "CHECKMATE · YOU WON";
+    turnEl.dataset.state = game.turn() === humanColor ? "loss" : "win";
+  } else if (game.isDraw()) {
+    turnEl.textContent = "DRAW · GAME OVER";
+    turnEl.dataset.state = "draw";
+  } else if (reviewMovesSnapshot) {
+    turnEl.textContent = "REVIEW · " + (game.turn() === "w" ? "WHITE" : "BLACK") + " TO MOVE";
+    turnEl.dataset.state = "review";
+  } else {
+    turnEl.textContent = game.turn() === humanColor
+      ? "YOUR TURN · " + (humanColor === "w" ? "WHITE" : "BLACK")
+      : "ENGINE · " + (humanColor === "w" ? "BLACK" : "WHITE");
+    turnEl.dataset.state = "";
+  }
+
+  returnLiveButton.hidden = !reviewMovesSnapshot;
+  undoButton.disabled = thinking || !!reviewMovesSnapshot || game.history().length === 0;
+  if (gameOver) syncTerminalEvaluation();
   syncGameResult();
 }
 
+function evaluatePosition() {
+  if (!ready || thinking || game.isGameOver()) {
+    if (game.isGameOver()) syncTerminalEvaluation();
+    return;
+  }
+  if (evaluating) cancelSearch();
+  requestId += 1;
+  evaluating = true;
+  enginePositionTurn = game.turn();
+  setEvaluationPending();
+  stateEl.textContent = "Evaluating position…";
+  stateEl.dataset.busy = "true";
+  worker.postMessage({
+    type: "evaluate",
+    requestId,
+    fen: game.fen(),
+    depth: 12
+  });
+}
+
 function search() {
-  if (!ready || thinking || game.isGameOver() || game.turn() === humanColor) return;
+  if (!ready || thinking || game.isGameOver() || reviewMovesSnapshot) {
+    if (game.isGameOver()) syncTerminalEvaluation();
+    return;
+  }
+  if (evaluating) cancelSearch();
+  if (game.turn() === humanColor) {
+    evaluatePosition();
+    return;
+  }
+
   thinking = true;
   selected = null;
   legalTargets = [];
+  enginePositionTurn = game.turn();
   requestId += 1;
   render();
   worker.postMessage({
@@ -413,8 +551,10 @@ function search() {
   });
 }
 
+
 function onSquare(square) {
-  if (!ready || thinking || game.isGameOver() || game.turn() !== humanColor) return;
+  primeAudio();
+  if (!ready || thinking || reviewMovesSnapshot || game.isGameOver() || game.turn() !== humanColor) return;
   const piece = game.get(square);
   if (selected) {
     if (legalTargets.includes(square)) {
@@ -425,7 +565,9 @@ function onSquare(square) {
           promotionPicker.hidden = false;
           return;
         }
+        if (evaluating) cancelSearch();
         const move = game.move({ from: selected, to: square });
+        playMoveSound(move);
         lastMove = { from: move.from, to: move.to };
         selected = null;
         legalTargets = [];
@@ -448,14 +590,19 @@ function onSquare(square) {
   renderBoard();
 }
 
+
 function cancelSearch() {
   requestId += 1;
-  worker.postMessage({ type: "cancel" });
+  if (thinking || evaluating) worker.postMessage({ type: "cancel" });
   thinking = false;
+  evaluating = false;
 }
 
 function startNewGame() {
   cancelSearch();
+  initialFen = new Chess().fen();
+  reviewMovesSnapshot = null;
+  reviewPly = null;
   game.reset();
   selected = null;
   legalTargets = [];
@@ -463,6 +610,7 @@ function startNewGame() {
   render();
   search();
 }
+
 
 worker.addEventListener("message", (event) => {
   const data = event.data || {};
@@ -476,23 +624,50 @@ worker.addEventListener("message", (event) => {
   if (data.type === "error" && data.requestId === undefined) {
     ready = false;
     thinking = false;
+    evaluating = false;
     render();
     statusEl.textContent = "Engine failed to load: " + data.message;
     statusEl.dataset.kind = "error";
     return;
   }
   if (data.requestId !== requestId) return;
-  thinking = false;
+
+  if (data.type === "info") {
+    if (data.scoreType !== undefined) applyEvaluation(data.scoreType, data.score, enginePositionTurn, data.depth);
+    return;
+  }
+  if (data.type === "evaluation-complete") {
+    evaluating = false;
+    if (data.scoreType !== undefined) applyEvaluation(data.scoreType, data.score, enginePositionTurn, data.depth);
+    else {
+      evaluationLabel.textContent = "—";
+      analysisStatus.textContent = "EVALUATION UNAVAILABLE";
+    }
+    stateEl.textContent = "Engine ready";
+    stateEl.dataset.busy = "false";
+    return;
+  }
   if (data.type === "error") {
+    if (evaluating) {
+      evaluating = false;
+      evaluationLabel.textContent = "—";
+      analysisStatus.textContent = "EVALUATION UNAVAILABLE";
+      stateEl.textContent = "Engine ready";
+      stateEl.dataset.busy = "false";
+      return;
+    }
+    thinking = false;
     render();
     statusEl.textContent = "Engine error: " + data.message;
     statusEl.dataset.kind = "error";
     return;
   }
   if (data.type === "bestmove") {
+    thinking = false;
     try {
       const move = game.move(data.bestMove);
       if (!move) throw new Error("Illegal engine move: " + data.bestMove);
+      playMoveSound(move);
       lastMove = { from: move.from, to: move.to };
       render();
       search();
@@ -503,6 +678,7 @@ worker.addEventListener("message", (event) => {
     }
   }
 });
+
 
 worker.addEventListener("error", (event) => {
   ready = false;
