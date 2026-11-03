@@ -334,6 +334,9 @@ try {
       const frame = boardFrame.getBoundingClientRect();
       const panel = element.querySelector(".game-result-panel").getBoundingClientRect();
       return {
+        overlay: { left: overlay.left, top: overlay.top, width: overlay.width, height: overlay.height },
+        board: { left: boardRect.left, top: boardRect.top, width: boardRect.width, height: boardRect.height },
+        frame: { left: frame.left, top: frame.top, width: frame.width, height: frame.height },
         overlayMatchesBoard: Math.abs(overlay.left - boardRect.left) < 2 &&
           Math.abs(overlay.top - boardRect.top) < 2 &&
           Math.abs(overlay.width - boardRect.width) < 2 &&
