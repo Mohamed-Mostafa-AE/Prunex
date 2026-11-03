@@ -750,7 +750,7 @@ function startGameReview() {
 async function completeGameReview(results) {
   const moves = reviewMovesSnapshot || game.history({ verbose: true });
   const scored = [];
-  const count = Math.min(moves.length, Math.max(0, results.length - 1));
+  const count = Math.min(moves.length, results.length);
   for (let index = 0; index < count; index += 1) {
     const before = scoreToCentipawns(results[index]);
     const afterRaw = results[index + 1] ? scoreToCentipawns(results[index + 1]) : null;
