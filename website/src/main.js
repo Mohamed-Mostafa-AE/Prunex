@@ -41,6 +41,7 @@ const soundToggle = $("#defeat-sound");
 const evaluationToggle = $("#show-evaluation");
 const evaluationColumn = $("#evaluation-column");
 const gameReviewPanel = $("#game-review-panel");
+const reviewMethodNote = $("#review-method-note");
 const reviewProgress = $("#review-progress");
 const reviewProgressFill = $("#review-progress-fill");
 const reviewProgressLabel = $("#review-progress-label");
@@ -897,7 +898,10 @@ function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analy
     const label = document.createElement("span");
     label.textContent = (moment.color === "w" ? "White " : "Black ") + moment.san + " · " + (moment.grade === "MISSED_WIN" ? "MISS" : moment.grade.replaceAll("_", " "));
     const score = document.createElement("small");
-    score.textContent = moment.grade === "BRILLIANT" ? "SACRIFICE" : Math.round(moment.lossCp) + " cp lost";
+    score.textContent = moment.grade === "APEX" ? "UNIQUE BEST LINE" :
+      moment.grade === "BRILLIANT" ? "SACRIFICE" :
+      Number.isFinite(moment.expectedPointLoss) ? (moment.expectedPointLoss * 100).toFixed(1) + " expected points lost" :
+      Math.round(moment.lossCp) + " cp lost";
     button.append(label, score);
     button.addEventListener("click", () => goToPly(moment.ply));
     reviewKeyMoments.append(button);
@@ -916,7 +920,8 @@ function requestNextReviewPosition() {
   setEvaluationPending();
   stateEl.textContent = "Analyzing game…";
   stateEl.dataset.busy = "true";
-  reviewProgressLabel.textContent = "Analyzing " + reviewAnalysisIndex + " / " + reviewAnalysisPositions.length + " positions";
+  reviewProgressLabel.textContent = "Analyzing " + reviewAnalysisIndex + " / " + reviewAnalysisPositions.length +
+    " positions · " + reviewBudgetMs + "ms each";
   worker.postMessage({
     type: "evaluate",
     requestId,
@@ -1075,6 +1080,7 @@ async function completeGameReview(results) {
       depth: beforeResult?.depth || 0,
       selDepth: beforeResult?.selDepth || 0,
       nodes: beforeResult?.nodes || 0,
+      evaluationSource: beforeResult?.wdl ? "stockfish-wdl" : "cp-fallback",
       description: classification.description
     });
   }
@@ -1086,6 +1092,12 @@ async function completeGameReview(results) {
   const averageDepth = depths.length ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
   const deepestDepth = depths.length ? Math.max(...depths) : 0;
   reviewDepth.textContent = "ENGINE REVIEW · " + reviewBudgetMs + "MS / POSITION · AVG DEPTH " + averageDepth;
+  const wdlPositionCount = results.filter(item => item.wdl &&
+    Number.isFinite(item.wdl.win) && Number.isFinite(item.wdl.draw) && Number.isFinite(item.wdl.loss)).length;
+  reviewMethodNote.textContent = wdlPositionCount
+    ? "Accuracy and move grades use Stockfish WDL expected points on " + wdlPositionCount +
+      " / " + results.length + " positions, with a centipawn fallback where WDL is unavailable. MultiPV comparisons are depth-matched."
+    : "Stockfish centipawn evaluations are converted to expected points as a fallback. WDL output was not available in this engine build.";
   reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
     " moves graded · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
@@ -1510,7 +1522,9 @@ worker.addEventListener("message", async (event) => {
         depth: data.depth || 0,
         selDepth: data.selDepth || 0,
         nodes: data.nodes || 0,
-        bestMove: data.bestMove || null
+        wdl: data.wdl || null,
+        bestMove: data.bestMove || null,
+        secondBest: data.secondBest || null
       });
 
       reviewAnalysisIndex += 1;
