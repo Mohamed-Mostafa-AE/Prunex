@@ -12,7 +12,8 @@ function runCurrentPosition(job) {
   if (job.type === "search") {
     engine.postMessage("go nodes " + Math.max(10000, Math.min(2000000, Number(job.nodes) || 25000)));
   } else if (job.type === "evaluate" && Number.isFinite(job.movetime)) {
-    engine.postMessage("go movetime " + Math.max(50, Math.min(5000, Number(job.movetime))));
+    // Honor the selected time budget instead of silently capping searches at 5s.
+    engine.postMessage("go movetime " + Math.max(50, Math.min(30000, Number(job.movetime))));
   } else {
     engine.postMessage("go depth " + Math.max(8, Math.min(16, Number(job.depth) || 10)));
   }
@@ -98,6 +99,8 @@ function handleBestMove() {
       scoreType: latestScore?.scoreType,
       score: latestScore?.score,
       depth: latestScore?.depth,
+      selDepth: latestScore?.selDepth,
+      nodes: latestScore?.nodes,
       bestMove: latestBestMove
     });
   } else if (job.type === "search") {
@@ -163,19 +166,31 @@ function startEngine() {
     }
 
     if (line.startsWith("info ")) {
-      const match = line.match(/\bdepth (\d+).*?\bscore (cp|mate) (-?\d+)/);
-      if (match && activeJob && !activeJob.cancelled) {
-        latestScore = {
-          depth: Number(match[1]),
-          scoreType: match[2],
-          score: Number(match[3])
+      const scoreMatch = line.match(/\bscore (cp|mate) (-?\d+)/);
+      const depth = Number(line.match(/\bdepth (\d+)/)?.[1] || 0);
+      const selDepth = Number(line.match(/\bseldepth (\d+)/)?.[1] || 0);
+      const nodes = Number(line.match(/\bnodes (\d+)/)?.[1] || 0);
+      const isBound = /\b(?:lowerbound|upperbound)\b/.test(line);
+      if (scoreMatch && depth > 0 && !isBound && activeJob && !activeJob.cancelled) {
+        const candidate = {
+          depth, selDepth, nodes,
+          scoreType: scoreMatch[1],
+          score: Number(scoreMatch[2])
         };
+        // Keep the deepest completed iterative-deepening result, never a
+        // shallower or bound-only line from later output.
+        if (!latestScore || candidate.depth > latestScore.depth ||
+            (candidate.depth === latestScore.depth && candidate.nodes >= latestScore.nodes)) {
+          latestScore = candidate;
+        }
         if (activeJob.type !== "analyze-game") {
           self.postMessage({
             type: "info",
             requestId: activeJob.requestId,
             jobType: activeJob.type,
             depth: latestScore.depth,
+            selDepth: latestScore.selDepth,
+            nodes: latestScore.nodes,
             scoreType: latestScore.scoreType,
             score: latestScore.score
           });
