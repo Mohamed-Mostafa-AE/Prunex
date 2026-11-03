@@ -579,10 +579,12 @@ function renderBoard() {
       button.dataset.square = square;
       button.setAttribute("aria-label", piece ? square + " " + (piece.color === "w" ? "white " : "black ") + piece.type : square);
       if (selected === square) button.classList.add("selected");
-      if (lastMove && (lastMove.from === square || lastMove.to === square)) button.classList.add("last-move");
+      if (highlightLastMove && lastMove && (lastMove.from === square || lastMove.to === square)) button.classList.add("last-move");
       if (showLegalMoves && legalTargets.includes(square)) button.classList.add(piece ? "capture-target" : "move-target");
-      if (bestMoveHint?.from === square) button.classList.add("best-move-from");
-      if (bestMoveHint?.to === square) button.classList.add("best-move-to");
+      if (bestMoveDisplay !== "off" && bestMoveHint?.from === square) button.classList.add("best-move-from");
+      if (bestMoveDisplay !== "off" && bestMoveHint?.to === square) button.classList.add("best-move-to");
+      if (queuedPremove && (queuedPremove.from === square || queuedPremove.to === square)) button.classList.add("premove-square");
+      if (showAnnotations && annotations.some(item => item.square === square)) button.classList.add("user-marked-square");
       if (piece) {
         const span = document.createElement("span");
         span.className = "piece " + (piece.color === "w" ? "white-piece" : "black-piece");
@@ -617,11 +619,11 @@ function renderBoard() {
         file.textContent = "abcdefgh"[col];
         button.append(file);
       }
-      button.addEventListener("click", () => onSquare(square));
+      button.addEventListener("click", () => { if (!suppressNextBoardClick) onSquare(square); });
       boardEl.append(button);
     }
   }
-  if (bestMoveHint) {
+  if (bestMoveDisplay === "arrow" && bestMoveHint) {
     const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     arrow.setAttribute("class", "best-move-arrow"); arrow.setAttribute("viewBox", "0 0 800 800");
     arrow.setAttribute("aria-hidden", "true");
@@ -635,6 +637,32 @@ function renderBoard() {
     line.setAttribute("x1",from.x); line.setAttribute("y1",from.y); line.setAttribute("x2",to.x); line.setAttribute("y2",to.y); line.setAttribute("marker-end","url(#best-move-head)");
     arrow.append(defs,line); boardEl.append(arrow);
   }
+  if (showAnnotations && annotations.some(item => item.from && item.to)) {
+    const layer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    layer.setAttribute("class", "annotation-layer");
+    layer.setAttribute("viewBox", "0 0 800 800");
+    const center = name => { let x="abcdefgh".indexOf(name[0]), y=8-Number(name[1]); if(flipped){x=7-x;y=7-y;} return {x:(x+.5)*100,y:(y+.5)*100}; };
+    for (const item of annotations.filter(item => item.from && item.to)) {
+      const from=center(item.from),to=center(item.to),line=document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1",from.x);line.setAttribute("y1",from.y);line.setAttribute("x2",to.x);line.setAttribute("y2",to.y);
+      line.setAttribute("class","annotation-arrow");layer.append(line);
+    }
+    boardEl.append(layer);
+  }
+}
+
+function renderBoardHighlights() {
+  boardEl.querySelectorAll(".square").forEach(button => {
+    const square=button.dataset.square,piece=game.get(square);
+    button.classList.toggle("selected",selected===square);
+    button.classList.toggle("last-move",highlightLastMove&&!!lastMove&&(lastMove.from===square||lastMove.to===square));
+    button.classList.toggle("move-target",showLegalMoves&&legalTargets.includes(square)&&!piece);
+    button.classList.toggle("capture-target",showLegalMoves&&legalTargets.includes(square)&&!!piece);
+    button.classList.toggle("best-move-from",bestMoveDisplay!=="off"&&bestMoveHint?.from===square);
+    button.classList.toggle("best-move-to",bestMoveDisplay!=="off"&&bestMoveHint?.to===square);
+    button.classList.toggle("premove-square",!!queuedPremove&&(queuedPremove.from===square||queuedPremove.to===square));
+    button.classList.toggle("user-marked-square",showAnnotations&&annotations.some(item=>item.square===square));
+  });
 }
 
 function buildMoveButton(move, ply, currentPly) {
