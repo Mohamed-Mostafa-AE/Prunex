@@ -617,6 +617,9 @@ function scoreToCentipawns(result) {
 const PIECE_VALUES = { p: 100, n: 320, b: 335, r: 500, q: 900, k: 20000 };
 
 function classifyMove(move, nextMove, beforeScore, afterScore, lossCp, ply) {
+  if (move.san.includes("#")) {
+    return { grade: "BEST", lossCp: 0, description: "Checkmate delivered" };
+  }
   if (!Number.isFinite(lossCp)) return { grade: "UNRATED", lossCp: null, description: "Engine score unavailable" };
   const nextTakesMovedPiece = nextMove &&
     nextMove.to === move.to &&
