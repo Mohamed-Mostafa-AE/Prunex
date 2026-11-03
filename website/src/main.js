@@ -1098,42 +1098,100 @@ function search() {
 }
 
 
+function premovePosition() {
+  const fields=game.fen().split(" ");fields[1]=humanColor;return new Chess(fields.join(" "));
+}
+function queuePremove(from,to) {
+  const pg=premovePosition();
+  const candidates=pg.moves({square:from,verbose:true}).filter(move=>move.to===to);
+  if(!candidates.length){selected=null;legalTargets=[];renderBoardHighlights();return;}
+  const chosen=candidates.find(move=>move.promotion==="q")||candidates[0];
+  queuedPremove={from,to,promotion:chosen.promotion||undefined};
+  selected=null;legalTargets=[];statusEl.textContent="Premove queued · "+from+"–"+to;renderBoardHighlights();
+}
+function handlePremoveSquare(square) {
+  if(!premovesEnabled||!thinking||game.isGameOver())return;
+  const pg=premovePosition(),piece=pg.get(square);
+  const targets=selected?pg.moves({square:selected,verbose:true}).map(move=>move.to):[];
+  if(selected&&targets.includes(square)){queuePremove(selected,square);return;}
+  if(piece?.color===humanColor){selected=square;legalTargets=pg.moves({square,verbose:true}).map(move=>move.to);}
+  else{selected=null;legalTargets=[];}
+  renderBoardHighlights();
+}
+function executeQueuedPremove() {
+  if(!queuedPremove||game.turn()!==humanColor||game.isGameOver())return false;
+  const move=game.move(queuedPremove);queuedPremove=null;
+  if(!move){statusEl.textContent="Premove cancelled · no longer legal";renderBoardHighlights();return false;}
+  lastMove={from:move.from,to:move.to};playMoveSound(move);selected=null;legalTargets=[];render();search();return true;
+}
+function clearDragGhost() {
+  if(dragGhost)dragGhost.remove();
+  dragGhost=null;boardEl.classList.remove("is-dragging");
+  boardEl.querySelectorAll(".drag-origin").forEach(el=>el.classList.remove("drag-origin"));
+}
+function onBoardPointerDown(event) {
+  const squareEl=event.target.closest?.(".square[data-square]");
+  if(!squareEl||event.button!==0||moveMethod==="click"||!ready||reviewMovesSnapshot||game.isGameOver())return;
+  const from=squareEl.dataset.square,mayQueue=thinking&&premovesEnabled&&game.turn()!==humanColor;
+  if(thinking&&!mayQueue)return;
+  if(!thinking&&game.turn()!==humanColor)return;
+  const piece=thinking?premovePosition().get(from):game.get(from);
+  if(!piece||piece.color!==humanColor)return;
+  dragState={pointerId:event.pointerId,from,startX:event.clientX,startY:event.clientY,dragging:false,mayQueue};
+}
+function onBoardPointerMove(event) {
+  if(!dragState||dragState.pointerId!==event.pointerId||dragState.annotation)return;
+  if(!dragState.dragging&&Math.hypot(event.clientX-dragState.startX,event.clientY-dragState.startY)<5)return;
+  if(!dragState.dragging){
+    dragState.dragging=true;
+    const source=boardEl.querySelector('[data-square="'+dragState.from+'"]'),piece=source?.querySelector(".piece");
+    if(piece){
+      dragGhost=piece.cloneNode(true);const rect=source.getBoundingClientRect();
+      Object.assign(dragGhost.style,{position:"fixed",left:(event.clientX-rect.width/2)+"px",top:(event.clientY-rect.height/2)+"px",width:rect.width+"px",height:rect.height+"px",zIndex:"99999",pointerEvents:"none",opacity:".94",filter:"drop-shadow(0 5px 8px rgba(0,0,0,.25))"});
+      dragGhost.classList.add("drag-ghost");document.body.append(dragGhost);
+    }
+    source?.classList.add("drag-origin");boardEl.classList.add("is-dragging");
+  }
+  if(dragGhost){dragGhost.style.left=(event.clientX-dragGhost.offsetWidth/2)+"px";dragGhost.style.top=(event.clientY-dragGhost.offsetHeight/2)+"px";}
+  event.preventDefault();
+}
+function onBoardPointerUp(event) {
+  if(!dragState||dragState.pointerId!==event.pointerId)return;
+  const state=dragState;dragState=null;
+  if(state.annotation){
+    const destination=document.elementFromPoint(event.clientX,event.clientY)?.closest?.(".square[data-square]")?.dataset.square||state.from;
+    const idx=annotations.findIndex(item=>state.from===destination?item.square===state.from:item.from===state.from&&item.to===destination);
+    if(idx>=0)annotations.splice(idx,1);else annotations.push(state.from===destination?{square:state.from}:{from:state.from,to:destination});
+    renderBoard();return;
+  }
+  if(!state.dragging)return;
+  const destination=document.elementFromPoint(event.clientX,event.clientY)?.closest?.(".square[data-square]")?.dataset.square;
+  clearDragGhost();suppressNextBoardClick=true;setTimeout(()=>{suppressNextBoardClick=false;},0);
+  if(!destination||destination===state.from)return;
+  if(state.mayQueue){queuePremove(state.from,destination);return;}
+  commitMove(state.from,destination);
+}
+
+function commitMove(from,to) {
+  const candidates=game.moves({square:from,verbose:true}).filter(move=>move.to===to);
+  if(!candidates.length)return false;
+  if(candidates.some(move=>move.promotion)){pendingPromotion={from,to};promotionPicker.hidden=false;selected=null;legalTargets=[];renderBoardHighlights();return true;}
+  if(evaluating)cancelSearch();
+  const move=game.move({from,to});if(!move)return false;
+  queuedPremove=null;bestMoveHint=null;lastMove={from:move.from,to:move.to};playMoveSound(move);
+  selected=null;legalTargets=[];render();search();return true;
+}
+
 function onSquare(square) {
   primeAudio();
-  if (!ready || thinking || reviewMovesSnapshot || game.isGameOver() || game.turn() !== humanColor) return;
-  const piece = game.get(square);
-  if (selected) {
-    if (legalTargets.includes(square)) {
-      try {
-        const candidateMoves = game.moves({ square: selected, verbose: true }).filter(move => move.to === square);
-        if (candidateMoves.some(move => move.promotion)) {
-          pendingPromotion = { from: selected, to: square };
-          promotionPicker.hidden = false;
-          return;
-        }
-        if (evaluating) cancelSearch();
-        const move = game.move({ from: selected, to: square });
-        lastMove = { from: move.from, to: move.to };
-        playMoveSound(move);
-        selected = null;
-        legalTargets = [];
-        render();
-        search();
-        return;
-      } catch {
-        selected = null;
-        legalTargets = [];
-      }
-    }
-  }
-  if (piece?.color === humanColor) {
-    selected = square;
-    legalTargets = game.moves({ square, verbose: true }).map(move => move.to);
-  } else {
-    selected = null;
-    legalTargets = [];
-  }
-  renderBoard();
+  if(!ready||reviewMovesSnapshot||game.isGameOver())return;
+  if(thinking&&premovesEnabled){handlePremoveSquare(square);return;}
+  if(thinking||game.turn()!==humanColor||moveMethod==="drag")return;
+  const piece=game.get(square);
+  if(selected&&legalTargets.includes(square)){commitMove(selected,square);return;}
+  if(piece?.color===humanColor){selected=square;legalTargets=game.moves({square,verbose:true}).map(move=>move.to);}
+  else{selected=null;legalTargets=[];}
+  renderBoardHighlights();
 }
 
 
@@ -1201,6 +1259,7 @@ async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAt
     lastMove = { from: move.from, to: move.to };
     playMoveSound(move);
     render();
+    if (queuedPremove) executeQueuedPremove();
     if (remembered && selectedMove !== bestMove) {
       stateEl.textContent = "Experience memory · proven move";
       stateEl.dataset.busy = "false";
