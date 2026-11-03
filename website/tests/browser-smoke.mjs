@@ -157,6 +157,11 @@ try {
   await page.locator('[data-square="a8"]').click();
   await page.locator('[data-promotion="n"]').click();
   if (!(await page.locator("#fen-input").inputValue()).startsWith("N6k/")) throw new Error("Knight promotion failed.");
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#game-result-title").textContent() !== "A diplomatic solution.") {
+    throw new Error("King-and-knight promotion position should be scored as a draw.");
+  }
+  await page.locator("#game-result-review").click();
 
   const checkmateFen = "7k/6Q1/5K2/8/8/8/8/8 b - - 0 1";
   await page.locator("#fen-input").fill(checkmateFen);
