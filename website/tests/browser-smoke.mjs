@@ -115,12 +115,14 @@ try {
     undefined,
     { timeout: 60000 }
   );
-  if (await page.locator("#sound-style option").count() < 3) {
-    throw new Error("At least three distinct Prunex move-sound choices should be available.");
+  if (await page.locator("#sound-style option").count() < 8) {
+    throw new Error("Eight distinct Prunex move-sound choices should be available.");
   }
   await page.locator("#sound-style").selectOption("felt");
   await page.locator("#preview-move-sound").click();
   await page.locator("#sound-style").selectOption("ceramic");
+  await page.locator("#preview-move-sound").click();
+  await page.locator("#sound-style").selectOption("glass");
   await page.locator("#preview-move-sound").click();
   await page.locator("#sound-style").selectOption("wood");
   await page.locator("#move-method").selectOption("both");
