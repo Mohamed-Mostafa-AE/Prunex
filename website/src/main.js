@@ -176,9 +176,14 @@ function playMoveSound(move, preview = false) {
   if (!context) return;
   // Short percussive sound profiles made from filtered noise, not synthetic beeps.
   const profiles = {
-    wood: { duration: 0.078, frequency: 920, q: 0.82, volume: 0.040, decay: 3.8, lowpass: 1800 },
-    felt: { duration: 0.052, frequency: 570, q: 0.48, volume: 0.026, decay: 5.8, lowpass: 1050 },
-    ceramic: { duration: 0.060, frequency: 1850, q: 1.05, volume: 0.030, decay: 4.6, lowpass: 3600 }
+    wood:    { duration:.078, frequency:920,  q:.82, volume:.040, decay:3.8, lowpass:1800, body:205, bodyGain:.012 },
+    felt:    { duration:.052, frequency:570,  q:.48, volume:.026, decay:5.8, lowpass:1050, body:145, bodyGain:.007 },
+    ceramic: { duration:.060, frequency:1850, q:1.05,volume:.030, decay:4.6, lowpass:3600, body:345, bodyGain:.010 },
+    ivory:   { duration:.058, frequency:1120, q:.72, volume:.027, decay:4.8, lowpass:2250, body:255, bodyGain:.009 },
+    stone:   { duration:.092, frequency:420,  q:.58, volume:.038, decay:3.2, lowpass:1250, body:118, bodyGain:.018 },
+    switch:  { duration:.038, frequency:2350, q:1.2, volume:.024, decay:7.0, lowpass:4200, body:480, bodyGain:.006 },
+    rubber:  { duration:.066, frequency:340,  q:.42, volume:.022, decay:6.2, lowpass:820,  body:132, bodyGain:.014 },
+    glass:   { duration:.064, frequency:2650, q:1.4, volume:.021, decay:4.2, lowpass:5200, body:720, bodyGain:.012 }
   };
   const profile = profiles[soundStyle] || profiles.wood;
   const now = context.currentTime;
@@ -210,6 +215,20 @@ function playMoveSound(move, preview = false) {
   gain.connect(context.destination);
   source.start(now);
   source.stop(now + duration);
+  if (profile.body && profile.bodyGain > 0) {
+    const body = context.createOscillator();
+    const envelope = context.createGain();
+    body.type = "sine";
+    body.frequency.setValueAtTime(profile.body, now);
+    body.frequency.exponentialRampToValueAtTime(Math.max(50, profile.body * .68), now + Math.min(.09, duration));
+    envelope.gain.setValueAtTime(.0001, now);
+    envelope.gain.exponentialRampToValueAtTime(profile.bodyGain, now + .004);
+    envelope.gain.exponentialRampToValueAtTime(.0001, now + Math.min(.105, duration + .02));
+    body.connect(envelope);
+    envelope.connect(context.destination);
+    body.start(now);
+    body.stop(now + Math.min(.12, duration + .03));
+  }
 }
 
 function playGameEndSound(result) {
@@ -494,7 +513,7 @@ function applyPreferences() {
   showEvaluation = loadPreference("show-evaluation", "true") !== "false";
   moveMethod = ["both","drag","click"].includes(loadPreference("move-method","both")) ? loadPreference("move-method","both") : "both";
   bestMoveDisplay = ["off","highlight","arrow"].includes(loadPreference("best-move-display","off")) ? loadPreference("best-move-display","off") : "off";
-  soundStyle = ["wood","felt","ceramic"].includes(loadPreference("sound-style","wood")) ? loadPreference("sound-style","wood") : "wood";
+  soundStyle = ["wood","felt","ceramic","ivory","stone","switch","rubber","glass"].includes(loadPreference("sound-style","wood")) ? loadPreference("sound-style","wood") : "wood";
   highlightLastMove = loadPreference("highlight-last-move","true") !== "false";
   pieceAnimationEnabled = loadPreference("piece-animation","true") !== "false";
   premovesEnabled = loadPreference("premoves","true") !== "false";
@@ -640,6 +659,21 @@ function renderBoard() {
           span.textContent = glyph[piece.color][piece.type];
         }
         button.append(span);
+      }
+      const reviewedMove = reviewMovesSnapshot && reviewPly > 0
+        ? reviewMovesSnapshot[reviewPly - 1] : null;
+      const reviewedGrade = reviewPly > 0 ? moveAnalysis[reviewPly - 1]?.grade : null;
+      const reviewBadge = reviewedMove?.to === square &&
+        ["BRILLIANT", "GREAT", "BEST", "EXCELLENT"].includes(reviewedGrade);
+      const engineBadge = bestMoveDisplay !== "off" && bestMoveHint?.to === square;
+      if (reviewBadge || engineBadge) {
+        const marker = document.createElement("span");
+        marker.className = "piece-quality-marker";
+        marker.dataset.grade = reviewBadge ? reviewedGrade : "BEST";
+        marker.textContent = reviewedGrade === "BRILLIANT" ? "✦" : reviewedGrade === "GREAT" ? "◆" : "★";
+        marker.title = reviewBadge ? reviewedGrade.replaceAll("_", " ") + " move" : "Prunex recommended move";
+        marker.setAttribute("aria-label", marker.title);
+        button.append(marker);
       }
       if (vc === 0) {
         const rank = document.createElement("span");
@@ -1033,7 +1067,7 @@ function goToPly(ply) {
   reviewPly = targetPly;
   const previous = targetPly ? sourceMoves[targetPly - 1] : null;
   lastMove = previous ? { from: previous.from, to: previous.to } : null;
-  const reviewBest = reviewAnalysisResults[targetPly]?.bestMove;
+  const reviewBest = reviewAnalysisResults[targetPly - 1]?.bestMove;
   bestMoveHint = reviewBest && reviewBest !== "(none)"
     ? { from: reviewBest.slice(0, 2), to: reviewBest.slice(2, 4) } : null;
   selected = null;
