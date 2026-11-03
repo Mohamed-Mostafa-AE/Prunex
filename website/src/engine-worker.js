@@ -6,14 +6,34 @@ let pendingJob = null;
 let stopping = false;
 let latestScore = null;
 
-function startJob(job) {
-  activeJob = { ...job, cancelled: false };
-  latestScore = null;
-  engine.postMessage("position fen " + job.fen);
+function runCurrentPosition(job) {
+  const fen = job.type === "analyze-game" ? job.positions[job.index] : job.fen;
+  engine.postMessage("position fen " + fen);
   if (job.type === "search") {
     engine.postMessage("go nodes " + Math.max(10000, Math.min(2000000, Number(job.nodes) || 25000)));
   } else {
-    engine.postMessage("go depth " + Math.max(8, Math.min(20, Number(job.depth) || 12)));
+    engine.postMessage("go depth " + Math.max(8, Math.min(16, Number(job.depth) || 10)));
+  }
+}
+
+function startJob(job) {
+  activeJob = { ...job, cancelled: false };
+  latestScore = null;
+  if (job.type === "analyze-game") {
+    activeJob.index = 0;
+    activeJob.results = [];
+    runCurrentPosition(activeJob);
+    return;
+  }
+  runCurrentPosition(activeJob);
+}
+
+function startPendingJob() {
+  stopping = false;
+  if (pendingJob) {
+    const nextJob = pendingJob;
+    pendingJob = null;
+    startJob(nextJob);
   }
 }
 
@@ -23,6 +43,70 @@ function stopActiveJob() {
   stopping = true;
   engine.postMessage("stop");
 }
+
+function finishActiveJob() {
+  activeJob = null;
+  latestScore = null;
+  startPendingJob();
+}
+
+function handleBestMove() {
+  const job = activeJob;
+  if (!job) {
+    startPendingJob();
+    return;
+  }
+  if (job.cancelled) {
+    finishActiveJob();
+    return;
+  }
+
+  if (job.type === "analyze-game") {
+    job.results.push({
+      scoreType: latestScore?.scoreType || null,
+      score: latestScore?.score ?? null,
+      depth: latestScore?.depth ?? 0
+    });
+    self.postMessage({
+      type: "analysis-progress",
+      requestId: job.requestId,
+      completed: job.index + 1,
+      total: job.positions.length
+    });
+    job.index += 1;
+    latestScore = null;
+    if (job.index < job.positions.length) {
+      runCurrentPosition(job);
+    } else {
+      self.postMessage({
+        type: "analysis-complete",
+        requestId: job.requestId,
+        results: job.results
+      });
+      finishActiveJob();
+    }
+    return;
+  }
+
+  if (job.type === "evaluate") {
+    self.postMessage({
+      type: "evaluation-complete",
+      requestId: job.requestId,
+      scoreType: latestScore?.scoreType,
+      score: latestScore?.score,
+      depth: latestScore?.depth
+    });
+  } else if (job.type === "search") {
+    self.postMessage({
+      type: "bestmove",
+      requestId: job.requestId,
+      bestMove: latestBestMove
+    });
+  }
+  finishActiveJob();
+}
+
+let latestBestMove = null;
 
 function startEngine() {
   if (engine) return;
@@ -46,33 +130,8 @@ function startEngine() {
     }
 
     if (line.startsWith("bestmove ")) {
-      const finishedJob = activeJob;
-      if (finishedJob && !finishedJob.cancelled) {
-        if (finishedJob.type === "evaluate") {
-          self.postMessage({
-            type: "evaluation-complete",
-            requestId: finishedJob.requestId,
-            scoreType: latestScore?.scoreType,
-            score: latestScore?.score,
-            depth: latestScore?.depth
-          });
-        } else {
-          self.postMessage({
-            type: "bestmove",
-            requestId: finishedJob.requestId,
-            bestMove: line.split(/\s+/)[1]
-          });
-        }
-      }
-
-      activeJob = null;
-      latestScore = null;
-      stopping = false;
-      if (pendingJob) {
-        const nextJob = pendingJob;
-        pendingJob = null;
-        startJob(nextJob);
-      }
+      if (activeJob?.type === "search") latestBestMove = line.split(/\s+/)[1];
+      handleBestMove();
       return;
     }
 
@@ -84,14 +143,16 @@ function startEngine() {
           scoreType: match[2],
           score: Number(match[3])
         };
-        self.postMessage({
-          type: "info",
-          requestId: activeJob.requestId,
-          jobType: activeJob.type,
-          depth: latestScore.depth,
-          scoreType: latestScore.scoreType,
-          score: latestScore.score
-        });
+        if (activeJob.type !== "analyze-game") {
+          self.postMessage({
+            type: "info",
+            requestId: activeJob.requestId,
+            jobType: activeJob.type,
+            depth: latestScore.depth,
+            scoreType: latestScore.scoreType,
+            score: latestScore.score
+          });
+        }
       }
     }
   });
@@ -119,9 +180,13 @@ self.addEventListener("message", (event) => {
     stopActiveJob();
     return;
   }
-  if (data.type === "search" || data.type === "evaluate") {
+  if (data.type === "search" || data.type === "evaluate" || data.type === "analyze-game") {
     if (!ready || !engine) {
       self.postMessage({ type: "error", requestId: data.requestId, message: "Engine is not ready." });
+      return;
+    }
+    if (data.type === "analyze-game" && (!Array.isArray(data.positions) || !data.positions.length || data.positions.length > 401)) {
+      self.postMessage({ type: "error", requestId: data.requestId, message: "The game review position list is invalid." });
       return;
     }
     if (activeJob) {
