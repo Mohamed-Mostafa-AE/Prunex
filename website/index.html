@@ -142,6 +142,11 @@
             <aside class="analysis-panel">
               <div class="panel-heading"><div><span class="panel-kicker">GAME SESSION</span><h3>Move history</h3></div><span id="move-count">0 plies</span></div>
               <div id="move-list" class="move-list"><div class="empty">Moves will appear here.</div></div>
+              <div class="move-navigation" role="group" aria-label="Move navigation">
+                <button id="move-prev" class="move-nav-button" type="button" aria-label="Previous move" title="Previous move" disabled>←</button>
+                <span id="move-position-label" class="move-position-label" aria-live="polite">0 / 0</span>
+                <button id="move-next" class="move-nav-button" type="button" aria-label="Next move" title="Next move" disabled>→</button>
+              </div>
               <section class="game-review-panel" id="game-review-panel" hidden aria-live="polite">
                 <div class="review-heading">
                   <div><span class="panel-kicker">POST-GAME ANALYSIS</span><h4>Game review</h4></div>
