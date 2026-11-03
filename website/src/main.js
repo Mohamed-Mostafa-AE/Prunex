@@ -62,6 +62,7 @@ let reviewAnalysisPositions = [];
 let reviewAnalysisResults = [];
 let reviewAnalysisIndex = 0;
 let savedGameFen = null;
+let fenDirty = false;
 let currentArchiveRecord = null;
 let gameArchiveDbPromise = null;
 const REVIEW_DEPTH = 10;
@@ -506,6 +507,7 @@ function syncGameResult() {
 }
 
 function syncFen() {
+  if (fenDirty) return;
   fenInput.value = game.fen();
 }
 
@@ -1030,6 +1032,7 @@ function cancelSearch() {
 
 function startNewGame() {
   cancelSearch();
+  fenDirty = false;
   initialFen = new Chess().fen();
   reviewMovesSnapshot = null;
   reviewPly = null;
@@ -1282,11 +1285,17 @@ $("#cancel-promotion").addEventListener("click", () => {
   pendingPromotion = null;
   promotionPicker.hidden = true;
 });
+fenInput.addEventListener("input", () => {
+  fenDirty = true;
+  fenFeedback.textContent = "";
+  fenFeedback.dataset.kind = "";
+});
 $("#load-fen").addEventListener("click", () => {
   try {
     primeAudio();
     const next = new Chess(fenInput.value.trim());
     cancelSearch();
+    fenDirty = false;
     initialFen = next.fen();
     reviewMovesSnapshot = null;
     reviewPly = null;
@@ -1310,6 +1319,8 @@ $("#load-fen").addEventListener("click", () => {
 $("#copy-fen").addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(game.fen());
+    fenDirty = false;
+    fenInput.value = game.fen();
     fenFeedback.textContent = "FEN copied";
     fenFeedback.dataset.kind = "success";
   } catch {
@@ -1321,6 +1332,7 @@ $("#copy-fen").addEventListener("click", async () => {
 });
 $("#reset-position").addEventListener("click", () => {
   cancelSearch();
+  fenDirty = false;
   initialFen = new Chess().fen();
   reviewMovesSnapshot = null;
   reviewPly = null;
