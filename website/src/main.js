@@ -22,6 +22,11 @@ const legalMovesToggle = $("#legal-moves");
 const promotionPicker = $("#promotion-picker");
 const gameResultOverlay = $("#game-result-dialog");
 const gameResultClose = $("#game-result-close");
+const returnLiveButton = $("#return-live");
+const soundToggle = $("#move-sounds");
+const evaluationFill = $("#evaluation-fill");
+const evaluationLabel = $("#evaluation-label");
+const analysisStatus = $("#analysis-status");
 const gameResultTone = $("#game-result-tone");
 const gameResultTitle = $("#game-result-title");
 const gameResultSubtitle = $("#game-result-subtitle");
@@ -29,6 +34,13 @@ const gameResultCopy = $("#game-result-copy");
 const siteThemeToggle = $("#site-theme-toggle");
 const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
 const game = new Chess();
+let initialFen = game.fen();
+let reviewMovesSnapshot = null;
+let reviewPly = null;
+let soundEnabled = true;
+let audioContext = null;
+let evaluating = false;
+let enginePositionTurn = "w";
 
 const glyph = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
@@ -69,6 +81,116 @@ function savePreference(key, value) {
 function loadPreference(key, fallback) {
   try { return localStorage.getItem("prunex-" + key) ?? fallback; } catch { return fallback; }
 }
+
+function primeAudio() {
+  if (!soundEnabled || audioContext) return audioContext;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  try {
+    audioContext = new AudioContextClass();
+    if (audioContext.state === "suspended") audioContext.resume().catch(() => {});
+  } catch {
+    audioContext = null;
+  }
+  return audioContext;
+}
+
+function playTone(context, frequency, duration, options = {}) {
+  if (!context) return;
+  const start = context.currentTime + (options.delay || 0);
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = options.type || "triangle";
+  oscillator.frequency.setValueAtTime(frequency, start);
+  if (options.endFrequency) {
+    oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, options.endFrequency), start + duration);
+  }
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(options.volume || 0.045, start + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.025);
+}
+
+function playMoveSound(move) {
+  if (!soundEnabled) return;
+  const context = primeAudio();
+  if (!context) return;
+  if (move.promotion) {
+    [440, 587, 740, 988].forEach((frequency, index) =>
+      playTone(context, frequency, 0.12, { delay: index * 0.055, volume: 0.035, type: "sine" }));
+  } else if (move.san === "O-O" || move.san === "O-O-O") {
+    playTone(context, 330, 0.12, { volume: 0.055 });
+    playTone(context, 495, 0.16, { delay: 0.075, volume: 0.04, type: "sine" });
+  } else if (move.captured) {
+    playTone(context, 185, 0.14, { endFrequency: 92, volume: 0.075, type: "triangle" });
+    playTone(context, 740, 0.055, { volume: 0.025, type: "sine" });
+  } else if (move.san.includes("+") || move.san.includes("#")) {
+    playTone(context, 660, 0.12, { endFrequency: 880, volume: 0.05, type: "sine" });
+    playTone(context, 990, 0.08, { delay: 0.055, volume: 0.025, type: "triangle" });
+  } else {
+    playTone(context, 520, 0.085, { endFrequency: 310, volume: 0.045, type: "triangle" });
+    playTone(context, 1040, 0.045, { delay: 0.012, volume: 0.016, type: "sine" });
+  }
+}
+
+function playGameEndSound(result) {
+  if (!soundEnabled) return;
+  const context = primeAudio();
+  if (!context) return;
+  const notes = result === "win" ? [523, 659, 784, 1047] :
+    result === "loss" ? [440, 370, 311, 220] : [440, 554, 440];
+  notes.forEach((frequency, index) =>
+    playTone(context, frequency, 0.2, { delay: index * 0.12, volume: 0.045, type: "sine" }));
+}
+
+function applyEvaluation(scoreType, score, sideToMove, depth) {
+  const whiteScore = sideToMove === "w" ? score : -score;
+  let label;
+  let whitePercent;
+  if (scoreType === "mate") {
+    label = (whiteScore < 0 ? "−" : "") + "M" + Math.abs(whiteScore);
+    whitePercent = whiteScore > 0 ? 100 : whiteScore < 0 ? 0 : 50;
+  } else {
+    const pawns = Math.abs(whiteScore) / 100;
+    label = (whiteScore > 0 ? "+" : whiteScore < 0 ? "−" : "") + pawns.toFixed(2);
+    whitePercent = 50 + Math.tanh(whiteScore / 500) * 50;
+  }
+  evaluationLabel.textContent = label;
+  evaluationLabel.setAttribute("aria-label",
+    scoreType === "mate" ? (whiteScore > 0 ? "White has a forced mate" : "Black has a forced mate") :
+      (whiteScore > 0 ? "White advantage " : whiteScore < 0 ? "Black advantage " : "Equal position ") + Math.abs(whiteScore / 100).toFixed(2) + " pawns");
+  evaluationFill.style.height = Math.max(0, Math.min(100, whitePercent)) + "%";
+  evaluationFill.dataset.advantage = whiteScore > 0 ? "white" : whiteScore < 0 ? "black" : "equal";
+  analysisStatus.textContent = "DEPTH " + (depth || "—");
+}
+
+function syncTerminalEvaluation() {
+  if (game.isCheckmate()) {
+    const whiteWon = game.turn() === "b";
+    evaluationLabel.textContent = whiteWon ? "MATE" : "−MATE";
+    evaluationLabel.setAttribute("aria-label", whiteWon ? "White wins by checkmate" : "Black wins by checkmate");
+    evaluationFill.style.height = whiteWon ? "100%" : "0%";
+    evaluationFill.dataset.advantage = whiteWon ? "white" : "black";
+    analysisStatus.textContent = "CHECKMATE";
+  } else if (game.isGameOver()) {
+    evaluationLabel.textContent = "0.00";
+    evaluationLabel.setAttribute("aria-label", "Drawn position");
+    evaluationFill.style.height = "50%";
+    evaluationFill.dataset.advantage = "equal";
+    analysisStatus.textContent = "DRAW";
+  }
+}
+
+function setEvaluationPending() {
+  evaluationLabel.textContent = "…";
+  evaluationLabel.setAttribute("aria-label", "Engine is evaluating the position");
+  evaluationFill.style.height = "50%";
+  evaluationFill.dataset.advantage = "equal";
+  analysisStatus.textContent = "EVALUATING";
+}
 function applySiteTheme(theme) {
   const selected = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.siteTheme = selected;
@@ -95,16 +217,19 @@ function applyPreferences() {
   const pieces = ["cburnett", "unicode", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
   showCoordinates = loadPreference("coordinates", "true") !== "false";
   showLegalMoves = loadPreference("legal-moves", "true") !== "false";
+  soundEnabled = loadPreference("move-sounds", "true") !== "false";
   $("#theme").value = theme;
   pieceStyleSelect.value = pieces;
   coordinatesToggle.checked = showCoordinates;
   legalMovesToggle.checked = showLegalMoves;
+  soundToggle.checked = soundEnabled;
   boardEl.dataset.theme = theme;
   boardEl.dataset.pieces = pieces;
   setBoardSize(loadPreference("board-size", "520"), false);
 }
 
 function statusText() {
+  if (reviewMovesSnapshot && !game.isGameOver()) return "Review mode · " + (game.turn() === "w" ? "White" : "Black") + " to move";
   if (game.isCheckmate()) return game.turn() === humanColor ? "Checkmate · Engine wins" : "Checkmate · You win";
   if (game.isStalemate()) return "Draw · Stalemate";
   if (game.isThreefoldRepetition()) return "Draw · Threefold repetition";
@@ -163,6 +288,7 @@ function syncGameResult() {
   gameResultSubtitle.textContent = result.subtitle;
   gameResultCopy.textContent = result.copy;
   shownResultFen = resultFen;
+  playGameEndSound(result.kind);
 
   if (gameResultOverlay.hidden) {
     gameResultOverlay.hidden = false;
