@@ -813,3 +813,22 @@ img, svg, video, canvas { max-width: 100%; }
   .move-grade { font-size: 6px; padding-inline: 3px; }
   .move-cell { gap: 2px; }
 }
+
+/* Precision review, principal-variation hint, and restrained motion. */
+.best-move-arrow { position:absolute; z-index:5; inset:0; width:100%; height:100%; pointer-events:none; }
+.best-move-arrow line { stroke:rgba(30,106,174,.78); stroke-width:13; stroke-linecap:round; }
+.best-move-arrow marker path { fill:rgba(30,106,174,.9); }
+.square.best-move-from { box-shadow:inset 0 0 0 3px rgba(37,122,194,.75); }
+.square.best-move-to { box-shadow:inset 0 0 0 4px rgba(70,174,229,.9),inset 0 0 20px rgba(63,160,218,.28); }
+.square.best-move-to::before { content:"BEST"; position:absolute; z-index:7; top:3px; right:3px; padding:2px 4px; border-radius:2px; background:#174d78; color:#e8f6ff; font:7px var(--mono); letter-spacing:.08em; }
+.piece { animation:piece-settle .16s ease-out both; }
+@keyframes piece-settle { from {opacity:.72;transform:translateY(-2px) scale(.97)} to {opacity:1;transform:translateY(0) scale(1)} }
+.square { transition:background-color .16s ease,box-shadow .16s ease; }
+.button,.review-moment,.archive-game { transition:transform .16s ease,border-color .16s ease,background-color .16s ease; }
+.button:hover,.review-moment:hover { transform:translateY(-1px); }
+.review-player { padding:9px 10px; border-radius:3px; }
+.review-player strong { font-size:20px; font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
+.review-player span { font-size:8px; }
+.review-depth { padding:5px 7px; border:1px solid rgba(114,166,210,.2); border-radius:2px; background:rgba(57,112,160,.09); }
+.review-moment { border-radius:3px; padding:9px 10px; }
+@media (prefers-reduced-motion:reduce) { .piece {animation:none} .button:hover,.review-moment:hover {transform:none} }
