@@ -63,6 +63,12 @@ See [docs/testing.md](docs/testing.md) for the test coverage, benchmark provenan
 
 The browser demo is a separate web experience. It uses Stockfish.js Lite as its opponent; it does not run the native C++ Prunex engine. The third-party engine and chess-piece artwork retain their own licenses and notices in `website/public/`.
 
+## Browser engine and evaluation
+
+The browser experience is branded **Prunex Play** and uses **Stockfish.js 19 Lite** as its underlying UCI engine. The Prunex-owned layer handles browser integration, review orchestration, expected-points interpretation, move classifications, and the Prunex Apex criteria. It does not claim Stockfish's engine or NNUE network as original Prunex code. Stockfish GPLv3 attribution, license, and corresponding-source information are retained in the website build.
+
+Game Review defaults to a 30-second search budget per non-terminal position. This is a time budget, not a guaranteed depth. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for calibration training, validation, benchmarking, and the separate upstream NNUE-training path.
+
 ## Known limitations
 
 - The Windows desktop application still needs a complete manual run-through on Windows 10 or 11. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
