@@ -277,7 +277,10 @@ try {
       throw new Error("Chessboard sizing failed at " + device.name + ": " + JSON.stringify(layout));
     }
     if (screenshotViewports.has(device.name)) {
-      await page.screenshot({ path: "artifacts/responsive-" + device.name + ".png" });
+      await page.screenshot({
+        path: "artifacts/responsive-" + device.name + ".png",
+        fullPage: ["phone-small", "tablet-portrait", "square-tablet", "desktop"].includes(device.name)
+      });
     }
   }
 
@@ -310,6 +313,32 @@ try {
     }
   }
   await page.locator("#game-result-close").click();
+
+  const touchContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true
+  });
+  const touchPage = await touchContext.newPage();
+  try {
+    await touchPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    const touchTargets = await touchPage.evaluate(() => ({
+      coarsePointer: matchMedia("(pointer: coarse)").matches,
+      themeToggle: parseFloat(getComputedStyle(document.querySelector(".theme-toggle")).minHeight),
+      topCta: parseFloat(getComputedStyle(document.querySelector(".top-cta")).minHeight),
+      boardButton: parseFloat(getComputedStyle(document.querySelector(".board-toolbar .button")).minHeight),
+      promotionButton: parseFloat(getComputedStyle(document.querySelector(".promotion-options button")).minHeight),
+      navLink: parseFloat(getComputedStyle(document.querySelector(".nav-links a")).minHeight)
+    }));
+    if (!touchTargets.coarsePointer || touchTargets.themeToggle < 44 ||
+        touchTargets.topCta < 44 || touchTargets.boardButton < 42 ||
+        touchTargets.promotionButton < 44 || touchTargets.navLink < 40) {
+      throw new Error("Touch target sizing failed: " + JSON.stringify(touchTargets));
+    }
+  } finally {
+    await touchContext.close();
+  }
 
   if (failures.length) throw new Error(failures.join("\\n"));
   console.log("PASS: startup, human move and engine reply, compact board, resizing, three piece sets, themes, FEN import and validation, reset, black-side play, and mobile layout.");
