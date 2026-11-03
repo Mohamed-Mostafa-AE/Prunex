@@ -997,6 +997,9 @@ function goToPly(ply) {
   reviewPly = targetPly;
   const previous = targetPly ? sourceMoves[targetPly - 1] : null;
   lastMove = previous ? { from: previous.from, to: previous.to } : null;
+  const reviewBest = reviewAnalysisResults[targetPly]?.bestMove;
+  bestMoveHint = reviewBest && reviewBest !== "(none)"
+    ? { from: reviewBest.slice(0, 2), to: reviewBest.slice(2, 4) } : null;
   selected = null;
   legalTargets = [];
   pendingPromotion = null;
@@ -1010,6 +1013,7 @@ function returnToLive() {
   const savedMoves = reviewMovesSnapshot;
   cancelSearch();
   game.load(initialFen);
+  bestMoveHint = null;
   for (const saved of savedMoves) {
     const applied = game.move({ from: saved.from, to: saved.to, promotion: saved.promotion });
     if (!applied) throw new Error("Could not restore the live game position.");
@@ -1198,8 +1202,10 @@ function onSquare(square) {
   if(thinking||game.turn()!==humanColor)return;
   const piece=game.get(square);
   if(selected&&legalTargets.includes(square)){commitMove(selected,square);return;}
-  if(piece?.color===humanColor){selected=square;legalTargets=game.moves({square,verbose:true}).map(move=>move.to);}
-  else{selected=null;legalTargets=[];}
+  if(piece?.color===humanColor){
+    if(selected===square){selected=null;legalTargets=[];}
+    else{selected=square;legalTargets=game.moves({square,verbose:true}).map(move=>move.to);}
+  } else {selected=null;legalTargets=[];}
   renderBoardHighlights();
 }
 
