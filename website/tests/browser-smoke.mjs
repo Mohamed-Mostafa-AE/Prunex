@@ -88,12 +88,35 @@ try {
     throw new Error("Engine startup failed: " + JSON.stringify(startup) +
       "\nWorkers: " + JSON.stringify(workers) + "\nErrors: " + failures.join("\n"));
   }
-
+  if (await page.locator("#best-move-display").inputValue() !== "off") {
+    throw new Error("Best-move arrows should be off by default.");
+  }
+  if (await page.locator("#move-method").inputValue() !== "both") {
+    throw new Error("Drag-or-click should be the default move method.");
+  }
+  await page.evaluate(() => { window.__prunexPieceBefore = document.querySelector('[data-square="e2"] .piece'); });
+  await page.locator('[data-square="e2"]').click();
+  const selectionStable = await page.evaluate(() =>
+    window.__prunexPieceBefore === document.querySelector('[data-square="e2"] .piece')
+  );
+  if (!selectionStable) throw new Error("Selecting a piece must not rebuild or jerk the board pieces.");
   await page.locator('[data-square="e2"]').click();
   await page.locator('[data-square="e4"]').click();
   await page.waitForFunction(() =>
     [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")) &&
     document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
+    undefined,
+    { timeout: 60000 }
+  );
+  await page.locator("#move-method").selectOption("both");
+  const knightStart = await page.locator('[data-square="g1"]').boundingBox();
+  const knightEnd = await page.locator('[data-square="f3"]').boundingBox();
+  await page.mouse.move(knightStart.x + knightStart.width / 2, knightStart.y + knightStart.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(knightEnd.x + knightEnd.width / 2, knightEnd.y + knightEnd.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("Nf3")),
     undefined,
     { timeout: 60000 }
   );
