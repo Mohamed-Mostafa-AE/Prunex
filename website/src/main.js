@@ -1021,7 +1021,7 @@ async function completeGameReview(results) {
   const wdlPositionCount = results.filter(item => item.wdl &&
     Number.isFinite(item.wdl.win) && Number.isFinite(item.wdl.draw) && Number.isFinite(item.wdl.loss)).length;
   reviewMethodNote.textContent = wdlPositionCount
-    ? "Stockfish 19 Lite supplies search and WDL evaluations. Prunex applies its own move grading, Apex checks, and expected-points accuracy metric; this is not Chess.com's proprietary CAPS2 formula."
+    ? "Stockfish 19 Lite supplies search and WDL expected points. Prunex applies its own move grading, Apex checks, and expected-points accuracy metric; this is not Chess.com's proprietary CAPS2 formula."
     : "Stockfish centipawn evaluations are converted using Prunex's expected-points model. WDL output was not available in this engine build.";
   reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
     " moves graded · deepest depth " + deepestDepth;
