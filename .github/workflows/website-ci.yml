@@ -51,8 +51,8 @@ jobs:
         run: |
           test -s dist/index.html
           test -s dist/prunex-mark.png
-          test -s dist/engine/stockfish-19-lite-single.js
-          test -s dist/engine/stockfish-19-lite-single.wasm
+          test -s dist/engine/stockfish-19.js
+          test -s dist/engine/stockfish-19.wasm
           test -s dist/COPYING.txt
 
       - name: Upload visual review screenshots
