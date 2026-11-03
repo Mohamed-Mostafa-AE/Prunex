@@ -516,6 +516,9 @@ try {
       !(await page.locator("#review-summary").innerText()).includes("%")) {
     throw new Error("Post-game review should grade the played move and calculate player accuracy.");
   }
+  if (!(await page.locator(".piece-quality-marker").count())) {
+    throw new Error("A reviewed Best/Brilliant move should display its quality marker over the destination piece.");
+  }
   const accuracyValues = await page.locator(".review-player strong").allTextContents();
   if (accuracyValues.some(value => Number.parseFloat(value) > 100 || Number.parseFloat(value) < 0)) {
     throw new Error("Review accuracy must remain between 0% and 100%.");
