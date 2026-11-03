@@ -44,6 +44,7 @@ jobs:
           done
           cat /tmp/prunex-preview.log
           exit 1
+      - run: mkdir -p artifacts
       - name: Browser smoke test
         run: npm run test:browser
       - name: Required output assets
@@ -53,3 +54,12 @@ jobs:
           test -s dist/engine/stockfish-19-lite-single.js
           test -s dist/engine/stockfish-19-lite-single.wasm
           test -s dist/COPYING.txt
+
+      - name: Upload visual review screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prunex-game-result-visual-review
+          path: website/artifacts/*.png
+          if-no-files-found: warn
+          retention-days: 3
