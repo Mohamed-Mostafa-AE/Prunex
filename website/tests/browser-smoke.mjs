@@ -102,15 +102,19 @@ try {
   if (!selectionStable) throw new Error("Selecting a piece must not rebuild or jerk the board pieces.");
   await page.locator('[data-square="e4"]').click();
   await page.waitForFunction(() =>
-    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")) &&
-    document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
+    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")),
     undefined,
     { timeout: 60000 }
   );
   if (!(await page.locator('[data-square="e2"]').getAttribute("class")).includes("last-move-from") ||
       !(await page.locator('[data-square="e4"]').getAttribute("class")).includes("last-move-to")) {
-    throw new Error("The origin and destination squares should both be highlighted after a move.");
+    throw new Error("The origin and destination squares should both be highlighted immediately after a move.");
   }
+  await page.waitForFunction(() =>
+    document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
+    undefined,
+    { timeout: 60000 }
+  );
   if (await page.locator("#sound-style option").count() < 3) {
     throw new Error("At least three distinct Prunex move-sound choices should be available.");
   }
