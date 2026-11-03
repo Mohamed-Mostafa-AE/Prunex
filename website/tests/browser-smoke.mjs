@@ -22,6 +22,7 @@ try {
   if (!(await page.locator("#defeat-sound").isChecked())) {
     throw new Error("The approved defeat sound should be enabled by default.");
   }
+  await page.locator(".settings-group").nth(2).locator("summary").click();
   if (!(await page.locator("#show-evaluation").isChecked())) {
     throw new Error("The evaluation bar should be visible by default.");
   }
@@ -115,6 +116,7 @@ try {
     undefined,
     { timeout: 60000 }
   );
+  await page.locator(".settings-group").nth(3).locator("summary").click();
   if (await page.locator("#sound-style option").count() < 8) {
     throw new Error("Eight distinct Prunex move-sound choices should be available.");
   }
