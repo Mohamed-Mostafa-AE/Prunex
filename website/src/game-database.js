@@ -213,9 +213,10 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
               createdAt: row.created_at,
               result: row.result,
               humanColor: row.human_color,
+              initialFen: row.initial_fen,
               pgn: row.pgn,
               remoteOnly: true,
-              moves: []
+              moves: Array.isArray(row.moves) ? row.moves : []
             });
           }
         }
