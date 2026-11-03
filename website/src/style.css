@@ -545,6 +545,7 @@ img, svg, video, canvas { max-width: 100%; }
   .hero-bottom { align-items: flex-start; }
   .section-wrap { padding-block: clamp(48px, 9vw, 64px); }
   .workspace { padding: 10px; }
+  .move-list { height: clamp(150px, 28vh, 210px); }
   .board-toolbar {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
