@@ -43,5 +43,25 @@ int main() {
     std::uint64_t secondNodes=nodes;
     if(!sameMove(first,second)||secondNodes>=firstNodes) return 14;
 
+    if(!loadFen(position,"r3k2r/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w kq - 2 10")) return 15;
+    Position reflected=position;
+    reflected.board.fill(EMPTY);
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)||position.board[square]==EMPTY) continue;
+        int target=square^112;
+        int piece=position.board[square];
+        reflected.board[target]=makePiece(typeOf(piece),1-colorOf(piece));
+    }
+    reflected.side=1-position.side;
+    reflected.castling=0;
+    reflected.ep=-1;
+    if(evaluate(position)!=evaluate(reflected)) return 16;
+
+    if(!loadFen(position,"4k3/8/2p5/3p4/3P4/2P5/8/4K3 w - - 0 1")) return 17;
+    int whiteView=evaluate(position);
+    position.side=BLACK;
+    int blackView=evaluate(position);
+    if(whiteView!=-blackView) return 18;
+
     return 0;
 }
