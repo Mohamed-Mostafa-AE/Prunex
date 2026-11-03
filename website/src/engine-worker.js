@@ -21,6 +21,7 @@ function runCurrentPosition(job) {
 function startJob(job) {
   activeJob = { ...job, cancelled: false };
   latestScore = null;
+  latestBestMove = null;
   if (job.type === "analyze-game") {
     activeJob.index = 0;
     activeJob.results = [];
