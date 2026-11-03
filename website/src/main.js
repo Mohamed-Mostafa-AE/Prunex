@@ -200,6 +200,198 @@ function setEvaluationPending() {
   evaluationFill.dataset.advantage = "equal";
   analysisStatus.textContent = "EVALUATING";
 }
+function positionKey(fen) {
+  return String(fen || "").trim().split(/\s+/).slice(0, 4).join(" ");
+}
+
+function buildMoveSnapshots() {
+  const history = game.history({ verbose: true });
+  const replay = new Chess(initialFen);
+  const moves = [];
+  for (let index = 0; index < history.length; index += 1) {
+    const move = history[index];
+    const beforeFen = replay.fen();
+    const applied = replay.move({
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion
+    });
+    if (!applied) throw new Error("Could not build the saved move history.");
+    moves.push({
+      ply: index + 1,
+      color: move.color,
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion || null,
+      piece: move.piece,
+      captured: move.captured || null,
+      san: applied.san,
+      beforeFen,
+      afterFen: replay.fen(),
+      moveUci: move.from + move.to + (move.promotion || "")
+    });
+  }
+  return moves;
+}
+
+function gameResultCode() {
+  if (game.isCheckmate()) return game.turn() === "w" ? "black_win" : "white_win";
+  return "draw";
+}
+
+async function refreshGameArchive() {
+  try {
+    const games = await gameArchive.listGames(12);
+    archiveCount.textContent = games.length + (games.length === 1 ? " game" : " games");
+    archiveList.replaceChildren();
+    if (!games.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No completed games saved yet.";
+      archiveList.append(empty);
+    } else {
+      for (const saved of games) {
+        const row = document.createElement("div");
+        row.className = "archive-game";
+        const details = document.createElement("div");
+        const title = document.createElement("strong");
+        const created = document.createElement("small");
+        const result = document.createElement("span");
+        const label = saved.result === "draw" ? "DRAW" :
+          saved.result === (saved.humanColor === "w" ? "white_win" : "black_win") ? "YOUR WIN" : "YOUR LOSS";
+        title.textContent = saved.remoteOnly ? "Shared game" : "Prunex 0.8.0 · " + label;
+        created.textContent = new Date(saved.createdAt).toLocaleString();
+        details.append(title, created);
+        result.className = "archive-result";
+        result.textContent = saved.result === "draw" ? "DRAW" : label;
+        row.append(details, result);
+        if (Array.isArray(saved.moves) && saved.moves.length) {
+          row.tabIndex = 0;
+          row.setAttribute("role", "button");
+          row.setAttribute("aria-label", "Review archived game");
+          row.addEventListener("click", () => openArchivedGame(saved));
+          row.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openArchivedGame(saved);
+            }
+          });
+        }
+        archiveList.append(row);
+      }
+    }
+    const status = gameArchive.getStatus();
+    archiveNote.textContent = status === "connected"
+      ? "Completed games are saved on this device and shared with the Prunex experience library."
+      : status === "unavailable"
+        ? "This device archive is working. Shared database sync is currently unavailable."
+        : "Completed games are saved on this device. The shared cross-player library is not connected yet.";
+  } catch (error) {
+    archiveCount.textContent = "Unavailable";
+    archiveList.textContent = "The local game archive could not be opened in this browser.";
+    archiveNote.textContent = error instanceof Error ? error.message : "Local game archive unavailable.";
+  }
+}
+
+async function persistCompletedGame() {
+  const finalFen = game.fen();
+  if (savedGameFen === finalFen) return;
+  savedGameFen = finalFen;
+  try {
+    const moves = buildMoveSnapshots();
+    const record = {
+      id: gameArchive.newId(),
+      createdAt: new Date().toISOString(),
+      result: gameResultCode(),
+      humanColor,
+      initialFen,
+      finalFen,
+      pgn: game.pgn(),
+      opponentVersion: "Prunex 0.8.0 browser opponent",
+      moves,
+      analysis: null,
+      whiteAccuracy: null,
+      blackAccuracy: null
+    };
+    currentArchiveRecord = record;
+    await gameArchive.saveGame(record);
+    await refreshGameArchive();
+  } catch (error) {
+    archiveNote.textContent = "Could not save this game locally: " +
+      (error instanceof Error ? error.message : "Unknown archive error.");
+  }
+}
+
+function openArchivedGame(record) {
+  if (!Array.isArray(record.moves) || !record.initialFen) return;
+  cancelSearch();
+  initialFen = record.initialFen;
+  game.load(initialFen);
+  for (const saved of record.moves) {
+    const move = game.move({
+      from: saved.from,
+      to: saved.to,
+      promotion: saved.promotion || undefined
+    });
+    if (!move) {
+      fenFeedback.textContent = "This archived game could not be restored.";
+      fenFeedback.dataset.kind = "error";
+      return;
+    }
+  }
+  currentArchiveRecord = record;
+  reviewMovesSnapshot = record.moves;
+  reviewPly = record.moves.length;
+  moveAnalysis = Array.isArray(record.analysis) ? record.analysis : [];
+  lastMove = record.moves.length
+    ? { from: record.moves[record.moves.length - 1].from, to: record.moves[record.moves.length - 1].to }
+    : null;
+  selected = null;
+  legalTargets = [];
+  gameReviewPanel.hidden = false;
+  if (moveAnalysis.length) renderReviewSummary(moveAnalysis, record.whiteAccuracy, record.blackAccuracy);
+  else {
+    reviewSummary.textContent = "This archived game has not been analyzed yet.";
+    reviewKeyMoments.replaceChildren();
+  }
+  render();
+}
+
+async function saveReviewedGame() {
+  if (!currentArchiveRecord || !moveAnalysis.length) return;
+  const record = {
+    ...currentArchiveRecord,
+    analysis: moveAnalysis,
+    whiteAccuracy: reviewAccuracy("w", moveAnalysis),
+    blackAccuracy: reviewAccuracy("b", moveAnalysis)
+  };
+  const samples = record.moves.map((move, index) => {
+    const analysis = moveAnalysis[index];
+    if (!analysis) return null;
+    const winner = record.result === "white_win" ? "w" : record.result === "black_win" ? "b" : null;
+    return {
+      id: record.id + ":" + move.ply,
+      gameId: record.id,
+      createdAt: record.createdAt,
+      positionKey: positionKey(move.beforeFen),
+      sideToMove: move.color,
+      moveUci: move.moveUci,
+      san: move.san,
+      resultForMover: winner ? (winner === move.color ? 1 : -1) : 0,
+      evalLossCp: analysis.lossCp,
+      grade: analysis.grade
+    };
+  }).filter(Boolean);
+  currentArchiveRecord = record;
+  try {
+    await gameArchive.saveReview(record, samples);
+    await refreshGameArchive();
+  } catch (error) {
+    archiveNote.textContent = "Review saved in memory for this session, but archive sync failed: " +
+      (error instanceof Error ? error.message : "Unknown error.");
+  }
+}
+
 function applySiteTheme(theme) {
   const selected = theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.siteTheme = selected;
