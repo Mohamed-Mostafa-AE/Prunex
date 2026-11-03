@@ -35,7 +35,7 @@ try {
   if (!(await page.locator("#about .architecture-card").count())) throw new Error("Engine architecture panel is missing.");
   if (!(await page.locator(".architecture-header").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Architecture card should show Prunex 0.8.0.");
   if ((await page.locator(".architecture-header").innerText()).includes("0.5.1")) throw new Error("Stale Prunex 0.5.1 version remains in architecture card.");
-  if (!(await page.locator(".benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
+  if (!(await page.locator("#testing .benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
   const testingCopy = await page.locator("#testing").innerText();
   const matchCopy = await page.locator("#match-results").innerText();
@@ -88,6 +88,21 @@ try {
   await page.waitForFunction(() => document.querySelectorAll("#board .piece").length === 2);
   if (!(await page.locator("#status").textContent()).includes("Draw")) {
     throw new Error("Custom FEN position failed.");
+  }
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#game-result-title").textContent() !== "A diplomatic solution.") {
+    throw new Error("Draw result headline is incorrect.");
+  }
+  if (await page.locator("#game-result-subtitle").textContent() !== "Nobody gets to brag today.") {
+    throw new Error("Draw result subheading is incorrect.");
+  }
+  if (await page.locator("#game-result-copy").textContent() !== "A hard-fought game, and a mutually agreed refusal to lose.") {
+    throw new Error("Draw result copy is incorrect.");
+  }
+  await page.screenshot({ path: "artifacts/game-result-draw-desktop.png" });
+  await page.locator("#game-result-review").click();
+  if (await page.locator("#game-result-dialog").isVisible()) {
+    throw new Error("Review moves should dismiss the result dialog.");
   }
 
   await page.locator("#fen-input").fill("not a fen");
@@ -143,6 +158,49 @@ try {
   await page.locator('[data-square="a8"]').click();
   await page.locator('[data-promotion="n"]').click();
   if (!(await page.locator("#fen-input").inputValue()).startsWith("N6k/")) throw new Error("Knight promotion failed.");
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#game-result-title").textContent() !== "A diplomatic solution.") {
+    throw new Error("King-and-knight promotion position should be scored as a draw.");
+  }
+  await page.locator("#game-result-review").click();
+
+  const checkmateFen = "7k/6Q1/5K2/8/8/8/8/8 b - - 0 1";
+  await page.locator("#fen-input").fill(checkmateFen);
+  await page.locator("#load-fen").click();
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#game-result-title").textContent() !== "Well, well, well." ||
+      await page.locator("#game-result-subtitle").textContent() !== "The engine has been humbled." ||
+      await page.locator("#game-result-copy").textContent() !== "A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.") {
+    throw new Error("Win result copy is incorrect.");
+  }
+  await page.screenshot({ path: "artifacts/game-result-win-desktop.png" });
+  await page.locator("#game-result-review").click();
+
+  await page.locator("#side").selectOption("b");
+  await page.waitForFunction(
+    () => document.querySelector("#turn-label")?.textContent.includes("YOUR TURN · BLACK"),
+    undefined,
+    { timeout: 60000 }
+  );
+  await page.locator("#fen-input").fill(checkmateFen);
+  await page.locator("#load-fen").click();
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#game-result-title").textContent() !== "That's unfortunate." ||
+      await page.locator("#game-result-subtitle").textContent() !== "Prunex takes this one." ||
+      await page.locator("#game-result-copy").textContent() !== "Looks like the engine had the better day. Bad news: Prunex is still improving, so this might not be your last defeat.") {
+    throw new Error("Loss result copy is incorrect.");
+  }
+  await page.screenshot({ path: "artifacts/game-result-loss-desktop.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: "artifacts/game-result-loss-mobile.png" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator("#game-result-new-game").click();
+  await page.waitForFunction(
+    () => document.querySelector("#turn-label")?.textContent.includes("YOUR TURN · BLACK"),
+    undefined,
+    { timeout: 60000 }
+  );
+  await page.locator("#side").selectOption("w");
   await page.locator("#reset-position").click();
 
   await page.setViewportSize({ width: 390, height: 844 });

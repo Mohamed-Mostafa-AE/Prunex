@@ -17,7 +17,7 @@
     <div id="app">
       <header class="topbar">
         <a class="brand" href="#home" aria-label="Prunex home">
-          <img src="/prunex-mark.png?v=3" class="nav-logo" alt="">
+          <img src="/prunex-mark.png?v=4" class="nav-logo" alt="">
           <span>PRUNEX</span>
         </a>
         <nav class="nav-links" aria-label="Main navigation">
@@ -202,6 +202,27 @@
         <div class="footer-meta"><span>BUILT TO EXPLORE THE GAME.</span><span>© <span id="year"></span> PRUNEX · C++20</span></div>
         <p class="license-note">The Prunex 0.8.0 browser build uses Stockfish.js 19 Lite, distributed under GPLv3. Its license and corresponding source code are included with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">License ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
       </footer>
+
+      <dialog id="game-result-dialog" class="game-result-dialog" aria-labelledby="game-result-title" aria-describedby="game-result-subtitle game-result-copy">
+        <div class="game-result-panel">
+          <div class="game-result-topline">
+            <span class="game-result-kicker">PRUNEX / GAME REPORT</span>
+            <span id="game-result-tone" class="game-result-tone">VICTORY</span>
+          </div>
+          <button id="game-result-close" class="game-result-close" type="button" aria-label="Close game result">×</button>
+          <span class="game-result-rule" aria-hidden="true"></span>
+          <h2 id="game-result-title" class="game-result-title">Well, well, well.</h2>
+          <p id="game-result-subtitle" class="game-result-subtitle">The engine has been humbled.</p>
+          <p id="game-result-copy" class="game-result-copy">A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.</p>
+          <div class="game-result-footer">
+            <span class="game-result-footer-note">GAME COMPLETE</span>
+            <div class="game-result-actions">
+              <button id="game-result-review" class="button" type="button">Review moves</button>
+              <button id="game-result-new-game" class="button button-primary" type="button">Play again</button>
+            </div>
+          </div>
+        </div>
+      </dialog>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

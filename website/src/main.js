@@ -20,6 +20,11 @@ const pieceStyleSelect = $("#piece-style");
 const coordinatesToggle = $("#coordinates");
 const legalMovesToggle = $("#legal-moves");
 const promotionPicker = $("#promotion-picker");
+const gameResultDialog = $("#game-result-dialog");
+const gameResultTone = $("#game-result-tone");
+const gameResultTitle = $("#game-result-title");
+const gameResultSubtitle = $("#game-result-subtitle");
+const gameResultCopy = $("#game-result-copy");
 const siteThemeToggle = $("#site-theme-toggle");
 const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
 const game = new Chess();
@@ -40,6 +45,7 @@ let humanColor = "w";
 let showCoordinates = true;
 let showLegalMoves = true;
 let pendingPromotion = null;
+let shownResultFen = null;
 
 const squareName = (row, col) => "abcdefgh"[col] + String(8 - row);
 
@@ -105,6 +111,54 @@ function statusText() {
   if (game.isDraw()) return "Draw";
   if (game.isCheck()) return (game.turn() === humanColor ? "Your move" : "Engine to move") + " · Check";
   return game.turn() === humanColor ? "Your move" : "Engine to move";
+}
+
+
+function syncGameResult() {
+  if (!game.isGameOver()) {
+    shownResultFen = null;
+    if (gameResultDialog.open) gameResultDialog.close();
+    return;
+  }
+
+  const resultFen = game.fen();
+  if (shownResultFen === resultFen) return;
+
+  let result;
+  if (game.isCheckmate() && game.turn() !== humanColor) {
+    result = {
+      kind: "win",
+      label: "VICTORY",
+      title: "Well, well, well.",
+      subtitle: "The engine has been humbled.",
+      copy: "A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation."
+    };
+  } else if (game.isCheckmate()) {
+    result = {
+      kind: "loss",
+      label: "DEFEAT",
+      title: "That's unfortunate.",
+      subtitle: "Prunex takes this one.",
+      copy: "Looks like the engine had the better day. Bad news: Prunex is still improving, so this might not be your last defeat."
+    };
+  } else {
+    result = {
+      kind: "draw",
+      label: "DRAW",
+      title: "A diplomatic solution.",
+      subtitle: "Nobody gets to brag today.",
+      copy: "A hard-fought game, and a mutually agreed refusal to lose."
+    };
+  }
+
+  gameResultDialog.dataset.result = result.kind;
+  gameResultTone.textContent = result.label;
+  gameResultTitle.textContent = result.title;
+  gameResultSubtitle.textContent = result.subtitle;
+  gameResultCopy.textContent = result.copy;
+  shownResultFen = resultFen;
+
+  if (!gameResultDialog.open) gameResultDialog.showModal();
 }
 
 function syncFen() {
@@ -205,6 +259,7 @@ function render() {
   stateEl.dataset.busy = String(thinking);
   turnEl.textContent = game.turn() === humanColor ? "YOUR TURN · " + (humanColor === "w" ? "WHITE" : "BLACK") : "ENGINE · " + (humanColor === "w" ? "BLACK" : "WHITE");
   undoButton.disabled = thinking || game.history().length === 0;
+  syncGameResult();
 }
 
 function search() {
@@ -323,6 +378,12 @@ worker.addEventListener("error", (event) => {
 });
 
 $("#new-game").addEventListener("click", startNewGame);
+$("#game-result-close").addEventListener("click", () => gameResultDialog.close());
+$("#game-result-review").addEventListener("click", () => gameResultDialog.close());
+$("#game-result-new-game").addEventListener("click", () => {
+  gameResultDialog.close();
+  startNewGame();
+});
 undoButton.addEventListener("click", () => {
   if (thinking) return;
   if (game.history().length) game.undo();
