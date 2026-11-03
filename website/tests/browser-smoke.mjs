@@ -73,6 +73,7 @@ try {
   await page.locator("#site-theme-toggle").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme did not activate.");
   await page.reload({ waitUntil: "networkidle" });
+  await page.locator(".settings-group").nth(1).locator("summary").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme preference was not persisted.");
   await page.locator("#site-theme-toggle").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "light") throw new Error("Light theme did not restore.");
