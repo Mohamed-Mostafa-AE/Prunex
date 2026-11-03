@@ -762,7 +762,8 @@ async function completeGameReview(results) {
   const count = Math.min(moves.length, Math.max(0, results.length - 1));
   for (let index = 0; index < count; index += 1) {
     const before = scoreToCentipawns(results[index]);
-    const afterFromMoverPerspective = -scoreToCentipawns(results[index + 1]);
+    const afterRaw = scoreToCentipawns(results[index + 1]);
+    const afterFromMoverPerspective = Number.isFinite(afterRaw) ? -afterRaw : null;
     const lossCp = Number.isFinite(before) && Number.isFinite(afterFromMoverPerspective)
       ? Math.max(0, before - afterFromMoverPerspective)
       : null;
