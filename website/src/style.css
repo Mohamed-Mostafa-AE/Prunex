@@ -923,3 +923,27 @@ img, svg, video, canvas { max-width: 100%; }
 .piece-quality-marker[data-grade="GREAT"] { background:#427fbd; }
 .piece-quality-marker[data-grade="EXCELLENT"] { background:#3979b2; }
 .piece-quality-marker[data-grade="BEST"] { background:#79b84b; }
+
+/* Chess.com-style move stepping directly under the notation list. */
+.move-navigation {
+  display:grid; grid-template-columns:38px 1fr 38px; align-items:center; gap:10px;
+  padding:8px 12px; border-top:1px solid var(--night-line);
+  background:rgba(255,255,255,.018);
+}
+.move-nav-button {
+  display:grid; place-items:center; width:36px; height:30px; padding:0;
+  border:1px solid rgba(111,151,190,.35); border-radius:3px;
+  background:#10243b; color:#dceeff; font:18px/1 Manrope,sans-serif; cursor:pointer;
+  transition:background .14s ease,border-color .14s ease,opacity .14s ease;
+}
+.move-nav-button:hover:not(:disabled) { background:#1b3b5d; border-color:#6ba9df; }
+.move-nav-button:disabled { opacity:.28; cursor:not-allowed; }
+.move-position-label { text-align:center; color:#90a9c5; font:9px var(--mono); letter-spacing:.05em; }
+
+/* On-piece move-quality markers for the complete evaluation vocabulary. */
+.piece-quality-marker[data-grade="GOOD"] { background:#6c9f7a; }
+.piece-quality-marker[data-grade="INACCURACY"] { background:#b28a32; }
+.piece-quality-marker[data-grade="MISTAKE"] { background:#c47a37; }
+.piece-quality-marker[data-grade="BLUNDER"] { background:#bb4c58; }
+.piece-quality-marker[data-grade="MISS"] { background:#9862a6; }
+.piece-quality-marker[data-grade="BEST"] { background:#79b84b; }
