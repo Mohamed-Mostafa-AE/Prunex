@@ -99,6 +99,38 @@ try {
   if (await page.locator("#game-result-copy").textContent() !== "A hard-fought game, and a mutually agreed refusal to lose.") {
     throw new Error("Draw result copy is incorrect.");
   }
+  const resultScope = await page.locator("#game-result-dialog").evaluate(element => {
+    const frame = element.closest(".board-frame");
+    const board = document.querySelector("#board");
+    const overlayRect = element.getBoundingClientRect();
+    const boardRect = board.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return {
+      parentIsBoardFrame: element.parentElement === frame,
+      ariaModal: element.getAttribute("aria-modal"),
+      overlayMatchesBoard: Math.abs(overlayRect.left - boardRect.left) < 2 &&
+        Math.abs(overlayRect.top - boardRect.top) < 2 &&
+        Math.abs(overlayRect.width - boardRect.width) < 2 &&
+        Math.abs(overlayRect.height - boardRect.height) < 2,
+      overlayInsideFrame: overlayRect.left >= frameRect.left &&
+        overlayRect.right <= frameRect.right &&
+        overlayRect.top >= frameRect.top &&
+        overlayRect.bottom <= frameRect.bottom,
+      openNativeDialogs: document.querySelectorAll("dialog[open]").length
+    };
+  });
+  if (!resultScope.parentIsBoardFrame || resultScope.ariaModal !== "false" ||
+      !resultScope.overlayMatchesBoard || !resultScope.overlayInsideFrame ||
+      resultScope.openNativeDialogs !== 0) {
+    throw new Error("Game-result popup must be confined to the chessboard: " + JSON.stringify(resultScope));
+  }
+
+  await page.locator("#site-theme-toggle").click();
+  if (await page.locator("html").getAttribute("data-site-theme") !== "dark" ||
+      !(await page.locator("#game-result-dialog").isVisible())) {
+    throw new Error("The page outside the chessboard should remain interactive while the result popup is open.");
+  }
+  await page.locator("#site-theme-toggle").click();
   await page.screenshot({ path: "artifacts/game-result-draw-desktop.png" });
   await page.locator("#game-result-review").click();
   if (await page.locator("#game-result-dialog").isVisible()) {
@@ -295,24 +327,40 @@ try {
   ]) {
     await page.setViewportSize({ width: device.width, height: device.height });
     const dialog = await page.locator("#game-result-dialog").evaluate(element => {
-      const rect = element.getBoundingClientRect();
+      const board = document.querySelector("#board");
+      const boardFrame = element.closest(".board-frame");
+      const overlay = element.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const frame = boardFrame.getBoundingClientRect();
+      const panel = element.querySelector(".game-result-panel").getBoundingClientRect();
       return {
-        left: Math.round(rect.left), right: Math.round(rect.right),
-        top: Math.round(rect.top), bottom: Math.round(rect.bottom),
-        width: Math.round(rect.width), height: Math.round(rect.height),
-        viewportWidth: document.documentElement.clientWidth,
-        viewportHeight: document.documentElement.clientHeight
+        overlayMatchesBoard: Math.abs(overlay.left - boardRect.left) < 2 &&
+          Math.abs(overlay.top - boardRect.top) < 2 &&
+          Math.abs(overlay.width - boardRect.width) < 2 &&
+          Math.abs(overlay.height - boardRect.height) < 2,
+        overlayInsideFrame: overlay.left >= frame.left &&
+          overlay.right <= frame.right &&
+          overlay.top >= frame.top &&
+          overlay.bottom <= frame.bottom,
+        panelInsideOverlay: panel.left >= overlay.left &&
+          panel.right <= overlay.right &&
+          panel.top >= overlay.top &&
+          panel.bottom <= overlay.bottom,
+        panelScrollsWhenNeeded: getComputedStyle(element.querySelector(".game-result-panel")).overflowY === "auto"
       };
     });
-    if (dialog.left < 4 || dialog.top < 4 ||
-        dialog.right > device.width - 4 || dialog.bottom > device.height - 4) {
-      throw new Error("Result dialog escapes the viewport at " + device.name + ": " + JSON.stringify(dialog));
+    if (!dialog.overlayMatchesBoard || !dialog.overlayInsideFrame ||
+        !dialog.panelInsideOverlay || !dialog.panelScrollsWhenNeeded) {
+      throw new Error("Result popup escaped its board at " + device.name + ": " + JSON.stringify(dialog));
     }
     if (device.name !== "modal-landscape") {
       await page.screenshot({ path: "artifacts/responsive-" + device.name + ".png" });
     }
   }
-  await page.locator("#game-result-close").click();
+  await page.keyboard.press("Escape");
+  if (await page.locator("#game-result-dialog").isVisible()) {
+    throw new Error("Escape should dismiss the board-scoped result popup.");
+  }
 
   const touchContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
