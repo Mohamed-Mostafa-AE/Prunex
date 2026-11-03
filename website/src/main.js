@@ -688,7 +688,8 @@ worker.addEventListener("error", (event) => {
   statusEl.dataset.kind = "error";
 });
 
-$("#new-game").addEventListener("click", startNewGame);
+$("#new-game").addEventListener("click", () => { primeAudio(); startNewGame(); });
+returnLiveButton.addEventListener("click", returnToLive);
 gameResultClose.addEventListener("click", () => dismissGameResult());
 $("#game-result-review").addEventListener("click", () => dismissGameResult());
 $("#game-result-new-game").addEventListener("click", () => {
@@ -702,7 +703,7 @@ document.addEventListener("keydown", event => {
   }
 });
 undoButton.addEventListener("click", () => {
-  if (thinking) return;
+  if (thinking || reviewMovesSnapshot) return;
   if (game.history().length) game.undo();
   if (game.history().length) game.undo();
   const h = game.history({ verbose: true });
@@ -719,6 +720,7 @@ $("#flip").addEventListener("click", () => {
   renderBoard();
 });
 sideSelect.addEventListener("change", () => {
+  primeAudio();
   humanColor = sideSelect.value;
   startNewGame();
 });
@@ -745,6 +747,11 @@ legalMovesToggle.addEventListener("change", event => {
   showLegalMoves = event.target.checked;
   savePreference("legal-moves", showLegalMoves);
   renderBoard();
+});
+soundToggle.addEventListener("change", event => {
+  soundEnabled = event.target.checked;
+  savePreference("move-sounds", soundEnabled);
+  if (soundEnabled) primeAudio();
 });
 boardSizeInput.addEventListener("input", event => setBoardSize(event.target.value));
 const resizeGrip = $("#resize-board");
@@ -775,7 +782,10 @@ $("#load-fen").addEventListener("click", () => {
   try {
     const next = new Chess(fenInput.value.trim());
     cancelSearch();
-    game.load(next.fen());
+    initialFen = next.fen();
+    reviewMovesSnapshot = null;
+    reviewPly = null;
+    game.load(initialFen);
     lastMove = null;
     selected = null;
     legalTargets = [];
@@ -802,6 +812,9 @@ $("#copy-fen").addEventListener("click", async () => {
 });
 $("#reset-position").addEventListener("click", () => {
   cancelSearch();
+  initialFen = new Chess().fen();
+  reviewMovesSnapshot = null;
+  reviewPly = null;
   game.reset();
   lastMove = null;
   selected = null;
