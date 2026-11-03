@@ -57,6 +57,9 @@ let evaluating = false;
 let analyzingGame = false;
 let enginePositionTurn = "w";
 let moveAnalysis = [];
+let reviewAnalysisPositions = [];
+let reviewAnalysisResults = [];
+let reviewAnalysisIndex = 0;
 let savedGameFen = null;
 let currentArchiveRecord = null;
 let gameArchiveDbPromise = null;
@@ -672,6 +675,24 @@ function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analy
   }
 }
 
+function requestNextReviewPosition() {
+  if (!analyzingGame || reviewAnalysisIndex >= reviewAnalysisPositions.length) return;
+  const fen = reviewAnalysisPositions[reviewAnalysisIndex];
+  enginePositionTurn = new Chess(fen).turn();
+  requestId += 1;
+  evaluating = true;
+  setEvaluationPending();
+  stateEl.textContent = "Analyzing game…";
+  stateEl.dataset.busy = "true";
+  reviewProgressLabel.textContent = "Analyzing " + reviewAnalysisIndex + " / " + reviewAnalysisPositions.length + " positions";
+  worker.postMessage({
+    type: "evaluate",
+    requestId,
+    fen,
+    depth: REVIEW_DEPTH
+  });
+}
+
 function analyzeCurrentGame() {
   const moves = reviewMovesSnapshot || game.history({ verbose: true });
   if (!moves.length) {
@@ -701,11 +722,14 @@ function analyzeCurrentGame() {
     if (!replay.isGameOver()) positions.push(replay.fen());
   }
 
-  requestId += 1;
+  cancelSearch();
   analyzingGame = true;
   evaluating = false;
   thinking = false;
   moveAnalysis = [];
+  reviewAnalysisPositions = positions;
+  reviewAnalysisResults = [];
+  reviewAnalysisIndex = 0;
   reviewSummary.textContent = "Prunex is checking every position and grading each move.";
   reviewKeyMoments.replaceChildren();
   reviewProgress.hidden = false;
@@ -715,12 +739,7 @@ function analyzeCurrentGame() {
   statusEl.textContent = "Reviewing " + positions.length + " engine positions…";
   stateEl.textContent = "Analyzing game…";
   stateEl.dataset.busy = "true";
-  worker.postMessage({
-    type: "analyze-game",
-    requestId,
-    positions,
-    depth: REVIEW_DEPTH
-  });
+  requestNextReviewPosition();
 }
 
 function startGameReview() {
@@ -1093,23 +1112,31 @@ worker.addEventListener("message", async (event) => {
   }
   if (data.requestId !== requestId) return;
 
-  if (data.type === "analysis-progress") {
-    const percent = data.total ? Math.round((data.completed / data.total) * 100) : 0;
-    reviewProgressFill.style.width = percent + "%";
-    reviewProgressLabel.textContent = "Analyzing " + data.completed + " / " + data.total + " positions";
-    return;
-  }
-  if (data.type === "analysis-complete") {
-    analyzingGame = false;
-    await completeGameReview(data.results || []);
-    return;
-  }
   if (data.type === "info") {
     if (data.scoreType !== undefined) applyEvaluation(data.scoreType, data.score, enginePositionTurn, data.depth);
     return;
   }
   if (data.type === "evaluation-complete") {
     evaluating = false;
+    if (analyzingGame) {
+      reviewAnalysisResults.push({
+        scoreType: data.scoreType || null,
+        score: Number.isFinite(data.score) ? data.score : null,
+        depth: data.depth || 0
+      });
+      reviewAnalysisIndex += 1;
+      const completed = reviewAnalysisResults.length;
+      const total = reviewAnalysisPositions.length;
+      reviewProgressFill.style.width = Math.round((completed / total) * 100) + "%";
+      reviewProgressLabel.textContent = "Analyzing " + completed + " / " + total + " positions";
+      if (reviewAnalysisIndex < total) {
+        requestNextReviewPosition();
+      } else {
+        analyzingGame = false;
+        await completeGameReview(reviewAnalysisResults);
+      }
+      return;
+    }
     if (data.scoreType !== undefined) applyEvaluation(data.scoreType, data.score, enginePositionTurn, data.depth);
     else {
       evaluationLabel.textContent = "—";
@@ -1122,6 +1149,7 @@ worker.addEventListener("message", async (event) => {
   if (data.type === "error") {
     if (analyzingGame) {
       analyzingGame = false;
+      evaluating = false;
       reviewProgressLabel.textContent = "Game analysis failed: " + data.message;
       reviewSummary.textContent = "The engine could not finish this review. You can try again.";
       stateEl.textContent = "Engine ready";
