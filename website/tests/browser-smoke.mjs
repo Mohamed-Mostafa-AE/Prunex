@@ -475,6 +475,10 @@ try {
   if (accuracyValues.some(value => Number.parseFloat(value) > 100 || Number.parseFloat(value) < 0)) {
     throw new Error("Review accuracy must remain between 0% and 100%.");
   }
+  if (!(await page.locator("#review-progress-label").textContent()).includes("deepest depth") ||
+      !(await page.locator("#review-depth").textContent()).includes("AVG DEPTH")) {
+    throw new Error("Game review should expose the deepest and average completed engine depth.");
+  }
 
   const touchContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
