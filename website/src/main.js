@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import { createClient } from "@supabase/supabase-js";
 import "./style.css";
 
 const $ = (selector) => document.querySelector(selector);
@@ -24,7 +25,18 @@ const promotionPicker = $("#promotion-picker");
 const gameResultOverlay = $("#game-result-dialog");
 const gameResultClose = $("#game-result-close");
 const returnLiveButton = $("#return-live");
-const soundToggle = $("#move-sounds");
+const soundToggle = $("#defeat-sound");
+const evaluationToggle = $("#show-evaluation");
+const evaluationColumn = $("#evaluation-column");
+const gameReviewPanel = $("#game-review-panel");
+const reviewProgress = $("#review-progress");
+const reviewProgressFill = $("#review-progress-fill");
+const reviewProgressLabel = $("#review-progress-label");
+const reviewSummary = $("#review-summary");
+const reviewKeyMoments = $("#review-key-moments");
+const archiveCount = $("#game-archive-count");
+const archiveList = $("#game-archive-list");
+const archiveNote = $("#game-archive-note");
 const evaluationFill = $("#evaluation-fill");
 const evaluationLabel = $("#evaluation-label");
 const analysisStatus = $("#analysis-status");
@@ -39,9 +51,24 @@ let initialFen = game.fen();
 let reviewMovesSnapshot = null;
 let reviewPly = null;
 let soundEnabled = true;
+let showEvaluation = true;
 let audioContext = null;
 let evaluating = false;
+let analyzingGame = false;
 let enginePositionTurn = "w";
+let moveAnalysis = [];
+let savedGameFen = null;
+let currentArchiveRecord = null;
+let gameArchiveDbPromise = null;
+const REVIEW_DEPTH = 10;
+const MAX_REVIEW_PLIES = 200;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+const remoteSupabase = supabaseUrl && supabasePublishableKey
+  ? createClient(supabaseUrl, supabasePublishableKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    })
+  : null;
 
 const glyph = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
@@ -117,35 +144,12 @@ function playTone(context, frequency, duration, options = {}) {
   oscillator.stop(start + duration + 0.025);
 }
 
-function playMoveSound(move) {
-  if (!soundEnabled) return;
-  const context = primeAudio();
-  if (!context) return;
-  if (move.promotion) {
-    [440, 587, 740, 988].forEach((frequency, index) =>
-      playTone(context, frequency, 0.12, { delay: index * 0.055, volume: 0.035, type: "sine" }));
-  } else if (move.san === "O-O" || move.san === "O-O-O") {
-    playTone(context, 330, 0.12, { volume: 0.055 });
-    playTone(context, 495, 0.16, { delay: 0.075, volume: 0.04, type: "sine" });
-  } else if (move.captured) {
-    playTone(context, 185, 0.14, { endFrequency: 92, volume: 0.075, type: "triangle" });
-    playTone(context, 740, 0.055, { volume: 0.025, type: "sine" });
-  } else if (move.san.includes("+") || move.san.includes("#")) {
-    playTone(context, 660, 0.12, { endFrequency: 880, volume: 0.05, type: "sine" });
-    playTone(context, 990, 0.08, { delay: 0.055, volume: 0.025, type: "triangle" });
-  } else {
-    playTone(context, 520, 0.085, { endFrequency: 310, volume: 0.045, type: "triangle" });
-    playTone(context, 1040, 0.045, { delay: 0.012, volume: 0.016, type: "sine" });
-  }
-}
-
 function playGameEndSound(result) {
-  if (!soundEnabled) return;
+  // Keep the approved defeat cue only; all move, victory, and draw sounds stay silent.
+  if (!soundEnabled || result !== "loss") return;
   const context = primeAudio();
   if (!context) return;
-  const notes = result === "win" ? [523, 659, 784, 1047] :
-    result === "loss" ? [440, 370, 311, 220] : [440, 554, 440];
-  notes.forEach((frequency, index) =>
+  [440, 370, 311, 220].forEach((frequency, index) =>
     playTone(context, frequency, 0.2, { delay: index * 0.12, volume: 0.045, type: "sine" }));
 }
 
@@ -187,6 +191,11 @@ function syncTerminalEvaluation() {
   }
 }
 
+function syncEvaluationVisibility() {
+  boardStage.dataset.evaluation = showEvaluation ? "visible" : "hidden";
+  evaluationToggle.checked = showEvaluation;
+}
+
 function setEvaluationPending() {
   evaluationLabel.textContent = "…";
   evaluationLabel.setAttribute("aria-label", "Engine is evaluating the position");
@@ -221,12 +230,15 @@ function applyPreferences() {
   const pieces = ["cburnett", "unicode", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
   showCoordinates = loadPreference("coordinates", "true") !== "false";
   showLegalMoves = loadPreference("legal-moves", "true") !== "false";
-  soundEnabled = loadPreference("move-sounds", "true") !== "false";
+  soundEnabled = loadPreference("defeat-sound", "true") !== "false";
+  showEvaluation = loadPreference("show-evaluation", "true") !== "false";
   $("#theme").value = theme;
   pieceStyleSelect.value = pieces;
   coordinatesToggle.checked = showCoordinates;
   legalMovesToggle.checked = showLegalMoves;
   soundToggle.checked = soundEnabled;
+  evaluationToggle.checked = showEvaluation;
+  syncEvaluationVisibility();
   boardEl.dataset.theme = theme;
   boardEl.dataset.pieces = pieces;
   setBoardSize(loadPreference("board-size", "520"), false);
