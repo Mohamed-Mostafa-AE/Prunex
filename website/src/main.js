@@ -61,11 +61,12 @@ let moveAnalysis = [];
 let reviewAnalysisPositions = [];
 let reviewAnalysisResults = [];
 let reviewAnalysisIndex = 0;
+let reviewBudgetMs = 12000;
+let bestMoveHint = null;
 let savedGameFen = null;
 let fenDirty = false;
 let currentArchiveRecord = null;
 let gameArchiveDbPromise = null;
-const REVIEW_DEPTH = 10;
 const MAX_REVIEW_PLIES = 200;
 const gameArchive = createGameArchive({
   url: import.meta.env.VITE_SUPABASE_URL || "",
@@ -99,6 +100,7 @@ function completePromotion(piece) {
   const move = game.move({ ...pendingPromotion, promotion: piece });
   if (!move) return;
   lastMove = { from: move.from, to: move.to };
+  playMoveSound(move);
   pendingPromotion = null;
   promotionPicker.hidden = true;
   selected = null;
@@ -143,6 +145,24 @@ function playTone(context, frequency, duration, options = {}) {
   gain.connect(context.destination);
   oscillator.start(start);
   oscillator.stop(start + duration + 0.025);
+}
+
+function playMoveSound(move) {
+  if (!soundEnabled || !move) return;
+  const context = primeAudio();
+  if (!context) return;
+  const start = context.currentTime;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine";
+  const frequency = move.captured ? 185 : move.promotion ? 265 : 225;
+  oscillator.frequency.setValueAtTime(frequency, start);
+  oscillator.frequency.exponentialRampToValueAtTime(frequency * 0.58, start + 0.055);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(move.captured ? 0.055 : 0.038, start + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.075);
+  oscillator.connect(gain); gain.connect(context.destination);
+  oscillator.start(start); oscillator.stop(start + 0.085);
 }
 
 function playGameEndSound(result) {
@@ -529,6 +549,8 @@ function renderBoard() {
       if (selected === square) button.classList.add("selected");
       if (lastMove && (lastMove.from === square || lastMove.to === square)) button.classList.add("last-move");
       if (showLegalMoves && legalTargets.includes(square)) button.classList.add(piece ? "capture-target" : "move-target");
+      if (bestMoveHint?.from === square) button.classList.add("best-move-from");
+      if (bestMoveHint?.to === square) button.classList.add("best-move-to");
       if (piece) {
         const span = document.createElement("span");
         span.className = "piece " + (piece.color === "w" ? "white-piece" : "black-piece");
@@ -566,6 +588,20 @@ function renderBoard() {
       button.addEventListener("click", () => onSquare(square));
       boardEl.append(button);
     }
+  }
+  if (bestMoveHint) {
+    const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    arrow.setAttribute("class", "best-move-arrow"); arrow.setAttribute("viewBox", "0 0 800 800");
+    arrow.setAttribute("aria-hidden", "true");
+    const point = name => { let x = "abcdefgh".indexOf(name[0]), y = 8 - Number(name[1]); if (flipped) { x=7-x; y=7-y; } return {x:(x+.5)*100,y:(y+.5)*100}; };
+    const from=point(bestMoveHint.from), to=point(bestMoveHint.to);
+    const defs=document.createElementNS("http://www.w3.org/2000/svg","defs");
+    const marker=document.createElementNS("http://www.w3.org/2000/svg","marker");
+    marker.setAttribute("id","best-move-head"); marker.setAttribute("markerWidth","7"); marker.setAttribute("markerHeight","7"); marker.setAttribute("refX","5"); marker.setAttribute("refY","3"); marker.setAttribute("orient","auto");
+    const head=document.createElementNS("http://www.w3.org/2000/svg","path"); head.setAttribute("d","M0,0 L6,3 L0,6 Z"); marker.append(head); defs.append(marker);
+    const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.setAttribute("x1",from.x); line.setAttribute("y1",from.y); line.setAttribute("x2",to.x); line.setAttribute("y2",to.y); line.setAttribute("marker-end","url(#best-move-head)");
+    arrow.append(defs,line); boardEl.append(arrow);
   }
 }
 
@@ -638,7 +674,7 @@ function reviewAccuracy(color, analysis = moveAnalysis) {
   if (!played.length) return null;
   const averageLoss = played.reduce((total, move) => total + move.lossCp, 0) / played.length;
   // Prunex's review metric is an estimate, not Chess.com's proprietary accuracy formula.
-  return Math.round(1000 * Math.max(0, Math.min(100, 100 * Math.exp(-averageLoss / 180)))) / 10;
+  return Math.round(Math.max(0, Math.min(100, 100 * Math.exp(-averageLoss / 180))) * 10) / 10;
 }
 
 function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analysis), blackAccuracy = reviewAccuracy("b", analysis)) {
@@ -682,6 +718,7 @@ function requestNextReviewPosition() {
   if (!analyzingGame || reviewAnalysisIndex >= reviewAnalysisPositions.length) return;
   const fen = reviewAnalysisPositions[reviewAnalysisIndex];
   enginePositionTurn = new Chess(fen).turn();
+  const perPositionMs = Math.max(80, Math.floor(reviewBudgetMs / reviewAnalysisPositions.length));
   requestId += 1;
   evaluating = true;
   setEvaluationPending();
@@ -692,7 +729,7 @@ function requestNextReviewPosition() {
     type: "evaluate",
     requestId,
     fen,
-    depth: REVIEW_DEPTH
+    movetime: perPositionMs
   });
 }
 
@@ -733,12 +770,14 @@ function analyzeCurrentGame() {
   reviewAnalysisPositions = positions;
   reviewAnalysisResults = [];
   reviewAnalysisIndex = 0;
+  const strengthBudgets = { "10000": 8000, "25000": 12000, "50000": 15000, "100000": 20000, "250000": 25000 };
+  reviewBudgetMs = strengthBudgets[nodesSelect.value] || 12000;
   reviewSummary.textContent = "Prunex is checking every position and grading each move.";
   reviewKeyMoments.replaceChildren();
   reviewProgress.hidden = false;
   reviewProgressFill.style.width = "0%";
   reviewProgressLabel.textContent = "Analyzing 0 / " + positions.length + " positions";
-  reviewDepth.textContent = "ENGINE DEPTH " + REVIEW_DEPTH;
+  reviewDepth.textContent = "ENGINE REVIEW · " + Math.round(reviewBudgetMs / 1000) + "S";
   statusEl.textContent = "Reviewing " + positions.length + " engine positions…";
   stateEl.textContent = "Analyzing game…";
   stateEl.dataset.busy = "true";
@@ -784,6 +823,11 @@ async function completeGameReview(results) {
       ? Math.max(0, before - afterFromMoverPerspective)
       : null;
     const classification = classifyMove(moves[index], moves[index + 1], before, afterFromMoverPerspective, lossCp, index + 1);
+    const engineBest = results[index]?.bestMove;
+    if (engineBest && engineBest !== "(none)" && engineBest === moves[index].from + moves[index].to + (moves[index].promotion || "") && classification.grade !== "BRILLIANT") {
+      classification.grade = "BEST"; classification.lossCp = 0;
+      classification.description = "Matches Prunex's top move at the selected review budget";
+    }
     scored.push({
       ply: index + 1,
       color: moves[index].color,
@@ -863,6 +907,7 @@ function goToPly(ply) {
 
   cancelSearch();
   game.load(initialFen);
+  bestMoveHint = null;
   for (let i = 0; i < targetPly; i += 1) {
     const saved = sourceMoves[i];
     const applied = game.move({ from: saved.from, to: saved.to, promotion: saved.promotion });
@@ -1000,6 +1045,7 @@ function onSquare(square) {
         if (evaluating) cancelSearch();
         const move = game.move({ from: selected, to: square });
         lastMove = { from: move.from, to: move.to };
+        playMoveSound(move);
         selected = null;
         legalTargets = [];
         render();
@@ -1044,6 +1090,7 @@ function startNewGame() {
   reviewSummary.replaceChildren();
   reviewKeyMoments.replaceChildren();
   game.reset();
+  bestMoveHint = null;
   selected = null;
   legalTargets = [];
   lastMove = null;
@@ -1083,6 +1130,7 @@ async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAt
     if (!move) move = game.move(bestMove);
     if (!move) throw new Error("Illegal engine move: " + bestMove);
     lastMove = { from: move.from, to: move.to };
+    playMoveSound(move);
     render();
     if (remembered && selectedMove !== bestMove) {
       stateEl.textContent = "Experience memory · proven move";
@@ -1126,8 +1174,10 @@ worker.addEventListener("message", async (event) => {
       reviewAnalysisResults.push({
         scoreType: data.scoreType || null,
         score: Number.isFinite(data.score) ? data.score : null,
-        depth: data.depth || 0
+        depth: data.depth || 0,
+        bestMove: data.bestMove || null
       });
+      bestMoveHint = data.bestMove && data.bestMove !== "(none)" ? { from: data.bestMove.slice(0, 2), to: data.bestMove.slice(2, 4) } : null;
       reviewAnalysisIndex += 1;
       const completed = reviewAnalysisResults.length;
       const total = reviewAnalysisPositions.length;
@@ -1141,8 +1191,11 @@ worker.addEventListener("message", async (event) => {
       }
       return;
     }
-    if (data.scoreType !== undefined) applyEvaluation(data.scoreType, data.score, enginePositionTurn, data.depth);
-    else {
+    if (data.scoreType !== undefined) {
+      applyEvaluation(data.scoreType, data.score, enginePositionTurn, data.depth);
+      bestMoveHint = data.bestMove && data.bestMove !== "(none)" ? { from: data.bestMove.slice(0, 2), to: data.bestMove.slice(2, 4) } : null;
+      renderBoard();
+    } else {
       evaluationLabel.textContent = "—";
       analysisStatus.textContent = "EVALUATION UNAVAILABLE";
     }
