@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "node tests/review-metrics.test.mjs && vite build",
+    "build": "node tests/review-metrics.test.mjs && node scripts/test-evaluation-calibration.mjs && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test:browser": "node tests/browser-smoke.mjs",
     "prebuild": "node scripts/copy-engine.mjs"
