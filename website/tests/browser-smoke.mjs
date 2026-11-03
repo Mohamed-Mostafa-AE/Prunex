@@ -111,15 +111,18 @@ try {
     undefined,
     { timeout: 60000 }
   );
-  if (!(await page.locator('[data-square="e2"]').getAttribute("class")).includes("last-move-from") ||
-      !(await page.locator('[data-square="e4"]').getAttribute("class")).includes("last-move-to")) {
-    throw new Error("The origin and destination squares should both be highlighted immediately after a move.");
-  }
   await page.waitForFunction(() =>
     document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
     undefined,
     { timeout: 60000 }
   );
+  const latestMoveHighlights = await page.evaluate(() => ({
+    from: document.querySelectorAll("#board .last-move-from").length,
+    to: document.querySelectorAll("#board .last-move-to").length
+  }));
+  if (latestMoveHighlights.from !== 1 || latestMoveHighlights.to !== 1) {
+    throw new Error("The most recent move should leave exactly one origin and destination square highlighted.");
+  }
   await page.locator(".settings-group").nth(3).locator("summary").click();
   if (await page.locator("#sound-style option").count() < 8) {
     throw new Error("Eight distinct Prunex move-sound choices should be available.");
