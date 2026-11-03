@@ -108,6 +108,23 @@ function handleBestMove() {
 
 let latestBestMove = null;
 
+function restartEngineForJob(job) {
+  pendingJob = job;
+  try {
+    engine?.terminate();
+  } catch {
+    // The child worker may already have terminated.
+  }
+  engine = null;
+  activeJob = null;
+  latestScore = null;
+  latestBestMove = null;
+  stopping = false;
+  ready = false;
+  awaitingReady = false;
+  startEngine();
+}
+
 function startEngine() {
   if (engine) return;
   engine = new Worker("/engine/stockfish-19-lite-single.js");
@@ -126,6 +143,11 @@ function startEngine() {
       awaitingReady = false;
       ready = true;
       self.postMessage({ type: "ready" });
+      if (pendingJob) {
+        const nextJob = pendingJob;
+        pendingJob = null;
+        startJob(nextJob);
+      }
       return;
     }
 
@@ -189,9 +211,15 @@ self.addEventListener("message", (event) => {
       self.postMessage({ type: "error", requestId: data.requestId, message: "The game review position list is invalid." });
       return;
     }
-    if (activeJob) {
+    if (activeJob && (activeJob.cancelled || stopping)) {
+      // A previous UCI stop did not finish. Reinitialize the child engine
+      // rather than leaving the new analysis queued indefinitely.
+      restartEngineForJob(data);
+    } else if (activeJob) {
       pendingJob = data;
       stopActiveJob();
+    } else if (stopping) {
+      restartEngineForJob(data);
     } else {
       startJob(data);
     }
