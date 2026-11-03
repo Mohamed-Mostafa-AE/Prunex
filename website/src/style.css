@@ -838,7 +838,7 @@ img, svg, video, canvas { max-width: 100%; }
 /* Stable board input: selecting a square never rebuilds piece elements. */
 .board { touch-action:none; user-select:none; -webkit-user-select:none; }
 .square { touch-action:none; }
-.piece { animation:none !important; transform:none !important; opacity:1 !important; pointer-events:none; }
+.piece { animation:none; pointer-events:none; }
 .square.drag-origin .piece { opacity:.18 !important; }
 .drag-ghost { margin:0; pointer-events:none !important; }
 .premove-square { background-image:repeating-linear-gradient(135deg,rgba(35,111,170,.24) 0 5px,transparent 5px 10px) !important; }
