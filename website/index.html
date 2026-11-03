@@ -169,10 +169,19 @@
                 <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="cburnett">Staunton · Classic</option><option value="unicode">Unicode pieces</option><option value="letters">Letter notation</option></select></label>
                 <label class="setting-row"><span>Move method</span><select id="move-method"><option value="both">Drag or click</option><option value="drag">Drag pieces</option><option value="click">Click squares</option></select></label>
                 <label class="setting-row"><span>Best-move display</span><select id="best-move-display"><option value="off">Off</option><option value="highlight">Highlight squares</option><option value="arrow">Arrow and highlights</option></select></label>
-                <label class="setting-row"><span>Move sound</span><select id="sound-style"><option value="wood">Prunex · Wood</option><option value="soft">Prunex · Soft</option></select></label>
+                <label class="setting-row"><span>Move sound</span>
+                  <div class="sound-picker">
+                    <select id="sound-style">
+                      <option value="wood">Wooden Tap · Warm</option>
+                      <option value="felt">Felt Click · Muted</option>
+                      <option value="ceramic">Ceramic Tick · Crisp</option>
+                    </select>
+                    <button id="preview-move-sound" class="button sound-preview" type="button">Preview</button>
+                  </div>
+                </label>
                 <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Show coordinates</span></label>
                 <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Show legal-move hints</span></label>
-                <label class="setting-toggle"><input id="highlight-last-move" type="checkbox" checked><span>Highlight last move</span></label>
+                <label class="setting-toggle"><input id="highlight-last-move" type="checkbox" checked><span>Highlight previous and destination squares</span></label>
                 <label class="setting-toggle"><input id="piece-animation" type="checkbox" checked><span>Piece movement animation</span></label>
                 <label class="setting-toggle"><input id="enable-premoves" type="checkbox" checked><span>Enable premoves</span></label>
                 <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Right-click board annotations</span></label>
