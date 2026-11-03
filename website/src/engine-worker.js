@@ -11,6 +11,8 @@ function runCurrentPosition(job) {
   engine.postMessage("position fen " + fen);
   if (job.type === "search") {
     engine.postMessage("go nodes " + Math.max(10000, Math.min(2000000, Number(job.nodes) || 25000)));
+  } else if (job.type === "evaluate" && Number.isFinite(job.movetime)) {
+    engine.postMessage("go movetime " + Math.max(50, Math.min(5000, Number(job.movetime))));
   } else {
     engine.postMessage("go depth " + Math.max(8, Math.min(16, Number(job.depth) || 10)));
   }
@@ -94,7 +96,8 @@ function handleBestMove() {
       requestId: job.requestId,
       scoreType: latestScore?.scoreType,
       score: latestScore?.score,
-      depth: latestScore?.depth
+      depth: latestScore?.depth,
+      bestMove: latestBestMove
     });
   } else if (job.type === "search") {
     self.postMessage({
@@ -153,7 +156,7 @@ function startEngine() {
     }
 
     if (line.startsWith("bestmove ")) {
-      if (activeJob?.type === "search") latestBestMove = line.split(/\s+/)[1];
+      latestBestMove = line.split(/\s+/)[1];
       handleBestMove();
       return;
     }
