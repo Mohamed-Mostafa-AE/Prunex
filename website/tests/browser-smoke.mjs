@@ -100,7 +100,6 @@ try {
     window.__prunexPieceBefore === document.querySelector('[data-square="e2"] .piece')
   );
   if (!selectionStable) throw new Error("Selecting a piece must not rebuild or jerk the board pieces.");
-  await page.locator('[data-square="e2"]').click();
   await page.locator('[data-square="e4"]').click();
   await page.waitForFunction(() =>
     [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")) &&
