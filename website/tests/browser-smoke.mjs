@@ -22,6 +22,7 @@ try {
   if (!(await page.locator("#defeat-sound").isChecked())) {
     throw new Error("The approved defeat sound should be enabled by default.");
   }
+  await page.locator(".settings-group").nth(1).locator("summary").click();
   await page.locator(".settings-group").nth(2).locator("summary").click();
   if (!(await page.locator("#show-evaluation").isChecked())) {
     throw new Error("The evaluation bar should be visible by default.");
