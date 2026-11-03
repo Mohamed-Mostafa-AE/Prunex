@@ -34,6 +34,9 @@ const promotionPicker = $("#promotion-picker");
 const gameResultOverlay = $("#game-result-dialog");
 const gameResultClose = $("#game-result-close");
 const returnLiveButton = $("#return-live");
+const movePrevButton = $("#move-prev");
+const moveNextButton = $("#move-next");
+const movePositionLabel = $("#move-position-label");
 const soundToggle = $("#defeat-sound");
 const evaluationToggle = $("#show-evaluation");
 const evaluationColumn = $("#evaluation-column");
@@ -662,16 +665,21 @@ function renderBoard() {
       }
       const reviewedMove = reviewMovesSnapshot && reviewPly > 0
         ? reviewMovesSnapshot[reviewPly - 1] : null;
-      const reviewedGrade = reviewPly > 0 ? moveAnalysis[reviewPly - 1]?.grade : null;
-      const reviewBadge = reviewedMove?.to === square &&
-        ["BRILLIANT", "GREAT", "BEST", "EXCELLENT"].includes(reviewedGrade);
+      const reviewedGradeRaw = reviewPly > 0 ? moveAnalysis[reviewPly - 1]?.grade : null;
+      const reviewedGrade = reviewedGradeRaw === "MISSED_WIN" ? "MISS" : reviewedGradeRaw;
+      const reviewBadge = reviewedMove?.to === square && !!reviewedGrade &&
+        ["BRILLIANT","GREAT","BEST","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(reviewedGrade);
       const engineBadge = bestMoveDisplay !== "off" && bestMoveHint?.to === square;
+      const gradeGlyph = {
+        BRILLIANT:"✦", GREAT:"◆", BEST:"★", EXCELLENT:"✓", GOOD:"✓",
+        INACCURACY:"!", MISTAKE:"!", BLUNDER:"×", MISS:"↘"
+      };
       if (reviewBadge || engineBadge) {
         const marker = document.createElement("span");
         marker.className = "piece-quality-marker";
         marker.dataset.grade = reviewBadge ? reviewedGrade : "BEST";
-        marker.textContent = reviewedGrade === "BRILLIANT" ? "✦" : reviewedGrade === "GREAT" ? "◆" : "★";
-        marker.title = reviewBadge ? reviewedGrade.replaceAll("_", " ") + " move" : "Prunex recommended move";
+        marker.textContent = reviewBadge ? (gradeGlyph[reviewedGrade] || "•") : "★";
+        marker.title = reviewBadge ? reviewedGrade + " move" : "Prunex recommended move";
         marker.setAttribute("aria-label", marker.title);
         button.append(marker);
       }
@@ -762,7 +770,7 @@ function buildMoveButton(move, ply, currentPly) {
     const badge = document.createElement("span");
     badge.className = "move-grade";
     badge.dataset.grade = grade.grade;
-    badge.textContent = grade.grade === "MISSED_WIN" ? "MISSED" : grade.grade;
+    badge.textContent = grade.grade === "MISSED_WIN" ? "MISS" : grade.grade;
     badge.title = grade.description || grade.grade.replaceAll("_", " ").toLowerCase();
     cell.append(badge);
   }
@@ -793,7 +801,7 @@ function classifyMove(move, nextMove, beforeScore, afterScore, lossCp, ply) {
     return { grade: "BRILLIANT", lossCp, description: "A sound piece sacrifice confirmed by engine analysis" };
   }
   if (beforeScore >= 300 && afterScore < 0) {
-    return { grade: "MISSED_WIN", lossCp, description: "A winning advantage slipped away" };
+    return { grade: "MISS", lossCp, description: "A winning continuation was missed and the advantage disappeared" };
   }
   if (lossCp <= 8 && (move.san.includes("+") || move.san.includes("#"))) {
     return { grade: "GREAT", lossCp, description: "A precise forcing move" };
@@ -834,7 +842,7 @@ function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analy
 
   reviewKeyMoments.replaceChildren();
   const moments = [...analysis]
-    .filter(item => item.grade === "BRILLIANT" || item.grade === "BLUNDER" || item.grade === "MISSED_WIN" || item.grade === "MISTAKE")
+    .filter(item => ["BRILLIANT","GREAT","BLUNDER","MISS","MISSED_WIN","MISTAKE","INACCURACY"].includes(item.grade))
     .sort((a, b) => (b.lossCp || 0) - (a.lossCp || 0))
     .slice(0, 4);
   for (const moment of moments) {
@@ -842,7 +850,7 @@ function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analy
     button.type = "button";
     button.className = "review-moment";
     const label = document.createElement("span");
-    label.textContent = (moment.color === "w" ? "White " : "Black ") + moment.san + " · " + moment.grade.replaceAll("_", " ");
+    label.textContent = (moment.color === "w" ? "White " : "Black ") + moment.san + " · " + (moment.grade === "MISSED_WIN" ? "MISS" : moment.grade.replaceAll("_", " "));
     const score = document.createElement("small");
     score.textContent = moment.grade === "BRILLIANT" ? "SACRIFICE" : Math.round(moment.lossCp) + " cp lost";
     button.append(label, score);
@@ -1042,6 +1050,22 @@ function renderMoves() {
   moveCountEl.textContent = reviewMovesSnapshot
     ? "Viewing " + currentPly + " / " + history.length + " plies"
     : history.length + " plies";
+  syncMoveNavigation(currentPly, history.length);
+}
+
+function syncMoveNavigation(currentPly, totalPlies) {
+  movePrevButton.disabled = totalPlies === 0 || currentPly <= 0;
+  moveNextButton.disabled = !reviewMovesSnapshot || currentPly >= totalPlies;
+  movePositionLabel.textContent = currentPly + " / " + totalPlies;
+}
+
+function stepMoveHistory(direction) {
+  const sourceMoves = reviewMovesSnapshot || game.history({ verbose: true });
+  if (!sourceMoves.length) return;
+  const currentPly = reviewMovesSnapshot ? reviewPly : sourceMoves.length;
+  const targetPly = Math.max(0, Math.min(sourceMoves.length, currentPly + direction));
+  if (targetPly === currentPly) return;
+  goToPly(targetPly);
 }
 
 function goToPly(ply) {
@@ -1470,6 +1494,8 @@ worker.addEventListener("error", (event) => {
 
 $("#new-game").addEventListener("click", () => { primeAudio(); startNewGame(); });
 returnLiveButton.addEventListener("click", returnToLive);
+movePrevButton.addEventListener("click", () => stepMoveHistory(-1));
+moveNextButton.addEventListener("click", () => stepMoveHistory(1));
 gameResultClose.addEventListener("click", () => dismissGameResult());
 $("#game-result-review").addEventListener("click", startGameReview);
 $("#game-result-new-game").addEventListener("click", () => {
@@ -1480,6 +1506,13 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape" && !gameResultOverlay.hidden) {
     event.preventDefault();
     dismissGameResult();
+    return;
+  }
+  const editing = event.target instanceof HTMLElement &&
+    (event.target.isContentEditable || ["INPUT","TEXTAREA","SELECT"].includes(event.target.tagName));
+  if (reviewMovesSnapshot && !editing && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+    event.preventDefault();
+    stepMoveHistory(event.key === "ArrowLeft" ? -1 : 1);
   }
 });
 undoButton.addEventListener("click", () => {
