@@ -116,7 +116,8 @@ try {
   await page.mouse.move(knightEnd.x + knightEnd.width / 2, knightEnd.y + knightEnd.height / 2, { steps: 8 });
   await page.mouse.up();
   await page.waitForFunction(() =>
-    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("Nf3")),
+    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("Nf3")) &&
+    document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
     undefined,
     { timeout: 60000 }
   );
