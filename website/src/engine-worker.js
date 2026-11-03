@@ -5,6 +5,9 @@ let activeJob = null;
 let pendingJob = null;
 let stopping = false;
 let latestScore = null;
+let latestScoresByPv = Object.create(null);
+let multiPvByDepth = new Map();
+let availableOptions = new Set();
 
 function runCurrentPosition(job) {
   const fen = job.type === "analyze-game" ? job.positions[job.index] : job.fen;
@@ -23,6 +26,11 @@ function startJob(job) {
   activeJob = { ...job, cancelled: false };
   latestScore = null;
   latestBestMove = null;
+  latestScoresByPv = Object.create(null);
+  multiPvByDepth = new Map();
+  if (availableOptions.has("MultiPV")) {
+    engine.postMessage("setoption name MultiPV value " + (job.type === "evaluate" ? 2 : 1));
+  }
   if (job.type === "analyze-game") {
     activeJob.index = 0;
     activeJob.results = [];
@@ -69,7 +77,10 @@ function handleBestMove() {
     job.results.push({
       scoreType: latestScore?.scoreType || null,
       score: latestScore?.score ?? null,
-      depth: latestScore?.depth ?? 0
+      wdl: latestScore?.wdl || null,
+      depth: latestScore?.depth ?? 0,
+      bestMove: latestBestMove || null,
+      secondBest: multiPvByDepth.get(latestScore?.depth)?.[2] || null
     });
     self.postMessage({
       type: "analysis-progress",
@@ -98,10 +109,12 @@ function handleBestMove() {
       requestId: job.requestId,
       scoreType: latestScore?.scoreType,
       score: latestScore?.score,
+      wdl: latestScore?.wdl || null,
       depth: latestScore?.depth,
       selDepth: latestScore?.selDepth,
       nodes: latestScore?.nodes,
-      bestMove: latestBestMove
+      bestMove: latestBestMove,
+      secondBest: multiPvByDepth.get(latestScore?.depth)?.[2] || null
     });
   } else if (job.type === "search") {
     self.postMessage({
@@ -126,6 +139,8 @@ function restartEngineForJob(job) {
   activeJob = null;
   latestScore = null;
   latestBestMove = null;
+  latestScoresByPv = Object.create(null);
+  multiPvByDepth = new Map();
   stopping = false;
   ready = false;
   awaitingReady = false;
@@ -139,8 +154,15 @@ function startEngine() {
     const line = String(event.data ?? "").trim();
     if (!line) return;
 
+    if (line.startsWith("option name ")) {
+      const optionName = line.slice("option name ".length).split(/\s+type\s+/)[0];
+      availableOptions.add(optionName);
+      return;
+    }
+
     if (line === "uciok") {
       engine.postMessage("setoption name Hash value 64");
+      if (availableOptions.has("UCI_ShowWDL")) engine.postMessage("setoption name UCI_ShowWDL value true");
       engine.postMessage("isready");
       awaitingReady = true;
       return;
@@ -170,20 +192,32 @@ function startEngine() {
       const depth = Number(line.match(/\bdepth (\d+)/)?.[1] || 0);
       const selDepth = Number(line.match(/\bseldepth (\d+)/)?.[1] || 0);
       const nodes = Number(line.match(/\bnodes (\d+)/)?.[1] || 0);
+      const rank = Number(line.match(/\bmultipv (\d+)/)?.[1] || 1);
+      const wdlMatch = line.match(/\bwdl (\d+) (\d+) (\d+)/);
+      const pvMatch = line.match(/\bpv\s+(.+)$/);
       const isBound = /\b(?:lowerbound|upperbound)\b/.test(line);
       if (scoreMatch && depth > 0 && !isBound && activeJob && !activeJob.cancelled) {
         const candidate = {
-          depth, selDepth, nodes,
+          depth, selDepth, nodes, rank,
           scoreType: scoreMatch[1],
-          score: Number(scoreMatch[2])
+          score: Number(scoreMatch[2]),
+          wdl: wdlMatch ? { win:Number(wdlMatch[1]), draw:Number(wdlMatch[2]), loss:Number(wdlMatch[3]) } : null,
+          pvMove: pvMatch ? pvMatch[1].trim().split(/\s+/)[0] : null
         };
-        // Keep the deepest completed iterative-deepening result, never a
-        // shallower or bound-only line from later output.
-        if (!latestScore || candidate.depth > latestScore.depth ||
-            (candidate.depth === latestScore.depth && candidate.nodes >= latestScore.nodes)) {
-          latestScore = candidate;
+        const previous = latestScoresByPv[rank];
+        if (!previous || candidate.depth > previous.depth ||
+            (candidate.depth === previous.depth && candidate.nodes >= previous.nodes)) {
+          latestScoresByPv[rank] = candidate;
         }
-        if (activeJob.type !== "analyze-game") {
+        if (rank === 1) latestScore = latestScoresByPv[1];
+
+        // Keep only same-depth MultiPV pairs. Apex is never inferred by
+        // comparing a deep principal line with a shallower alternative.
+        const atDepth = multiPvByDepth.get(depth) || {};
+        atDepth[rank] = candidate;
+        multiPvByDepth.set(depth, atDepth);
+
+        if (rank === 1 && activeJob.type !== "analyze-game") {
           self.postMessage({
             type: "info",
             requestId: activeJob.requestId,
@@ -192,7 +226,8 @@ function startEngine() {
             selDepth: latestScore.selDepth,
             nodes: latestScore.nodes,
             scoreType: latestScore.scoreType,
-            score: latestScore.score
+            score: latestScore.score,
+            wdl: latestScore.wdl
           });
         }
       }
