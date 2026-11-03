@@ -163,34 +163,68 @@
                 <div id="game-archive-list" class="game-archive-list"><div class="empty">No completed games saved yet.</div></div>
               </section>
               <div class="engine-controls">
-                <div class="control-title"><span>GAME SETTINGS</span><span class="control-live">ADJUSTABLE</span></div>
-                <label class="setting-row"><span>Opponent strength</span><select id="nodes"><option value="10000">Quick · 8s review</option><option value="25000" selected>Balanced · 12s review</option><option value="50000">Strong · 15s review</option><option value="100000">Deep · 20s review</option><option value="250000">Maximum · 25s review</option></select></label>
-                <label class="setting-row"><span>Board theme</span><select id="theme"><option value="blue">Blue & white</option><option value="ice">Ice blue</option></select></label>
-                <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="cburnett">Staunton · Classic</option><option value="unicode">Unicode pieces</option><option value="letters">Letter notation</option></select></label>
-                <label class="setting-row"><span>Move method</span><select id="move-method"><option value="both">Drag or click</option><option value="drag">Drag pieces</option><option value="click">Click squares</option></select></label>
-                <label class="setting-row"><span>Best-move display</span><select id="best-move-display"><option value="off">Off</option><option value="highlight">Highlight squares</option><option value="arrow">Arrow and highlights</option></select></label>
-                <label class="setting-row"><span>Move sound</span>
-                  <div class="sound-picker">
-                    <select id="sound-style">
-                      <option value="wood">Wooden Tap · Warm</option>
-                      <option value="felt">Felt Click · Muted</option>
-                      <option value="ceramic">Ceramic Tick · Crisp</option>
-                    </select>
-                    <button id="preview-move-sound" class="button sound-preview" type="button">Preview</button>
+                <div class="control-title"><span>GAME SETTINGS</span><span class="control-live">CUSTOMIZE</span></div>
+
+                <details class="settings-group" open>
+                  <summary><span>PLAY</span><small>Strength · input · premoves</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row"><span>Opponent strength</span><select id="nodes"><option value="10000">Quick · 8s review</option><option value="25000" selected>Balanced · 12s review</option><option value="50000">Strong · 15s review</option><option value="100000">Deep · 20s review</option><option value="250000">Maximum · 25s review</option></select></label>
+                    <label class="setting-row"><span>Move input</span><select id="move-method"><option value="both">Drag or click</option><option value="drag">Drag only</option><option value="click">Click squares</option></select></label>
+                    <label class="setting-toggle"><input id="enable-premoves" type="checkbox" checked><span>Enable premoves</span></label>
                   </div>
-                </label>
-                <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Show coordinates</span></label>
-                <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Show legal-move hints</span></label>
-                <label class="setting-toggle"><input id="highlight-last-move" type="checkbox" checked><span>Highlight previous and destination squares</span></label>
-                <label class="setting-toggle"><input id="piece-animation" type="checkbox" checked><span>Piece movement animation</span></label>
-                <label class="setting-toggle"><input id="enable-premoves" type="checkbox" checked><span>Enable premoves</span></label>
-                <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Right-click board annotations</span></label>
-                <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Show evaluation bar</span></label>
-                 <label class="setting-toggle"><input id="defeat-sound" type="checkbox" checked><span>Play board sounds</span></label>
-                <p class="engine-review-note">Game Review uses the selected time budget across all positions. Longer settings give each position more search time; evaluations may change as deeper lines are explored.</p>
-                <div class="engine-note"><span class="local-dot"></span><span>Prunex 0.8.0 browser build, powered by Stockfish 19 Lite. The strength setting controls its search budget, not an Elo rating.</span></div>
-              </div>
-            </aside>
+                </details>
+
+                <details class="settings-group" open>
+                  <summary><span>BOARD</span><small>Theme · highlights · animation</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row"><span>Board theme</span><select id="theme"><option value="blue">Blue & white</option><option value="ice">Ice blue</option></select></label>
+                    <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="cburnett">Staunton · Classic</option><option value="unicode">Unicode pieces</option><option value="letters">Letter notation</option></select></label>
+                    <div class="settings-toggle-grid">
+                      <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Coordinates</span></label>
+                      <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Legal moves</span></label>
+                      <label class="setting-toggle"><input id="highlight-last-move" type="checkbox" checked><span>Last-move squares</span></label>
+                      <label class="setting-toggle"><input id="piece-animation" type="checkbox" checked><span>Move animation</span></label>
+                    </div>
+                  </div>
+                </details>
+
+                <details class="settings-group">
+                  <summary><span>ANALYSIS</span><small>Best move · evaluation · marks</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row"><span>Best-move marker</span><select id="best-move-display"><option value="off">Off</option><option value="highlight">Square highlights</option><option value="arrow">Arrow + highlights</option></select></label>
+                    <div class="settings-toggle-grid">
+                      <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Evaluation bar</span></label>
+                      <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Right-click annotations</span></label>
+                    </div>
+                  </div>
+                </details>
+
+                <details class="settings-group">
+                  <summary><span>SOUND</span><small>8 sound profiles · preview</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row sound-setting-row"><span>Move sound</span>
+                      <div class="sound-picker">
+                        <select id="sound-style">
+                          <option value="wood">Wooden Tap · Warm</option>
+                          <option value="felt">Felt Click · Muted</option>
+                          <option value="ceramic">Ceramic Tick · Crisp</option>
+                          <option value="ivory">Ivory Tap · Light</option>
+                          <option value="stone">Stone Clack · Deep</option>
+                          <option value="switch">Mechanical Switch · Sharp</option>
+                          <option value="rubber">Soft Rubber · Dampened</option>
+                          <option value="glass">Glass Bead · Bright</option>
+                        </select>
+                        <button id="preview-move-sound" class="button sound-preview" type="button">Preview</button>
+                      </div>
+                    </label>
+                    <label class="setting-toggle"><input id="defeat-sound" type="checkbox" checked><span>Play board sounds</span></label>
+                    <p class="sound-note">Choose a profile, then preview before playing.</p>
+                  </div>
+                </details>
+
+                <p class="engine-review-note">Longer review presets allocate more search time to every position. Deeper search can change an evaluation when it finds a stronger line.</p>
+                <div class="engine-note"><span class="local-dot"></span><span>Prunex 0.8.0 · Browser opponent</span></div>
+              </div>            </aside>
           </div>
 
           <div class="editor-panel">
