@@ -19,10 +19,25 @@ export function fitCalibration(samples, { epochs = 4000, learningRate = 0.015, l
     if (!Number.isFinite(scoreCp) || !Number.isFinite(result) || result < 0 || result > 1) {
       throw new Error("Invalid sample at row " + (index + 1) + ": expected scoreCp and result in [0, 1].");
     }
-    return { x: Math.max(-10, Math.min(10, scoreCp / 400)), y: result };
+    return {
+      x: Math.max(-10, Math.min(10, scoreCp / 400)),
+      y: result,
+      gameId: sample.gameId == null ? null : String(sample.gameId)
+    };
   });
-  const train = clean.filter((_, index) => index % 5 !== 0);
-  const validation = clean.filter((_, index) => index % 5 === 0);
+  // Keep all positions from a game in one partition to avoid leakage.
+  const gamePartitions = new Map();
+  for (const sample of clean) {
+    if (sample.gameId && !gamePartitions.has(sample.gameId)) {
+      let hash = 2166136261;
+      for (const char of sample.gameId) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
+      gamePartitions.set(sample.gameId, hash % 5 === 0 ? "validation" : "train");
+    }
+  }
+  const train = clean.filter((sample, index) => sample.gameId
+    ? gamePartitions.get(sample.gameId) === "train" : index % 5 !== 0);
+  const validation = clean.filter((sample, index) => sample.gameId
+    ? gamePartitions.get(sample.gameId) === "validation" : index % 5 === 0);
   if (train.length < 80 || validation.length < 20) throw new Error("Dataset split is too small.");
   let slope = 1;
   let intercept = 0;
