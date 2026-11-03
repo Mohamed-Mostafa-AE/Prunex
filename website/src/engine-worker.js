@@ -149,6 +149,8 @@ function restartEngineForJob(job) {
 
 function startEngine() {
   if (engine) return;
+  // Stockfish 19 Lite is the third-party UCI engine; Prunex owns the
+  // orchestration, review pipeline, WDL interpretation, and move grading.
   engine = new Worker("/engine/stockfish-19-lite-single.js");
   engine.addEventListener("message", (event) => {
     const line = String(event.data ?? "").trim();
@@ -161,7 +163,7 @@ function startEngine() {
     }
 
     if (line === "uciok") {
-      engine.postMessage("setoption name Hash value 64");
+      engine.postMessage("setoption name Hash value 128");
       if (availableOptions.has("UCI_ShowWDL")) engine.postMessage("setoption name UCI_ShowWDL value true");
       engine.postMessage("isready");
       awaitingReady = true;
