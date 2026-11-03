@@ -22,9 +22,9 @@ Game Review has a separate analysis budget from opponent playing strength. The d
 The calibration trainer consumes UTF-8 JSONL, one row per independently labeled position:
 
 ```json
-{"scoreCp": 125, "result": 1}
-{"scoreCp": -80, "result": 0}
-{"scoreCp": 12, "result": 0.5}
+{"gameId": "game-001", "scoreCp": 125, "result": 1}
+{"gameId": "game-001", "scoreCp": -80, "result": 0}
+{"gameId": "game-002", "scoreCp": 12, "result": 0.5}
 ```
 
 - `scoreCp`: Stockfish centipawn score from the side-to-move perspective at the sampled position.
@@ -39,7 +39,7 @@ node scripts/calibrate-evaluation.mjs ./data/evaluation-positions.jsonl
 npm run build
 ```
 
-The script fits a logistic expected-points calibration using a deterministic 80/20 row split and writes `src/evaluation-calibration.js`. The validation log loss must be compared against the default calibration and a held-out game-level test set before accepting generated parameters. The script calibrates score interpretation; it does **not** change Stockfish's search or NNUE weights.
+The script fits a logistic expected-points calibration using a deterministic 80/20 game-level split when `gameId` is present (otherwise a row-level fallback) and writes `src/evaluation-calibration.js`. The validation log loss must be compared against the default calibration and a held-out game-level test set before accepting generated parameters. The script calibrates score interpretation; it does **not** change Stockfish's search or NNUE weights.
 
 ## Actual Stockfish NNUE training
 
