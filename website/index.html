@@ -88,9 +88,9 @@
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
               </div>
               <div class="board-size-control">
-                <label for="board-size"><span>BOARD SIZE</span><output id="board-size-value">520 px</output></label>
-                <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred chessboard size">
-                <span class="board-size-note">Adjust with the slider or drag the board corner.</span>
+                <label for="board-size"><span>MAX BOARD SIZE</span><output id="board-size-value">520 px</output></label>
+                <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred maximum chessboard size">
+                <span class="board-size-note">Sets the preferred maximum; the board scales down to fit smaller screens.</span>
               </div>
               <div id="promotion-picker" class="promotion-picker" hidden role="dialog" aria-modal="true" aria-label="Choose promotion piece">
                 <span>Promote pawn to</span>
