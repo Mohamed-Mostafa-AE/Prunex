@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { createClient } from "@supabase/supabase-js";
+import { createGameArchive } from "./game-database.js";
 import "./style.css";
 
 const $ = (selector) => document.querySelector(selector);
@@ -62,13 +62,10 @@ let currentArchiveRecord = null;
 let gameArchiveDbPromise = null;
 const REVIEW_DEPTH = 10;
 const MAX_REVIEW_PLIES = 200;
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-const remoteSupabase = supabaseUrl && supabasePublishableKey
-  ? createClient(supabaseUrl, supabasePublishableKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
-    })
-  : null;
+const gameArchive = createGameArchive({
+  url: import.meta.env.VITE_SUPABASE_URL || "",
+  publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ""
+});
 
 const glyph = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
