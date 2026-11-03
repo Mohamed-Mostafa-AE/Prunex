@@ -27,6 +27,7 @@ const soundStyleSelect = $("#sound-style");
 const highlightLastMoveToggle = $("#highlight-last-move");
 const premovesToggle = $("#enable-premoves");
 const annotationsToggle = $("#board-annotations");
+const pieceAnimationToggle = $("#piece-animation");
 const clearMarksButton = $("#clear-marks");
 const promotionPicker = $("#promotion-picker");
 const gameResultOverlay = $("#game-result-dialog");
@@ -74,6 +75,8 @@ let bestMoveDisplay = "off";
 let moveMethod = "both";
 let soundStyle = "wood";
 let highlightLastMove = true;
+let pieceAnimationEnabled = true;
+let moveAnimationPending = false;
 let premovesEnabled = true;
 let showAnnotations = false;
 let annotations = [];
@@ -118,6 +121,7 @@ function completePromotion(piece) {
   const move = game.move({ ...pendingPromotion, promotion: piece });
   if (!move) return;
   lastMove = { from: move.from, to: move.to };
+  moveAnimationPending = true;
   playMoveSound(move);
   pendingPromotion = null;
   promotionPicker.hidden = true;
@@ -469,6 +473,7 @@ function applyPreferences() {
   bestMoveDisplay = ["off","highlight","arrow"].includes(loadPreference("best-move-display","off")) ? loadPreference("best-move-display","off") : "off";
   soundStyle = ["wood","soft"].includes(loadPreference("sound-style","wood")) ? loadPreference("sound-style","wood") : "wood";
   highlightLastMove = loadPreference("highlight-last-move","true") !== "false";
+  pieceAnimationEnabled = loadPreference("piece-animation","true") !== "false";
   premovesEnabled = loadPreference("premoves","true") !== "false";
   showAnnotations = loadPreference("board-annotations","false") === "true";
   $("#theme").value = theme;
@@ -481,6 +486,7 @@ function applyPreferences() {
   bestMoveDisplaySelect.value=bestMoveDisplay;
   soundStyleSelect.value=soundStyle;
   highlightLastMoveToggle.checked=highlightLastMove;
+  pieceAnimationToggle.checked=pieceAnimationEnabled;
   premovesToggle.checked=premovesEnabled;
   annotationsToggle.checked=showAnnotations;
   syncEvaluationVisibility();
@@ -588,6 +594,7 @@ function renderBoard() {
       if (piece) {
         const span = document.createElement("span");
         span.className = "piece " + (piece.color === "w" ? "white-piece" : "black-piece");
+        if (pieceAnimationEnabled && moveAnimationPending && lastMove?.to === square) span.classList.add("piece-arrive");
         const pieceSet = boardEl.dataset.pieces || "cburnett";
         if (pieceSet === "cburnett") {
           const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -1020,6 +1027,7 @@ function returnToLive() {
 
 function render() {
   renderBoard();
+  moveAnimationPending = false;
   renderMoves();
   syncFen();
 
@@ -1122,7 +1130,7 @@ function executeQueuedPremove() {
   if(!queuedPremove||game.turn()!==humanColor||game.isGameOver())return false;
   const move=game.move(queuedPremove);queuedPremove=null;
   if(!move){statusEl.textContent="Premove cancelled · no longer legal";renderBoardHighlights();return false;}
-  lastMove={from:move.from,to:move.to};playMoveSound(move);selected=null;legalTargets=[];render();search();return true;
+  lastMove={from:move.from,to:move.to};moveAnimationPending=true;playMoveSound(move);selected=null;legalTargets=[];render();search();return true;
 }
 function clearDragGhost() {
   if(dragGhost)dragGhost.remove();
@@ -1178,15 +1186,16 @@ function commitMove(from,to) {
   if(candidates.some(move=>move.promotion)){pendingPromotion={from,to};promotionPicker.hidden=false;selected=null;legalTargets=[];renderBoardHighlights();return true;}
   if(evaluating)cancelSearch();
   const move=game.move({from,to});if(!move)return false;
-  queuedPremove=null;bestMoveHint=null;lastMove={from:move.from,to:move.to};playMoveSound(move);
+  queuedPremove=null;bestMoveHint=null;lastMove={from:move.from,to:move.to};moveAnimationPending=true;playMoveSound(move);
   selected=null;legalTargets=[];render();search();return true;
 }
 
 function onSquare(square) {
   primeAudio();
   if(!ready||reviewMovesSnapshot||game.isGameOver())return;
+  if(moveMethod==="drag")return;
   if(thinking&&premovesEnabled){handlePremoveSquare(square);return;}
-  if(thinking||game.turn()!==humanColor||moveMethod==="drag")return;
+  if(thinking||game.turn()!==humanColor)return;
   const piece=game.get(square);
   if(selected&&legalTargets.includes(square)){commitMove(selected,square);return;}
   if(piece?.color===humanColor){selected=square;legalTargets=game.moves({square,verbose:true}).map(move=>move.to);}
@@ -1218,6 +1227,7 @@ function startNewGame() {
   reviewKeyMoments.replaceChildren();
   game.reset();
   bestMoveHint = null;
+  moveAnimationPending = false;
   selected = null;
   legalTargets = [];
   lastMove = null;
@@ -1259,6 +1269,7 @@ async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAt
     if (!move) move = game.move(bestMove);
     if (!move) throw new Error("Illegal engine move: " + bestMove);
     lastMove = { from: move.from, to: move.to };
+    moveAnimationPending = true;
     playMoveSound(move);
     render();
     if (queuedPremove) executeQueuedPremove();
@@ -1455,6 +1466,7 @@ moveMethodSelect.addEventListener("change",event=>{moveMethod=event.target.value
 bestMoveDisplaySelect.addEventListener("change",event=>{bestMoveDisplay=event.target.value;savePreference("best-move-display",bestMoveDisplay);renderBoard();});
 soundStyleSelect.addEventListener("change",event=>{soundStyle=event.target.value;savePreference("sound-style",soundStyle);primeAudio();});
 highlightLastMoveToggle.addEventListener("change",event=>{highlightLastMove=event.target.checked;savePreference("highlight-last-move",highlightLastMove);renderBoardHighlights();});
+pieceAnimationToggle.addEventListener("change",event=>{pieceAnimationEnabled=event.target.checked;savePreference("piece-animation",pieceAnimationEnabled);});
 premovesToggle.addEventListener("change",event=>{premovesEnabled=event.target.checked;savePreference("premoves",premovesEnabled);if(!premovesEnabled)queuedPremove=null;renderBoardHighlights();});
 annotationsToggle.addEventListener("change",event=>{showAnnotations=event.target.checked;savePreference("board-annotations",showAnnotations);if(!showAnnotations)annotations=[];renderBoard();});
 soundToggle.addEventListener("change", event => {
