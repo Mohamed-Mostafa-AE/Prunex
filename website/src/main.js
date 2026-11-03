@@ -1177,7 +1177,7 @@ worker.addEventListener("message", async (event) => {
         depth: data.depth || 0,
         bestMove: data.bestMove || null
       });
-      bestMoveHint = data.bestMove && data.bestMove !== "(none)" ? { from: data.bestMove.slice(0, 2), to: data.bestMove.slice(2, 4) } : null;
+
       reviewAnalysisIndex += 1;
       const completed = reviewAnalysisResults.length;
       const total = reviewAnalysisPositions.length;
