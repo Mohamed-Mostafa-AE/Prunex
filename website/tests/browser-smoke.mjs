@@ -19,6 +19,12 @@ page.on("console", message => {
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
+  if (!(await page.locator("#move-sounds").isChecked())) {
+    throw new Error("Prunex move sounds should be enabled by default.");
+  }
+  if (!(await page.evaluate(() => Boolean(window.AudioContext || window.webkitAudioContext)))) {
+    throw new Error("The browser should support the original synthesized board sounds.");
+  }
 
   const launchLayout = await page.evaluate(() => ({
     heroSpecimen: document.querySelector(".hero-specimen"),
@@ -77,6 +83,30 @@ try {
     undefined,
     { timeout: 60000 }
   );
+
+  const livePositionFen = await page.locator("#fen-input").inputValue();
+  await page.locator('#move-list .move-notation[data-ply="1"]').click();
+  if (!(await page.locator("#turn-label").textContent()).includes("REVIEW · BLACK TO MOVE") ||
+      !(await page.locator("#fen-input").inputValue()).includes(" b ")) {
+    throw new Error("Clicking a move notation should navigate to the position immediately after that move.");
+  }
+  if (!(await page.locator("#return-live").isVisible())) {
+    throw new Error("Review mode should offer a way back to the live game.");
+  }
+  await page.locator("#return-live").click();
+  if (await page.locator("#fen-input").inputValue() !== livePositionFen ||
+      await page.locator("#return-live").isVisible()) {
+    throw new Error("Returning to live should restore the full current game position.");
+  }
+  await page.waitForFunction(() =>
+    document.querySelector("#evaluation-label")?.textContent !== "…" &&
+    document.querySelector("#analysis-status")?.textContent.startsWith("DEPTH"),
+    undefined,
+    { timeout: 60000 }
+  );
+  if (!(await page.locator("#evaluation-label").textContent()).trim()) {
+    throw new Error("The engine evaluation readout should contain a score.");
+  }
 
   await page.locator("#theme").selectOption("ice");
   if (await page.locator("#board").getAttribute("data-theme") !== "ice") {
@@ -193,6 +223,16 @@ try {
   await page.locator("#game-result-dialog").waitFor({ state: "visible" });
   if (await page.locator("#game-result-title").textContent() !== "A diplomatic solution.") {
     throw new Error("King-and-knight promotion position should be scored as a draw.");
+  }
+  await page.locator("#game-result-review").click();
+
+  const screenshotCheckmateFen = "r1b1kbn1/pp1p1pp1/8/2p1n3/3pP3/3K1pq1/PPPB4/RN1Q1B2 w - - 0 1";
+  await page.locator("#fen-input").fill(screenshotCheckmateFen);
+  await page.locator("#load-fen").click();
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#turn-label").textContent() !== "CHECKMATE · YOU LOST" ||
+      !(await page.locator("#status").textContent()).includes("Checkmate")) {
+    throw new Error("The screenshot position should be recognized as checkmate, not shown as White to move.");
   }
   await page.locator("#game-result-review").click();
 
