@@ -564,21 +564,6 @@ function renderBoard() {
 }
 
 function buildMoveButton(move, ply, currentPly) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "move-notation";
-  button.textContent = move.san;
-  button.dataset.ply = String(ply);
-  button.setAttribute("aria-label", "Go to position after " + move.san);
-  if (ply === currentPly) {
-    button.classList.add("is-current");
-    button.setAttribute("aria-current", "step");
-  }
-  button.addEventListener("click", () => goToPly(ply));
-  return button;
-}
-
-function buildMoveButton(move, ply, currentPly) {
   const cell = document.createElement("div");
   cell.className = "move-cell";
   const button = document.createElement("button");
