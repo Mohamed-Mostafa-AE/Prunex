@@ -79,7 +79,7 @@
 
           <div class="workspace">
             <div class="board-column">
-              <div class="board-topline"><div class="opponent-label"><span class="engine-avatar"><img src="/prunex-mark.png?v=3" alt="Prunex logo"></span><div><strong>Prunex 0.8.0</strong><small id="engine-state">Starting engine</small></div></div><span class="turn-pill" id="turn-label">YOU · WHITE</span></div>
+              <div class="board-topline"><div class="opponent-label"><span class="engine-avatar"><img src="/prunex-mark.png?v=3" alt="Prunex logo"></span><div><strong>PRUNEX PLAY</strong><small id="engine-state">Stockfish 19 Lite · initializing</small></div></div><span class="turn-pill" id="turn-label">YOU · WHITE</span></div>
               <div class="board-stage">
                 <div class="evaluation-column" id="evaluation-column" aria-label="Engine evaluation">
                   <div class="evaluation-track" aria-hidden="true">
@@ -197,6 +197,7 @@
                 <details class="settings-group">
                   <summary><span>ANALYSIS</span><small>Best move · evaluation · marks</small></summary>
                   <div class="settings-group-body">
+                    <label class="setting-row"><span>Game review budget</span><select id="review-budget"><option value="3000">Quick · 3 seconds / position</option><option value="10000">Balanced · 10 seconds / position</option><option value="15000">Strong · 15 seconds / position</option><option value="20000">Deep · 20 seconds / position</option><option value="30000" selected>Maximum · 30 seconds / position</option></select></label>
                     <label class="setting-row"><span>Best-move marker</span><select id="best-move-display"><option value="off">Off</option><option value="highlight">Square highlights</option><option value="arrow">Arrow + highlights</option></select></label>
                     <div class="settings-toggle-grid">
                       <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Evaluation bar</span></label>
@@ -228,8 +229,8 @@
                   </div>
                 </details>
 
-                <p class="engine-review-note">Each position gets the selected search time. Longer games take longer to review. Accuracy uses Stockfish WDL expected points where available.</p>
-                <div class="engine-note"><span class="local-dot"></span><span>Prunex 0.8.0 · Browser opponent powered by Stockfish 19 Lite</span></div>
+                <p class="engine-review-note">Each position gets the selected search time (30 seconds by default). Longer games take proportionally longer. Stockfish 19 Lite provides the search; Prunex supplies the review logic and move classifications.</p>
+                <div class="engine-note"><span class="local-dot"></span><span>Prunex Play · Stockfish 19 Lite engine · Prunex review system</span></div>
               </div>
             </aside>
           </div>
@@ -314,7 +315,7 @@
       <footer class="footer">
         <div class="footer-main"><a class="brand footer-brand" href="#home"><span>PRUNEX</span></a><p>An independently developed chess engine in C++20.</p><div class="footer-social"><a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub ↗</a><a href="mailto:mohamedhussam09@gmail.com">Email ↗</a></div></div>
         <div class="footer-meta"><span>BUILT TO EXPLORE THE GAME.</span><span>© <span id="year"></span> PRUNEX · C++20</span></div>
-        <p class="license-note">The Prunex 0.8.0 browser build uses Stockfish.js 19 Lite, distributed under GPLv3. Its license and corresponding source code are included with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">License ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
+        <p class="license-note">Prunex Play is the branded browser experience and review layer; its chess engine is Stockfish.js 19 Lite, distributed under GPLv3. Stockfish remains credited as the underlying engine. Its license and corresponding source code are included with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">License ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
       </footer>
 
     </div>
