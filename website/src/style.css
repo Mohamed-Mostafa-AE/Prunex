@@ -852,3 +852,16 @@ img, svg, video, canvas { max-width: 100%; }
 .piece-arrive { animation:prunex-piece-arrive .13s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes prunex-piece-arrive { from {opacity:.72;transform:translateY(-3px) scale(.975)} to {opacity:1;transform:translateY(0) scale(1)} }
 @media (prefers-reduced-motion:reduce) { .piece-arrive {animation:none !important;} }
+
+/* Chess-style last-move treatment: visibly mark both origin and destination. */
+.square.last-move::after {
+  z-index: 0;
+  background: rgba(66, 157, 226, .34);
+  box-shadow: inset 0 0 0 2px rgba(23, 91, 151, .12);
+}
+.square.last-move-from::after { background: rgba(86, 165, 226, .34); }
+.square.last-move-to::after { background: rgba(53, 143, 220, .43); }
+.square.last-move-from, .square.last-move-to { outline: none; }
+.sound-picker { display:flex; gap:7px; align-items:center; }
+.sound-picker select { flex:1; min-width:0; }
+.sound-preview { min-height:32px; padding:0 11px; white-space:nowrap; }
