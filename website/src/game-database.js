@@ -50,7 +50,6 @@ function newId() {
 function isUsableMemory(sample) {
   return Number.isFinite(sample.evalLossCp) &&
     sample.evalLossCp <= 30 &&
-    sample.resultForMover >= 0 &&
     ["BRILLIANT", "GREAT", "BEST", "EXCELLENT", "GOOD"].includes(sample.grade);
 }
 
@@ -248,7 +247,6 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
           .eq("position_key", positionKey)
           .eq("side_to_move", sideToMove)
           .lte("eval_loss_cp", 30)
-          .gte("result_for_mover", 0)
           .limit(60);
         if (error) throw error;
         candidates = candidates.concat((data || []).map(row => ({
