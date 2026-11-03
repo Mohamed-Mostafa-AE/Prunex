@@ -93,7 +93,6 @@ function completePromotion(piece) {
   if (evaluating) cancelSearch();
   const move = game.move({ ...pendingPromotion, promotion: piece });
   if (!move) return;
-  playMoveSound(move);
   lastMove = { from: move.from, to: move.to };
   pendingPromotion = null;
   promotionPicker.hidden = true;
@@ -494,6 +493,7 @@ function syncGameResult() {
   gameResultCopy.textContent = result.copy;
   shownResultFen = resultFen;
   playGameEndSound(result.kind);
+  void persistCompletedGame();
 
   if (gameResultOverlay.hidden) {
     gameResultOverlay.hidden = false;
@@ -894,9 +894,9 @@ function render() {
 
   const gameOver = game.isGameOver();
   statusEl.textContent = statusText();
-  statusEl.dataset.kind = gameOver ? "finished" : game.isCheck() ? "check" : thinking ? "thinking" : evaluating ? "evaluating" : "";
-  stateEl.textContent = !ready ? "Starting engine" : thinking ? "Calculating a reply…" : evaluating ? "Evaluating position…" : "Engine ready";
-  stateEl.dataset.busy = String(thinking || evaluating);
+  statusEl.dataset.kind = gameOver ? "finished" : game.isCheck() ? "check" : thinking ? "thinking" : evaluating || analyzingGame ? "evaluating" : "";
+  stateEl.textContent = !ready ? "Starting engine" : thinking ? "Calculating a reply…" : analyzingGame ? "Analyzing game…" : evaluating ? "Evaluating position…" : "Engine ready";
+  stateEl.dataset.busy = String(thinking || evaluating || analyzingGame);
 
   if (game.isCheckmate()) {
     turnEl.textContent = game.turn() === humanColor ? "CHECKMATE · YOU LOST" : "CHECKMATE · YOU WON";
@@ -915,7 +915,7 @@ function render() {
   }
 
   returnLiveButton.hidden = !reviewMovesSnapshot;
-  undoButton.disabled = thinking || !!reviewMovesSnapshot || game.history().length === 0;
+  undoButton.disabled = thinking || analyzingGame || !!reviewMovesSnapshot || game.history().length === 0;
   if (gameOver) syncTerminalEvaluation();
   syncGameResult();
 }
@@ -982,7 +982,6 @@ function onSquare(square) {
         }
         if (evaluating) cancelSearch();
         const move = game.move({ from: selected, to: square });
-        playMoveSound(move);
         lastMove = { from: move.from, to: move.to };
         selected = null;
         legalTargets = [];
@@ -1008,9 +1007,10 @@ function onSquare(square) {
 
 function cancelSearch() {
   requestId += 1;
-  if (thinking || evaluating) worker.postMessage({ type: "cancel" });
+  if (thinking || evaluating || analyzingGame) worker.postMessage({ type: "cancel" });
   thinking = false;
   evaluating = false;
+  analyzingGame = false;
 }
 
 function startNewGame() {
@@ -1018,6 +1018,13 @@ function startNewGame() {
   initialFen = new Chess().fen();
   reviewMovesSnapshot = null;
   reviewPly = null;
+  moveAnalysis = [];
+  savedGameFen = null;
+  currentArchiveRecord = null;
+  gameReviewPanel.hidden = true;
+  reviewProgress.hidden = true;
+  reviewSummary.replaceChildren();
+  reviewKeyMoments.replaceChildren();
   game.reset();
   selected = null;
   legalTargets = [];
@@ -1027,7 +1034,51 @@ function startNewGame() {
 }
 
 
-worker.addEventListener("message", (event) => {
+async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAtSearch) {
+  let selectedMove = bestMove;
+  let remembered = false;
+  try {
+    const experienceMove = await gameArchive.findExperiencedMove(positionKey(fenAtSearch), turnAtSearch);
+    if (experienceMove) {
+      selectedMove = experienceMove;
+      remembered = true;
+    }
+  } catch {
+    // Local or shared experience memory is optional; always retain the engine move fallback.
+  }
+
+  if (requestId !== expectedRequestId || game.fen() !== fenAtSearch || game.turn() !== turnAtSearch) return;
+  thinking = false;
+  try {
+    let move = null;
+    if (remembered) {
+      const uci = String(selectedMove);
+      const candidate = game.moves({ verbose: true }).find(item =>
+        item.from === uci.slice(0, 2) &&
+        item.to === uci.slice(2, 4) &&
+        (item.promotion || "") === uci.slice(4)
+      );
+      if (candidate) move = game.move({
+        from: candidate.from, to: candidate.to, promotion: candidate.promotion
+      });
+    }
+    if (!move) move = game.move(bestMove);
+    if (!move) throw new Error("Illegal engine move: " + bestMove);
+    lastMove = { from: move.from, to: move.to };
+    render();
+    if (remembered && selectedMove !== bestMove) {
+      stateEl.textContent = "Experience memory · proven move";
+      stateEl.dataset.busy = "false";
+    }
+    search();
+  } catch (error) {
+    render();
+    statusEl.textContent = error instanceof Error ? error.message : "Could not apply engine move.";
+    statusEl.dataset.kind = "error";
+  }
+}
+
+worker.addEventListener("message", async (event) => {
   const data = event.data || {};
   if (data.type === "debug") return;
   if (data.type === "ready") {
@@ -1047,6 +1098,17 @@ worker.addEventListener("message", (event) => {
   }
   if (data.requestId !== requestId) return;
 
+  if (data.type === "analysis-progress") {
+    const percent = data.total ? Math.round((data.completed / data.total) * 100) : 0;
+    reviewProgressFill.style.width = percent + "%";
+    reviewProgressLabel.textContent = "Analyzing " + data.completed + " / " + data.total + " positions";
+    return;
+  }
+  if (data.type === "analysis-complete") {
+    analyzingGame = false;
+    await completeGameReview(data.results || []);
+    return;
+  }
   if (data.type === "info") {
     if (data.scoreType !== undefined) applyEvaluation(data.scoreType, data.score, enginePositionTurn, data.depth);
     return;
@@ -1063,6 +1125,14 @@ worker.addEventListener("message", (event) => {
     return;
   }
   if (data.type === "error") {
+    if (analyzingGame) {
+      analyzingGame = false;
+      reviewProgressLabel.textContent = "Game analysis failed: " + data.message;
+      reviewSummary.textContent = "The engine could not finish this review. You can try again.";
+      stateEl.textContent = "Engine ready";
+      stateEl.dataset.busy = "false";
+      return;
+    }
     if (evaluating) {
       evaluating = false;
       evaluationLabel.textContent = "—";
@@ -1078,19 +1148,9 @@ worker.addEventListener("message", (event) => {
     return;
   }
   if (data.type === "bestmove") {
-    thinking = false;
-    try {
-      const move = game.move(data.bestMove);
-      if (!move) throw new Error("Illegal engine move: " + data.bestMove);
-      playMoveSound(move);
-      lastMove = { from: move.from, to: move.to };
-      render();
-      search();
-    } catch (error) {
-      render();
-      statusEl.textContent = error instanceof Error ? error.message : "Could not apply engine move.";
-      statusEl.dataset.kind = "error";
-    }
+    const fenAtSearch = game.fen();
+    const turnAtSearch = game.turn();
+    await applyEngineReply(data.bestMove, data.requestId, fenAtSearch, turnAtSearch);
   }
 });
 
@@ -1106,7 +1166,7 @@ worker.addEventListener("error", (event) => {
 $("#new-game").addEventListener("click", () => { primeAudio(); startNewGame(); });
 returnLiveButton.addEventListener("click", returnToLive);
 gameResultClose.addEventListener("click", () => dismissGameResult());
-$("#game-result-review").addEventListener("click", () => dismissGameResult());
+$("#game-result-review").addEventListener("click", startGameReview);
 $("#game-result-new-game").addEventListener("click", () => {
   dismissGameResult();
   startNewGame();
@@ -1165,8 +1225,13 @@ legalMovesToggle.addEventListener("change", event => {
 });
 soundToggle.addEventListener("change", event => {
   soundEnabled = event.target.checked;
-  savePreference("move-sounds", soundEnabled);
+  savePreference("defeat-sound", soundEnabled);
   if (soundEnabled) primeAudio();
+});
+evaluationToggle.addEventListener("change", event => {
+  showEvaluation = event.target.checked;
+  savePreference("show-evaluation", showEvaluation);
+  syncEvaluationVisibility();
 });
 boardSizeInput.addEventListener("input", event => setBoardSize(event.target.value));
 const resizeGrip = $("#resize-board");
@@ -1195,11 +1260,16 @@ $("#cancel-promotion").addEventListener("click", () => {
 });
 $("#load-fen").addEventListener("click", () => {
   try {
+    primeAudio();
     const next = new Chess(fenInput.value.trim());
     cancelSearch();
     initialFen = next.fen();
     reviewMovesSnapshot = null;
     reviewPly = null;
+    moveAnalysis = [];
+    savedGameFen = null;
+    currentArchiveRecord = null;
+    gameReviewPanel.hidden = true;
     game.load(initialFen);
     lastMove = null;
     selected = null;
@@ -1230,6 +1300,10 @@ $("#reset-position").addEventListener("click", () => {
   initialFen = new Chess().fen();
   reviewMovesSnapshot = null;
   reviewPly = null;
+  moveAnalysis = [];
+  savedGameFen = null;
+  currentArchiveRecord = null;
+  gameReviewPanel.hidden = true;
   game.reset();
   lastMove = null;
   selected = null;
@@ -1242,5 +1316,6 @@ $("#reset-position").addEventListener("click", () => {
 
 $("#year").textContent = String(new Date().getFullYear());
 applyPreferences();
+void refreshGameArchive();
 worker.postMessage({ type: "init" });
 render();
