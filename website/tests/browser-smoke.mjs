@@ -107,6 +107,18 @@ try {
     undefined,
     { timeout: 60000 }
   );
+  if (!(await page.locator('[data-square="e2"]').getAttribute("class")).includes("last-move-from") ||
+      !(await page.locator('[data-square="e4"]').getAttribute("class")).includes("last-move-to")) {
+    throw new Error("The origin and destination squares should both be highlighted after a move.");
+  }
+  if (await page.locator("#sound-style option").count() < 3) {
+    throw new Error("At least three distinct Prunex move-sound choices should be available.");
+  }
+  await page.locator("#sound-style").selectOption("felt");
+  await page.locator("#preview-move-sound").click();
+  await page.locator("#sound-style").selectOption("ceramic");
+  await page.locator("#preview-move-sound").click();
+  await page.locator("#sound-style").selectOption("wood");
   await page.locator("#move-method").selectOption("both");
   const knightStart = await page.locator('[data-square="g1"]').boundingBox();
   const knightEnd = await page.locator('[data-square="f3"]').boundingBox();
@@ -126,6 +138,10 @@ try {
   if (!(await page.locator("#turn-label").textContent()).includes("REVIEW · BLACK TO MOVE") ||
       !(await page.locator("#fen-input").inputValue()).includes(" b ")) {
     throw new Error("Clicking a move notation should navigate to the position immediately after that move.");
+  }
+  if (!(await page.locator('[data-square="e2"]').getAttribute("class")).includes("last-move-from") ||
+      !(await page.locator('[data-square="e4"]').getAttribute("class")).includes("last-move-to")) {
+    throw new Error("Move-history navigation should highlight both squares of the selected move.");
   }
   if (!(await page.locator("#return-live").isVisible())) {
     throw new Error("Review mode should offer a way back to the live game.");
