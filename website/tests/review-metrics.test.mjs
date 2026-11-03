@@ -13,7 +13,7 @@ assert.equal(expectedPointsFromEvaluation(wdlPosition), 0.7);
 assert.equal(expectedPointsFromEvaluation({ scoreType: "cp", score: 0, wdl: null }), 0.5);
 assert.ok(centipawnsToExpectedPoints(250) > 0.5);
 assert.ok(centipawnsToExpectedPoints(-250) < 0.5);
-assert.equal(expectedPointLoss(0.7, 0.45), 0.25);
+assert.ok(Math.abs(expectedPointLoss(0.7, 0.45) - 0.25) < 1e-9);
 assert.equal(expectedPointLoss(0.4, 0.6), 0);
 
 const quietMove = { san: "e4", piece: "p", to: "e4" };
