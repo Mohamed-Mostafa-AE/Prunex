@@ -542,6 +542,15 @@ try {
       !(await page.locator("#review-summary").innerText()).includes("%")) {
     throw new Error("Post-game review should grade the played move and calculate player accuracy.");
   }
+  if (!(await page.locator("#review-method-note").textContent()).includes("expected points")) {
+    throw new Error("The review should disclose its expected-points evaluation method.");
+  }
+  const pointLossData = await page.locator("#move-list .move-grade").evaluateAll(nodes =>
+    nodes.map(node => Number(node.dataset.expectedPointLoss)).filter(Number.isFinite)
+  );
+  if (!pointLossData.length || pointLossData.some(value => value < 0 || value > 1)) {
+    throw new Error("Move grades should store valid expected-point losses between 0 and 1.");
+  }
   if (!(await page.locator(".piece-quality-marker").count())) {
     throw new Error("A reviewed Best/Brilliant move should display its quality marker over the destination piece.");
   }
