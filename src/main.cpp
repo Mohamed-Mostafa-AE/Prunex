@@ -366,6 +366,42 @@ int evaluate(const Position& p) {
                 ending[color]+=bonus[relativeRank]*2;
             }
         }
+        // Reward connected pawn chains without counting a pair twice.
+        for(int square=0;square<128;++square) {
+            if(!onBoard(square)||p.board[square]!=makePiece(1,color)) continue;
+            const int file=fileOf(square);
+            const int rank=rankOf(square);
+            bool connected=false;
+            for(int adjacentFile:{file-1,file+1}) {
+                if(adjacentFile<0||adjacentFile>7) continue;
+                for(int adjacentRank:{rank-1,rank,rank+1}) {
+                    if(adjacentRank<0||adjacentRank>7) continue;
+                    if(p.board[adjacentRank*16+adjacentFile]==makePiece(1,color)) connected=true;
+                }
+            }
+            if(connected) {
+                middle[color]+=5;
+                ending[color]+=7;
+            }
+        }
+
+        // King shelter matters most while heavy attacking pieces remain.
+        int king=kingSquare(p,color);
+        if(king>=0&&(color==WHITE?rankOf(king)<=2:rankOf(king)>=5)) {
+            const int enemy=1-color;
+            const int enemyHeavy=std::count(p.board.begin(),p.board.end(),makePiece(4,enemy))
+                               +std::count(p.board.begin(),p.board.end(),makePiece(5,enemy));
+            if(enemyHeavy>0) {
+                const int shieldRank=rankOf(king)+(color==WHITE?1:-1);
+                for(int shieldFile=std::max(0,fileOf(king)-1);shieldFile<=std::min(7,fileOf(king)+1);++shieldFile) {
+                    const bool shielded=shieldRank>=0&&shieldRank<8
+                        &&p.board[shieldRank*16+shieldFile]==makePiece(1,color);
+                    if(shielded) middle[color]+=8;
+                    else middle[color]-=6;
+                }
+            }
+        }
+
         for(int square=0;square<128;++square) {
             if(!onBoard(square)||p.board[square]!=makePiece(4,color)) continue;
             int file=fileOf(square);
