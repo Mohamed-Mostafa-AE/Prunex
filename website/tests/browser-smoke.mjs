@@ -403,8 +403,10 @@ try {
 
 
   await page.setViewportSize({ width: 1440, height: 768 });
+  const resizeGripLocator = page.locator("#resize-board");
+  await resizeGripLocator.scrollIntoViewIfNeeded();
   const boardBeforeGrip = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
-  const resizeGrip = await page.locator("#resize-board").boundingBox();
+  const resizeGrip = await resizeGripLocator.boundingBox();
   if (!resizeGrip) throw new Error("Board resize grip is unavailable.");
   const gripHitTest = await page.locator("#resize-board").evaluate(el => {
     const rect = el.getBoundingClientRect();
