@@ -666,14 +666,7 @@ function renderBoard() {
         marker.setAttribute("aria-label", marker.title);
         button.append(marker);
       }
-        const marker = document.createElement("span");
-        marker.className = "piece-quality-marker";
-        marker.dataset.grade = reviewBadge ? reviewedGrade : "BEST";
-        marker.textContent = reviewBadge ? (gradeGlyph[reviewedGrade] || "•") : "★";
-        marker.title = reviewBadge ? reviewedGrade + " move" : "Prunex recommends " + bestMoveHint.from + "–" + bestMoveHint.to;
-        marker.setAttribute("aria-label", marker.title);
-        button.append(marker);
-      }
+
       if (vc === 0) {
         const rank = document.createElement("span");
         rank.className = "coord rank";
