@@ -23,20 +23,200 @@ create table if not exists public.prunex_game_reviews (
   created_at timestamptz not null default now(),
   white_accuracy numeric(5, 1),
   black_accuracy numeric(5, 1),
-  analysis_json jsonb not null
+  analysis_json jsonb not null,
+  share_position_memory boolean not null default false
 );
 
 create table if not exists public.prunex_position_memory (
-  id text primary key,
+  id text primary key check (char_length(id) between 1 and 128),
   game_id uuid not null references public.prunex_games(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
-  position_key text not null,
+  position_key text not null check (char_length(position_key) between 10 and 100),
   side_to_move char(1) not null check (side_to_move in ('w', 'b')),
-  move_uci text not null,
-  san text not null,
+  move_uci text not null check (move_uci ~ '^[a-h][1-8][a-h][1-8][qrbn]?
+  created_at timestamptz not null default now()
+);
+
+create index if not exists prunex_games_created_at_idx
+  on public.prunex_games (created_at desc);
+create index if not exists prunex_games_user_created_at_idx
+  on public.prunex_games (user_id, created_at desc);
+create index if not exists prunex_game_reviews_game_id_user_idx
+  on public.prunex_game_reviews (game_id, user_id);
+create index if not exists prunex_game_reviews_user_id_idx
+  on public.prunex_game_reviews (user_id);
+create index if not exists prunex_position_memory_user_id_idx
+  on public.prunex_position_memory (user_id);
+
+create index if not exists prunex_position_memory_lookup_idx
+  on public.prunex_position_memory (position_key, side_to_move, eval_loss_cp);
+
+create index if not exists prunex_position_memory_game_idx
+  on public.prunex_position_memory (game_id);
+
+alter table public.prunex_games enable row level security;
+alter table public.prunex_game_reviews enable row level security;
+alter table public.prunex_position_memory enable row level security;
+
+-- New Supabase tables are not automatically exposed to the Data API.
+-- Explicitly grant only the access required by the browser. Row-level policies restrict game reads to the owner.
+revoke all on table public.prunex_games from anon, authenticated, public;
+revoke all on table public.prunex_game_reviews from anon, authenticated, public;
+revoke all on table public.prunex_position_memory from anon, authenticated, public;
+
+grant usage on schema public to authenticated;
+
+-- The INSERT policies on reviews/position memory verify parent-game ownership
+-- with an EXISTS subquery. Table-level SELECT is required for that subquery;
+-- the RLS SELECT policy below still limits visible game rows to auth.uid().
+grant select on public.prunex_games to authenticated;
+
+grant insert (
+  id, user_id, created_at, result, human_color, initial_fen, final_fen, pgn, moves, opponent_version
+) on public.prunex_games to authenticated;
+
+-- Upserts support safe, idempotent retry after offline or transient failures.
+grant update on public.prunex_games to authenticated;
+
+grant select (
+  game_id, user_id, created_at, white_accuracy, black_accuracy,
+  analysis_json, share_position_memory
+) on public.prunex_game_reviews to authenticated;
+grant insert (
+  game_id, user_id, created_at, white_accuracy, black_accuracy, analysis_json
+) on public.prunex_game_reviews to authenticated;
+create unique index if not exists prunex_game_reviews_game_user_unique_idx
+  on public.prunex_game_reviews (game_id, user_id);
+grant update on public.prunex_game_reviews to authenticated;
+
+-- Only minimal move-quality fields are visible to the shared engine memory.
+-- Game PGNs, game ids, timestamps and player ids remain unavailable to other users.
+grant select (
+  id, position_key, side_to_move, move_uci, result_for_mover, eval_loss_cp, grade
+) on public.prunex_position_memory to authenticated;
+grant insert (
+  id, game_id, user_id, position_key, side_to_move, move_uci, san,
+  result_for_mover, eval_loss_cp, grade, created_at
+) on public.prunex_position_memory to authenticated;
+grant update on public.prunex_position_memory to authenticated;
+grant delete on public.prunex_position_memory to authenticated;
+
+drop policy if exists "authenticated users can read shared Prunex games" on public.prunex_games;
+drop policy if exists "users can read their own Prunex games" on public.prunex_games;
+create policy "users can read their own Prunex games"
+  on public.prunex_games for select to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy if exists "users can add their own Prunex games" on public.prunex_games;
+create policy "users can add their own Prunex games"
+  on public.prunex_games for insert to authenticated
+  with check (user_id = (select auth.uid()));
+
+drop policy if exists "users can update their own Prunex games" on public.prunex_games;
+create policy "users can update their own Prunex games"
+  on public.prunex_games for update to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+drop policy if exists "authenticated users can read shared Prunex reviews" on public.prunex_game_reviews;
+drop policy if exists "users can read their own Prunex reviews" on public.prunex_game_reviews;
+create policy "users can read their own Prunex reviews"
+  on public.prunex_game_reviews for select to authenticated
+  using (user_id = (select auth.uid()));
+
+drop policy if exists "users can add their own Prunex reviews" on public.prunex_game_reviews;
+create policy "users can add their own Prunex reviews"
+  on public.prunex_game_reviews for insert to authenticated
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "users can update their own Prunex reviews" on public.prunex_game_reviews;
+create policy "users can update their own Prunex reviews"
+  on public.prunex_game_reviews for update to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "authenticated users can read shared Prunex position memory" on public.prunex_position_memory;
+create policy "authenticated users can read shared Prunex position memory"
+  on public.prunex_position_memory for select to authenticated
+  using (true);
+
+drop policy if exists "users can add their own Prunex position memory" on public.prunex_position_memory;
+create policy "users can add their own Prunex position memory"
+  on public.prunex_position_memory for insert to authenticated
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+    and exists (
+      select 1 from public.prunex_game_reviews as reviews
+      where reviews.game_id = prunex_position_memory.game_id
+        and reviews.user_id = (select auth.uid())
+        and reviews.share_position_memory is true
+    )
+  );
+
+drop policy if exists "users can update their own Prunex position memory" on public.prunex_position_memory;
+create policy "users can update their own Prunex position memory"
+  on public.prunex_position_memory for update to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+    and exists (
+      select 1 from public.prunex_game_reviews as reviews
+      where reviews.game_id = prunex_position_memory.game_id
+        and reviews.user_id = (select auth.uid())
+        and reviews.share_position_memory is true
+    )
+  );
+
+create policy "users can delete their own Prunex position memory"
+  on public.prunex_position_memory for delete to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+  );
+),
+  san text not null check (char_length(san) between 1 and 16),
   result_for_mover smallint not null check (result_for_mover in (-1, 0, 1)),
-  eval_loss_cp integer not null check (eval_loss_cp >= 0),
-  grade text not null,
+  eval_loss_cp integer not null check (eval_loss_cp between 0 and 30),
+  grade text not null check (grade in ('BRILLIANT', 'GREAT', 'BEST', 'EXCELLENT', 'GOOD')),
   created_at timestamptz not null default now()
 );
 
