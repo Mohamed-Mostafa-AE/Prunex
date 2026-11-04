@@ -38,8 +38,12 @@ jobs:
       - name: Start Vite preview
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/prunex-preview.log 2>&1 &
+          echo $! > /tmp/prunex-preview.pid
           for i in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "Vite preview ready (PID $(cat /tmp/prunex-preview.pid))"
+              exit 0
+            fi
             sleep 1
           done
           cat /tmp/prunex-preview.log
@@ -54,6 +58,13 @@ jobs:
           test -s dist/engine/stockfish-19.js
           test -s dist/engine/stockfish-19.wasm
           test -s dist/COPYING.txt
+
+      - name: Stop Vite preview
+        if: always()
+        run: |
+          if [ -f /tmp/prunex-preview.pid ]; then
+            kill "$(cat /tmp/prunex-preview.pid)" 2>/dev/null || true
+          fi
 
       - name: Upload visual review screenshots
         if: always()
