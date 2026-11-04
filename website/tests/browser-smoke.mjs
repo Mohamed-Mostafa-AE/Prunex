@@ -403,7 +403,36 @@ try {
   }
   await page.locator("#piece-style").selectOption("unicode");
   if (!(await page.locator("#board .piece-unicode").count())) throw new Error("Unicode piece set did not render.");
+  const unicodeContrast = await page.evaluate(() => {
+    const white = document.querySelector("#board .piece-unicode.white-piece");
+    const black = document.querySelector("#board .piece-unicode.black-piece");
+    if (!white || !black) return null;
+    const whiteStyle = getComputedStyle(white);
+    const blackStyle = getComputedStyle(black);
+    return {
+      whiteStroke: whiteStyle.webkitTextStroke,
+      whiteShadow: whiteStyle.textShadow,
+      blackStroke: blackStyle.webkitTextStroke,
+      blackShadow: blackStyle.textShadow
+    };
+  });
+  if (!unicodeContrast || !unicodeContrast.whiteStroke.includes("0.9px") ||
+      !unicodeContrast.blackStroke.includes("0.7px") ||
+      unicodeContrast.whiteShadow === "none" || unicodeContrast.blackShadow === "none") {
+    throw new Error("Unicode pieces need the hero-style contrasting edge and shadow: " + JSON.stringify(unicodeContrast));
+  }
+  await page.locator("#piece-style").selectOption("letters");
+  const letterStyle = await page.locator("#board .piece-letters").first().evaluate(el => ({
+    stroke: getComputedStyle(el).webkitTextStroke,
+    shadow: getComputedStyle(el).textShadow
+  }));
+  if (letterStyle.shadow !== "none") {
+    throw new Error("The Unicode contrast treatment must not affect letter pieces.");
+  }
   await page.locator("#piece-style").selectOption("cburnett");
+  if (await page.locator("#board .piece-svg use").count() !== 32) {
+    throw new Error("The Staunton SVG set must remain unchanged.");
+  }
   if (await page.locator("#board .piece-svg use").count() !== 32) throw new Error("Cburnett SVG piece set did not restore.");
   await page.locator("#coordinates").uncheck();
   if (!(await page.locator("#board").evaluate(el => el.classList.contains("no-coordinates")))) throw new Error("Coordinate toggle did not update.");
