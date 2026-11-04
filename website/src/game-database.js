@@ -445,7 +445,7 @@ export function createGameArchive({
 
   function normalizeRecoveryEmail(email) {
     const normalizedEmail = String(email || "").trim().toLowerCase();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       throw new Error("Enter a valid email address.");
     }
     return normalizedEmail;
@@ -453,8 +453,14 @@ export function createGameArchive({
 
   function authEmailRedirectTo() {
     const redirectTo = getRedirectTo();
-    if (typeof redirectTo !== "string" || !/^https:\\/\\//i.test(redirectTo)) {
+    let parsedRedirect;
+    try {
+      parsedRedirect = new URL(redirectTo);
+    } catch {
       throw new Error("Email sign-in requires a secure HTTPS redirect URL.");
+    }
+    if (parsedRedirect.protocol !== "https:" || parsedRedirect.origin !== redirectTo) {
+      throw new Error("Email sign-in requires a secure HTTPS origin URL.");
     }
     return redirectTo;
   }
