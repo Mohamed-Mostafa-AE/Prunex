@@ -45,9 +45,12 @@ const promotionPicker = $("#promotion-picker");
 const gameResultOverlay = $("#game-result-dialog");
 const gameResultClose = $("#game-result-close");
 const returnLiveButton = $("#return-live");
+const moveFirstButton = $("#move-first");
 const movePrevButton = $("#move-prev");
 const moveNextButton = $("#move-next");
+const moveLastButton = $("#move-last");
 const movePositionLabel = $("#move-position-label");
+const moveScrubber = $("#move-scrubber");
 const soundToggle = $("#defeat-sound");
 const evaluationToggle = $("#show-evaluation");
 const evaluationColumn = $("#evaluation-column");
@@ -103,6 +106,7 @@ let premovesEnabled = true;
 let showAnnotations = false;
 let sharePositionMemory = false;
 let annotations = [];
+let annotationTapFrom = null;
 let queuedPremove = null;
 let dragState = null;
 let dragGhost = null;
@@ -728,7 +732,15 @@ function renderBoard() {
         file.textContent = "abcdefgh"[col];
         button.append(file);
       }
-      button.addEventListener("click", () => { if (!suppressNextBoardClick) onSquare(square); });
+      button.addEventListener("click", event => {
+        if (suppressNextBoardClick) return;
+        const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+        if (showAnnotations && (event.pointerType === "touch" || (coarsePointer && event.detail > 0))) {
+          handleTouchAnnotationTap(square);
+          return;
+        }
+        onSquare(square);
+      });
       boardEl.append(button);
     }
   }
@@ -1102,9 +1114,15 @@ function renderMoves() {
 }
 
 function syncMoveNavigation(currentPly, totalPlies) {
+  const reviewing = Boolean(reviewMovesSnapshot);
+  moveFirstButton.disabled = !reviewing || totalPlies === 0 || currentPly <= 0;
   movePrevButton.disabled = totalPlies === 0 || currentPly <= 0;
-  moveNextButton.disabled = !reviewMovesSnapshot || currentPly >= totalPlies;
+  moveNextButton.disabled = !reviewing || currentPly >= totalPlies;
+  moveLastButton.disabled = !reviewing || totalPlies === 0 || currentPly >= totalPlies;
   movePositionLabel.textContent = currentPly + " / " + totalPlies;
+  moveScrubber.max = String(totalPlies);
+  moveScrubber.value = String(Math.max(0, Math.min(totalPlies, currentPly)));
+  moveScrubber.disabled = !reviewing || totalPlies === 0;
 }
 
 function stepMoveHistory(direction) {
@@ -1284,6 +1302,7 @@ function clearDragGhost() {
   boardEl.querySelectorAll(".drag-origin").forEach(el=>el.classList.remove("drag-origin"));
 }
 function onBoardPointerDown(event) {
+  if (showAnnotations && event.pointerType === "touch") return;
   const squareEl=event.target.closest?.(".square[data-square]");
   if(!squareEl||event.button!==0||moveMethod==="click"||reviewMovesSnapshot||game.isGameOver())return;
   event.preventDefault();
@@ -1338,6 +1357,36 @@ function commitMove(from,to) {
   selected=null;legalTargets=[];render();void persistGameProgress();search();return true;
 }
 
+function handleTouchAnnotationTap(square) {
+  if (!showAnnotations) return;
+  if (!annotationTapFrom) {
+    annotationTapFrom = square;
+    selected = square;
+    legalTargets = [];
+    statusEl.textContent = "Annotation start · tap a destination or tap this square again to mark it";
+    statusEl.dataset.kind = "";
+    renderBoardHighlights();
+    return;
+  }
+  const from = annotationTapFrom;
+  annotationTapFrom = null;
+  selected = null;
+  legalTargets = [];
+  if (from === square) {
+    const existing = annotations.findIndex(item => item.square === square);
+    if (existing >= 0) annotations.splice(existing, 1);
+    else annotations.push({ square });
+    statusEl.textContent = existing >= 0 ? "Square mark removed" : "Square marked · " + square;
+  } else {
+    const existing = annotations.findIndex(item => item.from === from && item.to === square);
+    if (existing >= 0) annotations.splice(existing, 1);
+    else annotations.push({ from, to: square });
+    statusEl.textContent = existing >= 0 ? "Arrow removed · " + from + " → " + square : "Arrow added · " + from + " → " + square;
+  }
+  statusEl.dataset.kind = "";
+  renderBoard();
+}
+
 function onSquare(square) {
   primeAudio();
   if(reviewMovesSnapshot||game.isGameOver())return;
@@ -1390,6 +1439,7 @@ function startNewGame() {
   lastMove = null;
   queuedPremove = null;
   annotations = [];
+  annotationTapFrom = null;
   render();
   search();
 }
@@ -1550,8 +1600,11 @@ worker.addEventListener("error", (event) => {
 
 $("#new-game").addEventListener("click", () => { primeAudio(); startNewGame(); });
 returnLiveButton.addEventListener("click", returnToLive);
+moveFirstButton.addEventListener("click", () => goToPly(0));
 movePrevButton.addEventListener("click", () => stepMoveHistory(-1));
 moveNextButton.addEventListener("click", () => stepMoveHistory(1));
+moveLastButton.addEventListener("click", () => goToPly(reviewMovesSnapshot?.length || game.history().length));
+moveScrubber.addEventListener("input", event => goToPly(Number(event.target.value)));
 gameResultClose.addEventListener("click", () => dismissGameResult());
 $("#game-result-review").addEventListener("click", startGameReview);
 $("#game-result-new-game").addEventListener("click", () => {
@@ -1589,7 +1642,7 @@ $("#flip").addEventListener("click", () => {
   boardEl.classList.toggle("board-flipped", flipped);
   renderBoard();
 });
-clearMarksButton.addEventListener("click",()=>{annotations=[];bestMoveHint=null;renderBoard();});
+clearMarksButton.addEventListener("click",()=>{annotations=[];annotationTapFrom=null;bestMoveHint=null;selected=null;renderBoard();});
 boardEl.addEventListener("contextmenu",event=>{if(showAnnotations)event.preventDefault();});
 boardEl.addEventListener("pointerdown",event=>{
   if(event.button===2&&showAnnotations){
@@ -1638,7 +1691,20 @@ previewSoundButton.addEventListener("click",()=>{primeAudio(true);playMoveSound(
 highlightLastMoveToggle.addEventListener("change",event=>{highlightLastMove=event.target.checked;savePreference("highlight-last-move",highlightLastMove);renderBoardHighlights();});
 pieceAnimationToggle.addEventListener("change",event=>{pieceAnimationEnabled=event.target.checked;savePreference("piece-animation",pieceAnimationEnabled);});
 premovesToggle.addEventListener("change",event=>{premovesEnabled=event.target.checked;savePreference("premoves",premovesEnabled);if(!premovesEnabled)queuedPremove=null;renderBoardHighlights();});
-annotationsToggle.addEventListener("change",event=>{showAnnotations=event.target.checked;savePreference("board-annotations",showAnnotations);if(!showAnnotations)annotations=[];renderBoard();});
+annotationsToggle.addEventListener("change",event=>{
+  showAnnotations=event.target.checked;
+  savePreference("board-annotations",showAnnotations);
+  annotationTapFrom=null;
+  selected=null;
+  legalTargets=[];
+  if(!showAnnotations)annotations=[];
+  statusEl.textContent = showAnnotations
+    ? (window.matchMedia?.("(pointer: coarse)")?.matches
+      ? "Annotations on · tap a start square, then a destination"
+      : "Annotations on · right-drag to draw arrows")
+    : "Annotations off";
+  renderBoard();
+});
 soundToggle.addEventListener("change", event => {
   soundEnabled = event.target.checked;
   savePreference("defeat-sound", soundEnabled);
@@ -1705,6 +1771,7 @@ $("#load-fen").addEventListener("click", () => {
     reviewAnalysisIndex = 0;
     queuedPremove = null;
     annotations = [];
+  annotationTapFrom = null;
     bestMoveHint = null;
     savedGameFen = null;
     currentArchiveRecord = null;
@@ -1802,7 +1869,10 @@ function enableSectionReveals() {
   if (reducedMotion || !("IntersectionObserver" in window)) return;
 
   const targets = document.querySelectorAll(
-    ".principles article, .section-heading, .architecture-card, .about-copy, .benchmark-copy, .benchmark-card, .editor-panel"
+    ".principles article, .hero-copy .eyebrow, .hero-copy h1, .hero-copy .hero-lede, " +
+    ".hero-copy .hero-description, .hero-copy .hero-actions, .hero-copy .hero-meta, " +
+    ".section-heading h2, .section-heading > p, .architecture-card, .about-copy, " +
+    ".benchmark-copy, .benchmark-card, .editor-panel"
   );
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) {

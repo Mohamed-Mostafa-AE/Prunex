@@ -113,6 +113,16 @@
                 </div>
                 </div>
               </div>
+              <div class="move-navigation" role="group" aria-label="Game review navigation">
+                <div class="move-navigation-row">
+                  <button id="move-first" class="move-nav-button" type="button" aria-label="First position" title="First position" disabled>⇤</button>
+                  <button id="move-prev" class="move-nav-button" type="button" aria-label="Previous move" title="Previous move" disabled>←</button>
+                  <output id="move-position-label" class="move-position-label" aria-live="polite">0 / 0</output>
+                  <button id="move-next" class="move-nav-button" type="button" aria-label="Next move" title="Next move" disabled>→</button>
+                  <button id="move-last" class="move-nav-button" type="button" aria-label="Final position" title="Final position" disabled>⇥</button>
+                </div>
+                <input id="move-scrubber" class="move-scrubber" type="range" min="0" max="0" value="0" step="1" aria-label="Scrub through game moves" disabled>
+              </div>
               <div class="board-toolbar">
                 <button id="new-game" class="button button-primary">New game</button>
                 <button id="undo" class="button" disabled>↶ Undo</button>
@@ -147,11 +157,6 @@
               <div class="panel-heading"><div><span class="panel-kicker">GAME SESSION</span><h3>Move history</h3></div><span id="move-count">0 plies</span></div>
               <div id="move-list" class="move-list"><div class="empty">Moves will appear here.</div></div>
               <button id="resize-move-history" class="history-resize-handle" type="button" aria-label="Drag to resize move history" title="Drag to resize move history"></button>
-              <div class="move-navigation" role="group" aria-label="Move navigation">
-                <button id="move-prev" class="move-nav-button" type="button" aria-label="Previous move" title="Previous move" disabled>←</button>
-                <span id="move-position-label" class="move-position-label" aria-live="polite">0 / 0</span>
-                <button id="move-next" class="move-nav-button" type="button" aria-label="Next move" title="Next move" disabled>→</button>
-              </div>
               <section class="game-review-panel" id="game-review-panel" hidden aria-live="polite">
                 <div class="review-heading">
                   <div><span class="panel-kicker">POST-GAME ANALYSIS</span><h4>Game review</h4></div>
@@ -236,9 +241,10 @@
                     <label class="setting-row"><span>Best-move marker</span><select id="best-move-display"><option value="off">Off</option><option value="piece" selected>Marker on moving piece</option><option value="highlight">Square highlights</option><option value="arrow">Arrow + highlights</option></select></label>
                     <div class="settings-toggle-grid">
                       <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Evaluation bar</span></label>
-                      <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Right-click annotations</span></label>
+                      <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Board annotations</span></label>
                     </div>
                     <label class="setting-toggle"><input id="share-position-memory" type="checkbox"><span>Include reviewed positions in my private memory</span></label>
+                    <p class="annotation-help">Mouse: right-click and drag between squares to draw an arrow; right-click one square to mark it. Touch: enable annotations, tap a starting square, then a destination. Tap the same square twice to mark it. Use Clear marks to remove annotations.</p>
                     <p class="sound-note">When enabled, eligible positions, moves, results and evaluation quality are stored only in your private archive and can inform your own future position lookups. They are never shared with other Prunex users, and they do not retrain or change the native C++ engine.</p>
                   </div>
                 </details>

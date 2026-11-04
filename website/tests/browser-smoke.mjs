@@ -539,10 +539,15 @@ try {
   const mobile = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     content: document.documentElement.scrollWidth,
-    board: document.querySelector("#board")?.getBoundingClientRect().width
+    board: document.querySelector("#board")?.getBoundingClientRect().width,
+    reviewNavUnderBoard: document.querySelector(".board-stage")?.nextElementSibling?.classList.contains("move-navigation"),
+    reviewControls: [...document.querySelectorAll(".move-nav-button")].map(button => Math.round(button.getBoundingClientRect().height))
   }));
   if (mobile.content > mobile.viewport + 1 || !mobile.board || mobile.board > mobile.viewport) {
     throw new Error("Mobile layout overflows: " + JSON.stringify(mobile));
+  }
+  if (!mobile.reviewNavUnderBoard || mobile.reviewControls.some(height => height < 42)) {
+    throw new Error("Mobile review controls must sit directly under the board with finger-sized buttons: " + JSON.stringify(mobile));
   }
 
   const deviceViewports = [
@@ -753,6 +758,24 @@ try {
     { timeout: 30000 }
   );
 
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const analysisSettingsDesktop = page.locator(".settings-group").nth(2);
+  if (!(await page.locator("#board-annotations").isVisible())) {
+    await analysisSettingsDesktop.locator("summary").click();
+  }
+  await page.locator("#board-annotations").check();
+  const arrowStart = await page.locator('[data-square="a1"]').boundingBox();
+  const arrowEnd = await page.locator('[data-square="a3"]').boundingBox();
+  if (!arrowStart || !arrowEnd) throw new Error("Annotation test squares are not visible.");
+  await page.mouse.move(arrowStart.x + arrowStart.width / 2, arrowStart.y + arrowStart.height / 2);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(arrowEnd.x + arrowEnd.width / 2, arrowEnd.y + arrowEnd.height / 2, { steps: 8 });
+  await page.mouse.up({ button: "right" });
+  if (!(await page.locator(".annotation-layer .annotation-arrow").count())) {
+    throw new Error("Right-click drag should draw an annotation arrow.");
+  }
+  await page.locator("#clear-marks").click();
+
   const touchContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
@@ -802,12 +825,23 @@ try {
       activeGameRows,
       { timeout: 30000 }
     );
+    const analysisSettings = touchPage.locator(".settings-group").nth(2);
+    if (!(await touchPage.locator("#board-annotations").isVisible())) {
+      await analysisSettings.locator("summary").tap();
+    }
+    await touchPage.locator("#board-annotations").check();
+    await touchPage.locator('[data-square="a1"]').tap();
+    await touchPage.locator('[data-square="a3"]').tap();
+    if (!(await touchPage.locator(".annotation-layer .annotation-arrow").count())) {
+      throw new Error("Touch annotations should draw an arrow after tapping an origin and destination.");
+    }
+    await touchPage.locator("#clear-marks").tap();
   } finally {
     await touchContext.close();
   }
 
   if (failures.length) throw new Error(failures.join("\\n"));
-  console.log("PASS: startup, human move and engine reply, compact board, resizing, three piece sets, themes, FEN import and validation, reset, black-side play, and mobile layout.");
+  console.log("PASS: startup, human move and engine reply, compact board, resizing, three piece sets, themes, FEN import and validation, reset, black-side play, mobile review navigation, touch annotations, and responsive layout.");
 } finally {
   await browser.close();
 }
