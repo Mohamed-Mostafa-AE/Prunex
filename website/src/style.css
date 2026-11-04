@@ -866,14 +866,14 @@ img, svg, video, canvas { max-width: 100%; }
 .sound-picker select { flex:1; min-width:0; }
 .sound-preview { min-height:32px; padding:0 11px; white-space:nowrap; }
 
-/* Strong chess-style last-move wash on both the origin and landing square. */
+/* Last-move squares stay in Prunex's light-blue palette. */
 .square.last-move::after {
   z-index:0;
-  background:rgba(245,205,63,.46) !important;
-  box-shadow:inset 0 0 0 2px rgba(190,145,20,.28);
+  background:rgba(103,177,238,.34);
+  box-shadow:inset 0 0 0 2px rgba(46,123,190,.16);
 }
-.square.last-move-from::after { background:rgba(244,205,75,.48) !important; }
-.square.last-move-to::after { background:rgba(255,220,77,.58) !important; }
+.square.last-move-from::after { background:rgba(119,190,245,.30); }
+.square.last-move-to::after { background:rgba(76,157,226,.42); }
 
 /* Compact accordions replace the long unbroken settings list. */
 .engine-controls { padding:10px 11px; }
@@ -951,3 +951,26 @@ img, svg, video, canvas { max-width: 100%; }
 .move-grade[data-grade="APEX"] { color:#8dd7ff; border-color:rgba(63,166,225,.55); background:rgba(35,126,185,.22); box-shadow:inset 0 0 0 1px rgba(120,206,255,.12); }
 .piece-quality-marker[data-grade="APEX"] { background:#247fc0; box-shadow:0 0 0 2px rgba(112,194,255,.22),0 1px 5px rgba(0,0,0,.42); }
 .review-method-note { margin:7px 0 10px; color:#8ea9c4; font-size:8px; line-height:1.5; }
+
+/* Quiet interaction polish: board pieces never animate on selection or focus. */
+.piece { transform:none; transition:none; }
+.square:active .piece { transform:none; }
+.square { -webkit-tap-highlight-color:transparent; }
+.square.last-move::after { pointer-events:none; }
+.piece-quality-marker[data-grade="BEST"] { background:#348bc9; }
+
+/* Restrained one-time reveals for page sections, never for board pieces. */
+.reveal-on-scroll {
+  opacity:0;
+  transform:translateY(13px);
+  transition:opacity .52s cubic-bezier(.2,.7,.2,1), transform .52s cubic-bezier(.2,.7,.2,1);
+}
+.reveal-on-scroll.is-visible { opacity:1; transform:translateY(0); }
+.principles article.reveal-on-scroll:nth-child(2) { transition-delay:.05s; }
+.principles article.reveal-on-scroll:nth-child(3) { transition-delay:.10s; }
+.principles article.reveal-on-scroll:nth-child(4) { transition-delay:.15s; }
+@media (prefers-reduced-motion:reduce) {
+  .reveal-on-scroll,.reveal-on-scroll.is-visible {
+    opacity:1 !important; transform:none !important; transition:none !important;
+  }
+}
