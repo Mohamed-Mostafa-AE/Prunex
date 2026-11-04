@@ -78,6 +78,16 @@ assert.deepEqual(authRequests[0], {
   }
 }, "recovery must target the allowed site origin without creating another user");
 await assert.rejects(() => archive.sendRecoveryLink("not-an-email"), /valid email/);
+const insecureArchive = createGameArchive({
+  url: "https://example.supabase.co",
+  publishableKey: "sb_publishable_test",
+  getRedirectTo: () => "http://prunex.example",
+  clientFactory: () => ({ auth: { signInWithOtp: async () => ({ error: null }) } })
+});
+await assert.rejects(
+  () => insecureArchive.sendRecoveryLink("player@example.com"),
+  /secure HTTPS/
+);
 await assert.rejects(
   () => createGameArchive().sendRecoveryLink("player@example.com"),
   /not configured/
