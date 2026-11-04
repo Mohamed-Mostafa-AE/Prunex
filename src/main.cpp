@@ -570,11 +570,11 @@ void runBenchmark(int depth) {
     }};
     std::uint64_t totalNodes=0;
     const auto suiteStart=std::chrono::steady_clock::now();
-    std::cout<<"Prunex benchmark depth "<<depth<<" positions "<<suite.size()<<"\\n";
+    std::cout<<"Prunex benchmark depth "<<depth<<" positions "<<suite.size()<<"\n";
     for(const Case& item:suite) {
         Position position;
         if(!loadFen(position,item.fen)) {
-            std::cerr<<"Invalid built-in benchmark position: "<<item.name<<"\\n";
+            std::cerr<<"Invalid built-in benchmark position: "<<item.name<<"\n";
             continue;
         }
         transpositionTable.fill(TTEntry{});
@@ -584,12 +584,12 @@ void runBenchmark(int depth) {
         Move best=findBestMove(position,depth);
         totalNodes+=nodes;
         std::cout<<"bench "<<item.name<<" bestmove "<<(best.from>=0?moveUci(best):"none")
-                 <<" nodes "<<nodes<<"\\n";
+                 <<" nodes "<<nodes<<"\n";
     }
     const auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now()-suiteStart).count();
     const auto nps=elapsed>0?totalNodes*1000/static_cast<std::uint64_t>(elapsed):0;
-    std::cout<<"bench-total nodes "<<totalNodes<<" time_ms "<<elapsed<<" nps "<<nps<<"\\n";
+    std::cout<<"bench-total nodes "<<totalNodes<<" time_ms "<<elapsed<<" nps "<<nps<<"\n";
 }
 
 std::uint64_t perft(Position& p,int depth){if(depth==0)return 1;auto moves=legalMoves(p);std::uint64_t n=0;for(const Move&m:moves){Position q=p;makeMove(q,m);n+=perft(q,depth-1);}return n;}
@@ -610,7 +610,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
     if((argc==2||argc==3)&&std::string_view(argv[1])=="--bench") {
         int depth=5;
         if(argc==3&&!parseIntegerToken(argv[2],1,10,depth)) {
-            std::cerr<<"Invalid benchmark depth (expected 1-10)\\n";
+            std::cerr<<"Invalid benchmark depth (expected 1-10)\n";
             return 2;
         }
         runBenchmark(depth);
