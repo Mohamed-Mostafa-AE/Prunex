@@ -31,9 +31,9 @@ const createModule = imported.default || imported.createPrunexModule;
 assert.equal(typeof createModule, "function", "Emscripten module factory must be exported.");
 const wasm = await createModule();
 const apiVersion = wasm.cwrap("prunex_wasm_api_version", "number", []);
-const evaluateFen = wasm.cwrap("prunex_wasm_evaluate_fen", "number", ["number", "number"]);
-const searchFen = wasm.cwrap("prunex_wasm_search_fen", "number",
-  ["number", "number", "number", "number", "number", "number"]);
+const evaluateFen = wasm.cwrap("prunex_wasm_evaluate_fen", "number", ["number"]);
+const searchFen = wasm.cwrap("prunex_wasm_search_fen", "number", ["number", "number", "number", "number"]);
+const searchNodes = wasm.cwrap("prunex_wasm_nodes", "number", []);
 assert.equal(apiVersion(), 800, "WASM API must identify Prunex 0.8.0.");
 
 function withFenBuffer(fen, callback) {
@@ -51,27 +51,21 @@ for (const [name, fen] of fixtures) {
   const expected = nativeResults.get(name);
   assert.ok(expected, "Missing native fixture: " + name);
   withFenBuffer(fen, fenPointer => {
-    const scorePointer = wasm._malloc(4);
-    assert.ok(scorePointer);
-    try {
-      const status = evaluateFen(fenPointer, scorePointer);
-      assert.equal(status, 0, name + ": eval returned " + status);
-      assert.equal(wasm.HEAP32[scorePointer >>> 2], expected.score, name + ": eval mismatch");
-    } finally { wasm._free(scorePointer); }
+    const score = evaluateFen(fenPointer);
+    assert.notEqual(score, -2147483648, name + ": invalid WASM evaluation result");
+    assert.equal(score, expected.score, name + ": evaluation mismatch");
   });
   withFenBuffer(fen, fenPointer => {
     const movePointer = wasm._malloc(16);
-    const scorePointer = wasm._malloc(4);
-    const nodesPointer = wasm._malloc(8);
-    assert.ok(movePointer && scorePointer && nodesPointer);
+    assert.ok(movePointer);
     try {
-      const status = searchFen(fenPointer, 3, movePointer, 16, scorePointer, nodesPointer);
-      assert.equal(status, 0, name + ": search returned " + status);
-      assert.equal(wasm.HEAP32[scorePointer >>> 2], expected.score, name + ": search score mismatch");
+      const score = searchFen(fenPointer, 3, movePointer, 16);
+      assert.notEqual(score, -2147483648, name + ": invalid WASM search result");
+      assert.equal(score, expected.score, name + ": search score mismatch");
       assert.equal(wasm.UTF8ToString(movePointer), expected.move, name + ": best move mismatch");
-      assert.equal(wasm.HEAPF64[nodesPointer >>> 3], expected.nodes, name + ": node count mismatch");
+      assert.equal(searchNodes(), expected.nodes, name + ": node count mismatch");
     } finally {
-      wasm._free(movePointer); wasm._free(scorePointer); wasm._free(nodesPointer);
+      wasm._free(movePointer);
     }
   });
 }

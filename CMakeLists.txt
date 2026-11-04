@@ -16,7 +16,7 @@ if(EMSCRIPTEN)
         "-sALLOW_MEMORY_GROWTH=1"
         "-sNO_EXIT_RUNTIME=1"
         "--no-entry"
-        "-sEXPORTED_FUNCTIONS=['_prunex_wasm_api_version','_prunex_wasm_evaluate_fen','_prunex_wasm_search_fen','_malloc','_free']"
+        "-sEXPORTED_FUNCTIONS=['_prunex_wasm_api_version','_prunex_wasm_evaluate_fen','_prunex_wasm_search_fen','_prunex_wasm_nodes','_malloc','_free']"
         "-sEXPORTED_RUNTIME_METHODS=['cwrap','UTF8ToString','stringToUTF8','lengthBytesUTF8']"
     )
     set_target_properties(prunex-wasm PROPERTIES OUTPUT_NAME "prunex-wasm" SUFFIX ".js")

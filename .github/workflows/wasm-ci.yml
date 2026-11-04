@@ -52,7 +52,7 @@ jobs:
         run: emcc --version
       - name: Configure and compile native WebAssembly module
         run: |
-          emcmake cmake -S . -B build/wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          emcmake cmake -S . -B build/wasm -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build/wasm --target prunex-wasm --parallel 2
       - name: Compare native and WebAssembly results
         run: node tests/wasm-parity.mjs build/wasm/prunex-wasm.js build/native/prunex_parity_reference
