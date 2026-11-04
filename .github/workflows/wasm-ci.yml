@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: prunex-wasm-\${{ github.ref }}
+  group: prunex-wasm-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:

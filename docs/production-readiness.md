@@ -5,11 +5,12 @@ This checklist distinguishes repository-verified controls from provider settings
 ## Verified controls
 
 - Native C++20 engine release metadata is Prunex 0.8.0. The UCI search path has asynchronous cancellation and native regression coverage.
-- The website has a Vite production build and Chromium browser smoke test.
+- The website has a Vite production build and Chromium browser smoke test. Its build guard rejects incomplete cloud archive configuration, missing Turnstile site keys, CAPTCHA enforcement not explicitly set to `true`, non-HTTPS Supabase endpoints, and browser-prefixed server secrets.
 - Supabase game, review, and position-memory tables have RLS enabled. Game/review rows are owner-scoped; the shared-memory read surface exposes only the minimum move-quality fields.
 - Account deletion uses a JWT-verified Edge Function which verifies caller identity server-side, revokes refresh-token sessions, deletes the Auth user, and relies on foreign-key cascades for cloud records.
 - Shared position-memory contributions are optional. Their consent is stored per review, inserts/updates require that consent, and owners can delete their own contributed sample rows. Database constraints check field shape and score ranges; they do not prove that a move is legal or that a client-supplied evaluation is truthful.
 - The browser security policy uses a restrictive CSP, HSTS, frame protections, referrer policy, and cross-origin isolation.
+- A native WebAssembly target compiles the same C++ implementation. CI checks static-evaluation, best-move, and node-count parity across five fixed positions and publishes a versioned JS/WASM artifact. The current website worker has not yet been switched to that artifact.
 - Browser-prefixed environment variables are public. A service-role key or any provider secret must never use a `VITE_*` name or be shipped in the client bundle. The production build now rejects partial cloud configuration, missing Turnstile site keys, CAPTCHA enforcement not explicitly set to `true`, non-HTTPS Supabase endpoints, and server-secret browser variable names.
 
 ## Required Supabase dashboard actions
@@ -55,9 +56,9 @@ Retain all browser-engine and artwork license notices and corresponding-source o
 
 ## Native and desktop release gate
 
-- Run CTest on GCC, Clang, MSVC x64, and sanitizers for the release commit.
+- Run CTest on GCC, Clang, MSVC x64, and sanitizers for the release commit. Dedicated Linux compiler/sanitizer CI and Windows x64 CI cover these native paths.
 - Desktop search now runs asynchronously, with cancellation on new game, undo, and window close. Complete the manual Windows 10/11 run-through and verify responsiveness, cancellation, promotion, undo, and shutdown before treating the desktop binary as a polished end-user release.
-- Native WebAssembly build integration and automated native/WASM parity tests are not implemented yet; the existing browser demo is a separate component and does not satisfy this requirement.
+- Native WebAssembly build integration and five-fixture native/WASM parity tests are implemented and run in CI. Integrating the generated module into the browser worker remains a separate product-level task; the existing website demo still uses its current browser backend.
 - Do not publish Elo/strength claims without reproducible paired-color matches, fixed openings, sufficient game counts, and confidence intervals or SPRT.
 
 ## Monitoring and response
