@@ -1636,7 +1636,6 @@ worker.addEventListener("error", (event) => {
 });
 
 $("#new-game").addEventListener("click", () => { primeAudio(); startNewGame(); });
-returnLiveButton.addEventListener("click", returnToLive);
 moveFirstButton.addEventListener("click", () => goToPly(0));
 movePrevButton.addEventListener("click", () => stepMoveHistory(-1));
 moveNextButton.addEventListener("click", () => stepMoveHistory(1));
