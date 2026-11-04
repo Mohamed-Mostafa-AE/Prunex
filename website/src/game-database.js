@@ -47,10 +47,24 @@ function newId() {
   return "game-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
 }
 
-function isUsableMemory(sample) {
-  return Number.isFinite(sample.evalLossCp) &&
+const SHARED_MEMORY_GRADES = new Set([
+  "BRILLIANT", "GREAT", "BEST", "EXCELLENT", "GOOD"
+]);
+const UCI_MOVE_PATTERN = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
+
+export function isUsableMemory(sample) {
+  return Boolean(
+    sample &&
+    typeof sample === "object" &&
+    Number.isInteger(sample.evalLossCp) &&
+    sample.evalLossCp >= 0 &&
     sample.evalLossCp <= 30 &&
-    ["BRILLIANT", "GREAT", "BEST", "EXCELLENT", "GOOD"].includes(sample.grade);
+    typeof sample.moveUci === "string" &&
+    UCI_MOVE_PATTERN.test(sample.moveUci) &&
+    Number.isInteger(sample.resultForMover) &&
+    [-1, 0, 1].includes(sample.resultForMover) &&
+    SHARED_MEMORY_GRADES.has(sample.grade)
+  );
 }
 
 export function rankSamples(samples) {
@@ -146,17 +160,19 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
     if (record.remoteUserId && record.remoteUserId !== userId) {
       throw new Error("This locally saved review belongs to a different guest profile and was not transferred.");
     }
+    const sharePositionMemory = record.shareTrainingData === true;
     const { error: reviewError } = await supabase.from("prunex_game_reviews").upsert({
       game_id: record.id,
       user_id: userId,
       created_at: new Date().toISOString(),
       white_accuracy: record.whiteAccuracy,
       black_accuracy: record.blackAccuracy,
-      analysis_json: record.analysis
+      analysis_json: record.analysis,
+      share_position_memory: sharePositionMemory
     }, { onConflict: "game_id,user_id" });
     if (reviewError) throw reviewError;
 
-    const remoteSamples = (record.shareTrainingData ? samples : [])
+    const remoteSamples = (sharePositionMemory && Array.isArray(samples) ? samples : [])
       .filter(isUsableMemory)
       .map(sample => ({
         id: sample.id,
@@ -178,11 +194,25 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
       if (memoryError) throw memoryError;
     }
 
+    // Remove stale records and honor a withdrawn sharing choice.
+    const retainedIds = new Set(remoteSamples.map(sample => sample.id));
+    const staleIds = [...new Set((Array.isArray(samples) ? samples : [])
+      .map(sample => sample?.id)
+      .filter(id => typeof id === "string" && id.length > 0 && id.length <= 128))]
+      .filter(id => !retainedIds.has(id));
+    if (staleIds.length) {
+      const { error: cleanupError } = await supabase
+        .from("prunex_position_memory")
+        .delete()
+        .in("id", staleIds);
+      if (cleanupError) throw cleanupError;
+    }
+
     const synced = {
       ...record,
       remoteUserId: userId,
       remoteReviewSyncStatus: "synced",
-      remoteMemorySyncStatus: record.shareTrainingData ? "synced" : "not-shared",
+      remoteMemorySyncStatus: sharePositionMemory ? "synced" : "not-shared",
       remoteReviewSyncedAt: new Date().toISOString(),
       remoteSyncError: ""
     };
@@ -246,7 +276,7 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
       ...record,
       shareTrainingData: Boolean(shareTrainingData),
       remoteReviewSyncStatus: supabase ? "pending" : "local-only",
-      remoteMemorySyncStatus: shareTrainingData ? "pending" : "not-shared",
+      remoteMemorySyncStatus: record.shareTrainingData === true ? "pending" : "not-shared",
       remoteSyncError: ""
     };
     const db = await database();
@@ -273,7 +303,7 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
         await storeLocalGame({
           ...localRecord,
           remoteReviewSyncStatus: "pending",
-          remoteMemorySyncStatus: shareTrainingData ? "pending" : "not-shared",
+          remoteMemorySyncStatus: record.shareTrainingData === true ? "pending" : "not-shared",
           remoteSyncError: lastSharedError
         });
         console.warn("Shared Prunex review sync unavailable; review is queued locally for retry.", error);

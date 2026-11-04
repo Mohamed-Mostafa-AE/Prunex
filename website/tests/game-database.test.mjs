@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { rankSamples } from "../src/game-database.js";
+import { isUsableMemory, rankSamples } from "../src/game-database.js";
 
 function sample(moveUci, resultForMover, evalLossCp = 0, grade = "BEST") {
   return { moveUci, resultForMover, evalLossCp, grade };
@@ -33,4 +33,13 @@ const evaluationBreaksTie = rankSamples([
 ]);
 assert.equal(evaluationBreaksTie?.moveUci, "e2e4", "lower evaluation loss should improve ranking");
 
-console.log("Game database: win/draw/loss and quality-ranking checks passed.");
+assert.equal(isUsableMemory(sample("e2e4", 1)), true);
+assert.equal(isUsableMemory(sample("e2e4", 1, -1)), false, "negative loss is invalid");
+assert.equal(isUsableMemory(sample("e2e4", 1, 31)), false, "loss above 30 cp is invalid");
+assert.equal(isUsableMemory(sample("e2e4", 0.5)), false, "result must be an integer label");
+assert.equal(isUsableMemory(sample("e2e4", 2)), false, "result must be -1, 0, or 1");
+assert.equal(isUsableMemory(sample("z9e4", 1)), false, "UCI coordinates must be valid");
+assert.equal(isUsableMemory(sample("e2e4", 1, 0, "APEX")), false, "grade must be allowlisted");
+assert.equal(isUsableMemory({ moveUci: "e2e4", resultForMover: 1, evalLossCp: 0, grade: "BEST" }), true);
+
+console.log("Game database: ranking and shared-memory validation checks passed.");
