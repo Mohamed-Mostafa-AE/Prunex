@@ -53,9 +53,9 @@ ctest --test-dir build --output-on-failure
 
 ## Tests
 
-The CTest suite currently contains 44 cases. Recorded Linux runs passed with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
+The CTest suite currently contains 45 cases, including a native benchmark smoke test. Recorded Linux runs passed with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
 
-See [docs/testing.md](docs/testing.md) for the test coverage, benchmark provenance, and limitations.
+Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 
 ## Try the website
 
