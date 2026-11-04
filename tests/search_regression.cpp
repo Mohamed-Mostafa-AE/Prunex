@@ -63,5 +63,25 @@ int main() {
     int blackView=evaluate(position);
     if(whiteView!=-blackView) return 18;
 
+    if(!loadFen(position,START_FEN)) return 19;
+    searchAborted.store(false,std::memory_order_relaxed);
+    std::atomic<bool> started{false};
+    std::atomic<bool> completed{false};
+    Move interruptedBest{};
+    std::thread interruptedSearch([&] {
+        started.store(true,std::memory_order_release);
+        interruptedBest=findBestMove(position,12);
+        completed.store(true,std::memory_order_release);
+    });
+    while(!started.load(std::memory_order_acquire)) std::this_thread::yield();
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    searchAborted.store(true,std::memory_order_relaxed);
+    interruptedSearch.join();
+    if(!completed.load(std::memory_order_acquire)) return 20;
+    if(interruptedBest.from<0||interruptedBest.to<0) return 21;
+    bool returnedLegalMove=false;
+    for(const Move& move:legalMoves(position)) returnedLegalMove|=sameMove(move,interruptedBest);
+    if(!returnedLegalMove) return 22;
+
     return 0;
 }
