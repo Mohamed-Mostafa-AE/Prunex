@@ -20,6 +20,6 @@ The current native release identifier is **Prunex 0.8.0**. The website and brows
 
 ## Security controls and limitations
 
-The repository uses private vulnerability reporting, dependency update automation, CodeQL analysis, native and browser regression workflows, restrictive deployment response headers, and owner-scoped database policies. Anonymous access is an intentional product feature and must remain protected by enabled Supabase CAPTCHA, abuse controls, and the owner-scoped RLS policies documented in the production-readiness checklist.
+The repository uses private vulnerability reporting, dependency update automation, CodeQL analysis, native and browser regression workflows, restrictive deployment response headers, and owner-scoped database policies. Anonymous cloud accounts are an intentional product feature. They are protected by owner-scoped RLS and Supabase Auth rate limits. Cloudflare Turnstile is an optional anti-abuse control for the one-time guest-account creation request; it is not required for browsing or chess gameplay.
 
 Automated scans and tests reduce risk but are not a penetration test, legal review, or security guarantee. Production credentials must remain in provider secret stores and must never be committed or exposed through browser-prefixed environment variables.
