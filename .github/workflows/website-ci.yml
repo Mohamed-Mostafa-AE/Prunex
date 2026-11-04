@@ -33,7 +33,13 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - run: npm install --no-audit --no-fund
+      # Bootstrap a lockfile for this migration run; commit the uploaded lockfile before release.
+      - name: Generate npm lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install exact dependency graph
+        run: npm ci --no-audit --no-fund
+      - name: Audit npm dependency graph
+        run: npm audit --audit-level=high
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Start Vite preview
@@ -59,6 +65,15 @@ jobs:
           test -s dist/engine/stockfish-19.js
           test -s dist/engine/stockfish-19.wasm
           test -s dist/COPYING.txt
+
+      - name: Upload npm lockfile for review and commit
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: prunex-npm-lockfile
+          path: website/package-lock.json
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Stop Vite preview
         if: always()
@@ -92,3 +107,7 @@ jobs:
         run: python -m pip install -r tools/training/requirements.txt
       - name: Test PGN parsing, filtering, splitting and manifests
         run: python -m unittest discover -s tools/training/tests -v
+      - name: Audit Python training dependencies
+        run: |
+          python -m pip install pip-audit
+          pip-audit -r tools/training/requirements.txt
