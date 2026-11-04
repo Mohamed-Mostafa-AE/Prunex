@@ -10,7 +10,7 @@ This checklist distinguishes repository-verified controls from provider settings
 - Account deletion uses a JWT-verified Edge Function which verifies caller identity server-side, revokes refresh-token sessions, deletes the Auth user, and relies on foreign-key cascades for cloud records.
 - Shared position-memory contributions are optional. Their consent is stored per review, inserts/updates require that consent, and owners can delete their own contributed sample rows. Database constraints check field shape and score ranges; they do not prove that a move is legal or that a client-supplied evaluation is truthful.
 - The browser security policy uses a restrictive CSP, HSTS, frame protections, referrer policy, and cross-origin isolation.
-- Browser-prefixed environment variables are public. A service-role key or any provider secret must never use a `VITE_*` name or be shipped in the client bundle.
+- Browser-prefixed environment variables are public. A service-role key or any provider secret must never use a `VITE_*` name or be shipped in the client bundle. The production build now rejects partial cloud configuration, missing Turnstile site keys, CAPTCHA enforcement not explicitly set to `true`, non-HTTPS Supabase endpoints, and server-secret browser variable names.
 
 ## Required Supabase dashboard actions
 
