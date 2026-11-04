@@ -718,6 +718,16 @@ try {
     throw new Error("Game review should expose the deepest and average completed engine depth.");
   }
 
+  const archivedCountBeforeReload = await page.locator("#game-archive-list .archive-game").count();
+  if (archivedCountBeforeReload < 1) throw new Error("At least one completed game should be archived before reload.");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(expectedCount =>
+    document.querySelector("#game-archive-note")?.textContent.includes("Local game saving is available.") &&
+    document.querySelectorAll("#game-archive-list .archive-game").length >= expectedCount,
+    archivedCountBeforeReload,
+    { timeout: 30000 }
+  );
+
   const touchContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
