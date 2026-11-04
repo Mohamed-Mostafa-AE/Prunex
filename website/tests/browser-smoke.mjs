@@ -409,10 +409,21 @@ try {
   await page.mouse.move(resizeGrip.x + resizeGrip.width / 2, resizeGrip.y + resizeGrip.height / 2);
   await page.mouse.down();
   await page.mouse.move(resizeGrip.x + resizeGrip.width / 2 + 90, resizeGrip.y + resizeGrip.height / 2 + 90, { steps: 8 });
+  const resizeProgress = await page.locator(".board-frame").evaluate(el => ({
+    active: el.classList.contains("is-resizing-board"),
+    requestedSize: Number.parseFloat(el.style.getPropertyValue("--board-size")),
+    renderedSize: Math.round(el.getBoundingClientRect().width)
+  }));
   await page.mouse.up();
   const enlargedBoard = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
-  if (enlargedBoard <= boardBeforeGrip + 35) {
-    throw new Error("Dragging the unobtrusive corner grip should resize the board: " + boardBeforeGrip + " -> " + enlargedBoard);
+  if (!resizeProgress.active || resizeProgress.requestedSize <= boardBeforeGrip + 35 ||
+      enlargedBoard <= boardBeforeGrip + 35) {
+    throw new Error("Dragging the board grip must capture the pointer and resize the rendered board: " +
+      JSON.stringify({ before: boardBeforeGrip, during: resizeProgress, after: enlargedBoard }));
+  }
+  const savedBoardSize = await page.evaluate(() => Number(localStorage.getItem("prunex-board-size")));
+  if (!Number.isFinite(savedBoardSize) || savedBoardSize <= boardBeforeGrip + 35) {
+    throw new Error("Board size should persist after a successful resize: " + savedBoardSize);
   }
   if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
@@ -791,6 +802,30 @@ try {
   const touchPage = await touchContext.newPage();
   try {
     await touchPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    const mobileResizeDisplay = await touchPage.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    if (mobileResizeDisplay.board !== "none" || mobileResizeDisplay.history !== "none") {
+      throw new Error("Phone portrait must not expose resize controls: " + JSON.stringify(mobileResizeDisplay));
+    }
+    await touchPage.setViewportSize({ width: 844, height: 390 });
+    const landscapeResizeDisplay = await touchPage.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    if (landscapeResizeDisplay.board !== "none" || landscapeResizeDisplay.history !== "none") {
+      throw new Error("Phone landscape must not expose resize controls: " + JSON.stringify(landscapeResizeDisplay));
+    }
+    await touchPage.setViewportSize({ width: 768, height: 1024 });
+    const tabletResizeDisplay = await touchPage.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    if (tabletResizeDisplay.board === "none" || tabletResizeDisplay.history === "none") {
+      throw new Error("Tablet portrait should retain resize controls: " + JSON.stringify(tabletResizeDisplay));
+    }
+    await touchPage.setViewportSize({ width: 390, height: 844 });
     const touchTargets = await touchPage.evaluate(() => ({
       coarsePointer: matchMedia("(pointer: coarse)").matches,
       themeToggle: parseFloat(getComputedStyle(document.querySelector(".theme-toggle")).minHeight),

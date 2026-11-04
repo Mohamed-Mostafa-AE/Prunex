@@ -1765,30 +1765,41 @@ const resizeGrip = $("#resize-board");
 if (resizeGrip) {
   let resizeStart = null;
   resizeGrip.addEventListener("pointerdown", event => {
-    if (event.button !== 0 || window.matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 760px)").matches) return;
+    if (event.button !== 0 || window.matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (orientation: landscape) and (max-height: 520px) and (max-width: 900px)").matches) return;
     event.preventDefault();
     resizeStart = {
       id: event.pointerId,
       x: event.clientX,
       width: boardFrame.getBoundingClientRect().width
     };
-    resizeGrip.setPointerCapture(event.pointerId);
     boardFrame.classList.add("is-resizing-board");
+    try {
+      resizeGrip.setPointerCapture(event.pointerId);
+    } catch {
+      // Document-level pointer listeners below retain the drag if capture is unavailable.
+    }
   });
-  resizeGrip.addEventListener("pointermove", event => {
+  const moveBoardResize = event => {
     if (!resizeStart || resizeStart.id !== event.pointerId) return;
+    event.preventDefault();
     const delta = event.clientX - resizeStart.x;
     setBoardSize(Math.round((resizeStart.width + delta) / 10) * 10);
-  });
+  };
   const finishBoardResize = event => {
     if (!resizeStart || (event && event.pointerId !== resizeStart.id)) return;
+    const pointerId = resizeStart.id;
     resizeStart = null;
     boardFrame.classList.remove("is-resizing-board");
     savePreference("board-size", boardFrame.style.getPropertyValue("--board-size").replace("px", ""));
-    if (event && resizeGrip.hasPointerCapture(event.pointerId)) resizeGrip.releasePointerCapture(event.pointerId);
+    try {
+      if (resizeGrip.hasPointerCapture(pointerId)) resizeGrip.releasePointerCapture(pointerId);
+    } catch {
+      // The pointer may already have been released by the browser.
+    }
   };
-  resizeGrip.addEventListener("pointerup", finishBoardResize);
-  resizeGrip.addEventListener("pointercancel", finishBoardResize);
+  document.addEventListener("pointermove", moveBoardResize, { passive: false });
+  document.addEventListener("pointerup", finishBoardResize);
+  document.addEventListener("pointercancel", finishBoardResize);
   resizeGrip.addEventListener("lostpointercapture", finishBoardResize);
 }
 promotionPicker.querySelectorAll("[data-promotion]").forEach(button => {

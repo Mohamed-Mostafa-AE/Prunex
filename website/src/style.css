@@ -1176,7 +1176,9 @@ img, svg, video, canvas { max-width: 100%; }
 
 /* Resize affordances are intentionally desktop/tablet-only. Touch phones use
    the responsive auto-fit board and a fixed, readable history height. */
-@media (max-width: 700px), (pointer: coarse) and (max-width: 760px) {
+@media (max-width: 700px),
+       (pointer: coarse) and (max-width: 760px),
+       (pointer: coarse) and (orientation: landscape) and (max-height: 520px) and (max-width: 900px) {
   #resize-board,
   #resize-move-history {
     display: none !important;
@@ -1208,12 +1210,3 @@ img, svg, video, canvas { max-width: 100%; }
   }
 }
 
-@media (max-width: 700px), (pointer: coarse) and (max-width: 760px) {
-  #resize-board, #resize-move-history { display:none !important; pointer-events:none !important; }
-}
-.reveal-on-scroll { transition-duration:1.05s; transition-timing-function:cubic-bezier(.22,.61,.36,1); }
-.hero-copy h1.reveal-on-scroll { transition-duration:1.2s; }
-.hero-copy .hero-lede.reveal-on-scroll { transition-delay:.14s; }
-.hero-copy .hero-description.reveal-on-scroll { transition-delay:.24s; }
-.hero-copy .hero-actions.reveal-on-scroll { transition-delay:.32s; }
-.hero-copy .hero-meta.reveal-on-scroll { transition-delay:.4s; }
