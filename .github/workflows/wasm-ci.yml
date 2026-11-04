@@ -1,0 +1,71 @@
+name: Native WebAssembly build and parity
+
+on:
+  push:
+    branches: [main, 'feature/**']
+    paths:
+      - 'src/**'
+      - 'tests/wasm_parity_reference.cpp'
+      - 'tests/wasm-parity.mjs'
+      - 'CMakeLists.txt'
+      - '.github/workflows/wasm-ci.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/wasm_parity_reference.cpp'
+      - 'tests/wasm-parity.mjs'
+      - 'CMakeLists.txt'
+      - '.github/workflows/wasm-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: prunex-wasm-\${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-compare:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake ninja-build g++
+      - name: Build native parity reference
+        run: |
+          cmake -S . -B build/native -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+          cmake --build build/native --target prunex_parity_reference --parallel 2
+      - name: Set up pinned Emscripten SDK
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: '6.0.13'
+      - name: Verify toolchain
+        run: emcc --version
+      - name: Configure and compile native WebAssembly module
+        run: |
+          emcmake cmake -S . -B build/wasm -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          cmake --build build/wasm --target prunex-wasm --parallel 2
+      - name: Compare native and WebAssembly results
+        run: node tests/wasm-parity.mjs build/wasm/prunex-wasm.js build/native/prunex_parity_reference
+      - name: Verify WebAssembly artifacts
+        run: |
+          test -s build/wasm/prunex-wasm.js
+          test -s build/wasm/prunex-wasm.wasm
+      - name: Upload native WebAssembly build
+        uses: actions/upload-artifact@v6
+        with:
+          name: Prunex-0.8.0-WebAssembly
+          path: |
+            build/wasm/prunex-wasm.js
+            build/wasm/prunex-wasm.wasm
+          if-no-files-found: error
+          retention-days: 30

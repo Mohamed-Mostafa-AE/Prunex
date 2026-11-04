@@ -193,11 +193,28 @@ std::uint64_t ttHits=0;
 std::uint8_t ttGeneration=0;
 bool searchTimeLimited=false;
 std::atomic<bool> searchAborted{false};
+bool suppressEngineOutput=false;
+#ifndef __EMSCRIPTEN__
 std::mutex outputMutex;
+#endif
 
 void emitLine(const std::string& line) {
+    if(suppressEngineOutput) return;
+#ifndef __EMSCRIPTEN__
     std::lock_guard<std::mutex> lock(outputMutex);
+#endif
     std::cout << line << '\n' << std::flush;
+}
+
+void resetSearchState() {
+    transpositionTable.fill(TTEntry{});
+    historyScores={};
+    for(auto& pair:killerMoves) pair={Move{},Move{}};
+    nodes=0;
+    ttHits=0;
+    ttGeneration=0;
+    searchTimeLimited=false;
+    searchAborted.store(false,std::memory_order_relaxed);
 }
 std::chrono::steady_clock::time_point searchDeadline{};
 
@@ -635,6 +652,7 @@ void setPosition(Position& p,const std::string& command){std::istringstream in(c
 }
 }
 
+#ifndef PRUNEX_NO_MAIN
 int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,START_FEN);
     std::thread searchThread;
     auto stopAndJoin=[&]() {
@@ -755,3 +773,4 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
     stopAndJoin();
     return 0;
 }
+#endif // PRUNEX_NO_MAIN
