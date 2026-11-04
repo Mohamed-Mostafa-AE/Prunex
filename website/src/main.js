@@ -64,6 +64,8 @@ const archiveList = $("#game-archive-list");
 const archiveNote = $("#game-archive-note");
 const linkAccountForm = $("#link-account-form");
 const accountRecoveryStatus = $("#account-recovery-status");
+const restoreAccountForm = $("#restore-account-form");
+const restoreAccountStatus = $("#restore-account-status");
 const deleteAccountForm = $("#delete-account-form");
 const deleteAccountStatus = $("#delete-account-status");
 const evaluationFill = $("#evaluation-fill");
@@ -1832,6 +1834,30 @@ linkAccountForm.addEventListener("submit", async event => {
   } catch (error) {
     accountRecoveryStatus.textContent = error instanceof Error ? error.message : "Could not send the verification email.";
     accountRecoveryStatus.dataset.kind = "error";
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+
+restoreAccountForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = restoreAccountForm.querySelector('button[type="submit"]');
+  const email = $("#restore-account-email").value;
+  restoreAccountStatus.textContent = "Requesting a sign-in link…";
+  restoreAccountStatus.dataset.kind = "";
+  submit.disabled = true;
+  try {
+    const result = await gameArchive.sendRecoveryLink(email);
+    restoreAccountStatus.textContent =
+      "Sign-in link requested for " + result.email +
+      ". Open it on this device to load the archive linked to that address. No new account will be created.";
+    restoreAccountStatus.dataset.kind = "success";
+  } catch (error) {
+    restoreAccountStatus.textContent = error instanceof Error
+      ? error.message
+      : "Could not request the sign-in link.";
+    restoreAccountStatus.dataset.kind = "error";
   } finally {
     submit.disabled = false;
   }
