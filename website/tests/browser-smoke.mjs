@@ -390,6 +390,10 @@ try {
   if (!licenseNote.includes("Stockfish.js 19 Full") || !licenseNote.includes("GPLv3")) {
     throw new Error("The browser engine's license and attribution notice is missing.");
   }
+  const sharingCopy = await page.locator("body").innerText();
+  if (!sharingCopy.includes("they do not retrain or change the native C++ engine")) {
+    throw new Error("Shared position-memory opt-in must explain that it does not retrain the native engine.");
+  }
   if (!requests.some(url => url.includes("/engine/stockfish-19.js")) ||
       !requests.some(url => url.includes("/engine/stockfish-19.wasm"))) {
     throw new Error("The full analysis worker and its WebAssembly network were not loaded.");
