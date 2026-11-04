@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
 import { createGameArchive } from "./game-database.js";
+import { requestTurnstileToken } from "./turnstile.js";
 import {
   scoreToCentipawns,
   expectedPointsFromEvaluation,
@@ -112,7 +113,12 @@ let gameArchiveDbPromise = null;
 const MAX_REVIEW_PLIES = 200;
 const gameArchive = createGameArchive({
   url: import.meta.env.VITE_SUPABASE_URL || "",
-  publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ""
+  publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
+  captchaTokenProvider: () => requestTurnstileToken({
+    siteKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || "",
+    required: import.meta.env.VITE_REQUIRE_CAPTCHA === "true",
+    container: $("#turnstile-widget-container")
+  })
 });
 let activeArchiveId = gameArchive.newId();
 let activeGameCreatedAt = new Date().toISOString();
