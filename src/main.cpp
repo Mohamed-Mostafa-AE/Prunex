@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <cctype>
 #include <chrono>
@@ -8,9 +9,11 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace prunex {
@@ -189,13 +192,19 @@ std::uint64_t nodes=0;
 std::uint64_t ttHits=0;
 std::uint8_t ttGeneration=0;
 bool searchTimeLimited=false;
-bool searchAborted=false;
+std::atomic<bool> searchAborted{false};
+std::mutex outputMutex;
+
+void emitLine(const std::string& line) {
+    std::lock_guard<std::mutex> lock(outputMutex);
+    std::cout << line << '\n' << std::flush;
+}
 std::chrono::steady_clock::time_point searchDeadline{};
 
 bool searchShouldStop() {
-    if(searchAborted) return true;
+    if(searchAborted.load(std::memory_order_relaxed)) return true;
     if(!searchTimeLimited||(nodes&127ULL)!=0) return false;
-    if(std::chrono::steady_clock::now()>=searchDeadline) searchAborted=true;
+    if(std::chrono::steady_clock::now()>=searchDeadline) searchAborted.store(true,std::memory_order_relaxed);
     return searchAborted;
 }
 
@@ -505,7 +514,6 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode) {
 Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
     auto moves=legalMoves(p);
     if(moves.empty()) return {};
-    searchAborted=false;
     searchTimeLimited=timeLimitMs>0;
     if(searchTimeLimited) searchDeadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(timeLimitMs);
     ++ttGeneration;
@@ -543,10 +551,11 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
         if(searchAborted) break;
         previousScore=score;
         auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count();
-        std::cout<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best)<<"\n"<<std::flush;
+        std::ostringstream info;
+        info<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best);
+        emitLine(info.str());
     }
     searchTimeLimited=false;
-    searchAborted=false;
     return best;
 }
 
@@ -558,6 +567,13 @@ void setPosition(Position& p,const std::string& command){std::istringstream in(c
 }
 
 int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,START_FEN);
+    std::thread searchThread;
+    auto stopAndJoin=[&]() {
+        if(searchThread.joinable()) {
+            searchAborted.store(true,std::memory_order_relaxed);
+            searchThread.join();
+        }
+    };
     if(argc==3&&std::string_view(argv[1])=="--perft"){
         int d=0;
         if(!parseIntegerToken(argv[2],0,7,d)){std::cerr<<"Invalid depth (expected 0-7)\n";return 2;}
@@ -580,12 +596,26 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         std::cout<<"Total: "<<total<<"\n";
         return 0;
     }
-    std::string line;while(std::getline(std::cin,line)){std::istringstream in(line);std::string cmd;in>>cmd;
-        if(cmd=="uci"){std::cout<<"id name Prunex 0.5.1\nid author Prunex Project\nuciok\n"<<std::flush;}
-        else if(cmd=="isready"){std::cout<<"readyok\n"<<std::flush;}
-        else if(cmd=="ucinewgame"){loadFen(pos,START_FEN);transpositionTable.fill(TTEntry{});historyScores={};for(auto& pair:killerMoves)pair={Move{},Move{}};}
-        else if(cmd=="position"){setPosition(pos,line);}
-        else if(cmd=="go"){
+    std::string line;
+    while(std::getline(std::cin,line)){
+        std::istringstream in(line);
+        std::string cmd;
+        in>>cmd;
+        if(cmd=="uci"){
+            emitLine("id name Prunex 0.5.1\nid author Prunex Project\nuciok");
+        } else if(cmd=="isready"){
+            emitLine("readyok");
+        } else if(cmd=="ucinewgame"){
+            stopAndJoin();
+            loadFen(pos,START_FEN);
+            transpositionTable.fill(TTEntry{});
+            historyScores={};
+            for(auto& pair:killerMoves)pair={Move{},Move{}};
+        } else if(cmd=="position"){
+            stopAndJoin();
+            setPosition(pos,line);
+        } else if(cmd=="go"){
+            stopAndJoin();
             int depth=5;
             bool depthSet=false;
             int movesToGo=30;
@@ -620,11 +650,27 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             }
             if(moveTime==0) moveTime=1;
             if(!depthSet&&moveTime>=0) depth=12;
-            Move best=findBestMove(pos,std::clamp(depth,1,12),moveTime);
-            std::cout<<"bestmove "<<(best.from>=0?moveUci(best):"0000")<<"\n"<<std::flush;
+            const int searchDepth=std::clamp(depth,1,12);
+            const Position searchPosition=pos;
+            searchAborted.store(false,std::memory_order_relaxed);
+            searchThread=std::thread([searchPosition,searchDepth,moveTime]() mutable {
+                Move best=findBestMove(searchPosition,searchDepth,moveTime);
+                emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
+            });
+        } else if(cmd=="stop"){
+            stopAndJoin();
+        } else if(cmd=="quit"){
+            stopAndJoin();
+            break;
+        } else if(cmd=="d"){
+            std::lock_guard<std::mutex> lock(outputMutex);
+            for(int r=7;r>=0;--r){
+                for(int f=0;f<8;++f)std::cout<<pieceChar(pos.board[r*16+f])<<' ';
+                std::cout<<'\n';
+            }
+            std::cout<<std::flush;
         }
-        else if(cmd=="stop"){}
-        else if(cmd=="quit")break;
-        else if(cmd=="d"){for(int r=7;r>=0;--r){for(int f=0;f<8;++f)std::cout<<pieceChar(pos.board[r*16+f])<<' ';std::cout<<'\n';}}
-    }return 0;
+    }
+    stopAndJoin();
+    return 0;
 }
