@@ -377,17 +377,17 @@ async function refreshGameArchive() {
       }
     }
     const status = gameArchive.getStatus();
-    const syncError = gameArchive.getLastError();
-    const anonymousAuthDisabled = /anonymous_provider_disabled|anonymous sign-ins are disabled/i.test(syncError);
     archiveNote.textContent = status === "connected"
       ? (sharePositionMemory
-        ? "Your games and reviews are saved privately to your guest profile. You opted in to sharing anonymized position samples for the shared Prunex experience library."
-        : "Your games and reviews are saved privately to your guest profile. Shared position-memory contribution is currently off.")
-      : anonymousAuthDisabled
-        ? "Cloud saves are configured, but Supabase Anonymous Sign-Ins are disabled. Enable Authentication → Sign In / Providers → Anonymous Sign-Ins. Your games continue saving on this device until then."
-        : status === "unavailable"
-          ? "Your games remain saved on this device. Cloud sync is queued and will retry when connectivity returns."
-          : "Local game saving is available. Cloud saving will activate when the shared database connection is configured.";
+        ? "Your games and reviews are saved to your private Neon archive. Selected position samples are stored only for your own future games."
+        : "Your games and reviews are saved to your private Neon archive. Private position memory is currently off.")
+      : status === "fallback"
+        ? "Neon is temporarily unavailable. Existing cloud history is being read from the Supabase fallback; new changes stay on this device until Neon reconnects."
+        : status === "owner-only"
+          ? "This browser is in local mode. Only the verified owner email can access the cloud archive; other visitors' games stay on this device."
+          : status === "unavailable"
+            ? "Your games remain saved on this device. Cloud sync is queued and will retry when the private archive is available."
+            : "Local game saving is available. Link and verify the owner email to enable the private cloud archive.";
   } catch (error) {
     archiveCount.textContent = "Unavailable";
     archiveList.textContent = "The local game archive could not be opened in this browser.";

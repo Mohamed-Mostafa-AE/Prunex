@@ -170,19 +170,19 @@
                   <div><span class="panel-kicker">LOCAL EXPERIENCE</span><h4>Game archive</h4></div>
                   <span id="game-archive-count" class="archive-count">0 games</span>
                 </div>
-                <p id="game-archive-note" class="archive-note">Your completed games and reviews are private to your guest profile. You can separately opt in to sharing limited position samples for Prunex experience memory.</p>
+                <p id="game-archive-note" class="archive-note">Games stay on this device unless linked to the verified owner email. The cloud archive and any position memory are private to that account.</p>
                 <div id="turnstile-widget-container" class="turnstile-widget" hidden aria-live="polite"></div>
                 <div id="game-archive-list" class="game-archive-list"><div class="empty">No games saved yet.</div></div>
                 <details class="account-management">
                   <summary>ACCOUNT &amp; DATA</summary>
                   <div class="account-management-body">
                     <form id="link-account-form" class="account-form">
-                      <label for="account-recovery-email">Save this guest archive to an email identity</label>
+                      <label for="account-recovery-email">Link this guest archive to the verified owner email</label>
                       <div class="account-form-row">
                         <input id="account-recovery-email" type="email" autocomplete="email" placeholder="you@example.com" required>
                         <button class="button" type="submit">Send verification</button>
                       </div>
-                      <p id="account-recovery-status" class="account-status" aria-live="polite">Link an email to keep access if you change devices or clear browser data. Your existing games stay with this account.</p>
+                      <p id="account-recovery-status" class="account-status" aria-live="polite">Verify the single owner email to sync this archive across devices. Other visitors continue using local storage only.</p>
                     </form>
                     <form id="restore-account-form" class="account-form">
                       <label for="restore-account-email">Sign in to an existing game archive</label>
@@ -198,7 +198,7 @@
                         <input id="delete-account-confirmation" type="text" autocomplete="off" placeholder="Type DELETE" required>
                         <button class="button account-delete-button" type="submit">Delete account</button>
                       </div>
-                      <p id="delete-account-status" class="account-status" aria-live="polite">Deletion is permanent. It removes this account's cloud games, reviews and shared position samples, plus this browser's local archive.</p>
+                      <p id="delete-account-status" class="account-status" aria-live="polite">Deletion is permanent. It removes the owner-only cloud games, reviews and private position memory, plus this browser's local archive.</p>
                     </form>
                   </div>
                 </details>
@@ -238,8 +238,8 @@
                       <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Evaluation bar</span></label>
                       <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Right-click annotations</span></label>
                     </div>
-                    <label class="setting-toggle"><input id="share-position-memory" type="checkbox"><span>Share anonymized position samples</span></label>
-                    <p class="sound-note">When enabled, future reviews contribute limited, pseudonymized positions, moves, results and evaluation quality to the shared browser experience memory. Names and full PGNs are not shared through this library. These samples are linked internally to your account for deletion and inform position lookup only; they do not retrain or change the native C++ engine.</p>
+                    <label class="setting-toggle"><input id="share-position-memory" type="checkbox"><span>Include reviewed positions in my private memory</span></label>
+                    <p class="sound-note">When enabled, eligible positions, moves, results and evaluation quality are stored only in your private archive and can inform your own future position lookups. They are never shared with other Prunex users, and they do not retrain or change the native C++ engine.</p>
                   </div>
                 </details>
 
