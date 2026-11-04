@@ -106,6 +106,22 @@ try {
   if (await page.locator("#review-budget").inputValue() !== "15000") {
     throw new Error("Game review should default to the recommended 15-second per-position budget.");
   }
+  const historyList = page.locator("#move-list");
+  const historyBefore = await historyList.evaluate(el => el.getBoundingClientRect().height);
+  const historyGrip = page.locator("#resize-move-history");
+  const gripBox = await historyGrip.boundingBox();
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2 + 90, { steps: 6 });
+  await page.mouse.up();
+  const historyAfter = await historyList.evaluate(el => el.getBoundingClientRect().height);
+  if (historyAfter < historyBefore + 70) {
+    throw new Error("Move history should resize when its bottom handle is dragged: " + historyBefore + " → " + historyAfter);
+  }
+  const savedHistoryHeight = await page.evaluate(() => localStorage.getItem("prunex-move-history-height"));
+  if (Number(savedHistoryHeight) !== Math.round(historyAfter)) {
+    throw new Error("Move history height should persist after resizing.");
+  }
   await page.locator("#best-move-display").evaluate(el => {
     for (let group = el.closest("details"); group; group = group.parentElement?.closest("details")) {
       group.open = true;
