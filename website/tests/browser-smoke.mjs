@@ -406,6 +406,27 @@ try {
   const boardBeforeGrip = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
   const resizeGrip = await page.locator("#resize-board").boundingBox();
   if (!resizeGrip) throw new Error("Board resize grip is unavailable.");
+  const gripHitTest = await page.locator("#resize-board").evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    el.dataset.resizePointerDownSeen = "false";
+    el.addEventListener("pointerdown", event => {
+      el.dataset.resizePointerDownSeen = "true";
+      el.dataset.resizePointerDownButton = String(event.button);
+      el.dataset.resizePointerDownType = event.pointerType;
+    }, { once: true });
+    return {
+      hitIsGrip: hit === el,
+      hit: hit ? { tag: hit.tagName, id: hit.id, className: String(hit.className).slice(0, 100) } : null,
+      display: getComputedStyle(el).display,
+      pointerEvents: getComputedStyle(el).pointerEvents,
+      disabled: el.disabled,
+      mediaMatches: matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (orientation: landscape) and (max-height: 520px) and (max-width: 900px)").matches
+    };
+  });
+  await page.locator(".board-frame").screenshot({ path: "artifacts/board-resize-debug.png" });
   await page.mouse.move(resizeGrip.x + resizeGrip.width / 2, resizeGrip.y + resizeGrip.height / 2);
   await page.mouse.down();
   await page.mouse.move(resizeGrip.x + resizeGrip.width / 2 + 90, resizeGrip.y + resizeGrip.height / 2 + 90, { steps: 8 });
@@ -418,8 +439,13 @@ try {
   const enlargedBoard = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
   if (!resizeProgress.active || resizeProgress.requestedSize <= boardBeforeGrip + 35 ||
       enlargedBoard <= boardBeforeGrip + 35) {
+    const pointerDownSeen = await page.locator("#resize-board").evaluate(el => ({
+      seen: el.dataset.resizePointerDownSeen,
+      button: el.dataset.resizePointerDownButton,
+      pointerType: el.dataset.resizePointerDownType
+    }));
     throw new Error("Dragging the board grip must capture the pointer and resize the rendered board: " +
-      JSON.stringify({ before: boardBeforeGrip, during: resizeProgress, after: enlargedBoard }));
+      JSON.stringify({ before: boardBeforeGrip, hitTest: gripHitTest, pointerDownSeen, during: resizeProgress, after: enlargedBoard }));
   }
   const savedBoardSize = await page.evaluate(() => Number(localStorage.getItem("prunex-board-size")));
   if (!Number.isFinite(savedBoardSize) || savedBoardSize <= boardBeforeGrip + 35) {
