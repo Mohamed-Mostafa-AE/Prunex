@@ -1697,8 +1697,10 @@ $("#reset-position").addEventListener("click", () => {
 function setMoveHistoryHeight(value, persist = true) {
   const height = Math.max(120, Math.min(560, Number(value) || 220));
   const list = $("#move-list");
+  const panel = $(".analysis-panel");
   list.style.height = height + "px";
   list.style.flex = "0 0 " + height + "px";
+  panel.style.setProperty("--move-history-height", height + "px");
   if (persist) savePreference("move-history-height", height);
 }
 
@@ -1711,7 +1713,7 @@ function enableMoveHistoryResize() {
   handle.addEventListener("pointerdown", event => {
     if (event.button !== 0) return;
     event.preventDefault();
-    pointerStart = { id: event.pointerId, y: event.clientY, height: list.getBoundingClientRect().height };
+    pointerStart = { id:event.pointerId, y:event.clientY, height:list.getBoundingClientRect().height };
     handle.setPointerCapture(event.pointerId);
     panel.classList.add("is-resizing-history");
   });
