@@ -61,6 +61,14 @@ try {
   if (!archiveStatus.includes(expectedArchiveStatus)) {
     throw new Error("The game archive did not reach its expected mode: " + archiveStatus);
   }
+  for (const selector of ["#link-account-form", "#delete-account-form", "#account-recovery-email", "#delete-account-confirmation"]) {
+    if (await page.locator(selector).count() !== 1) {
+      throw new Error("Account recovery/deletion control missing: " + selector);
+    }
+  }
+  if (await page.locator("#turnstile-widget-container").isVisible()) {
+    throw new Error("Turnstile should stay hidden until guest registration actually requires verification.");
+  }
   if (!(await page.locator("#defeat-sound").isChecked())) {
     throw new Error("The approved defeat sound should be enabled by default.");
   }
