@@ -113,7 +113,13 @@ create policy "users can read their own Prunex reviews"
 drop policy if exists "users can add their own Prunex reviews" on public.prunex_game_reviews;
 create policy "users can add their own Prunex reviews"
   on public.prunex_game_reviews for insert to authenticated
-  with check (user_id = (select auth.uid()));
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  );
 
 drop policy if exists "authenticated users can read shared Prunex position memory" on public.prunex_position_memory;
 create policy "authenticated users can read shared Prunex position memory"
@@ -123,4 +129,10 @@ create policy "authenticated users can read shared Prunex position memory"
 drop policy if exists "users can add their own Prunex position memory" on public.prunex_position_memory;
 create policy "users can add their own Prunex position memory"
   on public.prunex_position_memory for insert to authenticated
-  with check (user_id = (select auth.uid()));
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  );
