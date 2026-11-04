@@ -88,7 +88,7 @@ try {
   if (launchLayout.pieceImages !== 32) throw new Error("Cburnett SVG pieces did not render: " + JSON.stringify(launchLayout));
 
   const visiblePageText = await page.locator("body").innerText();
-  if (/\\b\\d+(?:\\.\\d+)?k\\s+nodes\\b/i.test(visiblePageText)) {
+  if (/\b\d+(?:\.\d+)?k\s+nodes\b/i.test(visiblePageText)) {
     throw new Error("Internal node-count shorthand must not be shown in the interface.");
   }
 
@@ -140,7 +140,7 @@ try {
       color: destination ? getComputedStyle(destination, "::after").backgroundColor : ""
     };
   });
-  const highlightRgb = latestMoveHighlights.color.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+  const highlightRgb = latestMoveHighlights.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
   if (latestMoveHighlights.from !== 1 || latestMoveHighlights.to !== 1 ||
       !highlightRgb || Number(highlightRgb[3]) <= Number(highlightRgb[1]) * 1.2) {
     throw new Error("The most recent move should have one origin and destination with a blue highlight: " + JSON.stringify(latestMoveHighlights));
