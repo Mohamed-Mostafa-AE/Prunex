@@ -62,16 +62,18 @@ alter table public.prunex_game_reviews enable row level security;
 alter table public.prunex_position_memory enable row level security;
 
 -- New Supabase tables are not automatically exposed to the Data API.
--- Explicitly grant only the columns the browser needs. Ownership ids remain hidden.
+-- Explicitly grant only the access required by the browser. Row-level policies restrict game reads to the owner.
 revoke all on table public.prunex_games from anon, authenticated, public;
 revoke all on table public.prunex_game_reviews from anon, authenticated, public;
 revoke all on table public.prunex_position_memory from anon, authenticated, public;
 
 grant usage on schema public to authenticated;
 
-grant select (
-  id, created_at, result, human_color, initial_fen, final_fen, pgn, moves, opponent_version
-) on public.prunex_games to authenticated;
+-- The INSERT policies on reviews/position memory verify parent-game ownership
+-- with an EXISTS subquery. Table-level SELECT is required for that subquery;
+-- the RLS SELECT policy below still limits visible game rows to auth.uid().
+grant select on public.prunex_games to authenticated;
+
 grant insert (
   id, user_id, created_at, result, human_color, initial_fen, final_fen, pgn, moves, opponent_version
 ) on public.prunex_games to authenticated;
