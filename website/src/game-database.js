@@ -88,6 +88,96 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
     return dbPromise;
   }
 
+  async function storeLocalGame(record) {
+    const db = await database();
+    const tx = db.transaction(["games"], "readwrite");
+    const done = transactionComplete(tx);
+    tx.objectStore("games").put(record);
+    await done;
+  }
+
+  async function loadLocalSamples(gameId) {
+    const db = await database();
+    const tx = db.transaction("position_memory", "readonly");
+    return requestValue(tx.objectStore("position_memory").index("gameId").getAll(gameId));
+  }
+
+  async function syncGameRecord(record, userId) {
+    if (record.remoteUserId && record.remoteUserId !== userId) {
+      throw new Error("This locally saved game belongs to a different guest profile and was not transferred.");
+    }
+    const { error } = await supabase.from("prunex_games").upsert({
+      id: record.id,
+      user_id: userId,
+      created_at: record.createdAt,
+      result: record.result,
+      human_color: record.humanColor,
+      initial_fen: record.initialFen,
+      final_fen: record.finalFen,
+      pgn: record.pgn,
+      moves: record.moves,
+      opponent_version: record.opponentVersion
+    }, { onConflict: "id" });
+    if (error) throw error;
+    const synced = {
+      ...record,
+      remoteUserId: userId,
+      remoteGameSyncStatus: "synced",
+      remoteGameSyncedAt: new Date().toISOString(),
+      remoteSyncError: ""
+    };
+    await storeLocalGame(synced);
+    return synced;
+  }
+
+  async function syncReviewRecord(record, samples, userId) {
+    if (record.remoteUserId && record.remoteUserId !== userId) {
+      throw new Error("This locally saved review belongs to a different guest profile and was not transferred.");
+    }
+    const { error: reviewError } = await supabase.from("prunex_game_reviews").upsert({
+      game_id: record.id,
+      user_id: userId,
+      created_at: new Date().toISOString(),
+      white_accuracy: record.whiteAccuracy,
+      black_accuracy: record.blackAccuracy,
+      analysis_json: record.analysis
+    }, { onConflict: "game_id,user_id" });
+    if (reviewError) throw reviewError;
+
+    const remoteSamples = (record.shareTrainingData ? samples : [])
+      .filter(isUsableMemory)
+      .map(sample => ({
+        id: sample.id,
+        game_id: record.id,
+        user_id: userId,
+        position_key: sample.positionKey,
+        side_to_move: sample.sideToMove,
+        move_uci: sample.moveUci,
+        san: sample.san,
+        result_for_mover: sample.resultForMover,
+        eval_loss_cp: sample.evalLossCp,
+        grade: sample.grade,
+        created_at: sample.createdAt
+      }));
+    if (remoteSamples.length) {
+      const { error: memoryError } = await supabase
+        .from("prunex_position_memory")
+        .upsert(remoteSamples, { onConflict: "id" });
+      if (memoryError) throw memoryError;
+    }
+
+    const synced = {
+      ...record,
+      remoteUserId: userId,
+      remoteReviewSyncStatus: "synced",
+      remoteMemorySyncStatus: record.shareTrainingData ? "synced" : "not-shared",
+      remoteReviewSyncedAt: new Date().toISOString(),
+      remoteSyncError: ""
+    };
+    await storeLocalGame(synced);
+    return synced;
+  }
+
   async function getRemoteUserId() {
     if (!supabase) return null;
     if (userPromise) return userPromise;
@@ -109,44 +199,46 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
   }
 
   async function saveGame(record) {
-    const db = await database();
-    const tx = db.transaction(["games"], "readwrite");
-    const done = transactionComplete(tx);
-    tx.objectStore("games").put(record);
-    await done;
+    let localRecord = {
+      ...record,
+      remoteGameSyncStatus: supabase ? "pending" : "local-only",
+      remoteSyncError: ""
+    };
+    await storeLocalGame(localRecord);
 
     if (supabase) {
       try {
         const userId = await getRemoteUserId();
-        const { error } = await supabase.from("prunex_games").insert({
-          id: record.id,
-          user_id: userId,
-          created_at: record.createdAt,
-          result: record.result,
-          human_color: record.humanColor,
-          initial_fen: record.initialFen,
-          final_fen: record.finalFen,
-          pgn: record.pgn,
-          moves: record.moves,
-          opponent_version: record.opponentVersion
-        });
-        if (error) throw error;
+        localRecord = await syncGameRecord(localRecord, userId);
         sharedStatus = "connected";
         lastSharedError = "";
       } catch (error) {
         sharedStatus = "unavailable";
         lastSharedError = error instanceof Error ? error.message : String(error);
-        console.warn("Shared Prunex game archive unavailable; game remains saved locally.", error);
+        localRecord = {
+          ...localRecord,
+          remoteGameSyncStatus: "pending",
+          remoteSyncError: lastSharedError
+        };
+        await storeLocalGame(localRecord);
+        console.warn("Shared Prunex game archive unavailable; game is queued locally for retry.", error);
       }
     }
-    return { id: record.id, sharedStatus };
+    return { id: record.id, sharedStatus, savedLocally: true };
   }
 
   async function saveReview(record, samples, { shareTrainingData = false } = {}) {
+    const localRecord = {
+      ...record,
+      shareTrainingData: Boolean(shareTrainingData),
+      remoteReviewSyncStatus: supabase ? "pending" : "local-only",
+      remoteMemorySyncStatus: shareTrainingData ? "pending" : "not-shared",
+      remoteSyncError: ""
+    };
     const db = await database();
     const tx = db.transaction(["games", "position_memory"], "readwrite");
     const done = transactionComplete(tx);
-    tx.objectStore("games").put(record);
+    tx.objectStore("games").put(localRecord);
     const memoryStore = tx.objectStore("position_memory");
     for (const sample of samples) {
       if (!isUsableMemory(sample)) continue;
@@ -157,53 +249,57 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
     if (supabase) {
       try {
         const userId = await getRemoteUserId();
-        const { error: reviewError } = await supabase.from("prunex_game_reviews").insert({
-          game_id: record.id,
-          user_id: userId,
-          created_at: new Date().toISOString(),
-          white_accuracy: record.whiteAccuracy,
-          black_accuracy: record.blackAccuracy,
-          analysis_json: record.analysis
-        });
-        if (reviewError) throw reviewError;
-
-        const remoteSamples = (shareTrainingData ? samples : []).filter(isUsableMemory).map(sample => ({
-          id: sample.id,
-          game_id: record.id,
-          user_id: userId,
-          position_key: sample.positionKey,
-          side_to_move: sample.sideToMove,
-          move_uci: sample.moveUci,
-          san: sample.san,
-          result_for_mover: sample.resultForMover,
-          eval_loss_cp: sample.evalLossCp,
-          grade: sample.grade,
-          created_at: sample.createdAt
-        }));
-        if (remoteSamples.length) {
-          const { error: memoryError } = await supabase.from("prunex_position_memory").insert(remoteSamples);
-          if (memoryError) throw memoryError;
-        }
+        await syncGameRecord(localRecord, userId);
+        await syncReviewRecord(localRecord, samples, userId);
         sharedStatus = "connected";
         lastSharedError = "";
       } catch (error) {
         sharedStatus = "unavailable";
         lastSharedError = error instanceof Error ? error.message : String(error);
-        console.warn("Shared Prunex review sync unavailable; review remains saved locally.", error);
+        await storeLocalGame({
+          ...localRecord,
+          remoteReviewSyncStatus: "pending",
+          remoteMemorySyncStatus: shareTrainingData ? "pending" : "not-shared",
+          remoteSyncError: lastSharedError
+        });
+        console.warn("Shared Prunex review sync unavailable; review is queued locally for retry.", error);
       }
     }
-    return { sharedStatus };
+    return { sharedStatus, savedLocally: true };
   }
 
   async function listGames(limit = 20) {
     const db = await database();
     const tx = db.transaction("games", "readonly");
-    const rows = await requestValue(tx.objectStore("games").getAll());
-    const byId = new Map(rows.map(row => [row.id, row]));
+    const initialRows = await requestValue(tx.objectStore("games").getAll());
+    let syncFailed = false;
+    let syncFailureMessage = "";
 
     if (supabase) {
       try {
-        await getRemoteUserId();
+        const userId = await getRemoteUserId();
+        for (let record of initialRows) {
+          if (record.remoteUserId && record.remoteUserId !== userId) continue;
+          try {
+            if (record.remoteGameSyncStatus !== "synced") {
+              record = await syncGameRecord(record, userId);
+            }
+            if (Array.isArray(record.analysis) && record.analysis.length &&
+                record.remoteReviewSyncStatus !== "synced") {
+              const samples = await loadLocalSamples(record.id);
+              await syncReviewRecord(record, samples, userId);
+            }
+          } catch (error) {
+            syncFailed = true;
+            syncFailureMessage = error instanceof Error ? error.message : String(error);
+            await storeLocalGame({ ...record, remoteSyncError: syncFailureMessage });
+          }
+        }
+
+        const refreshedTx = db.transaction("games", "readonly");
+        const refreshedRows = await requestValue(refreshedTx.objectStore("games").getAll());
+        const byId = new Map(refreshedRows.map(row => [row.id, row]));
+
         const { data, error } = await supabase
           .from("prunex_games")
           .select("id, created_at, result, human_color, pgn, initial_fen, moves")
@@ -244,15 +340,24 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
           if (existing) Object.assign(existing, remoteRecord, { remoteOnly: false });
           else byId.set(row.id, remoteRecord);
         }
-        sharedStatus = "connected";
-        lastSharedError = "";
+        if (!syncFailed) {
+          sharedStatus = "connected";
+          lastSharedError = "";
+        } else {
+          sharedStatus = "unavailable";
+          lastSharedError = syncFailureMessage;
+        }
+        return [...byId.values()]
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+          .slice(0, limit);
       } catch (error) {
         sharedStatus = "unavailable";
         lastSharedError = error instanceof Error ? error.message : String(error);
-        console.warn("Could not load the shared Prunex game archive.", error);
+        console.warn("Could not synchronize the Prunex game archive.", error);
       }
     }
-    return [...byId.values()]
+
+    return initialRows
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .slice(0, limit);
   }
