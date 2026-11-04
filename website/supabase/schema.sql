@@ -78,12 +78,18 @@ grant insert (
   id, user_id, created_at, result, human_color, initial_fen, final_fen, pgn, moves, opponent_version
 ) on public.prunex_games to authenticated;
 
+-- Upserts support safe, idempotent retry after offline or transient failures.
+grant update on public.prunex_games to authenticated;
+
 grant select (
   game_id, created_at, white_accuracy, black_accuracy, analysis_json
 ) on public.prunex_game_reviews to authenticated;
 grant insert (
   game_id, user_id, created_at, white_accuracy, black_accuracy, analysis_json
 ) on public.prunex_game_reviews to authenticated;
+create unique index if not exists prunex_game_reviews_game_user_unique_idx
+  on public.prunex_game_reviews (game_id, user_id);
+grant update on public.prunex_game_reviews to authenticated;
 
 -- Only minimal move-quality fields are visible to the shared engine memory.
 -- Game PGNs, game ids, timestamps and player ids remain unavailable to other users.
@@ -94,6 +100,7 @@ grant insert (
   id, game_id, user_id, position_key, side_to_move, move_uci, san,
   result_for_mover, eval_loss_cp, grade, created_at
 ) on public.prunex_position_memory to authenticated;
+grant update on public.prunex_position_memory to authenticated;
 
 drop policy if exists "authenticated users can read shared Prunex games" on public.prunex_games;
 drop policy if exists "users can read their own Prunex games" on public.prunex_games;
@@ -104,6 +111,12 @@ create policy "users can read their own Prunex games"
 drop policy if exists "users can add their own Prunex games" on public.prunex_games;
 create policy "users can add their own Prunex games"
   on public.prunex_games for insert to authenticated
+  with check (user_id = (select auth.uid()));
+
+drop policy if exists "users can update their own Prunex games" on public.prunex_games;
+create policy "users can update their own Prunex games"
+  on public.prunex_games for update to authenticated
+  using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
 
 drop policy if exists "authenticated users can read shared Prunex reviews" on public.prunex_game_reviews;
@@ -123,6 +136,24 @@ create policy "users can add their own Prunex reviews"
     )
   );
 
+drop policy if exists "users can update their own Prunex reviews" on public.prunex_game_reviews;
+create policy "users can update their own Prunex reviews"
+  on public.prunex_game_reviews for update to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  );
+
 drop policy if exists "authenticated users can read shared Prunex position memory" on public.prunex_position_memory;
 create policy "authenticated users can read shared Prunex position memory"
   on public.prunex_position_memory for select to authenticated
@@ -131,6 +162,24 @@ create policy "authenticated users can read shared Prunex position memory"
 drop policy if exists "users can add their own Prunex position memory" on public.prunex_position_memory;
 create policy "users can add their own Prunex position memory"
   on public.prunex_position_memory for insert to authenticated
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "users can update their own Prunex position memory" on public.prunex_position_memory;
+create policy "users can update their own Prunex position memory"
+  on public.prunex_position_memory for update to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = game_id and games.user_id = (select auth.uid())
+    )
+  )
   with check (
     user_id = (select auth.uid())
     and exists (
