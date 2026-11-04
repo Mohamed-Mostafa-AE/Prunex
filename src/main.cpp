@@ -735,6 +735,9 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 Move best=findBestMove(searchPosition,searchDepth,moveTime);
                 emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
             });
+        } else if(cmd=="eval"){
+            stopAndJoin();
+            emitLine("info string static evaluation cp "+std::to_string(evaluate(pos)));
         } else if(cmd=="stop"){
             stopAndJoin();
         } else if(cmd=="quit"){
