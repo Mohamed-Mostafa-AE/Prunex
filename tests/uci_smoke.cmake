@@ -15,7 +15,7 @@ if(NOT result EQUAL 0)
     message(FATAL_ERROR "UCI process failed: ${result}\n${error_output}")
 endif()
 
-foreach(expected "id name Prunex 0.5.1" "uciok" "readyok")
+foreach(expected "id name Prunex 0.8.0" "uciok" "readyok")
     if(NOT output MATCHES "${expected}")
         message(FATAL_ERROR "UCI output is missing '${expected}'\n${output}")
     endif()
