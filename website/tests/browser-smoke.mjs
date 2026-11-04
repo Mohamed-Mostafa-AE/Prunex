@@ -21,11 +21,17 @@ page.on("console", message => {
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
-  await page.waitForFunction(() =>
-    document.querySelector("#game-archive-note")?.textContent.includes("saved privately to your guest profile"),
-    undefined,
-    { timeout: 30000 }
-  );
+  try {
+    await page.waitForFunction(() =>
+      document.querySelector("#game-archive-note")?.textContent.includes("saved privately to your guest profile"),
+      undefined,
+      { timeout: 30000 }
+    );
+  } catch {
+    const archiveStatus = await page.locator("#game-archive-note").innerText();
+    throw new Error("Cloud guest archive did not connect. " + archiveStatus +
+      " Check that Supabase Anonymous Sign-Ins are enabled. ");
+  }
   if (!(await page.locator("#defeat-sound").isChecked())) {
     throw new Error("The approved defeat sound should be enabled by default.");
   }
