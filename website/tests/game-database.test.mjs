@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { isUsableMemory, rankSamples } from "../src/game-database.js";
+import { createGameArchive, isUsableMemory, rankSamples } from "../src/game-database.js";
 
 function sample(moveUci, resultForMover, evalLossCp = 0, grade = "BEST", overrides = {}) {
   return {
@@ -49,4 +49,38 @@ assert.equal(isUsableMemory(sample("e2e4", 1, 0, "BEST", { positionKey: "short" 
 assert.equal(isUsableMemory(sample("e2e4", 1, 0, "BEST", { san: "" })), false);
 assert.equal(isUsableMemory(sample("e2e4", 1, 0, "BEST", { id: "" })), false);
 
-console.log("Game database: ranking and strict shared-memory validation checks passed.");
+const authRequests = [];
+const archive = createGameArchive({
+  url: "https://example.supabase.co",
+  publishableKey: "sb_publishable_test",
+  getRedirectTo: () => "https://prunex.example",
+  clientFactory: (url, key, options) => {
+    assert.equal(url, "https://example.supabase.co");
+    assert.equal(key, "sb_publishable_test");
+    assert.equal(options.auth.detectSessionInUrl, true);
+    return {
+      auth: {
+        signInWithOtp: async request => {
+          authRequests.push(request);
+          return { error: null };
+        }
+      }
+    };
+  }
+});
+const recovery = await archive.sendRecoveryLink(" Player@Example.com ");
+assert.deepEqual(recovery, { email: "player@example.com", verificationRequired: true });
+assert.deepEqual(authRequests[0], {
+  email: "player@example.com",
+  options: {
+    shouldCreateUser: false,
+    emailRedirectTo: "https://prunex.example"
+  }
+}, "recovery must target the allowed site origin without creating another user");
+await assert.rejects(() => archive.sendRecoveryLink("not-an-email"), /valid email/);
+await assert.rejects(
+  () => createGameArchive().sendRecoveryLink("player@example.com"),
+  /not configured/
+);
+
+console.log("Game database: ranking, strict memory validation, and email recovery checks passed.");
