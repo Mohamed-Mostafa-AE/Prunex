@@ -139,7 +139,7 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
     return { id: record.id, sharedStatus };
   }
 
-  async function saveReview(record, samples) {
+  async function saveReview(record, samples, { shareTrainingData = false } = {}) {
     const db = await database();
     const tx = db.transaction(["games", "position_memory"], "readwrite");
     const done = transactionComplete(tx);
@@ -164,7 +164,7 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
         });
         if (reviewError) throw reviewError;
 
-        const remoteSamples = samples.filter(isUsableMemory).map(sample => ({
+        const remoteSamples = (shareTrainingData ? samples : []).filter(isUsableMemory).map(sample => ({
           id: sample.id,
           game_id: record.id,
           user_id: userId,
@@ -205,19 +205,39 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
           .order("created_at", { ascending: false })
           .limit(limit);
         if (error) throw error;
-        for (const row of data || []) {
-          if (!byId.has(row.id)) {
-            byId.set(row.id, {
-              id: row.id,
-              createdAt: row.created_at,
-              result: row.result,
-              humanColor: row.human_color,
-              initialFen: row.initial_fen,
-              pgn: row.pgn,
-              remoteOnly: true,
-              moves: Array.isArray(row.moves) ? row.moves : []
-            });
+
+        const remoteIds = (data || []).map(row => row.id);
+        const reviewsByGame = new Map();
+        if (remoteIds.length) {
+          const { data: reviews, error: reviewError } = await supabase
+            .from("prunex_game_reviews")
+            .select("game_id, white_accuracy, black_accuracy, analysis_json")
+            .in("game_id", remoteIds)
+            .order("created_at", { ascending: false });
+          if (reviewError) throw reviewError;
+          for (const review of reviews || []) {
+            if (!reviewsByGame.has(review.game_id)) reviewsByGame.set(review.game_id, review);
           }
+        }
+
+        for (const row of data || []) {
+          const review = reviewsByGame.get(row.id);
+          const remoteRecord = {
+            id: row.id,
+            createdAt: row.created_at,
+            result: row.result,
+            humanColor: row.human_color,
+            initialFen: row.initial_fen,
+            pgn: row.pgn,
+            remoteOnly: !byId.has(row.id),
+            moves: Array.isArray(row.moves) ? row.moves : [],
+            analysis: review?.analysis_json ?? null,
+            whiteAccuracy: review?.white_accuracy ?? null,
+            blackAccuracy: review?.black_accuracy ?? null
+          };
+          const existing = byId.get(row.id);
+          if (existing) Object.assign(existing, remoteRecord, { remoteOnly: false });
+          else byId.set(row.id, remoteRecord);
         }
         sharedStatus = "connected";
       } catch (error) {
