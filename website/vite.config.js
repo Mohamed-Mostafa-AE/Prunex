@@ -8,5 +8,14 @@ const isolationHeaders = {
 export default defineConfig({
   base: "/",
   server: { headers: isolationHeaders },
-  preview: { headers: isolationHeaders }
+  preview: { headers: isolationHeaders },
+  build: {
+    rollupOptions: {
+      input: {
+        index: "index.html",
+        privacy: "privacy.html",
+        terms: "terms.html"
+      }
+    }
+  }
 });
