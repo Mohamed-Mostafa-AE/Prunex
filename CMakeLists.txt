@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Prunex VERSION 0.5.1 LANGUAGES CXX)
+project(Prunex VERSION 0.8.0 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 
