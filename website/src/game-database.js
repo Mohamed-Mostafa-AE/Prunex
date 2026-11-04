@@ -83,7 +83,7 @@ export function rankSamples(samples) {
   })[0] || null;
 }
 
-export function createGameArchive({ url = "", publishableKey = "" } = {}) {
+export function createGameArchive({ url = "", publishableKey = "", captchaTokenProvider = null } = {}) {
   const supabase = url && publishableKey
     ? createClient(url, publishableKey, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
@@ -197,7 +197,9 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (sessionData.session?.user?.id) return sessionData.session.user.id;
-      const { data, error } = await supabase.auth.signInAnonymously();
+      const captchaToken = captchaTokenProvider ? await captchaTokenProvider() : null;
+      const signInOptions = captchaToken ? { options: { captchaToken } } : undefined;
+      const { data, error } = await supabase.auth.signInAnonymously(signInOptions);
       if (error) throw error;
       if (!data.user?.id) throw new Error("Anonymous game-archive sign-in did not return a user.");
       return data.user.id;
