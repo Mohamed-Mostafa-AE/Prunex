@@ -195,7 +195,13 @@ def ingest(args: argparse.Namespace) -> dict:
         temp_paths[name] = Path(temp_name)
         handles[name] = os.fdopen(fd, "w", encoding="utf-8", newline="\n")
 
-    counters: Counter[str] = Counter()
+    counters: Counter[str] = Counter({
+        "raw_games": 0,
+        "accepted_games": 0,
+        "rejected_games": 0,
+        "duplicate_games": 0,
+        "positions": 0,
+    })
     seen_games: set[str] = set()
     group_splits: dict[str, str] = {}
     split_positions: Counter[str] = Counter()
