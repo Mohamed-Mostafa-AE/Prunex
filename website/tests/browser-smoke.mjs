@@ -608,6 +608,17 @@ try {
         layout.board.width > layout.workspaceWidth + 1) {
       throw new Error("Chessboard sizing failed at " + device.name + ": " + JSON.stringify(layout));
     }
+    const resizeControls = await page.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    const expectsResize = device.width > 700;
+    if (expectsResize && (resizeControls.board === "none" || resizeControls.history === "none")) {
+      throw new Error("Tablet/laptop should retain resize controls at " + device.name + ": " + JSON.stringify(resizeControls));
+    }
+    if (!expectsResize && (resizeControls.board !== "none" || resizeControls.history !== "none")) {
+      throw new Error("Phone layouts must not expose resize controls at " + device.name + ": " + JSON.stringify(resizeControls));
+    }
     if (screenshotViewports.has(device.name)) {
       await page.screenshot({
         path: "artifacts/responsive-" + device.name + ".png",
@@ -840,6 +851,25 @@ try {
       throw new Error("Touch annotations should draw an arrow after tapping an origin and destination.");
     }
     await touchPage.locator("#clear-marks").tap();
+
+    // Enter a review position from move history, then play directly on the board.
+    // The board move itself must branch from the selected FEN with no resume button.
+    await touchPage.locator('[data-square="e2"]').tap();
+    await touchPage.locator('[data-square="e4"]').tap();
+    await touchPage.waitForFunction(() =>
+      [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4"))
+    );
+    const firstAvailableMove = touchPage.locator("#move-list .move-notation").first();
+    if (await firstAvailableMove.count()) await firstAvailableMove.tap();
+    const reviewState = await touchPage.evaluate(() => ({
+      reviewing: !!document.querySelector("#move-position-label")?.textContent?.trim(),
+      boardSquares: document.querySelectorAll("#board .square").length,
+      buttons: [...document.querySelectorAll("button")].map(button => button.textContent.trim().toLowerCase())
+    }));
+    if (reviewState.boardSquares !== 64) throw new Error("Board should stay interactive during review.");
+    if (reviewState.buttons.some(label => label.includes("back to live"))) {
+      throw new Error("A separate Back to live action must not be present.");
+    }
   } finally {
     await touchContext.close();
   }

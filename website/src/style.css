@@ -1172,3 +1172,38 @@ img, svg, video, canvas { max-width: 100%; }
 .board-column,.board-stage,.board-frame,.board,.analysis-panel,.move-list,.move-navigation {
   overflow-anchor:none;
 }
+
+
+/* Resize affordances are intentionally desktop/tablet-only. Touch phones use
+   the responsive auto-fit board and a fixed, readable history height. */
+@media (max-width: 700px), (pointer: coarse) and (max-width: 760px) {
+  #resize-board,
+  #resize-move-history {
+    display: none !important;
+    pointer-events: none !important;
+  }
+}
+
+/* Slower editorial reveals: restrained opacity/clip movement, no bounce. */
+.reveal-on-scroll {
+  transition-duration: 1.05s;
+  transition-timing-function: cubic-bezier(.22,.61,.36,1);
+}
+.hero-copy h1.reveal-on-scroll {
+  transition-duration: 1.2s;
+}
+.hero-copy .hero-lede.reveal-on-scroll { transition-delay: .14s; }
+.hero-copy .hero-description.reveal-on-scroll { transition-delay: .24s; }
+.hero-copy .hero-actions.reveal-on-scroll { transition-delay: .32s; }
+.hero-copy .hero-meta.reveal-on-scroll { transition-delay: .4s; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll,
+  .reveal-on-scroll.is-visible,
+  .hero-copy h1.reveal-on-scroll,
+  .hero-copy h1.reveal-on-scroll.is-visible {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+    transition: none !important;
+  }
+}

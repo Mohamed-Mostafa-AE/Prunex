@@ -1382,6 +1382,8 @@ function onBoardPointerUp(event) {
 }
 
 function commitMove(from,to) {
+  // A legal move played on the board exits review at the selected position.
+  // resumeFromReview deliberately preserves the current Chess object/FEN.
   if (reviewMovesSnapshot && !resumeFromReview()) return false;
   const candidates=game.moves({square:from,verbose:true}).filter(move=>move.to===to);
   if(!candidates.length)return false;
