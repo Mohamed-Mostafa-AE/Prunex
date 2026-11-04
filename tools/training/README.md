@@ -74,3 +74,23 @@ manifest and source license obligations.
 The importer is GPL-3.0-or-later because it uses python-chess, which is
 GPL-3.0-or-later. The zstandard Python package is BSD-3-Clause. Their licenses
 remain distinct from the Apache-2.0 license covering the native C++ engine.
+
+## Annotate positions with the native Prunex evaluator
+
+After compiling the native engine, annotate one corpus split with its own
+static evaluation (not the separate browser engine):
+
+```bash
+python tools/training/annotate_native.py \
+  --engine ./build/prunex \
+  --input /data/prunex-corpus/lichess-2026-10/positions-train.jsonl \
+  --output /data/prunex-corpus/lichess-2026-10/positions-train-prunex-0.8.0.jsonl \
+  --engine-version "Prunex 0.8.0"
+```
+
+The native engine's custom UCI `eval` command reports a static score in
+centipawns from the side-to-move perspective. The annotator records the
+engine binary SHA-256 with every row. It does not search for a best move and
+does not train or modify the engine. Use these measurements to inspect the
+current evaluator and prepare controlled tuning experiments; an annotation
+pass is not a strength improvement.
