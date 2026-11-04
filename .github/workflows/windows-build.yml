@@ -1,4 +1,4 @@
-name: Windows x64 validation (Prunex 0.5.1)
+name: Windows x64 validation (Prunex 0.8.0)
 
 on:
   push:
@@ -106,7 +106,7 @@ jobs:
           }
 
           $manifest = [ordered]@{
-            project = 'Prunex 0.5.1'
+            project = 'Prunex 0.8.0'
             commit = $env:GITHUB_SHA
             runner = 'windows-2022'
             generator = 'Visual Studio 17 2022'
