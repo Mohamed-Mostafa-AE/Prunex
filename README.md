@@ -72,8 +72,7 @@ Game Review defaults to a 30-second search budget per non-terminal position. Thi
 ## Known limitations
 
 - The Windows desktop application still needs a complete manual run-through on Windows 10 or 11. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
-- The desktop application currently searches on the UI thread, so longer searches can temporarily make the window unresponsive.
-- UCI `stop` does not yet cancel a native search asynchronously.
+- The Windows desktop application still searches on the UI thread, so longer searches can temporarily make the window unresponsive. The UCI command-line interface runs searches in the background and supports responsive cancellation with `stop`.
 - No independent Elo rating has been established for the native C++ engine.
 - The reported 0.8.0 benchmark record is based on a Stockfish 19-derived browser build, not an independent strength result for the native C++ engine. See [docs/testing.md](docs/testing.md).
 
