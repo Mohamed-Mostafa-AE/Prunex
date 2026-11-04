@@ -41,6 +41,19 @@ page.on("console", message => {
 
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
+  for (const [path, expectedHeading] of [
+    ["privacy.html", "Privacy Notice"],
+    ["terms.html", "Terms of Use"]
+  ]) {
+    const response = await page.request.get(new URL(path, baseUrl).toString());
+    if (!response.ok()) {
+      throw new Error(path + " must be included in the production build (HTTP " + response.status() + ").");
+    }
+    const markup = await response.text();
+    if (!markup.includes("<h1>" + expectedHeading + "</h1>")) {
+      throw new Error(path + " did not return the expected legal document.");
+    }
+  }
   await page.waitForTimeout(10000);
   const requireCloudArchive = process.env.PRUNEX_REQUIRE_CLOUD === "true";
   const cloudEnvironmentConfigured = Boolean(
