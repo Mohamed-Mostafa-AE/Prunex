@@ -8,7 +8,7 @@ This checklist separates repository-verified controls from provider settings and
 - The website has a Vite production build and Chromium browser smoke test. The build guard rejects incomplete cloud archive configuration, non-HTTPS Supabase endpoints, and browser-prefixed server secrets. Cloud archive builds do not require CAPTCHA.
 - Supabase game, review, and position-memory tables have RLS enabled. Game and review rows are owner-scoped; shared-memory reads expose only the minimum move-quality fields.
 - Account deletion uses a JWT-verified Edge Function which verifies caller identity server-side, revokes refresh-token sessions, deletes the Auth user, and relies on foreign-key cascades for cloud records.
-- Shared position-memory consent is stored per review and checked by an owner-verified server RPC. The RPC atomically replaces or clears all samples for a game; direct browser write privileges are revoked.
+- Shared position-memory consent is stored per review and checked by a SECURITY INVOKER RPC. The RPC atomically replaces or clears all samples for a game, while PostgreSQL RLS enforces owner and consent checks on every insert/delete.
 - The browser security policy uses a restrictive CSP, HSTS, frame protections, referrer policy, and cross-origin isolation.
 - A native WebAssembly target compiles the same C++ implementation. CI checks static-evaluation, best-move, and node-count parity across five fixed positions and publishes a versioned JS/WASM artifact. The current website worker has not yet been switched to that artifact.
 - Browser-prefixed environment variables are public. Never expose a service-role key or provider secret through a `VITE_*` variable.

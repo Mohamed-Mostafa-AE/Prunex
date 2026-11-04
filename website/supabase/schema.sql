@@ -78,6 +78,11 @@ grant update on public.prunex_game_reviews to authenticated;
 grant select (
   id, position_key, side_to_move, move_uci, result_for_mover, eval_loss_cp, grade
 ) on public.prunex_position_memory to authenticated;
+grant insert (
+  id, game_id, user_id, position_key, side_to_move, move_uci, san,
+  result_for_mover, eval_loss_cp, grade, created_at
+) on public.prunex_position_memory to authenticated;
+grant delete on public.prunex_position_memory to authenticated;
 
 drop policy if exists "authenticated users can read shared Prunex games" on public.prunex_games;
 drop policy if exists "users can read their own Prunex games" on public.prunex_games;
@@ -128,10 +133,40 @@ drop policy if exists "authenticated users can read shared Prunex position memor
 create policy "authenticated users can read shared Prunex position memory"
   on public.prunex_position_memory for select to authenticated using (true);
 
+drop policy if exists "users can add their own Prunex position memory" on public.prunex_position_memory;
+create policy "users can add their own Prunex position memory"
+  on public.prunex_position_memory for insert to authenticated
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+    and exists (
+      select 1 from public.prunex_game_reviews as reviews
+      where reviews.game_id = prunex_position_memory.game_id
+        and reviews.user_id = (select auth.uid())
+        and reviews.share_position_memory is true
+    )
+  );
+
+drop policy if exists "users can delete their own Prunex position memory" on public.prunex_position_memory;
+create policy "users can delete their own Prunex position memory"
+  on public.prunex_position_memory for delete to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+  );
+
 create or replace function public.replace_my_position_memory_for_game(target_game_id uuid, position_samples jsonb)
 returns integer
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $function$
 declare
