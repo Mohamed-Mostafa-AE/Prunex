@@ -114,6 +114,18 @@ h2 span { color: var(--blue); }
 .piece-svg { display: block; width: 88%; height: 88%; overflow: visible; }
 .piece-svg use { pointer-events: none; }
 .piece-unicode { font: clamp(26px, min(6.3vw, 6.3vh), 58px)/1 "DejaVu Sans", "Segoe UI Symbol", serif; }
+.piece-unicode.white-piece {
+  color: #fffdf5;
+  -webkit-text-stroke: .9px #29496b;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .48), 0 0 2px rgba(19, 50, 79, .45);
+  font-weight: 700;
+}
+.piece-unicode.black-piece {
+  color: #102640;
+  -webkit-text-stroke: .7px #d4e7f8;
+  text-shadow: 0 0 2px rgba(234, 244, 253, .9), 0 1px 1px rgba(0, 0, 0, .3);
+  font-weight: 700;
+}
 .piece-letters { font: 800 clamp(17px, 2.6vw, 34px)/1 Manrope, sans-serif; }
 .white-piece { color: #fffdf8; }
 .black-piece { color: #18324f; }
