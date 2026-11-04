@@ -62,11 +62,13 @@ try {
   if (!(await page.locator("#testing .benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
   const testingCopy = await page.locator("#testing").innerText();
-  const matchCopy = await page.locator("#match-results").innerText();
-  if (!matchCopy.includes("63–1–0") || !matchCopy.includes("99.22%") || !matchCopy.includes("≈3,904 Elo")) {
-    throw new Error("The Stockfish 2.0 match result and estimate are missing.");
+  const standardsCopy = await page.locator("#analysis-standards").innerText();
+  if (!standardsCopy.includes("Strength is earned in testing") || !standardsCopy.includes("45")) {
+    throw new Error("The site should explain the current validation standard without claiming an unverified rating.");
   }
-  if (!matchCopy.includes("Stockfish 19")) throw new Error("The benchmark engine provenance is missing.");
+  if (await page.locator("#match-results").count()) {
+    throw new Error("The unsupported historical rating comparison should not be presented as a current Prunex rating.");
+  }
   if (!testingCopy.includes("44/44") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
   if (favicon !== "/prunex-mark.png?v=4") throw new Error("Transparent Prunex mark is not configured as the favicon.");
@@ -93,9 +95,18 @@ try {
     throw new Error("Engine startup failed: " + JSON.stringify(startup) +
       "\nWorkers: " + JSON.stringify(workers) + "\nErrors: " + failures.join("\n"));
   }
-  if (await page.locator("#best-move-display").inputValue() !== "off") {
-    throw new Error("Best-move arrows should be off by default.");
+  if (await page.locator("#best-move-display").inputValue() !== "piece") {
+    throw new Error("The best-move marker should default to the moving piece.");
   }
+  if (await page.locator("#review-budget").inputValue() !== "15000") {
+    throw new Error("Game review should default to the recommended 15-second per-position budget.");
+  }
+  await page.locator("#best-move-display").selectOption("arrow");
+  await page.locator("#best-move-display").selectOption("off");
+  if (await page.locator("#board .best-move-arrow").count()) {
+    throw new Error("The arrow overlay must disappear when arrows are disabled.");
+  }
+  await page.locator("#best-move-display").selectOption("piece");
   if (await page.locator("#move-method").inputValue() !== "both") {
     throw new Error("Drag-or-click should be the default move method.");
   }
@@ -124,16 +135,15 @@ try {
     throw new Error("The most recent move should leave exactly one origin and destination square highlighted.");
   }
   await page.locator(".settings-group").nth(3).locator("summary").click();
-  if (await page.locator("#sound-style option").count() < 8) {
-    throw new Error("Eight distinct Prunex move-sound choices should be available.");
+  if (await page.locator("#sound-style option").count() !== 3) {
+    throw new Error("The three refined Prunex move-sound profiles should be available.");
   }
-  await page.locator("#sound-style").selectOption("felt");
+  await page.locator("#sound-style").selectOption("soft");
   await page.locator("#preview-move-sound").click();
-  await page.locator("#sound-style").selectOption("ceramic");
+  await page.locator("#sound-style").selectOption("muted");
   await page.locator("#preview-move-sound").click();
-  await page.locator("#sound-style").selectOption("glass");
+  await page.locator("#sound-style").selectOption("classic");
   await page.locator("#preview-move-sound").click();
-  await page.locator("#sound-style").selectOption("wood");
   await page.locator("#move-method").selectOption("both");
   await page.locator("#board").scrollIntoViewIfNeeded();
   await page.locator('[data-square="g1"]').scrollIntoViewIfNeeded();
@@ -571,7 +581,7 @@ try {
     throw new Error("Move grades should store valid expected-point losses between 0 and 1.");
   }
   if (!(await page.locator(".piece-quality-marker").count())) {
-    throw new Error("A reviewed Best/Brilliant move should display its quality marker over the destination piece.");
+    throw new Error("A reviewed Best/Brilliant move should display its quality marker on the corresponding board piece.");
   }
   const moveGrades = await page.locator("#move-list .move-grade").allTextContents();
   if (!moveGrades.some(grade => ["BEST","BRILLIANT","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(grade))) {
