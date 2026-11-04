@@ -86,7 +86,7 @@ export function rankSamples(samples) {
 export function createGameArchive({ url = "", publishableKey = "" } = {}) {
   const supabase = url && publishableKey
     ? createClient(url, publishableKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       })
     : null;
 
@@ -411,6 +411,54 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
     return rankSamples(candidates)?.moveUci || null;
   }
 
+  async function linkGuestEmail(email) {
+    if (!supabase) throw new Error("Cloud account recovery is not configured.");
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
+      throw new Error("Enter a valid email address.");
+    }
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!userData.user) throw new Error("Your guest session is not available.");
+    if (!userData.user.is_anonymous) {
+      throw new Error("This game archive already has a permanent sign-in identity.");
+    }
+    const { error } = await supabase.auth.updateUser(
+      { email: normalizedEmail },
+      { emailRedirectTo: window.location.origin }
+    );
+    if (error) throw error;
+    return { email: normalizedEmail, verificationRequired: true };
+  }
+
+  async function deleteAccount() {
+    if (!supabase) throw new Error("Cloud account deletion is not configured.");
+    const { data, error } = await supabase.functions.invoke("delete-account", {
+      body: { confirmation: "DELETE_MY_PRUNEX_ACCOUNT" }
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "The account could not be deleted.");
+
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // The server has already revoked and deleted the user.
+    }
+    userPromise = null;
+    sharedStatus = "not-connected";
+    lastSharedError = "";
+
+    await new Promise((resolve, reject) => {
+      if (!("indexedDB" in globalThis)) return resolve();
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error || new Error("Could not clear this device's game archive."));
+      request.onblocked = () => reject(new Error("Close other Prunex tabs before clearing local archive data."));
+    });
+    dbPromise = null;
+    return { success: true };
+  }
+
   function getStatus() {
     return sharedStatus;
   }
@@ -419,5 +467,8 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
     return lastSharedError;
   }
 
-  return { newId, saveGame, saveReview, listGames, findExperiencedMove, getStatus, getLastError };
+  return {
+    newId, saveGame, saveReview, listGames, findExperiencedMove,
+    linkGuestEmail, deleteAccount, getStatus, getLastError
+  };
 }
