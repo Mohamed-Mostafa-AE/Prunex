@@ -22,6 +22,9 @@ jobs:
   build-and-test:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://ttcejatqtvphzenjkkbh.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_mP0qFF73BOQ3tozPaBKJOQ_31Uvpxu-
     defaults:
       run:
         working-directory: website
