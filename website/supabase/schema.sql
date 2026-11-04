@@ -1,6 +1,7 @@
--- Prunex shared game archive and experience memory
+-- Prunex private game archive and opt-in shared experience memory
 -- Apply only after the target Supabase project is active.
 -- Anonymous Auth must be enabled in Supabase Authentication settings.
+-- The app uses Supabase Auth user UUIDs; raw IP addresses are deliberately not collected.
 
 create table if not exists public.prunex_games (
   id uuid primary key,
@@ -41,6 +42,10 @@ create table if not exists public.prunex_position_memory (
 
 create index if not exists prunex_games_created_at_idx
   on public.prunex_games (created_at desc);
+create index if not exists prunex_games_user_created_at_idx
+  on public.prunex_games (user_id, created_at desc);
+create index if not exists prunex_game_reviews_user_game_idx
+  on public.prunex_game_reviews (user_id, game_id);
 
 create index if not exists prunex_position_memory_lookup_idx
   on public.prunex_position_memory (position_key, side_to_move, eval_loss_cp);
@@ -74,8 +79,10 @@ grant insert (
   game_id, user_id, created_at, white_accuracy, black_accuracy, analysis_json
 ) on public.prunex_game_reviews to authenticated;
 
+-- Only minimal move-quality fields are visible to the shared engine memory.
+-- Game PGNs, game ids, timestamps and player ids remain unavailable to other users.
 grant select (
-  position_key, side_to_move, move_uci, san, result_for_mover, eval_loss_cp, grade, created_at
+  position_key, side_to_move, move_uci, result_for_mover, eval_loss_cp, grade
 ) on public.prunex_position_memory to authenticated;
 grant insert (
   id, game_id, user_id, position_key, side_to_move, move_uci, san,
@@ -83,9 +90,10 @@ grant insert (
 ) on public.prunex_position_memory to authenticated;
 
 drop policy if exists "authenticated users can read shared Prunex games" on public.prunex_games;
-create policy "authenticated users can read shared Prunex games"
+drop policy if exists "users can read their own Prunex games" on public.prunex_games;
+create policy "users can read their own Prunex games"
   on public.prunex_games for select to authenticated
-  using (true);
+  using (user_id = (select auth.uid()));
 
 drop policy if exists "users can add their own Prunex games" on public.prunex_games;
 create policy "users can add their own Prunex games"
@@ -93,9 +101,10 @@ create policy "users can add their own Prunex games"
   with check (user_id = (select auth.uid()));
 
 drop policy if exists "authenticated users can read shared Prunex reviews" on public.prunex_game_reviews;
-create policy "authenticated users can read shared Prunex reviews"
+drop policy if exists "users can read their own Prunex reviews" on public.prunex_game_reviews;
+create policy "users can read their own Prunex reviews"
   on public.prunex_game_reviews for select to authenticated
-  using (true);
+  using (user_id = (select auth.uid()));
 
 drop policy if exists "users can add their own Prunex reviews" on public.prunex_game_reviews;
 create policy "users can add their own Prunex reviews"
