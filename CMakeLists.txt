@@ -1,12 +1,15 @@
 cmake_minimum_required(VERSION 3.20)
 project(Prunex VERSION 0.5.1 LANGUAGES CXX)
 
+find_package(Threads REQUIRED)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(prunex src/main.cpp)
 target_compile_features(prunex PRIVATE cxx_std_20)
+target_link_libraries(prunex PRIVATE Threads::Threads)
 
 if(WIN32)
     add_executable(PrunexGUI WIN32 src/gui.cpp)
@@ -84,6 +87,7 @@ if(BUILD_TESTING)
 
     add_executable(prunex_search_tests tests/search_regression.cpp)
     target_compile_features(prunex_search_tests PRIVATE cxx_std_20)
+    target_link_libraries(prunex_search_tests PRIVATE Threads::Threads)
     if(MSVC)
         target_compile_options(prunex_search_tests PRIVATE /W4 /permissive-)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
