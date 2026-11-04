@@ -358,13 +358,17 @@ async function refreshGameArchive() {
       }
     }
     const status = gameArchive.getStatus();
+    const syncError = gameArchive.getLastError();
+    const anonymousAuthDisabled = /anonymous_provider_disabled|anonymous sign-ins are disabled/i.test(syncError);
     archiveNote.textContent = status === "connected"
       ? (sharePositionMemory
         ? "Your games and reviews are saved privately to your guest profile. You opted in to sharing anonymized position samples for the shared Prunex experience library."
         : "Your games and reviews are saved privately to your guest profile. Shared position-memory contribution is currently off.")
-      : status === "unavailable"
-        ? "Your games remain saved on this device. The shared database could not be reached, so cloud sync will need to be retried."
-        : "Local game saving is available. Cloud saving will activate when the shared database connection is configured.";
+      : anonymousAuthDisabled
+        ? "Cloud saves are configured, but Supabase Anonymous Sign-Ins are disabled. Enable Authentication → Sign In / Providers → Anonymous Sign-Ins. Your games continue saving on this device until then."
+        : status === "unavailable"
+          ? "Your games remain saved on this device. The shared database could not be reached, so cloud sync will need to be retried."
+          : "Local game saving is available. Cloud saving will activate when the shared database connection is configured.";
   } catch (error) {
     archiveCount.textContent = "Unavailable";
     archiveList.textContent = "The local game archive could not be opened in this browser.";
