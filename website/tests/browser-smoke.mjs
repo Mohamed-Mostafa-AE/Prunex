@@ -100,6 +100,19 @@ try {
     throw new Error("Engine startup failed: " + JSON.stringify(startup) +
       "\nWorkers: " + JSON.stringify(workers) + "\nErrors: " + failures.join("\n"));
   }
+  const boardSizeDisclosure = page.locator("#board-size-disclosure");
+  if (await boardSizeDisclosure.evaluate(el => el.open)) throw new Error("Board-size control should start compact.");
+  await boardSizeDisclosure.locator("summary").click();
+  if (!(await page.locator("#board-size").isVisible())) throw new Error("Board-size slider should open from its disclosure.");
+  await boardSizeDisclosure.locator("summary").click();
+  if (await page.locator("#board-size").isVisible()) throw new Error("Board-size slider should collapse.");
+  const panelToggle = page.locator("#toggle-analysis-panel");
+  await panelToggle.click();
+  if (await page.locator("#analysis-panel").isVisible()) throw new Error("The game side panel should close.");
+  if (await panelToggle.getAttribute("aria-expanded") !== "false") throw new Error("Side-panel toggle aria state should update.");
+  await panelToggle.click();
+  if (!(await page.locator("#analysis-panel").isVisible())) throw new Error("The game side panel should reopen.");
+  if (await page.locator("#share-position-memory").isChecked()) throw new Error("Shared position-memory contribution should require opt-in.");
   if (await page.locator("#best-move-display").inputValue() !== "piece") {
     throw new Error("The best-move marker should default to the moving piece.");
   }
