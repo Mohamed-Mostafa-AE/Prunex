@@ -27,7 +27,7 @@ The native engine includes:
 - Tapered positional evaluation
 - UCI command handling and time controls
 
-The native CMake project currently identifies itself as **0.5.1**. This is the native engine's version; it should not be confused with the website's separate browser-demo label.
+The current native engine release is **Prunex 0.8.0**. The CMake project version, UCI identification string, and Windows validation manifest are aligned to this release.
 
 ## Build the native engine
 
