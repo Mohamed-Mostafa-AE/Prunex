@@ -46,6 +46,8 @@ create index if not exists prunex_games_user_created_at_idx
   on public.prunex_games (user_id, created_at desc);
 create index if not exists prunex_game_reviews_game_id_user_idx
   on public.prunex_game_reviews (game_id, user_id);
+create index if not exists prunex_game_reviews_user_id_idx
+  on public.prunex_game_reviews (user_id);
 create index if not exists prunex_position_memory_user_id_idx
   on public.prunex_position_memory (user_id);
 
