@@ -81,10 +81,13 @@ Game Review defaults to a 30-second search budget per non-terminal position. Thi
 - [Development notes](docs/development-notes.md)
 - [Test results and benchmark methodology](docs/testing.md)
 - [Windows desktop checklist](docs/windows-desktop-checklist.md)
+- [Training-data sourcing and ingestion policy](docs/training-data-ingestion.md)
 - [Website implementation notes](website/README.md)
 
-## Source and permissions
+## Licensing
 
-This repository is published for **inspection and review**. No open-source license has been granted for the original Prunex native-engine source or project materials. Unless a separate license is added, all rights to those original materials are reserved; making the repository publicly visible does not grant permission to copy, modify, redistribute, or use them in another project.
+The original Prunex native C++ implementation and its native regression tests are released under the **MIT License**, with scope defined in [LICENSE](LICENSE). The license does not relicense third-party dependencies, bundled browser-engine code, or artwork.
 
-Third-party components and assets are governed by their own licenses and notices. See the relevant files under `website/public/` and the website dependency metadata.
+The browser demonstration contains separately licensed third-party components. Its browser engine distribution remains under GPLv3, and the Cburnett piece artwork remains under the license identified in `website/public/pieces/`. Their corresponding source links, notices, and license texts must remain with every distributed browser build. See [website/README.md](website/README.md) and the license notice in the site footer.
+
+Other repository materials not listed in the MIT scope remain reserved unless an applicable license or notice says otherwise.
