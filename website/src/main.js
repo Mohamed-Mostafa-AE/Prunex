@@ -27,8 +27,6 @@ const fenInput = $("#fen-input");
 const fenFeedback = $("#fen-feedback");
 const boardFrame = $(".board-frame");
 const boardStage = $(".board-stage");
-const boardSizeInput = $("#board-size");
-const boardSizeValue = $("#board-size-value");
 const pieceStyleSelect = $("#piece-style");
 const coordinatesToggle = $("#coordinates");
 const legalMovesToggle = $("#legal-moves");
@@ -518,10 +516,6 @@ function setBoardSize(value, persist = true) {
   const size = Math.max(320, Math.min(640, Number(value) || 520));
   boardFrame.style.setProperty("--board-size", size + "px");
   boardStage.style.setProperty("--board-size", size + "px");
-  boardSizeInput.value = String(size);
-  boardSizeValue.value = size + " px";
-  boardSizeValue.textContent = size + " px";
-  $("#board-size-summary-value").textContent = size + " px";
   if (persist) savePreference("board-size", size);
 }
 
@@ -555,7 +549,6 @@ function applyPreferences() {
   showAnnotations = loadPreference("board-annotations","false") === "true";
   sharePositionMemory = loadPreference("share-position-memory", "false") === "true";
   $("#share-position-memory").checked = sharePositionMemory;
-  $("#board-size-disclosure").open = loadPreference("board-size-open", "false") === "true";
   setAnalysisPanelOpen(loadPreference("analysis-panel-open", "true") !== "false", false);
   $("#theme").value = theme;
   pieceStyleSelect.value = pieces;
@@ -1105,8 +1098,19 @@ function renderMoves() {
   }
 
   const active = moveListEl.querySelector(".move-notation.is-current, .move-start.is-current");
-  if (active) active.scrollIntoView({ block: "nearest" });
-  else if (!reviewMovesSnapshot) moveListEl.scrollTop = moveListEl.scrollHeight;
+  if (active) {
+    // Keep the active move visible inside its own scroll container. The browser's
+    // native into-view helper may scroll the document and pull the board off-screen.
+    const listRect = moveListEl.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    if (listRect.height > 0 && activeRect.top < listRect.top) {
+      moveListEl.scrollTop -= listRect.top - activeRect.top;
+    } else if (listRect.height > 0 && activeRect.bottom > listRect.bottom) {
+      moveListEl.scrollTop += activeRect.bottom - listRect.bottom;
+    }
+  } else if (!reviewMovesSnapshot) {
+    moveListEl.scrollTop = moveListEl.scrollHeight;
+  }
   moveCountEl.textContent = reviewMovesSnapshot
     ? "Viewing " + currentPly + " / " + history.length + " plies"
     : history.length + " plies";
@@ -1715,10 +1719,6 @@ evaluationToggle.addEventListener("change", event => {
   savePreference("show-evaluation", showEvaluation);
   syncEvaluationVisibility();
 });
-boardSizeInput.addEventListener("input", event => setBoardSize(event.target.value));
-$("#board-size-disclosure").addEventListener("toggle", event => {
-  savePreference("board-size-open", event.currentTarget.open);
-});
 $("#toggle-analysis-panel").addEventListener("click", () => {
   setAnalysisPanelOpen($("#analysis-panel").hidden);
 });
@@ -1740,9 +1740,11 @@ if (resizeGrip) {
   });
   resizeGrip.addEventListener("pointerup", event => {
     if (resizeGrip.hasPointerCapture(event.pointerId)) resizeGrip.releasePointerCapture(event.pointerId);
-    savePreference("board-size", boardSizeInput.value);
+    savePreference("board-size", boardFrame.style.getPropertyValue("--board-size").replace("px", ""));
   });
-  resizeGrip.addEventListener("pointercancel", () => savePreference("board-size", boardSizeInput.value));
+  resizeGrip.addEventListener("pointercancel", () =>
+    savePreference("board-size", boardFrame.style.getPropertyValue("--board-size").replace("px", ""))
+  );
 }
 promotionPicker.querySelectorAll("[data-promotion]").forEach(button => {
   button.addEventListener("click", () => completePromotion(button.dataset.promotion));

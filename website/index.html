@@ -132,14 +132,6 @@
                 <button id="toggle-analysis-panel" class="button" type="button" aria-controls="analysis-panel" aria-expanded="true">Hide side panel</button>
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
               </div>
-              <details id="board-size-disclosure" class="board-size-disclosure">
-                <summary><span>BOARD SIZE</span><output id="board-size-summary-value">520 px</output></summary>
-                <div class="board-size-control">
-                  <label for="board-size"><span>MAX BOARD SIZE</span><output id="board-size-value">520 px</output></label>
-                  <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred maximum chessboard size">
-                  <span class="board-size-note">Sets the preferred maximum; the board scales down to fit smaller screens.</span>
-                </div>
-              </details>
               <div id="promotion-picker" class="promotion-picker" hidden role="dialog" aria-modal="true" aria-label="Choose promotion piece">
                 <span>Promote pawn to</span>
                 <div class="promotion-options">

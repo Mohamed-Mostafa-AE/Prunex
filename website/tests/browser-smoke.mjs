@@ -161,12 +161,12 @@ try {
     throw new Error("Engine startup failed: " + JSON.stringify(startup) +
       "\nWorkers: " + JSON.stringify(workers) + "\nErrors: " + failures.join("\n"));
   }
-  const boardSizeDisclosure = page.locator("#board-size-disclosure");
-  if (await boardSizeDisclosure.evaluate(el => el.open)) throw new Error("Board-size control should start compact.");
-  await boardSizeDisclosure.locator("summary").click();
-  if (!(await page.locator("#board-size").isVisible())) throw new Error("Board-size slider should open from its disclosure.");
-  await boardSizeDisclosure.locator("summary").click();
-  if (await page.locator("#board-size").isVisible()) throw new Error("Board-size slider should collapse.");
+  if (await page.locator("#board-size-disclosure, #board-size").count()) {
+    throw new Error("The redundant board-size disclosure and range slider should not be present.");
+  }
+  if (!(await page.locator("#resize-board").isVisible())) {
+    throw new Error("The unobtrusive board-corner resize grip should remain available.");
+  }
   const panelToggle = page.locator("#toggle-analysis-panel");
   await panelToggle.click();
   if (await page.locator("#analysis-panel").isVisible()) throw new Error("The game side panel should close.");
@@ -394,13 +394,16 @@ try {
 
 
   await page.setViewportSize({ width: 1440, height: 768 });
-  await page.locator("#board-size").evaluate(el => { el.value = "590"; el.dispatchEvent(new Event("input", { bubbles: true })); });
-  const boardAt590 = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
-  if (boardAt590 < 580 || boardAt590 > 600) throw new Error("Board should reach 590px at a 768px viewport height: " + boardAt590);
-  await page.locator("#board-size").evaluate(el => { el.value = "640"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+  const boardBeforeGrip = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
+  const resizeGrip = await page.locator("#resize-board").boundingBox();
+  if (!resizeGrip) throw new Error("Board resize grip is unavailable.");
+  await page.mouse.move(resizeGrip.x + resizeGrip.width / 2, resizeGrip.y + resizeGrip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(resizeGrip.x + resizeGrip.width / 2 + 90, resizeGrip.y + resizeGrip.height / 2, { steps: 8 });
+  await page.mouse.up();
   const enlargedBoard = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
-  if (enlargedBoard < 630 || enlargedBoard > 650 || enlargedBoard <= boardAt590 + 35) {
-    throw new Error("Board size slider must distinguish 590px from 640px: " + boardAt590 + " -> " + enlargedBoard);
+  if (enlargedBoard <= boardBeforeGrip + 35) {
+    throw new Error("Dragging the unobtrusive corner grip should resize the board: " + boardBeforeGrip + " -> " + enlargedBoard);
   }
   if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
@@ -803,6 +806,10 @@ try {
       undefined,
       { timeout: 60000 }
     );
+    const panelToggle = touchPage.locator("#toggle-analysis-panel");
+    if (await panelToggle.getAttribute("aria-expanded") !== "true") await panelToggle.tap();
+    await touchPage.locator(".board-frame").scrollIntoViewIfNeeded();
+    const scrollBeforeMove = await touchPage.evaluate(() => window.scrollY);
     await touchPage.locator('[data-square="e2"]').click();
     await touchPage.locator('[data-square="e4"]').click();
     await touchPage.waitForFunction(
@@ -810,6 +817,11 @@ try {
       undefined,
       { timeout: 60000 }
     );
+    const scrollAfterMove = await touchPage.evaluate(() => window.scrollY);
+    if (Math.abs(scrollAfterMove - scrollBeforeMove) > 3) {
+      throw new Error("Making a move with the side panel open must not scroll the page to move history: " +
+        scrollBeforeMove + " -> " + scrollAfterMove);
+    }
     await touchPage.waitForFunction(
       () => [...document.querySelectorAll("#game-archive-list .archive-game")]
         .some(row => row.textContent.includes("IN PROGRESS")),
