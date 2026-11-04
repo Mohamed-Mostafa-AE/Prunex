@@ -129,11 +129,6 @@ let activeGameCreatedAt = new Date().toISOString();
 let activeGamePersisted = false;
 let archiveWriteQueue = Promise.resolve();
 
-const glyph = {
-  w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
-  b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" }
-};
-
 let selected = null;
 let legalTargets = [];
 let flipped = false;
@@ -535,7 +530,8 @@ function applyPreferences() {
   const savedTheme = loadPreference("theme", "blue");
   const theme = ["blue", "ice"].includes(savedTheme) ? savedTheme : "blue";
   const storedPieces = loadPreference("pieces", "cburnett");
-  const pieces = ["cburnett", "unicode", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
+  const pieces = ["cburnett", "letters"].includes(storedPieces) ? storedPieces : "cburnett";
+  if (storedPieces !== pieces) savePreference("pieces", pieces);
   showCoordinates = loadPreference("coordinates", "true") !== "false";
   showLegalMoves = loadPreference("legal-moves", "true") !== "false";
   soundEnabled = loadPreference("defeat-sound", "true") !== "false";
@@ -674,7 +670,10 @@ function renderBoard() {
         span.className = "piece " + (piece.color === "w" ? "white-piece" : "black-piece");
         if (pieceAnimationEnabled && moveAnimationPending && lastMove?.to === square) span.classList.add("piece-arrive");
         const pieceSet = boardEl.dataset.pieces || "cburnett";
-        if (pieceSet === "cburnett") {
+        if (pieceSet === "letters") {
+          span.classList.add("piece-letters");
+          span.textContent = piece.type.toUpperCase();
+        } else {
           const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
           svg.classList.add("piece-svg");
           svg.setAttribute("viewBox", "0 0 45 45");
@@ -683,12 +682,6 @@ function renderBoard() {
           use.setAttribute("href", "/pieces/cburnett.svg#" + piece.color + piece.type.toUpperCase());
           svg.append(use);
           span.append(svg);
-        } else if (pieceSet === "letters") {
-          span.classList.add("piece-letters");
-          span.textContent = piece.type.toUpperCase();
-        } else {
-          span.classList.add("piece-unicode");
-          span.textContent = glyph[piece.color][piece.type];
         }
         button.append(span);
       }
@@ -1059,6 +1052,8 @@ async function completeGameReview(results) {
   stateEl.dataset.busy = "false";
 }
 function renderMoves() {
+  const pageScroller = document.scrollingElement;
+  const pageScrollTop = pageScroller?.scrollTop ?? window.scrollY;
   const history = reviewMovesSnapshot || game.history({ verbose: true });
   const currentPly = reviewMovesSnapshot ? reviewPly : history.length;
   moveListEl.replaceChildren();
@@ -1115,6 +1110,16 @@ function renderMoves() {
     ? "Viewing " + currentPly + " / " + history.length + " plies"
     : history.length + " plies";
   syncMoveNavigation(currentPly, history.length);
+
+  // Browser scroll anchoring can move the document when a complete list is rebuilt.
+  // Preserve the viewport; moveListEl remains the only element allowed to scroll.
+  const restorePageScroll = () => {
+    if (pageScroller && Math.abs(pageScroller.scrollTop - pageScrollTop) > 1) {
+      pageScroller.scrollTop = pageScrollTop;
+    }
+  };
+  restorePageScroll();
+  requestAnimationFrame(restorePageScroll);
 }
 
 function syncMoveNavigation(currentPly, totalPlies) {

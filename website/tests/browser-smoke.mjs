@@ -429,25 +429,8 @@ try {
   if (await page.locator("#board").getAttribute("data-pieces") !== "letters" || !(await page.locator("#board .piece-letters").count())) {
     throw new Error("Letter piece set did not render.");
   }
-  await page.locator("#piece-style").selectOption("unicode");
-  if (!(await page.locator("#board .piece-unicode").count())) throw new Error("Unicode piece set did not render.");
-  const unicodeContrast = await page.evaluate(() => {
-    const white = document.querySelector("#board .piece-unicode.white-piece");
-    const black = document.querySelector("#board .piece-unicode.black-piece");
-    if (!white || !black) return null;
-    const whiteStyle = getComputedStyle(white);
-    const blackStyle = getComputedStyle(black);
-    return {
-      whiteStroke: whiteStyle.webkitTextStroke,
-      whiteShadow: whiteStyle.textShadow,
-      blackStroke: blackStyle.webkitTextStroke,
-      blackShadow: blackStyle.textShadow
-    };
-  });
-  if (!unicodeContrast || !unicodeContrast.whiteStroke.includes("0.9px") ||
-      !unicodeContrast.blackStroke.includes("0.7px") ||
-      unicodeContrast.whiteShadow === "none" || unicodeContrast.blackShadow === "none") {
-    throw new Error("Unicode pieces need the hero-style contrasting edge and shadow: " + JSON.stringify(unicodeContrast));
+  if (await page.locator('#piece-style option[value="unicode"]').count()) {
+    throw new Error("Unicode pieces should be removed; the SVG Staunton set is the default.");
   }
   await page.locator("#piece-style").selectOption("letters");
   const letterStyle = await page.locator("#board .piece-letters").first().evaluate(el => ({
