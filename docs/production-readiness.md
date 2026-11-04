@@ -56,8 +56,8 @@ Retain all browser-engine and artwork license notices and corresponding-source o
 ## Native and desktop release gate
 
 - Run CTest on GCC, Clang, MSVC x64, and sanitizers for the release commit.
-- The Windows desktop application currently searches on the UI thread. Complete the documented Windows 10/11 manual run-through and address UI blocking before treating the desktop binary as a polished end-user release.
-- WebAssembly build integration and native/WASM parity tests are not complete until built and independently verified.
+- Desktop search now runs asynchronously, with cancellation on new game, undo, and window close. Complete the manual Windows 10/11 run-through and verify responsiveness, cancellation, promotion, undo, and shutdown before treating the desktop binary as a polished end-user release.
+- Native WebAssembly build integration and automated native/WASM parity tests are not implemented yet; the existing browser demo is a separate component and does not satisfy this requirement.
 - Do not publish Elo/strength claims without reproducible paired-color matches, fixed openings, sufficient game counts, and confidence intervals or SPRT.
 
 ## Monitoring and response
