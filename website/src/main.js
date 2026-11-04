@@ -110,6 +110,10 @@ const gameArchive = createGameArchive({
   url: import.meta.env.VITE_SUPABASE_URL || "",
   publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ""
 });
+let activeArchiveId = gameArchive.newId();
+let activeGameCreatedAt = new Date().toISOString();
+let activeGamePersisted = false;
+let archiveWriteQueue = Promise.resolve();
 
 const glyph = {
   w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
@@ -145,7 +149,7 @@ function completePromotion(piece) {
   selected = null;
   legalTargets = [];
   render();
-  search();
+  void persistGameProgress();search();
 }
 function savePreference(key, value) {
   try { localStorage.setItem("prunex-" + key, String(value)); } catch {}
@@ -313,6 +317,7 @@ function buildMoveSnapshots() {
 }
 
 function gameResultCode() {
+  if (!game.isGameOver()) return "in_progress";
   if (game.isCheckmate()) return game.turn() === "w" ? "black_win" : "white_win";
   return "draw";
 }
@@ -325,7 +330,7 @@ async function refreshGameArchive() {
     if (!games.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
-      empty.textContent = "No completed games saved yet.";
+      empty.textContent = "No games saved yet.";
       archiveList.append(empty);
     } else {
       for (const saved of games) {
@@ -335,13 +340,14 @@ async function refreshGameArchive() {
         const title = document.createElement("strong");
         const created = document.createElement("small");
         const result = document.createElement("span");
-        const label = saved.result === "draw" ? "DRAW" :
+        const label = saved.result === "in_progress" ? "IN PROGRESS" :
+          saved.result === "draw" ? "DRAW" :
           saved.result === (saved.humanColor === "w" ? "white_win" : "black_win") ? "YOUR WIN" : "YOUR LOSS";
         title.textContent = saved.remoteOnly ? "Shared game" : "Prunex 0.8.0 · " + label;
         created.textContent = new Date(saved.createdAt).toLocaleString();
         details.append(title, created);
         result.className = "archive-result";
-        result.textContent = saved.result === "draw" ? "DRAW" : label;
+        result.textContent = label;
         row.append(details, result);
         if (Array.isArray(saved.moves) && saved.moves.length) {
           row.tabIndex = 0;
@@ -377,37 +383,39 @@ async function refreshGameArchive() {
   }
 }
 
-async function persistCompletedGame() {
-  const finalFen = game.fen();
-  if (savedGameFen === finalFen) return;
-  if (!pendingArchiveRecord || pendingArchiveRecord.finalFen !== finalFen) {
-    pendingArchiveRecord = {
-      id: gameArchive.newId(),
-      createdAt: new Date().toISOString(),
-      result: gameResultCode(),
-      humanColor,
-      initialFen,
-      finalFen,
-      pgn: game.pgn(),
-      opponentVersion: "Prunex Play · Full analysis",
-      moves: buildMoveSnapshots(),
-      analysis: null,
-      whiteAccuracy: null,
-      blackAccuracy: null
-    };
-  }
-  try {
-    currentArchiveRecord = pendingArchiveRecord;
-    await gameArchive.saveGame(pendingArchiveRecord);
-    savedGameFen = finalFen;
-    pendingArchiveRecord = null;
+async function persistGameProgress() {
+  const moves = buildMoveSnapshots();
+  if (!moves.length && !activeGamePersisted) return;
+  activeGamePersisted = true;
+  const record = {
+    id: activeArchiveId,
+    createdAt: activeGameCreatedAt,
+    result: gameResultCode(),
+    humanColor,
+    initialFen,
+    finalFen: game.fen(),
+    pgn: game.pgn(),
+    opponentVersion: "Prunex 0.8.0 · browser game",
+    moves,
+    analysis: null,
+    whiteAccuracy: null,
+    blackAccuracy: null
+  };
+  currentArchiveRecord = record;
+  const task = archiveWriteQueue.catch(() => {}).then(async () => {
+    await gameArchive.saveGame(record);
+    savedGameFen = record.finalFen;
     await refreshGameArchive();
-  } catch (error) {
-    // Keep the same record id so a later retry cannot create a duplicate game.
-    savedGameFen = null;
-    archiveNote.textContent = "Could not save this game locally yet: " +
+  });
+  archiveWriteQueue = task.catch(error => {
+    archiveNote.textContent = "This game is saved locally; cloud sync will retry: " +
       (error instanceof Error ? error.message : "Unknown archive error.");
-  }
+  });
+  return task;
+}
+
+async function persistCompletedGame() {
+  return persistGameProgress();
 }
 
 function openArchivedGame(record) {
@@ -1256,7 +1264,7 @@ function executeQueuedPremove() {
   if(!queuedPremove||game.turn()!==humanColor||game.isGameOver())return false;
   const move=game.move(queuedPremove);queuedPremove=null;
   if(!move){statusEl.textContent="Premove cancelled · no longer legal";renderBoardHighlights();return false;}
-  lastMove={from:move.from,to:move.to};moveAnimationPending=true;playMoveSound(move);selected=null;legalTargets=[];render();search();return true;
+  lastMove={from:move.from,to:move.to};moveAnimationPending=true;playMoveSound(move);selected=null;legalTargets=[];render();void persistGameProgress();search();return true;
 }
 function clearDragGhost() {
   if(dragGhost)dragGhost.remove();
@@ -1315,7 +1323,7 @@ function commitMove(from,to) {
   if(evaluating)cancelSearch();
   const move=game.move({from,to});if(!move)return false;
   queuedPremove=null;bestMoveHint=null;lastMove={from:move.from,to:move.to};moveAnimationPending=true;playMoveSound(move);
-  selected=null;legalTargets=[];render();search();return true;
+  selected=null;legalTargets=[];render();void persistGameProgress();search();return true;
 }
 
 function onSquare(square) {
@@ -1353,6 +1361,9 @@ function startNewGame() {
   reviewAnalysisResults = [];
   reviewAnalysisIndex = 0;
   savedGameFen = null;
+   activeArchiveId = gameArchive.newId();
+   activeGameCreatedAt = new Date().toISOString();
+   activeGamePersisted = false;
   pendingArchiveRecord = null;
   currentArchiveRecord = null;
   gameReviewPanel.hidden = true;
@@ -1411,7 +1422,7 @@ async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAt
       stateEl.textContent = "Experience memory · proven move";
       stateEl.dataset.busy = "false";
     }
-    search();
+    void persistGameProgress();search();
   } catch (error) {
     render();
     statusEl.textContent = error instanceof Error ? error.message : "Could not apply engine move.";
@@ -1552,7 +1563,8 @@ undoButton.addEventListener("click", () => {
   if (thinking || reviewMovesSnapshot) return;
   if (game.history().length) game.undo();
   if (game.history().length) game.undo();
-  const h = game.history({ verbose: true });
+  if (activeGamePersisted) void persistGameProgress();
+   const h = game.history({ verbose: true });
   const prior = h[h.length - 1];
   lastMove = prior ? { from: prior.from, to: prior.to } : null;
   selected = null;
