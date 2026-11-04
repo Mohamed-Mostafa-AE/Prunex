@@ -1,0 +1,76 @@
+name: Validate Prunex website
+
+on:
+  push:
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-ci.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/website-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: website-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Start Vite preview
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/prunex-preview.log 2>&1 &
+          echo $! > /tmp/prunex-preview.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "Vite preview ready (PID $(cat /tmp/prunex-preview.pid))"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/prunex-preview.log
+          exit 1
+      - run: mkdir -p artifacts
+      - name: Browser smoke test
+        run: npm run test:browser
+      - name: Required output assets
+        run: |
+          test -s dist/index.html
+          test -s dist/prunex-mark.png
+          test -s dist/engine/stockfish-19.js
+          test -s dist/engine/stockfish-19.wasm
+          test -s dist/COPYING.txt
+
+      - name: Stop Vite preview
+        if: always()
+        run: |
+          if [ -f /tmp/prunex-preview.pid ]; then
+            kill "$(cat /tmp/prunex-preview.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload visual review screenshots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: prunex-responsive-device-review
+          path: website/artifacts/*.png
+          if-no-files-found: warn
+          retention-days: 3
