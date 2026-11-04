@@ -205,7 +205,7 @@ bool searchShouldStop() {
     if(searchAborted.load(std::memory_order_relaxed)) return true;
     if(!searchTimeLimited||(nodes&127ULL)!=0) return false;
     if(std::chrono::steady_clock::now()>=searchDeadline) searchAborted.store(true,std::memory_order_relaxed);
-    return searchAborted;
+    return searchAborted.load(std::memory_order_relaxed);
 }
 
 int hashFullPermille() {
@@ -533,7 +533,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
         int score=0;
         while(true) {
             score=negamax(p,currentDepth,alpha,beta,0,true);
-            if(searchAborted) break;
+            if(searchAborted.load(std::memory_order_relaxed)) break;
             TTEntry& rootEntry=transpositionTable[positionKey(p)&(TT_SIZE-1)];
             if(rootEntry.key==positionKey(p)&&rootEntry.best.from>=0) best=rootEntry.best;
             if(score<=alpha&&alpha>-INF) {
@@ -548,7 +548,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
             }
             break;
         }
-        if(searchAborted) break;
+        if(searchAborted.load(std::memory_order_relaxed)) break;
         previousScore=score;
         auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count();
         std::ostringstream info;
