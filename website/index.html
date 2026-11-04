@@ -24,7 +24,7 @@
           <a href="#play">Play</a>
           <a href="#about">The engine</a>
           <a href="#testing">Testing</a>
-          <a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+          <a href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
         <div class="top-actions"><button id="site-theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span id="theme-toggle-icon" aria-hidden="true">☾</span><span id="theme-toggle-label">Dark mode</span></button><a class="top-cta" href="#play">Try the demo <span aria-hidden="true">↗</span></a></div>
       </header>
@@ -38,7 +38,7 @@
             <p class="hero-description">I built the engine around its own board representation, move generation, search, evaluation, and UCI interface. The project also includes a Windows desktop application and a browser demo.</p>
             <div class="hero-actions">
               <a class="button button-primary" href="#play">Try the browser demo <span aria-hidden="true">↗</span></a>
-              <a class="button button-quiet" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">View source <span aria-hidden="true">↗</span></a>
+              <a class="button button-quiet" href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">View source <span aria-hidden="true">↗</span></a>
             </div>
             <div class="hero-meta"><span><i class="pulse-dot"></i> Project repository</span><span>C++20</span><span>No account required</span></div>
           </div>
@@ -197,8 +197,8 @@
                 <details class="settings-group">
                   <summary><span>ANALYSIS</span><small>Best move · evaluation · marks</small></summary>
                   <div class="settings-group-body">
-                    <label class="setting-row"><span>Game review budget</span><select id="review-budget"><option value="3000">Quick · 3 seconds / position</option><option value="10000">Balanced · 10 seconds / position</option><option value="15000">Strong · 15 seconds / position</option><option value="20000">Deep · 20 seconds / position</option><option value="30000" selected>Maximum · 30 seconds / position</option></select></label>
-                    <label class="setting-row"><span>Best-move marker</span><select id="best-move-display"><option value="off">Off</option><option value="highlight">Square highlights</option><option value="arrow">Arrow + highlights</option></select></label>
+                    <label class="setting-row"><span>Game review budget</span><select id="review-budget"><option value="3000">Quick · 3 seconds / position</option><option value="10000">Balanced · 10 seconds / position</option><option value="15000" selected>Recommended · 15 seconds / position</option><option value="20000">Deep · 20 seconds / position</option><option value="30000">Maximum · 30 seconds / position</option></select></label>
+                    <label class="setting-row"><span>Best-move marker</span><select id="best-move-display"><option value="off">Off</option><option value="piece" selected>Marker on moving piece</option><option value="highlight">Square highlights</option><option value="arrow">Arrow + highlights</option></select></label>
                     <div class="settings-toggle-grid">
                       <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Evaluation bar</span></label>
                       <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Right-click annotations</span></label>
@@ -212,14 +212,9 @@
                     <label class="setting-row sound-setting-row"><span>Move sound</span>
                       <div class="sound-picker">
                         <select id="sound-style">
-                          <option value="wood">Wooden Tap · Warm</option>
-                          <option value="felt">Felt Click · Muted</option>
-                          <option value="ceramic">Ceramic Tick · Crisp</option>
-                          <option value="ivory">Ivory Tap · Light</option>
-                          <option value="stone">Stone Clack · Deep</option>
-                          <option value="switch">Mechanical Switch · Sharp</option>
-                          <option value="rubber">Soft Rubber · Dampened</option>
-                          <option value="glass">Glass Bead · Bright</option>
+                          <option value="classic" selected>Classic wooden tap</option>
+                          <option value="soft">Soft felt tap</option>
+                          <option value="muted">Quiet click</option>
                         </select>
                         <button id="preview-move-sound" class="button sound-preview" type="button">Preview</button>
                       </div>
@@ -229,7 +224,7 @@
                   </div>
                 </details>
 
-                <p class="engine-review-note">Each non-terminal position receives the selected analysis budget—30 seconds by default. Longer games take proportionally longer.</p>
+                <p class="engine-review-note">Each non-terminal position receives the selected search budget. The recommended setting is 15 seconds per position; longer games therefore take longer to review. A deeper search can change the leading line, but no fixed time guarantees a stronger move.</p>
                 <div class="engine-note"><span class="local-dot"></span><span>PRUNEX PLAY · EVALUATION INTELLIGENCE</span></div>
               </div>
             </aside>
@@ -259,7 +254,7 @@
             <p>Prunex 0.8.0 is a chess engine written from the ground up in C++20. Its source includes the position model, legal move generation, search, evaluation, and Universal Chess Interface (UCI) support.</p>
             <p>The search uses Zobrist hashing, a transposition table, iterative deepening, aspiration windows, principal-variation search, move ordering, late-move reductions, and quiescence search. The evaluation uses a tapered positional model.</p>
             <p>The native project is built with CMake. Its Windows GUI uses the Win32 API, while the engine can also be driven through its UCI interface.</p>
-            <a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Explore source code and build instructions <span aria-hidden="true">↗</span></a>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">Explore source code and build instructions <span aria-hidden="true">↗</span></a>
           </div>
         </section>
 
@@ -270,7 +265,7 @@
             <p>The native engine has 44 regression tests covering move generation, special moves, search positions, and UCI commands.</p>
             <p>Recorded Linux builds passed with GCC Release, Clang Release, and AddressSanitizer/UndefinedBehaviorSanitizer. The GCC static-analysis build completed without diagnostics.</p>
             <p>The Windows desktop application still needs a full manual test on Windows 10 or 11. The current limitations and test coverage are listed in the project notes.</p>
-            <a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex/tree/main/docs" target="_blank" rel="noreferrer">Read the test results and project notes <span aria-hidden="true">↗</span></a>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/tree/main/docs" target="_blank" rel="noreferrer">Read the test results and project notes <span aria-hidden="true">↗</span></a>
           </div>
           <div class="benchmark-card">
             <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">LINUX TESTS</span></div>
@@ -287,33 +282,32 @@
           </div>
         </section>
 
-        <section class="match-section section-wrap" id="match-results">
+        <section class="match-section section-wrap" id="analysis-standards">
           <div class="benchmark-copy">
-            <div class="eyebrow"><span class="eyebrow-line"></span> ENGINE MATCH</div>
-            <h2>Prunex 0.8.0 vs Stockfish 2.0.</h2>
-            <p>In a 64-game match, the Prunex 0.8.0 benchmark build scored 63 wins, 1 draw, and 0 losses against Stockfish 2.0 64-bit.</p>
-            <p>The match used 1,000,000 nodes per move, a 256 MB hash, and one thread. Sixteen openings were each played twice with colors reversed.</p>
-            <p>The score converts to 99.22% and an Elo-model gap of approximately +842 points. Using CCRL's 3,062 rating for Stockfish 2.0.1 64-bit as a proxy baseline gives a formula-derived estimate of approximately 3,904 Elo.</p>
-            <a class="text-link" href="https://www.computerchess.org/cgi/engine_details.cgi?engine=Stockfish+2.0.1+64-bit" target="_blank" rel="noreferrer">View the CCRL Stockfish 2.0.1 rating reference <span aria-hidden="true">↗</span></a>
+            <div class="eyebrow"><span class="eyebrow-line"></span> PERFORMANCE STANDARD</div>
+            <h2>Strength is earned in testing.</h2>
+            <p>Engine strength is established through repeatable games, fixed time controls, balanced colors, diverse opening positions, and enough samples to report a meaningful rating range.</p>
+            <p>Prunex publishes measured results only when the test configuration, game count, and uncertainty can be inspected. A single match score or a longer search setting is not, by itself, proof of a rating advantage.</p>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/tree/feature/prunex-evaluation-intelligence/docs" target="_blank" rel="noreferrer">Explore the engineering notes <span aria-hidden="true">↗</span></a>
           </div>
           <div class="benchmark-card match-card">
-            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">64-GAME MATCH</span></div>
-            <div class="match-score">63–1–0</div>
-            <p class="score-label">Wins · Draws · Losses against Stockfish 2.0</p>
+            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">VALIDATION</span></div>
+            <div class="score-number">45<span> cases</span></div>
+            <p class="score-label">Current native CTest suite</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
-              <div><dt>Match score</dt><dd>99.22%</dd></div>
-              <div><dt>Elo-model gap</dt><dd>+842</dd></div>
-              <div><dt>Opponent reference</dt><dd>3,062 Elo</dd></div>
-              <div><dt>Score-derived estimate</dt><dd>≈3,904 Elo</dd></div>
+              <div><dt>Position correctness</dt><dd>Perft & move rules</dd></div>
+              <div><dt>Search behavior</dt><dd>Regression tests</dd></div>
+              <div><dt>Interface</dt><dd>UCI validation</dd></div>
+              <div><dt>Performance</dt><dd>Fixed benchmark suite</dd></div>
             </dl>
-            <p class="benchmark-caveat">This is an experimental score-derived estimate, not an official or independently established rating. The baseline is CCRL's Stockfish 2.0.1 64-bit rating (used as a proxy for Stockfish 2.0); CCRL uses 40/15 testing, unlike this 1M-nodes-per-move match. The benchmarked Prunex 0.8.0 build is based on Stockfish 19, which is important context when interpreting this result.</p>
+            <p class="benchmark-caveat">Correctness tests and node-throughput benchmarks do not establish an Elo rating. A competitive rating requires a separately controlled match series.</p>
           </div>
         </section>
       </main>
 
       <footer class="footer">
-        <div class="footer-main"><a class="brand footer-brand" href="#home"><span>PRUNEX</span></a><p>An independently developed chess engine in C++20.</p><div class="footer-social"><a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub ↗</a><a href="mailto:mohamedhussam09@gmail.com">Email ↗</a></div></div>
+        <div class="footer-main"><a class="brand footer-brand" href="#home"><span>PRUNEX</span></a><p>An independently developed chess engine in C++20.</p><div class="footer-social"><a href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">GitHub ↗</a><a href="mailto:mohamedhussam09@gmail.com">Email ↗</a></div></div>
         <div class="footer-meta"><span>BUILT TO EXPLORE THE GAME.</span><span>© <span id="year"></span> PRUNEX · C++20</span></div>
         <p class="license-note">Prunex Play is the branded browser experience and review layer. Its browser analysis uses the Stockfish.js 19 Full multi-threaded build, distributed under GPLv3; the upstream engine and browser port remain credited here. The GPLv3 license is included with this build; corresponding source is available from <a href="https://github.com/nmrugg/stockfish.js" target="_blank" rel="noreferrer">Stockfish.js source ↗</a> and <a href="https://github.com/official-stockfish/Stockfish" target="_blank" rel="noreferrer">Stockfish source ↗</a>. <a href="/COPYING.txt" target="_blank" rel="noreferrer">License ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
       </footer>
