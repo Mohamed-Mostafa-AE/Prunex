@@ -81,6 +81,7 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
   let dbPromise = null;
   let userPromise = null;
   let sharedStatus = supabase ? "not-connected" : "not-configured";
+  let lastSharedError = "";
 
   function database() {
     if (!dbPromise) dbPromise = openLocalDatabase();
@@ -131,8 +132,10 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
         });
         if (error) throw error;
         sharedStatus = "connected";
+        lastSharedError = "";
       } catch (error) {
         sharedStatus = "unavailable";
+        lastSharedError = error instanceof Error ? error.message : String(error);
         console.warn("Shared Prunex game archive unavailable; game remains saved locally.", error);
       }
     }
@@ -182,8 +185,10 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
           if (memoryError) throw memoryError;
         }
         sharedStatus = "connected";
+        lastSharedError = "";
       } catch (error) {
         sharedStatus = "unavailable";
+        lastSharedError = error instanceof Error ? error.message : String(error);
         console.warn("Shared Prunex review sync unavailable; review remains saved locally.", error);
       }
     }
@@ -240,8 +245,10 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
           else byId.set(row.id, remoteRecord);
         }
         sharedStatus = "connected";
+        lastSharedError = "";
       } catch (error) {
         sharedStatus = "unavailable";
+        lastSharedError = error instanceof Error ? error.message : String(error);
         console.warn("Could not load the shared Prunex game archive.", error);
       }
     }
@@ -276,8 +283,10 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
           grade: row.grade
         })));
         sharedStatus = "connected";
+        lastSharedError = "";
       } catch (error) {
         sharedStatus = "unavailable";
+        lastSharedError = error instanceof Error ? error.message : String(error);
         console.warn("Prunex experience lookup fell back to local games.", error);
       }
     }
@@ -289,5 +298,9 @@ export function createGameArchive({ url = "", publishableKey = "" } = {}) {
     return sharedStatus;
   }
 
-  return { newId, saveGame, saveReview, listGames, findExperiencedMove, getStatus };
+  function getLastError() {
+    return lastSharedError;
+  }
+
+  return { newId, saveGame, saveReview, listGames, findExperiencedMove, getStatus, getLastError };
 }
