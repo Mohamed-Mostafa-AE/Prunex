@@ -184,6 +184,14 @@
                       </div>
                       <p id="account-recovery-status" class="account-status" aria-live="polite">Link an email to keep access if you change devices or clear browser data. Your existing games stay with this account.</p>
                     </form>
+                    <form id="restore-account-form" class="account-form">
+                      <label for="restore-account-email">Sign in to an existing game archive</label>
+                      <div class="account-form-row">
+                        <input id="restore-account-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+                        <button class="button" type="submit">Send sign-in link</button>
+                      </div>
+                      <p id="restore-account-status" class="account-status" aria-live="polite">On a new device, enter the verified email linked to your archive. Prunex will send a magic link without creating a second account.</p>
+                    </form>
                     <form id="delete-account-form" class="account-form account-delete-form">
                       <label for="delete-account-confirmation">Delete this account and its cloud game history</label>
                       <div class="account-form-row">
