@@ -974,3 +974,11 @@ img, svg, video, canvas { max-width: 100%; }
     opacity:1 !important; transform:none !important; transition:none !important;
   }
 }
+.analysis-panel { min-height:0; align-self:start; }
+.move-list { height:220px; flex:0 0 220px; min-height:120px; max-height:560px; }
+.history-resize-handle { position:relative; display:block; width:100%; height:13px; flex:0 0 13px; padding:0; border:0; border-top:1px solid rgba(154,190,225,.12); background:transparent; cursor:ns-resize; touch-action:none; }
+.history-resize-handle::before { content:""; position:absolute; left:50%; top:5px; width:38px; height:3px; border-radius:2px; transform:translateX(-50%); background:#52789d; }
+.history-resize-handle:hover::before,.analysis-panel.is-resizing-history .history-resize-handle::before { width:58px; background:#83c6f5; }
+.history-resize-handle:focus-visible { outline:2px solid #8ed0ff; outline-offset:-2px; }
+.analysis-panel.is-resizing-history { user-select:none; }
+@media (max-width:700px) { .move-list { height:200px; flex-basis:200px; } }
