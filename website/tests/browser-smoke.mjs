@@ -42,14 +42,24 @@ page.on("console", message => {
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
-  await page.waitForFunction(() =>
-    document.querySelector("#game-archive-note")?.textContent.includes("saved privately to your guest profile"),
-    undefined,
+  const requireCloudArchive = process.env.PRUNEX_REQUIRE_CLOUD === "true";
+  const cloudEnvironmentConfigured = Boolean(
+    process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  );
+  if (requireCloudArchive && !cloudEnvironmentConfigured) {
+    throw new Error("PRUNEX_REQUIRE_CLOUD is true, but a dedicated staging Supabase URL and publishable key were not supplied.");
+  }
+  const expectedArchiveStatus = requireCloudArchive
+    ? "saved privately to your guest profile"
+    : "Local game saving is available.";
+  await page.waitForFunction(expected =>
+    document.querySelector("#game-archive-note")?.textContent.includes(expected),
+    expectedArchiveStatus,
     { timeout: 30000 }
   );
   const archiveStatus = await page.locator("#game-archive-note").innerText();
-  if (!archiveStatus.includes("saved privately to your guest profile")) {
-    throw new Error("The cloud guest archive did not connect: " + archiveStatus);
+  if (!archiveStatus.includes(expectedArchiveStatus)) {
+    throw new Error("The game archive did not reach its expected mode: " + archiveStatus);
   }
   if (!(await page.locator("#defeat-sound").isChecked())) {
     throw new Error("The approved defeat sound should be enabled by default.");
