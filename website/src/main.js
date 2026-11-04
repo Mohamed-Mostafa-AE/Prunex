@@ -1763,22 +1763,33 @@ $("#share-position-memory").addEventListener("change", event => {
 });
 const resizeGrip = $("#resize-board");
 if (resizeGrip) {
+  let resizeStart = null;
   resizeGrip.addEventListener("pointerdown", event => {
+    if (event.button !== 0 || window.matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 760px)").matches) return;
     event.preventDefault();
+    resizeStart = {
+      id: event.pointerId,
+      x: event.clientX,
+      width: boardFrame.getBoundingClientRect().width
+    };
     resizeGrip.setPointerCapture(event.pointerId);
+    boardFrame.classList.add("is-resizing-board");
   });
   resizeGrip.addEventListener("pointermove", event => {
-    if (!resizeGrip.hasPointerCapture(event.pointerId)) return;
-    const rect = boardFrame.getBoundingClientRect();
-    setBoardSize(Math.round((event.clientX - rect.left) / 10) * 10);
+    if (!resizeStart || resizeStart.id !== event.pointerId) return;
+    const delta = event.clientX - resizeStart.x;
+    setBoardSize(Math.round((resizeStart.width + delta) / 10) * 10);
   });
-  resizeGrip.addEventListener("pointerup", event => {
-    if (resizeGrip.hasPointerCapture(event.pointerId)) resizeGrip.releasePointerCapture(event.pointerId);
+  const finishBoardResize = event => {
+    if (!resizeStart || (event && event.pointerId !== resizeStart.id)) return;
+    resizeStart = null;
+    boardFrame.classList.remove("is-resizing-board");
     savePreference("board-size", boardFrame.style.getPropertyValue("--board-size").replace("px", ""));
-  });
-  resizeGrip.addEventListener("pointercancel", () =>
-    savePreference("board-size", boardFrame.style.getPropertyValue("--board-size").replace("px", ""))
-  );
+    if (event && resizeGrip.hasPointerCapture(event.pointerId)) resizeGrip.releasePointerCapture(event.pointerId);
+  };
+  resizeGrip.addEventListener("pointerup", finishBoardResize);
+  resizeGrip.addEventListener("pointercancel", finishBoardResize);
+  resizeGrip.addEventListener("lostpointercapture", finishBoardResize);
 }
 promotionPicker.querySelectorAll("[data-promotion]").forEach(button => {
   button.addEventListener("click", () => completePromotion(button.dataset.promotion));

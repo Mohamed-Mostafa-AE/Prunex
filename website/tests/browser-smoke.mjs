@@ -408,7 +408,7 @@ try {
   if (!resizeGrip) throw new Error("Board resize grip is unavailable.");
   await page.mouse.move(resizeGrip.x + resizeGrip.width / 2, resizeGrip.y + resizeGrip.height / 2);
   await page.mouse.down();
-  await page.mouse.move(resizeGrip.x + resizeGrip.width / 2 + 90, resizeGrip.y + resizeGrip.height / 2, { steps: 8 });
+  await page.mouse.move(resizeGrip.x + resizeGrip.width / 2 + 90, resizeGrip.y + resizeGrip.height / 2 + 90, { steps: 8 });
   await page.mouse.up();
   const enlargedBoard = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
   if (enlargedBoard <= boardBeforeGrip + 35) {
@@ -607,6 +607,17 @@ try {
     if (!layout.board || Math.abs(layout.board.width - layout.board.height) > 1 ||
         layout.board.width > layout.workspaceWidth + 1) {
       throw new Error("Chessboard sizing failed at " + device.name + ": " + JSON.stringify(layout));
+    }
+    const resizeDisplay = await page.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    const expectsResize = device.width > 700;
+    if (expectsResize && (resizeDisplay.board === "none" || resizeDisplay.history === "none")) {
+      throw new Error("Tablet/laptop should retain resize affordances at " + device.name + ": " + JSON.stringify(resizeDisplay));
+    }
+    if (!expectsResize && (resizeDisplay.board !== "none" || resizeDisplay.history !== "none")) {
+      throw new Error("Phone layouts must not show resize affordances at " + device.name + ": " + JSON.stringify(resizeDisplay));
     }
     const resizeControls = await page.evaluate(() => ({
       board: getComputedStyle(document.querySelector("#resize-board")).display,
