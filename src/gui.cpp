@@ -120,6 +120,7 @@ void redraw() { InvalidateRect(windowHandle,nullptr,FALSE); }
 void computerMove() {
     auto moves=legalMoves(position);
     if (moves.empty()) { setStatus(); redraw(); return; }
+    searchAborted.store(false,std::memory_order_relaxed);
     Move best=findBestMove(position,depth);
     if (best.from>=0) { undoStack.push_back({position,history}); makeMove(position,best); history.push_back(best); }
     setStatus(); redraw();
