@@ -21,19 +21,14 @@ page.on("console", message => {
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
-  await page.waitForFunction(() => {
-    const note = document.querySelector("#game-archive-note")?.textContent || "";
-    return note.includes("saved privately to your guest profile") ||
-      note.includes("Supabase Anonymous Sign-Ins are disabled");
-  }, undefined, { timeout: 30000 });
+  await page.waitForFunction(() =>
+    document.querySelector("#game-archive-note")?.textContent.includes("saved privately to your guest profile"),
+    undefined,
+    { timeout: 30000 }
+  );
   const archiveStatus = await page.locator("#game-archive-note").innerText();
-  const cloudArchiveConnected = archiveStatus.includes("saved privately to your guest profile");
-  const expectedAuthFallback = archiveStatus.includes("Supabase Anonymous Sign-Ins are disabled");
-  if (!cloudArchiveConnected && !expectedAuthFallback) {
-    throw new Error("The cloud archive entered an unexpected state: " + archiveStatus);
-  }
-  if (expectedAuthFallback) {
-    console.warn("Cloud integration is awaiting the Supabase Anonymous Sign-Ins setting; local archive remains active.");
+  if (!archiveStatus.includes("saved privately to your guest profile")) {
+    throw new Error("The cloud guest archive did not connect: " + archiveStatus);
   }
   if (!(await page.locator("#defeat-sound").isChecked())) {
     throw new Error("The approved defeat sound should be enabled by default.");
@@ -129,6 +124,9 @@ try {
   if (await page.locator("#share-position-memory").isChecked()) throw new Error("Shared position-memory contribution should require opt-in.");
   if (await page.locator("#best-move-display").inputValue() !== "piece") {
     throw new Error("The best-move marker should default to the moving piece.");
+  }
+  if (await page.locator(".piece-quality-marker").count() !== 0) {
+    throw new Error("Live play must not display game-review move-quality markers.");
   }
   if (await page.locator("#review-budget").inputValue() !== "15000") {
     throw new Error("Game review should default to the recommended 15-second per-position budget.");
@@ -644,8 +642,8 @@ try {
   if (!pointLossData.length || pointLossData.some(value => value < 0 || value > 1)) {
     throw new Error("Move grades should store valid expected-point losses between 0 and 1.");
   }
-  if (await page.locator(".piece-quality-marker").count() !== 0) {
-    throw new Error("Live play must not display game-review move-quality markers.");
+  if (await page.locator(".piece-quality-marker").count() < 1) {
+    throw new Error("Game Review should render move-quality markers on the reviewed board position.");
   }
   const moveGrades = await page.locator("#move-list .move-grade").allTextContents();
   if (!moveGrades.some(grade => ["BEST","BRILLIANT","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(grade))) {
