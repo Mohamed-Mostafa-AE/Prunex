@@ -1,4 +1,14 @@
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
+
+const vercelConfig = JSON.parse(readFileSync("vercel.json", "utf8"));
+const contentSecurityPolicy = vercelConfig.headers
+  ?.flatMap(rule => rule.headers || [])
+  .find(header => header.key.toLowerCase() === "content-security-policy")?.value || "";
+if (!contentSecurityPolicy.includes("https://ttcejatqtvphzenjkkbh.supabase.co") ||
+    !contentSecurityPolicy.includes("wss://ttcejatqtvphzenjkkbh.supabase.co")) {
+  throw new Error("Production CSP must allow this project's Supabase API and WebSocket endpoints.");
+}
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
