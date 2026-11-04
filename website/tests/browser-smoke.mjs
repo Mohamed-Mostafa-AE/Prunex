@@ -269,7 +269,6 @@ try {
     { timeout: 60000 }
   );
 
-  const livePositionFen = await page.locator("#fen-input").inputValue();
   await page.locator('#move-list .move-notation[data-ply="1"]').click();
   if (!(await page.locator("#turn-label").textContent()).includes("REVIEW · BLACK TO MOVE") ||
       !(await page.locator("#fen-input").inputValue()).includes(" b ")) {
@@ -279,8 +278,8 @@ try {
       !(await page.locator('[data-square="e4"]').getAttribute("class")).includes("last-move-to")) {
     throw new Error("Move-history navigation should highlight both squares of the selected move.");
   }
-  if (!(await page.locator("#return-live").isVisible())) {
-    throw new Error("Review mode should offer a way back to the live game.");
+  if (await page.locator("#return-live").count() !== 0) {
+    throw new Error("The separate Back to live control should not be rendered.");
   }
   if (!(await page.locator("#move-prev").isEnabled()) || !(await page.locator("#move-next").isEnabled())) {
     throw new Error("Previous and next move arrows should be available while reviewing an interior position.");
@@ -302,10 +301,20 @@ try {
   if (!(await page.locator("#fen-input").inputValue()).includes(" b ")) {
     throw new Error("Right arrow key should step forward one move during review.");
   }
-  await page.locator("#return-live").click();
-  if (await page.locator("#fen-input").inputValue() !== livePositionFen ||
-      await page.locator("#return-live").isVisible()) {
-    throw new Error("Returning to live should restore the full current game position.");
+  await page.locator("#move-next").click();
+  if (!(await page.locator("#fen-input").inputValue()).includes(" w ")) {
+    throw new Error("The selected review position should be ready for White to move.");
+  }
+  await page.locator('[data-square="b1"]').click();
+  await page.locator('[data-square="c3"]').click();
+  await page.waitForFunction(() =>
+    document.querySelector('#move-list .move-notation[data-ply="3"]')?.textContent === "Nc3",
+    undefined,
+    { timeout: 60000 }
+  );
+  const branchedMoves = await page.locator("#move-list .move-notation").allTextContents();
+  if (branchedMoves.includes("Nf3")) {
+    throw new Error("Playing from a reviewed position should replace the old future line.");
   }
   await page.waitForFunction(() =>
     document.querySelector("#evaluation-label")?.textContent !== "…" &&
