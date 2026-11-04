@@ -559,6 +559,39 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
     return best;
 }
 
+void runBenchmark(int depth) {
+    struct Case { const char* name; const char* fen; };
+    constexpr std::array<Case, 5> suite{{
+        {"starting-position", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"},
+        {"kiwipete", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"},
+        {"rook-endgame", "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"},
+        {"closed-center", "r1bq1rk1/pp1n1ppp/2pbpn2/3p4/3P4/2NBPN2/PPQ1BPPP/R1R3K1 w - - 0 1"},
+        {"open-position", "r2q1rk1/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w - - 0 1"}
+    }};
+    std::uint64_t totalNodes=0;
+    const auto suiteStart=std::chrono::steady_clock::now();
+    std::cout<<"Prunex benchmark depth "<<depth<<" positions "<<suite.size()<<"\\n";
+    for(const Case& item:suite) {
+        Position position;
+        if(!loadFen(position,item.fen)) {
+            std::cerr<<"Invalid built-in benchmark position: "<<item.name<<"\\n";
+            continue;
+        }
+        transpositionTable.fill(TTEntry{});
+        historyScores={};
+        for(auto& pair:killerMoves) pair={Move{},Move{}};
+        searchAborted.store(false,std::memory_order_relaxed);
+        Move best=findBestMove(position,depth);
+        totalNodes+=nodes;
+        std::cout<<"bench "<<item.name<<" bestmove "<<(best.from>=0?moveUci(best):"none")
+                 <<" nodes "<<nodes<<"\\n";
+    }
+    const auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now()-suiteStart).count();
+    const auto nps=elapsed>0?totalNodes*1000/static_cast<std::uint64_t>(elapsed):0;
+    std::cout<<"bench-total nodes "<<totalNodes<<" time_ms "<<elapsed<<" nps "<<nps<<"\\n";
+}
+
 std::uint64_t perft(Position& p,int depth){if(depth==0)return 1;auto moves=legalMoves(p);std::uint64_t n=0;for(const Move&m:moves){Position q=p;makeMove(q,m);n+=perft(q,depth-1);}return n;}
 
 void setPosition(Position& p,const std::string& command){std::istringstream in(command);std::string token;in>>token;in>>token;if(token=="startpos")loadFen(p,START_FEN);else if(token=="fen"){std::string fen,part;for(int i=0;i<6&&in>>part;++i){if(i)fen+=' ';fen+=part;}if(!loadFen(p,fen))loadFen(p,START_FEN);}else loadFen(p,START_FEN);
@@ -574,6 +607,15 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             searchThread.join();
         }
     };
+    if((argc==2||argc==3)&&std::string_view(argv[1])=="--bench") {
+        int depth=5;
+        if(argc==3&&!parseIntegerToken(argv[2],1,10,depth)) {
+            std::cerr<<"Invalid benchmark depth (expected 1-10)\\n";
+            return 2;
+        }
+        runBenchmark(depth);
+        return 0;
+    }
     if(argc==3&&std::string_view(argv[1])=="--perft"){
         int d=0;
         if(!parseIntegerToken(argv[2],0,7,d)){std::cerr<<"Invalid depth (expected 0-7)\n";return 2;}
