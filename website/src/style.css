@@ -1049,3 +1049,13 @@ img, svg, video, canvas { max-width: 100%; }
 .account-delete-form { padding-top: 10px; border-top: 1px solid var(--night-line); }
 .account-delete-button { border-color: #86545e !important; color: #ffc5cb !important; }
 .account-delete-button:hover:not(:disabled) { background: rgba(165,75,90,.16) !important; border-color: #c07882 !important; }
+
+
+.turnstile-widget {
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--night-line);
+  border-radius: 2px;
+  background: #fff;
+}
+.turnstile-widget[hidden] { display: none; }
