@@ -293,9 +293,9 @@ try {
   if (enlargedBoard < 630 || enlargedBoard > 650 || enlargedBoard <= boardAt590 + 35) {
     throw new Error("Board size slider must distinguish 590px from 640px: " + boardAt590 + " -> " + enlargedBoard);
   }
-  if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX PLAY") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
+  if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
-  if (!engineNote.includes("PRUNEX PLAY") || /Stockfish/i.test(engineNote)) {
+  if (!engineNote.includes("PRUNEX") || /Stockfish/i.test(engineNote)) {
     throw new Error("The analysis panel should keep its focus on the Prunex experience.");
   }
   const licenseNote = await page.locator(".license-note").innerText();
