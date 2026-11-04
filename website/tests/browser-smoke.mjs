@@ -21,6 +21,11 @@ page.on("console", message => {
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.waitForTimeout(10000);
+  await page.waitForFunction(() =>
+    document.querySelector("#game-archive-note")?.textContent.includes("saved privately to your guest profile"),
+    undefined,
+    { timeout: 30000 }
+  );
   if (!(await page.locator("#defeat-sound").isChecked())) {
     throw new Error("The approved defeat sound should be enabled by default.");
   }
