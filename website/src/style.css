@@ -982,3 +982,14 @@ img, svg, video, canvas { max-width: 100%; }
 .history-resize-handle:focus-visible { outline:2px solid #8ed0ff; outline-offset:-2px; }
 .analysis-panel.is-resizing-history { user-select:none; }
 @media (max-width:700px) { .move-list { height:200px; flex-basis:200px; } }
+.board-size-disclosure { width:min(100%,650px); margin:9px 0 0; border-top:1px solid rgba(150,184,218,.16); color:#aabfd8; }
+.board-size-disclosure > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:31px; padding:5px 2px; cursor:pointer; list-style:none; color:#9fb9d3; font:9px var(--mono); letter-spacing:.08em; }
+.board-size-disclosure > summary::-webkit-details-marker { display:none; }
+.board-size-disclosure > summary::after { content:"+"; order:3; color:#83c6f5; font:14px var(--mono); }
+.board-size-disclosure[open] > summary::after { content:"−"; }
+#board-size-summary-value { margin-left:auto; color:#dcecff; font:9px var(--mono); letter-spacing:0; }
+.board-size-disclosure .board-size-control { margin:0; padding:0 2px 8px; }
+.workspace[data-analysis-panel="closed"] { grid-template-columns:minmax(0,1fr); }
+.analysis-panel[hidden] { display:none !important; }
+#toggle-analysis-panel { white-space:nowrap; }
+@media (max-width:700px) { .board-size-disclosure { width:100%; } .workspace[data-analysis-panel="closed"] { grid-template-columns:minmax(0,1fr); } }
