@@ -101,6 +101,7 @@ let dragState = null;
 let dragGhost = null;
 let suppressNextBoardClick = false;
 let savedGameFen = null;
+let pendingArchiveRecord = null;
 let fenDirty = false;
 let currentArchiveRecord = null;
 let gameArchiveDbPromise = null;
@@ -367,7 +368,7 @@ async function refreshGameArchive() {
       : anonymousAuthDisabled
         ? "Cloud saves are configured, but Supabase Anonymous Sign-Ins are disabled. Enable Authentication → Sign In / Providers → Anonymous Sign-Ins. Your games continue saving on this device until then."
         : status === "unavailable"
-          ? "Your games remain saved on this device. The shared database could not be reached, so cloud sync will need to be retried."
+          ? "Your games remain saved on this device. Cloud sync is queued and will retry when connectivity returns."
           : "Local game saving is available. Cloud saving will activate when the shared database connection is configured.";
   } catch (error) {
     archiveCount.textContent = "Unavailable";
@@ -379,10 +380,8 @@ async function refreshGameArchive() {
 async function persistCompletedGame() {
   const finalFen = game.fen();
   if (savedGameFen === finalFen) return;
-  savedGameFen = finalFen;
-  try {
-    const moves = buildMoveSnapshots();
-    const record = {
+  if (!pendingArchiveRecord || pendingArchiveRecord.finalFen !== finalFen) {
+    pendingArchiveRecord = {
       id: gameArchive.newId(),
       createdAt: new Date().toISOString(),
       result: gameResultCode(),
@@ -391,16 +390,22 @@ async function persistCompletedGame() {
       finalFen,
       pgn: game.pgn(),
       opponentVersion: "Prunex Play · Full analysis",
-      moves,
+      moves: buildMoveSnapshots(),
       analysis: null,
       whiteAccuracy: null,
       blackAccuracy: null
     };
-    currentArchiveRecord = record;
-    await gameArchive.saveGame(record);
+  }
+  try {
+    currentArchiveRecord = pendingArchiveRecord;
+    await gameArchive.saveGame(pendingArchiveRecord);
+    savedGameFen = finalFen;
+    pendingArchiveRecord = null;
     await refreshGameArchive();
   } catch (error) {
-    archiveNote.textContent = "Could not save this game locally: " +
+    // Keep the same record id so a later retry cannot create a duplicate game.
+    savedGameFen = null;
+    archiveNote.textContent = "Could not save this game locally yet: " +
       (error instanceof Error ? error.message : "Unknown archive error.");
   }
 }
@@ -1348,6 +1353,7 @@ function startNewGame() {
   reviewAnalysisResults = [];
   reviewAnalysisIndex = 0;
   savedGameFen = null;
+  pendingArchiveRecord = null;
   currentArchiveRecord = null;
   gameReviewPanel.hidden = true;
   reviewProgress.hidden = true;
@@ -1793,5 +1799,6 @@ applyPreferences();
 enableMoveHistoryResize();
 enableSectionReveals();
 void refreshGameArchive();
+window.addEventListener("online", () => { void refreshGameArchive(); });
 worker.postMessage({ type: "init" });
 render();
