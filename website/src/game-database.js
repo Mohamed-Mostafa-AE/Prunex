@@ -107,9 +107,15 @@ export function rankSamples(samples) {
   })[0] || null;
 }
 
-export function createGameArchive({ url = "", publishableKey = "", captchaTokenProvider = null } = {}) {
+export function createGameArchive({
+  url = "",
+  publishableKey = "",
+  captchaTokenProvider = null,
+  clientFactory = createClient,
+  getRedirectTo = () => typeof window === "undefined" ? "" : window.location.origin
+} = {}) {
   const supabase = url && publishableKey
-    ? createClient(url, publishableKey, {
+    ? clientFactory(url, publishableKey, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       })
     : null;
@@ -437,12 +443,25 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
     return rankSamples(candidates)?.moveUci || null;
   }
 
-  async function linkGuestEmail(email) {
-    if (!supabase) throw new Error("Cloud account recovery is not configured.");
+  function normalizeRecoveryEmail(email) {
     const normalizedEmail = String(email || "").trim().toLowerCase();
     if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalizedEmail)) {
       throw new Error("Enter a valid email address.");
     }
+    return normalizedEmail;
+  }
+
+  function authEmailRedirectTo() {
+    const redirectTo = getRedirectTo();
+    if (typeof redirectTo !== "string" || !/^https:\\/\\//i.test(redirectTo)) {
+      throw new Error("Email sign-in requires a secure HTTPS redirect URL.");
+    }
+    return redirectTo;
+  }
+
+  async function linkGuestEmail(email) {
+    if (!supabase) throw new Error("Cloud account recovery is not configured.");
+    const normalizedEmail = normalizeRecoveryEmail(email);
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError) throw userError;
     if (!userData.user) throw new Error("Your guest session is not available.");
@@ -451,8 +470,22 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
     }
     const { error } = await supabase.auth.updateUser(
       { email: normalizedEmail },
-      { emailRedirectTo: window.location.origin }
+      { emailRedirectTo: authEmailRedirectTo() }
     );
+    if (error) throw error;
+    return { email: normalizedEmail, verificationRequired: true };
+  }
+
+  async function sendRecoveryLink(email) {
+    if (!supabase) throw new Error("Cloud account recovery is not configured.");
+    const normalizedEmail = normalizeRecoveryEmail(email);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: authEmailRedirectTo()
+      }
+    });
     if (error) throw error;
     return { email: normalizedEmail, verificationRequired: true };
   }
@@ -495,6 +528,6 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
 
   return {
     newId, saveGame, saveReview, listGames, findExperiencedMove,
-    linkGuestEmail, deleteAccount, getStatus, getLastError
+    linkGuestEmail, sendRecoveryLink, deleteAccount, getStatus, getLastError
   };
 }
