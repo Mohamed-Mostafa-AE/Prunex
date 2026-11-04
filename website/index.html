@@ -119,13 +119,17 @@
                 <button id="return-live" class="button" type="button" hidden>↩ Back to live</button>
                 <button id="flip" class="button">⇅ Flip board</button>
                 <button id="clear-marks" class="button" type="button">Clear marks</button>
+                <button id="toggle-analysis-panel" class="button" type="button" aria-controls="analysis-panel" aria-expanded="true">Hide side panel</button>
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
               </div>
-              <div class="board-size-control">
-                <label for="board-size"><span>MAX BOARD SIZE</span><output id="board-size-value">520 px</output></label>
-                <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred maximum chessboard size">
-                <span class="board-size-note">Sets the preferred maximum; the board scales down to fit smaller screens.</span>
-              </div>
+              <details id="board-size-disclosure" class="board-size-disclosure">
+                <summary><span>BOARD SIZE</span><output id="board-size-summary-value">520 px</output></summary>
+                <div class="board-size-control">
+                  <label for="board-size"><span>MAX BOARD SIZE</span><output id="board-size-value">520 px</output></label>
+                  <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred maximum chessboard size">
+                  <span class="board-size-note">Sets the preferred maximum; the board scales down to fit smaller screens.</span>
+                </div>
+              </details>
               <div id="promotion-picker" class="promotion-picker" hidden role="dialog" aria-modal="true" aria-label="Choose promotion piece">
                 <span>Promote pawn to</span>
                 <div class="promotion-options">
@@ -139,7 +143,7 @@
               <div class="status-row"><span class="status-indicator"></span><span id="status" aria-live="polite">Loading engine…</span><span class="status-hint" id="analysis-status">Local analysis</span></div>
             </div>
 
-            <aside class="analysis-panel">
+            <aside id="analysis-panel" class="analysis-panel">
               <div class="panel-heading"><div><span class="panel-kicker">GAME SESSION</span><h3>Move history</h3></div><span id="move-count">0 plies</span></div>
               <div id="move-list" class="move-list"><div class="empty">Moves will appear here.</div></div>
               <button id="resize-move-history" class="history-resize-handle" type="button" aria-label="Drag to resize move history" title="Drag to resize move history"></button>
@@ -166,7 +170,7 @@
                   <div><span class="panel-kicker">LOCAL EXPERIENCE</span><h4>Game archive</h4></div>
                   <span id="game-archive-count" class="archive-count">0 games</span>
                 </div>
-                <p id="game-archive-note" class="archive-note">Completed games are saved on this device. Prunex can reuse proven moves when the same position appears again.</p>
+                <p id="game-archive-note" class="archive-note">Your completed games and reviews are private to your guest profile. You can separately opt in to sharing anonymized position samples for Prunex experience memory.</p>
                 <div id="game-archive-list" class="game-archive-list"><div class="empty">No completed games saved yet.</div></div>
               </section>
               <div class="engine-controls">
@@ -204,6 +208,8 @@
                       <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Evaluation bar</span></label>
                       <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Right-click annotations</span></label>
                     </div>
+                    <label class="setting-toggle"><input id="share-position-memory" type="checkbox"><span>Share anonymized position samples</span></label>
+                    <p class="sound-note">When enabled, future reviews contribute positions, moves, results and evaluation quality to the shared experience library. Names and full PGNs are not shared through this library.</p>
                   </div>
                 </details>
 
