@@ -94,6 +94,7 @@ let pieceAnimationEnabled = true;
 let moveAnimationPending = false;
 let premovesEnabled = true;
 let showAnnotations = false;
+let sharePositionMemory = false;
 let annotations = [];
 let queuedPremove = null;
 let dragState = null;
@@ -358,10 +359,12 @@ async function refreshGameArchive() {
     }
     const status = gameArchive.getStatus();
     archiveNote.textContent = status === "connected"
-      ? "Completed games are saved on this device and shared with the Prunex experience library."
+      ? (sharePositionMemory
+        ? "Your games and reviews are saved privately to your guest profile. You opted in to sharing anonymized position samples for the shared Prunex experience library."
+        : "Your games and reviews are saved privately to your guest profile. Shared position-memory contribution is currently off.")
       : status === "unavailable"
-        ? "This device archive is working. Shared database sync is currently unavailable."
-        : "Completed games are saved on this device. The shared cross-player library is not connected yet.";
+        ? "Your games remain saved on this device. The shared database could not be reached, so cloud sync will need to be retried."
+        : "Local game saving is available. Cloud saving will activate when the shared database connection is configured.";
   } catch (error) {
     archiveCount.textContent = "Unavailable";
     archiveList.textContent = "The local game archive could not be opened in this browser.";
@@ -460,7 +463,7 @@ async function saveReviewedGame() {
   }).filter(Boolean);
   currentArchiveRecord = record;
   try {
-    await gameArchive.saveReview(record, samples);
+    await gameArchive.saveReview(record, samples, { shareTrainingData: sharePositionMemory });
     await refreshGameArchive();
   } catch (error) {
     archiveNote.textContent = "Review saved in memory for this session, but archive sync failed: " +
@@ -485,7 +488,20 @@ function setBoardSize(value, persist = true) {
   boardSizeInput.value = String(size);
   boardSizeValue.value = size + " px";
   boardSizeValue.textContent = size + " px";
+  $("#board-size-summary-value").textContent = size + " px";
   if (persist) savePreference("board-size", size);
+}
+
+function setAnalysisPanelOpen(open, persist = true) {
+  const panel = $("#analysis-panel");
+  const toggle = $("#toggle-analysis-panel");
+  const workspace = panel.closest(".workspace");
+  panel.hidden = !open;
+  workspace.dataset.analysisPanel = open ? "open" : "closed";
+  toggle.textContent = open ? "Hide side panel" : "Show side panel";
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-label", open ? "Hide game side panel" : "Show game side panel");
+  if (persist) savePreference("analysis-panel-open", open);
 }
 function applyPreferences() {
   applySiteTheme(loadPreference("site-theme", "light"));
@@ -504,6 +520,10 @@ function applyPreferences() {
   pieceAnimationEnabled = loadPreference("piece-animation","true") !== "false";
   premovesEnabled = loadPreference("premoves","true") !== "false";
   showAnnotations = loadPreference("board-annotations","false") === "true";
+  sharePositionMemory = loadPreference("share-position-memory", "false") === "true";
+  $("#share-position-memory").checked = sharePositionMemory;
+  $("#board-size-disclosure").open = loadPreference("board-size-open", "false") === "true";
+  setAnalysisPanelOpen(loadPreference("analysis-panel-open", "true") !== "false", false);
   $("#theme").value = theme;
   pieceStyleSelect.value = pieces;
   coordinatesToggle.checked = showCoordinates;
@@ -1596,6 +1616,17 @@ evaluationToggle.addEventListener("change", event => {
   syncEvaluationVisibility();
 });
 boardSizeInput.addEventListener("input", event => setBoardSize(event.target.value));
+$("#board-size-disclosure").addEventListener("toggle", event => {
+  savePreference("board-size-open", event.currentTarget.open);
+});
+$("#toggle-analysis-panel").addEventListener("click", () => {
+  setAnalysisPanelOpen($("#analysis-panel").hidden);
+});
+$("#share-position-memory").addEventListener("change", event => {
+  sharePositionMemory = event.target.checked;
+  savePreference("share-position-memory", sharePositionMemory);
+  void refreshGameArchive();
+});
 const resizeGrip = $("#resize-board");
 if (resizeGrip) {
   resizeGrip.addEventListener("pointerdown", event => {
