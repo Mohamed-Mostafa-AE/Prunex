@@ -36,11 +36,10 @@ function loadTurnstileApi() {
 }
 
 export async function requestTurnstileToken({ siteKey = "", container, required = false } = {}) {
+  // A site key alone never activates a widget. Guest Turnstile is explicit opt-in.
+  if (!required) return null;
   if (!siteKey) {
-    if (required) {
-      throw new Error("Guest verification is required, but the Turnstile site key is not configured.");
-    }
-    return null;
+    throw new Error("Guest verification is enabled, but the Turnstile site key is not configured.");
   }
   if (!container) throw new Error("The Turnstile verification area is missing.");
   container.hidden = false;
