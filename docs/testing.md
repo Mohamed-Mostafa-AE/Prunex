@@ -50,3 +50,15 @@ This is an experimental, score-derived comparison—not an official or independe
 - Run a larger, controlled match before making any strength or rating claims.
 
 No independent Elo rating has been established for the native C++ Prunex engine.
+
+
+## Native search benchmark
+
+Run the fixed five-position native benchmark from a Release build:
+
+```bash
+./build/prunex --bench
+./build/prunex --bench 6
+```
+
+The default depth is 5; accepted depths are 1–10. The suite clears the transposition table and search-ordering state before each position, then reports each best move and node count plus aggregate elapsed time and nodes per second. Use the same compiler, build mode, hardware, and depth when comparing revisions. This is a repeatable search-throughput/regression instrument, not an Elo estimate or proof of playing-strength improvement. It intentionally reports raw measurements rather than claiming a rating.
