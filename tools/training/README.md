@@ -94,3 +94,26 @@ engine binary SHA-256 with every row. It does not search for a best move and
 does not train or modify the engine. Use these measurements to inspect the
 current evaluator and prepare controlled tuning experiments; an annotation
 pass is not a strength improvement.
+
+## Native static-evaluation calibration diagnostics
+
+After annotating the train, validation, and test files separately with the
+same compiled native executable, run:
+
+    python tools/training/calibrate_native_eval.py \
+      --train /data/prunex-corpus/positions-train-prunex-0.8.0.jsonl \
+      --validation /data/prunex-corpus/positions-validation-prunex-0.8.0.jsonl \
+      --test /data/prunex-corpus/positions-test-prunex-0.8.0.jsonl \
+      --output /data/prunex-corpus/native-evaluation-calibration.json
+
+The diagnostic fits a logistic expected-points curve using only the training
+split. It reports raw-score, calibrated-score, and training-mean baseline
+log-loss and Brier scores on validation and test data. Each game receives
+equal total weight, so unusually long games do not dominate the fit.
+
+The tool rejects overlapping game IDs, mismatched native executable hashes or
+versions, invalid score perspectives, malformed labels, and undersized
+splits. The held-out test split is evaluated only after fitting. The report is
+diagnostic: it does not modify the C++ evaluator, produce engine weights, or
+change the separate browser review calibration. A better calibration score
+is not evidence of stronger play.
