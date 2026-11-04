@@ -84,11 +84,11 @@ let moveAnalysis = [];
 let reviewAnalysisPositions = [];
 let reviewAnalysisResults = [];
 let reviewAnalysisIndex = 0;
-let reviewBudgetMs = 30000;
+let reviewBudgetMs = 15000;
 let bestMoveHint = null;
-let bestMoveDisplay = "off";
+let bestMoveDisplay = "piece";
 let moveMethod = "both";
-let soundStyle = "wood";
+let soundStyle = "classic";
 let highlightLastMove = true;
 let pieceAnimationEnabled = true;
 let moveAnimationPending = false;
@@ -188,61 +188,33 @@ function playMoveSound(move, preview = false) {
   if ((!soundEnabled && !preview) || !move) return;
   const context = primeAudio(preview);
   if (!context) return;
-  // Short percussive sound profiles made from filtered noise, not synthetic beeps.
+
+  // A short, damped note gives a restrained wooden-board tap without noisy static.
   const profiles = {
-    wood:    { duration:.078, frequency:920,  q:.82, volume:.040, decay:3.8, lowpass:1800, body:205, bodyGain:.012 },
-    felt:    { duration:.052, frequency:570,  q:.48, volume:.026, decay:5.8, lowpass:1050, body:145, bodyGain:.007 },
-    ceramic: { duration:.060, frequency:1850, q:1.05,volume:.030, decay:4.6, lowpass:3600, body:345, bodyGain:.010 },
-    ivory:   { duration:.058, frequency:1120, q:.72, volume:.027, decay:4.8, lowpass:2250, body:255, bodyGain:.009 },
-    stone:   { duration:.092, frequency:420,  q:.58, volume:.038, decay:3.2, lowpass:1250, body:118, bodyGain:.018 },
-    switch:  { duration:.038, frequency:2350, q:1.2, volume:.024, decay:7.0, lowpass:4200, body:480, bodyGain:.006 },
-    rubber:  { duration:.066, frequency:340,  q:.42, volume:.022, decay:6.2, lowpass:820,  body:132, bodyGain:.014 },
-    glass:   { duration:.064, frequency:2650, q:1.4, volume:.021, decay:4.2, lowpass:5200, body:720, bodyGain:.012 }
+    classic: { start: 430, end: 255, duration: 0.072, volume: 0.043, type: "triangle" },
+    soft:    { start: 560, end: 390, duration: 0.055, volume: 0.030, type: "sine" },
+    muted:   { start: 300, end: 195, duration: 0.068, volume: 0.026, type: "sine" }
   };
-  const profile = profiles[soundStyle] || profiles.wood;
+  const profile = profiles[soundStyle] || profiles.classic;
   const now = context.currentTime;
-  const duration = move.captured ? profile.duration * 1.2 : profile.duration;
-  const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
-  const samples = buffer.getChannelData(0);
-  for (let i = 0; i < samples.length; i += 1) {
-    const t = i / samples.length;
-    const transient = Math.exp(-profile.decay * t);
-    const slightBody = 1 + 0.12 * Math.sin(t * Math.PI * 7) * (1 - t);
-    samples[i] = (Math.random() * 2 - 1) * transient * slightBody;
-  }
-  const source = context.createBufferSource();
-  const band = context.createBiquadFilter();
-  const low = context.createBiquadFilter();
-  const gain = context.createGain();
-  source.buffer = buffer;
-  band.type = "bandpass";
-  band.frequency.setValueAtTime(profile.frequency, now);
-  band.Q.value = profile.q;
-  low.type = "lowpass";
-  low.frequency.value = profile.lowpass;
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(move.captured ? profile.volume * 1.1 : profile.volume, now + 0.003);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-  source.connect(band);
-  band.connect(low);
-  low.connect(gain);
-  gain.connect(context.destination);
-  source.start(now);
-  source.stop(now + duration);
-  if (profile.body && profile.bodyGain > 0) {
-    const body = context.createOscillator();
-    const envelope = context.createGain();
-    body.type = "sine";
-    body.frequency.setValueAtTime(profile.body, now);
-    body.frequency.exponentialRampToValueAtTime(Math.max(50, profile.body * .68), now + Math.min(.09, duration));
-    envelope.gain.setValueAtTime(.0001, now);
-    envelope.gain.exponentialRampToValueAtTime(profile.bodyGain, now + .004);
-    envelope.gain.exponentialRampToValueAtTime(.0001, now + Math.min(.105, duration + .02));
-    body.connect(envelope);
-    envelope.connect(context.destination);
-    body.start(now);
-    body.stop(now + Math.min(.12, duration + .03));
-  }
+  const duration = move.captured ? profile.duration * 1.12 : profile.duration;
+  const oscillator = context.createOscillator();
+  const envelope = context.createGain();
+
+  oscillator.type = profile.type;
+  oscillator.frequency.setValueAtTime(profile.start, now);
+  oscillator.frequency.exponentialRampToValueAtTime(profile.end, now + duration);
+  envelope.gain.setValueAtTime(0.0001, now);
+  envelope.gain.exponentialRampToValueAtTime(
+    profile.volume * (move.captured ? 1.08 : 1),
+    now + 0.004
+  );
+  envelope.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  oscillator.connect(envelope);
+  envelope.connect(context.destination);
+  oscillator.start(now);
+  oscillator.stop(now + duration + 0.01);
 }
 
 function playGameEndSound(result) {
@@ -526,8 +498,8 @@ function applyPreferences() {
   soundEnabled = loadPreference("defeat-sound", "true") !== "false";
   showEvaluation = loadPreference("show-evaluation", "true") !== "false";
   moveMethod = ["both","drag","click"].includes(loadPreference("move-method","both")) ? loadPreference("move-method","both") : "both";
-  bestMoveDisplay = ["off","highlight","arrow"].includes(loadPreference("best-move-display","off")) ? loadPreference("best-move-display","off") : "off";
-  soundStyle = ["wood","felt","ceramic","ivory","stone","switch","rubber","glass"].includes(loadPreference("sound-style","wood")) ? loadPreference("sound-style","wood") : "wood";
+  bestMoveDisplay = ["off","piece","highlight","arrow"].includes(loadPreference("best-move-display","piece")) ? loadPreference("best-move-display","piece") : "piece";
+  soundStyle = ["classic","soft","muted"].includes(loadPreference("sound-style","classic")) ? loadPreference("sound-style","classic") : "classic";
   highlightLastMove = loadPreference("highlight-last-move","true") !== "false";
   pieceAnimationEnabled = loadPreference("piece-animation","true") !== "false";
   premovesEnabled = loadPreference("premoves","true") !== "false";
@@ -647,8 +619,8 @@ function renderBoard() {
         if (lastMove.to === square) button.classList.add("last-move-to");
       }
       if (showLegalMoves && legalTargets.includes(square)) button.classList.add(piece ? "capture-target" : "move-target");
-      if (bestMoveDisplay !== "off" && bestMoveHint?.from === square) button.classList.add("best-move-from");
-      if (bestMoveDisplay !== "off" && bestMoveHint?.to === square) button.classList.add("best-move-to");
+      if (["highlight","arrow"].includes(bestMoveDisplay) && bestMoveHint?.from === square) button.classList.add("best-move-from");
+      if (["highlight","arrow"].includes(bestMoveDisplay) && bestMoveHint?.to === square) button.classList.add("best-move-to");
       if (queuedPremove && (queuedPremove.from === square || queuedPremove.to === square)) button.classList.add("premove-square");
       if (showAnnotations && annotations.some(item => item.square === square)) button.classList.add("user-marked-square");
       if (piece) {
@@ -680,7 +652,7 @@ function renderBoard() {
       const reviewedGrade = reviewedGradeRaw === "MISSED_WIN" ? "MISS" : reviewedGradeRaw;
       const reviewBadge = reviewedMove?.to === square && !!reviewedGrade &&
         ["APEX","BRILLIANT","GREAT","BEST","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(reviewedGrade);
-      const engineBadge = bestMoveDisplay !== "off" && bestMoveHint?.to === square;
+      const engineBadge = bestMoveDisplay === "piece" && bestMoveHint?.from === square;
       const gradeGlyph = {
         APEX:"✧", BRILLIANT:"✦", GREAT:"◆", BEST:"★", EXCELLENT:"✓", GOOD:"✓",
         INACCURACY:"!", MISTAKE:"!", BLUNDER:"×", MISS:"↘"
@@ -690,7 +662,7 @@ function renderBoard() {
         marker.className = "piece-quality-marker";
         marker.dataset.grade = reviewBadge ? reviewedGrade : "BEST";
         marker.textContent = reviewBadge ? (gradeGlyph[reviewedGrade] || "•") : "★";
-        marker.title = reviewBadge ? reviewedGrade + " move" : "Prunex recommended move";
+        marker.title = reviewBadge ? reviewedGrade + " move" : "Prunex recommends " + bestMoveHint.from + "–" + bestMoveHint.to;
         marker.setAttribute("aria-label", marker.title);
         button.append(marker);
       }
@@ -754,8 +726,8 @@ function renderBoardHighlights() {
     button.classList.toggle("last-move-to", isLastTo);
     button.classList.toggle("move-target",showLegalMoves&&legalTargets.includes(square)&&!piece);
     button.classList.toggle("capture-target",showLegalMoves&&legalTargets.includes(square)&&!!piece);
-    button.classList.toggle("best-move-from",bestMoveDisplay!=="off"&&bestMoveHint?.from===square);
-    button.classList.toggle("best-move-to",bestMoveDisplay!=="off"&&bestMoveHint?.to===square);
+    button.classList.toggle("best-move-from",["highlight","arrow"].includes(bestMoveDisplay)&&bestMoveHint?.from===square);
+    button.classList.toggle("best-move-to",["highlight","arrow"].includes(bestMoveDisplay)&&bestMoveHint?.to===square);
     button.classList.toggle("premove-square",!!queuedPremove&&(queuedPremove.from===square||queuedPremove.to===square));
     button.classList.toggle("user-marked-square",showAnnotations&&annotations.some(item=>item.square===square));
   });
@@ -1263,7 +1235,9 @@ function clearDragGhost() {
 }
 function onBoardPointerDown(event) {
   const squareEl=event.target.closest?.(".square[data-square]");
-  if(!squareEl||event.button!==0||moveMethod==="click"||!ready||reviewMovesSnapshot||game.isGameOver())return;
+  if(!squareEl||event.button!==0||moveMethod==="click"||reviewMovesSnapshot||game.isGameOver())return;
+  event.preventDefault();
+  try { squareEl.setPointerCapture(event.pointerId); } catch {}
   const from=squareEl.dataset.square,mayQueue=thinking&&premovesEnabled&&game.turn()!==humanColor;
   if(thinking&&!mayQueue)return;
   if(!thinking&&game.turn()!==humanColor)return;
@@ -1316,7 +1290,7 @@ function commitMove(from,to) {
 
 function onSquare(square) {
   primeAudio();
-  if(!ready||reviewMovesSnapshot||game.isGameOver())return;
+  if(reviewMovesSnapshot||game.isGameOver())return;
   if(moveMethod==="drag")return;
   if(thinking&&premovesEnabled){handlePremoveSquare(square);return;}
   if(thinking||game.turn()!==humanColor)return;
