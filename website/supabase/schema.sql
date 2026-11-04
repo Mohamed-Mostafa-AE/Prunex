@@ -82,7 +82,7 @@ grant insert (
 grant update on public.prunex_games to authenticated;
 
 grant select (
-  game_id, created_at, white_accuracy, black_accuracy, analysis_json
+  game_id, user_id, created_at, white_accuracy, black_accuracy, analysis_json
 ) on public.prunex_game_reviews to authenticated;
 grant insert (
   game_id, user_id, created_at, white_accuracy, black_accuracy, analysis_json
@@ -94,7 +94,7 @@ grant update on public.prunex_game_reviews to authenticated;
 -- Only minimal move-quality fields are visible to the shared engine memory.
 -- Game PGNs, game ids, timestamps and player ids remain unavailable to other users.
 grant select (
-  position_key, side_to_move, move_uci, result_for_mover, eval_loss_cp, grade
+  id, position_key, side_to_move, move_uci, result_for_mover, eval_loss_cp, grade
 ) on public.prunex_position_memory to authenticated;
 grant insert (
   id, game_id, user_id, position_key, side_to_move, move_uci, san,
