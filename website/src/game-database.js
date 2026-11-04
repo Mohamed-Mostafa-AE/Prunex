@@ -53,20 +53,32 @@ function isUsableMemory(sample) {
     ["BRILLIANT", "GREAT", "BEST", "EXCELLENT", "GOOD"].includes(sample.grade);
 }
 
-function rankSamples(samples) {
+export function rankSamples(samples) {
   const grouped = new Map();
   for (const sample of samples) {
     if (!sample || !sample.moveUci || !isUsableMemory(sample)) continue;
-    const current = grouped.get(sample.moveUci) || { moveUci: sample.moveUci, count: 0, totalLoss: 0, wins: 0, draws: 0 };
+    const current = grouped.get(sample.moveUci) || {
+      moveUci: sample.moveUci,
+      count: 0,
+      totalLoss: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0
+    };
     current.count += 1;
     current.totalLoss += Math.max(0, sample.evalLossCp);
     if (sample.resultForMover > 0) current.wins += 1;
+    else if (sample.resultForMover < 0) current.losses += 1;
     else current.draws += 1;
     grouped.set(sample.moveUci, current);
   }
   return [...grouped.values()].sort((a, b) => {
-    const scoreA = a.count * 3 + a.wins * 2 + a.draws - a.totalLoss / Math.max(1, a.count) / 20;
-    const scoreB = b.count * 3 + b.wins * 2 + b.draws - b.totalLoss / Math.max(1, b.count) / 20;
+    const averageLossA = a.totalLoss / Math.max(1, a.count);
+    const averageLossB = b.totalLoss / Math.max(1, b.count);
+    const scoreA = a.count * 4 + a.wins * 0.4 + a.draws * 0.1 -
+      a.losses * 0.5 - averageLossA / 20;
+    const scoreB = b.count * 4 + b.wins * 0.4 + b.draws * 0.1 -
+      b.losses * 0.5 - averageLossB / 20;
     return scoreB - scoreA;
   })[0] || null;
 }
