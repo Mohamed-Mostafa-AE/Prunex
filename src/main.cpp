@@ -680,7 +680,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         std::string cmd;
         in>>cmd;
         if(cmd=="uci"){
-            emitLine("id name Prunex 0.5.1\nid author Prunex Project\nuciok");
+            emitLine("id name Prunex 0.8.0\nid author Prunex Project\nuciok");
         } else if(cmd=="isready"){
             emitLine("readyok");
         } else if(cmd=="ucinewgame"){
