@@ -498,7 +498,7 @@ function applyPreferences() {
   soundEnabled = loadPreference("defeat-sound", "true") !== "false";
   showEvaluation = loadPreference("show-evaluation", "true") !== "false";
   moveMethod = ["both","drag","click"].includes(loadPreference("move-method","both")) ? loadPreference("move-method","both") : "both";
-  bestMoveDisplay = ["off","piece","highlight","arrow"].includes(loadPreference("best-move-display","piece")) ? loadPreference("best-move-display","piece") : "piece";
+  bestMoveDisplay = ["off","piece","highlight","arrow"].includes(loadPreference("best-move-display-v2","piece")) ? loadPreference("best-move-display-v2","piece") : "piece";
   soundStyle = ["classic","soft","muted"].includes(loadPreference("sound-style","classic")) ? loadPreference("sound-style","classic") : "classic";
   highlightLastMove = loadPreference("highlight-last-move","true") !== "false";
   pieceAnimationEnabled = loadPreference("piece-animation","true") !== "false";
@@ -1577,7 +1577,7 @@ legalMovesToggle.addEventListener("change", event => {
   renderBoardHighlights();
 });
 moveMethodSelect.addEventListener("change",event=>{moveMethod=event.target.value;savePreference("move-method",moveMethod);selected=null;legalTargets=[];renderBoardHighlights();});
-bestMoveDisplaySelect.addEventListener("change",event=>{bestMoveDisplay=event.target.value;savePreference("best-move-display",bestMoveDisplay);renderBoard();});
+bestMoveDisplaySelect.addEventListener("change",event=>{bestMoveDisplay=event.target.value;savePreference("best-move-display-v2",bestMoveDisplay);renderBoard();});
 soundStyleSelect.addEventListener("change",event=>{soundStyle=event.target.value;savePreference("sound-style",soundStyle);});
 previewSoundButton.addEventListener("click",()=>{primeAudio(true);playMoveSound({captured:false,promotion:false},true);});
 highlightLastMoveToggle.addEventListener("change",event=>{highlightLastMove=event.target.checked;savePreference("highlight-last-move",highlightLastMove);renderBoardHighlights();});
