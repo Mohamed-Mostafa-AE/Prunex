@@ -106,6 +106,11 @@ try {
   if (await page.locator("#review-budget").inputValue() !== "15000") {
     throw new Error("Game review should default to the recommended 15-second per-position budget.");
   }
+  await page.locator("#best-move-display").evaluate(el => {
+    for (let group = el.closest("details"); group; group = group.parentElement?.closest("details")) {
+      group.open = true;
+    }
+  });
   await page.locator("#best-move-display").selectOption("arrow");
   await page.locator("#best-move-display").selectOption("off");
   if (await page.locator("#board .best-move-arrow").count()) {
@@ -555,6 +560,11 @@ try {
   if (!(await page.locator("#review-budget").isVisible())) {
     await page.locator(".settings-group").nth(2).locator("summary").click();
   }
+  await page.locator("#review-budget").evaluate(el => {
+    for (let group = el.closest("details"); group; group = group.parentElement?.closest("details")) {
+      group.open = true;
+    }
+  });
   await page.locator("#review-budget").selectOption("3000");
   await page.locator("#game-result-review").click();
   try {
