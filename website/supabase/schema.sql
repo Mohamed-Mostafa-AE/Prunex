@@ -164,7 +164,10 @@ create policy "users can delete their own Prunex position memory"
     )
   );
 
-create or replace function public.replace_my_position_memory_for_game(target_game_id uuid, position_samples jsonb)
+create or replace function public.replace_my_position_memory_for_game(
+  target_game_id uuid,
+  position_samples jsonb
+)
 returns integer
 language plpgsql
 security invoker
@@ -189,14 +192,28 @@ begin
 
   if sample_count > 0 and exists (
     select 1
-    from pg_catalog.jsonb_to_recordset(position_samples) as sample(
-      position_key text, side_to_move text, move_uci text, san text,
-      result_for_mover text, eval_loss_cp text, grade text
-    )
-    where sample.position_key is null
-       or pg_catalog.char_length(sample.position_key) not between 10 and 100
-       or sample.side_to_move is null or sample.side_to_move not in ('w', 'b')
-       or sample.move_uci is null or sample.move_uci !~ '^[a-h][1-8][a-h][1-8][qrbn]?  select reviews.share_position_memory into sharing_enabled
+    from pg_catalog.jsonb_array_elements(position_samples) as item(value)
+    where pg_catalog.jsonb_typeof(item.value) is distinct from 'object'
+       or pg_catalog.jsonb_typeof(item.value -> 'position_key') is distinct from 'string'
+       or pg_catalog.char_length(item.value ->> 'position_key') not between 10 and 100
+       or pg_catalog.jsonb_typeof(item.value -> 'side_to_move') is distinct from 'string'
+       or item.value ->> 'side_to_move' not in ('w', 'b')
+       or pg_catalog.jsonb_typeof(item.value -> 'move_uci') is distinct from 'string'
+       or item.value ->> 'move_uci' !~ '^[a-h][1-8][a-h][1-8][qrbn]?$'
+       or pg_catalog.jsonb_typeof(item.value -> 'san') is distinct from 'string'
+       or pg_catalog.char_length(item.value ->> 'san') not between 1 and 16
+       or pg_catalog.jsonb_typeof(item.value -> 'result_for_mover') is distinct from 'number'
+       or item.value ->> 'result_for_mover' not in ('-1', '0', '1')
+       or pg_catalog.jsonb_typeof(item.value -> 'eval_loss_cp') is distinct from 'number'
+       or item.value ->> 'eval_loss_cp' !~ '^(0|[1-9]|[12][0-9]|30)$'
+       or pg_catalog.jsonb_typeof(item.value -> 'grade') is distinct from 'string'
+       or item.value ->> 'grade' not in ('BRILLIANT', 'GREAT', 'BEST', 'EXCELLENT', 'GOOD')
+  ) then
+    raise exception using errcode = '22023', message = 'One or more shared position samples contain invalid field types or values.';
+  end if;
+
+  select reviews.share_position_memory
+    into sharing_enabled
     from public.prunex_game_reviews as reviews
     join public.prunex_games as games on games.id = reviews.game_id
    where reviews.game_id = target_game_id
@@ -210,29 +227,45 @@ begin
   end if;
 
   delete from public.prunex_position_memory as memory
-   where memory.game_id = target_game_id and memory.user_id = caller_id;
+   where memory.game_id = target_game_id
+     and memory.user_id = caller_id;
 
   if sharing_enabled is true and sample_count > 0 then
     insert into public.prunex_position_memory (
-      id, game_id, user_id, position_key, side_to_move, move_uci, san,
-      result_for_mover, eval_loss_cp, grade
+      id, game_id, user_id, position_key, side_to_move, move_uci,
+      san, result_for_mover, eval_loss_cp, grade
     )
-    select pg_catalog.gen_random_uuid()::text, target_game_id, caller_id,
-      sample.position_key, sample.side_to_move, sample.move_uci, sample.san,
-      sample.result_for_mover::smallint, sample.eval_loss_cp::integer, sample.grade
+    select
+      pg_catalog.gen_random_uuid()::text,
+      target_game_id,
+      caller_id,
+      sample.position_key,
+      sample.side_to_move,
+      sample.move_uci,
+      sample.san,
+      sample.result_for_mover::smallint,
+      sample.eval_loss_cp::integer,
+      sample.grade
     from pg_catalog.jsonb_to_recordset(position_samples) as sample(
-      position_key text, side_to_move character(1), move_uci text, san text,
-      result_for_mover text, eval_loss_cp text, grade text
+      position_key text,
+      side_to_move text,
+      move_uci text,
+      san text,
+      result_for_mover text,
+      eval_loss_cp text,
+      grade text
     );
     get diagnostics inserted_rows = row_count;
   end if;
+
   return inserted_rows;
 end;
 $function$;
 
 revoke all on function public.replace_my_position_memory_for_game(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.replace_my_position_memory_for_game(uuid, jsonb) to authenticated;
-
+comment on function public.replace_my_position_memory_for_game(uuid, jsonb) is
+  'Atomically replace/revoke shared position memory; strict JSON field types/values are validated before casts and caller RLS applies.';
        or sample.san is null or pg_catalog.char_length(sample.san) not between 1 and 16
        or sample.result_for_mover is null or sample.result_for_mover not in ('-1', '0', '1')
        or sample.eval_loss_cp is null or sample.eval_loss_cp !~ '^(0|[1-9]|[12][0-9]|30)  select reviews.share_position_memory into sharing_enabled
