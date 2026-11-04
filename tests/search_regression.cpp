@@ -63,7 +63,19 @@ int main() {
     int blackView=evaluate(position);
     if(whiteView!=-blackView) return 18;
 
-    if(!loadFen(position,START_FEN)) return 19;
+    if(!loadFen(position,"r6k/8/8/8/3PP3/8/8/4K3 w - - 0 1")) return 19;
+    int connectedPawns=evaluate(position);
+    if(!loadFen(position,"r6k/8/8/8/3P3P/8/8/4K3 w - - 0 1")) return 20;
+    int separatedPawns=evaluate(position);
+    if(connectedPawns<=separatedPawns) return 21;
+
+    if(!loadFen(position,"r6k/8/8/8/8/8/3PPP2/4K3 w - - 0 1")) return 22;
+    int shelteredKing=evaluate(position);
+    if(!loadFen(position,"r6k/8/8/8/8/8/PPP5/4K3 w - - 0 1")) return 23;
+    int exposedKing=evaluate(position);
+    if(shelteredKing<=exposedKing) return 24;
+
+    if(!loadFen(position,START_FEN)) return 25;
     searchAborted.store(false,std::memory_order_relaxed);
     std::atomic<bool> started{false};
     std::atomic<bool> completed{false};
@@ -77,11 +89,11 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(3));
     searchAborted.store(true,std::memory_order_relaxed);
     interruptedSearch.join();
-    if(!completed.load(std::memory_order_acquire)) return 20;
-    if(interruptedBest.from<0||interruptedBest.to<0) return 21;
+    if(!completed.load(std::memory_order_acquire)) return 26;
+    if(interruptedBest.from<0||interruptedBest.to<0) return 27;
     bool returnedLegalMove=false;
     for(const Move& move:legalMoves(position)) returnedLegalMove|=sameMove(move,interruptedBest);
-    if(!returnedLegalMove) return 22;
+    if(!returnedLegalMove) return 28;
 
     return 0;
 }
