@@ -86,8 +86,8 @@ Game Review defaults to a 30-second search budget per non-terminal position. Thi
 
 ## Licensing
 
-The original Prunex native C++ implementation and its native regression tests are released under the **MIT License**, with scope defined in [LICENSE](LICENSE). The license does not relicense third-party dependencies, bundled browser-engine code, or artwork.
+The original Prunex native C++ implementation and its native regression tests are released under the **Apache License 2.0**, with scope defined in [LICENSE](LICENSE) and [LICENSE-SCOPE.md](LICENSE-SCOPE.md). The license does not relicense third-party dependencies, bundled browser-engine code, or artwork.
 
 The browser demonstration contains separately licensed third-party components. Its browser engine distribution remains under GPLv3, and the Cburnett piece artwork remains under the license identified in `website/public/pieces/`. Their corresponding source links, notices, and license texts must remain with every distributed browser build. See [website/README.md](website/README.md) and the license notice in the site footer.
 
-Other repository materials not listed in the MIT scope remain reserved unless an applicable license or notice says otherwise.
+Other repository materials not listed in the Apache-2.0 scope remain reserved unless an applicable license or notice says otherwise.
