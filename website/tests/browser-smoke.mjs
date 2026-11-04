@@ -8,6 +8,14 @@ const requests = [];
 const baseUrl = process.env.PRUNEX_BASE_URL || "http://127.0.0.1:4173/";
 
 page.on("request", request => requests.push(request.url()));
+page.on("requestfailed", request => failures.push(
+  "requestfailed: " + request.method() + " " + request.url() + " — " + (request.failure()?.errorText || "unknown")
+));
+page.on("response", response => {
+  if (response.status() >= 400) {
+    failures.push("http " + response.status() + ": " + response.request().method() + " " + response.url());
+  }
+});
 page.on("pageerror", error => failures.push("pageerror: " + error.message));
 page.on("worker", worker => {
   workers.push(worker.url());
@@ -15,7 +23,10 @@ page.on("worker", worker => {
   worker.on("pageerror", error => failures.push("worker pageerror: " + error.message));
 });
 page.on("console", message => {
-  if (message.type() === "error") failures.push("console: " + message.text());
+  if (message.type() === "error") {
+    const location = message.location();
+    failures.push("console: " + message.text() + (location.url ? " @ " + location.url : ""));
+  }
 });
 
 try {
