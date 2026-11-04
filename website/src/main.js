@@ -42,7 +42,6 @@ const clearMarksButton = $("#clear-marks");
 const promotionPicker = $("#promotion-picker");
 const gameResultOverlay = $("#game-result-dialog");
 const gameResultClose = $("#game-result-close");
-const returnLiveButton = $("#return-live");
 const moveFirstButton = $("#move-first");
 const movePrevButton = $("#move-prev");
 const moveNextButton = $("#move-next");
@@ -82,6 +81,7 @@ const game = new Chess();
 let initialFen = game.fen();
 let reviewMovesSnapshot = null;
 let reviewPly = null;
+let reviewRequiresFork = false;
 let soundEnabled = true;
 let showEvaluation = true;
 let audioContext = null;
@@ -447,6 +447,7 @@ function openArchivedGame(record) {
   currentArchiveRecord = record;
   reviewMovesSnapshot = record.moves;
   reviewPly = record.moves.length;
+  reviewRequiresFork = true;
   moveAnalysis = Array.isArray(record.analysis) ? record.analysis : [];
   lastMove = record.moves.length
     ? { from: record.moves[record.moves.length - 1].from, to: record.moves[record.moves.length - 1].to }
@@ -927,6 +928,7 @@ function analyzeCurrentGame() {
 function startGameReview() {
   dismissGameResult(false);
   if (!currentArchiveRecord && game.isGameOver()) void persistCompletedGame();
+  reviewRequiresFork = game.isGameOver();
   const history = game.history({ verbose: true });
   reviewMovesSnapshot = history.map(move => ({
     color: move.color,
@@ -1147,7 +1149,10 @@ function goToPly(ply) {
   const sourceMoves = reviewMovesSnapshot || game.history({ verbose: true }).map(move => ({
     from: move.from, to: move.to, promotion: move.promotion, san: move.san
   }));
-  if (!reviewMovesSnapshot) reviewMovesSnapshot = sourceMoves;
+  if (!reviewMovesSnapshot) {
+    reviewRequiresFork = game.isGameOver();
+    reviewMovesSnapshot = sourceMoves;
+  }
   const targetPly = Math.max(0, Math.min(sourceMoves.length, Number(ply) || 0));
 
   cancelSearch();
@@ -1159,6 +1164,7 @@ function goToPly(ply) {
     if (!applied) {
       reviewMovesSnapshot = null;
       reviewPly = null;
+      reviewRequiresFork = false;
       throw new Error("Could not restore the selected move-history position.");
     }
   }
@@ -1177,24 +1183,44 @@ function goToPly(ply) {
   if (!game.isGameOver()) evaluatePosition();
 }
 
-function returnToLive() {
-  if (!reviewMovesSnapshot) return;
-  const savedMoves = reviewMovesSnapshot;
+function resumeFromReview() {
+  if (!reviewMovesSnapshot || game.isGameOver()) return false;
   cancelSearch();
-  game.load(initialFen);
-  bestMoveHint = null;
-  for (const saved of savedMoves) {
-    const applied = game.move({ from: saved.from, to: saved.to, promotion: saved.promotion });
-    if (!applied) throw new Error("Could not restore the live game position.");
+
+  // The game object already contains the selected position and only its
+  // preceding moves. Keep that exact state and let the next move branch here.
+  if (reviewRequiresFork) {
+    activeArchiveId = gameArchive.newId();
+    activeGameCreatedAt = new Date().toISOString();
+    activeGamePersisted = false;
+    pendingArchiveRecord = null;
+    currentArchiveRecord = null;
+    savedGameFen = null;
   }
+
   reviewMovesSnapshot = null;
   reviewPly = null;
-  const previous = savedMoves[savedMoves.length - 1];
-  lastMove = previous ? { from: previous.from, to: previous.to } : null;
+  reviewRequiresFork = false;
+  moveAnalysis = [];
+  reviewAnalysisPositions = [];
+  reviewAnalysisResults = [];
+  reviewAnalysisIndex = 0;
+  gameReviewPanel.hidden = true;
+  reviewProgress.hidden = true;
+  reviewProgressFill.style.width = "0%";
+  reviewSummary.replaceChildren();
+  reviewKeyMoments.replaceChildren();
+  bestMoveHint = null;
   selected = null;
   legalTargets = [];
+  pendingPromotion = null;
+  promotionPicker.hidden = true;
+  queuedPremove = null;
   render();
-  search();
+
+  // If the selected position belongs to the engine, let it make the next move.
+  if (!game.isGameOver() && game.turn() !== humanColor) search();
+  return true;
 }
 
 
@@ -1226,7 +1252,6 @@ function render() {
     turnEl.dataset.state = "";
   }
 
-  returnLiveButton.hidden = !reviewMovesSnapshot;
   undoButton.disabled = thinking || analyzingGame || !!reviewMovesSnapshot || game.history().length === 0;
   if (gameOver) syncTerminalEvaluation();
   syncGameResult();
@@ -1313,7 +1338,7 @@ function clearDragGhost() {
 function onBoardPointerDown(event) {
   if (showAnnotations && event.pointerType === "touch") return;
   const squareEl=event.target.closest?.(".square[data-square]");
-  if(!squareEl||event.button!==0||moveMethod==="click"||reviewMovesSnapshot||game.isGameOver())return;
+  if(!squareEl||event.button!==0||moveMethod==="click"||game.isGameOver())return;
   event.preventDefault();
   try { squareEl.setPointerCapture(event.pointerId); } catch {}
   const from=squareEl.dataset.square,mayQueue=thinking&&premovesEnabled&&game.turn()!==humanColor;
@@ -1357,6 +1382,7 @@ function onBoardPointerUp(event) {
 }
 
 function commitMove(from,to) {
+  if (reviewMovesSnapshot && !resumeFromReview()) return false;
   const candidates=game.moves({square:from,verbose:true}).filter(move=>move.to===to);
   if(!candidates.length)return false;
   if(candidates.some(move=>move.promotion)){pendingPromotion={from,to};promotionPicker.hidden=false;selected=null;legalTargets=[];renderBoardHighlights();return true;}
@@ -1398,7 +1424,8 @@ function handleTouchAnnotationTap(square) {
 
 function onSquare(square) {
   primeAudio();
-  if(reviewMovesSnapshot||game.isGameOver())return;
+  if (reviewMovesSnapshot && !resumeFromReview()) return;
+  if(game.isGameOver())return;
   if(moveMethod==="drag")return;
   if(thinking&&premovesEnabled){handlePremoveSquare(square);return;}
   if(thinking||game.turn()!==humanColor)return;
@@ -1426,6 +1453,7 @@ function startNewGame() {
   initialFen = new Chess().fen();
   reviewMovesSnapshot = null;
   reviewPly = null;
+  reviewRequiresFork = false;
   moveAnalysis = [];
   reviewAnalysisPositions = [];
   reviewAnalysisResults = [];
@@ -1772,6 +1800,7 @@ $("#load-fen").addEventListener("click", () => {
     initialFen = next.fen();
     reviewMovesSnapshot = null;
     reviewPly = null;
+    reviewRequiresFork = false;
     moveAnalysis = [];
     reviewAnalysisPositions = [];
     reviewAnalysisResults = [];
@@ -1816,6 +1845,7 @@ $("#reset-position").addEventListener("click", () => {
   initialFen = new Chess().fen();
   reviewMovesSnapshot = null;
   reviewPly = null;
+  reviewRequiresFork = false;
   moveAnalysis = [];
   reviewAnalysisPositions = [];
   reviewAnalysisResults = [];
