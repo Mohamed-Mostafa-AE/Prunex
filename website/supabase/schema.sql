@@ -7,7 +7,7 @@ create table if not exists public.prunex_games (
   id uuid primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   created_at timestamptz not null default now(),
-  result text not null check (result in ('white_win', 'black_win', 'draw')),
+  result text not null check (result in ('white_win', 'black_win', 'draw', 'in_progress')),
   human_color char(1) not null check (human_color in ('w', 'b')),
   initial_fen text not null,
   final_fen text not null,
