@@ -171,7 +171,28 @@
                   <span id="game-archive-count" class="archive-count">0 games</span>
                 </div>
                 <p id="game-archive-note" class="archive-note">Your completed games and reviews are private to your guest profile. You can separately opt in to sharing anonymized position samples for Prunex experience memory.</p>
-                <div id="game-archive-list" class="game-archive-list"><div class="empty">No completed games saved yet.</div></div>
+                <div id="game-archive-list" class="game-archive-list"><div class="empty">No games saved yet.</div></div>
+                <details class="account-management">
+                  <summary>ACCOUNT &amp; DATA</summary>
+                  <div class="account-management-body">
+                    <form id="link-account-form" class="account-form">
+                      <label for="account-recovery-email">Save this guest archive to an email identity</label>
+                      <div class="account-form-row">
+                        <input id="account-recovery-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+                        <button class="button" type="submit">Send verification</button>
+                      </div>
+                      <p id="account-recovery-status" class="account-status" aria-live="polite">Link an email to keep access if you change devices or clear browser data. Your existing games stay with this account.</p>
+                    </form>
+                    <form id="delete-account-form" class="account-form account-delete-form">
+                      <label for="delete-account-confirmation">Delete this account and its cloud game history</label>
+                      <div class="account-form-row">
+                        <input id="delete-account-confirmation" type="text" autocomplete="off" placeholder="Type DELETE" required>
+                        <button class="button account-delete-button" type="submit">Delete account</button>
+                      </div>
+                      <p id="delete-account-status" class="account-status" aria-live="polite">Deletion is permanent. It removes this account's cloud games, reviews and shared position samples, plus this browser's local archive.</p>
+                    </form>
+                  </div>
+                </details>
               </section>
               <div class="engine-controls">
                 <div class="control-title"><span>GAME SETTINGS</span><span class="control-live">CUSTOMIZE</span></div>
