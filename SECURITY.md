@@ -4,8 +4,22 @@
 
 Please report security vulnerabilities privately through GitHub's **Report a vulnerability** feature on this repository, rather than opening a public issue.
 
-Include the affected file or component, the steps needed to reproduce the issue, and any relevant impact. Please allow time for review and remediation before publicly disclosing a report.
+Include the affected file or component, reproducible steps, and the potential impact. Do not include passwords, access tokens, private keys, production game exports, or personal data in a report.
 
 ## Scope
 
-This project includes a native C++ engine and a separate website/browser demo. Reports concerning either component or their build and deployment configuration are welcome.
+Reports are welcome for:
+- the native C++20 engine and Windows desktop application;
+- the separate browser application and bundled third-party components;
+- Supabase Auth, database policies, Edge Functions and migrations;
+- build, dependency, and deployment configuration.
+
+## Supported release
+
+The current native release identifier is **Prunex 0.8.0**. The website and browser demo are validated as separate components. A fix in one component does not imply that every other component has been updated.
+
+## Security controls and limitations
+
+The repository uses private vulnerability reporting, dependency update automation, CodeQL analysis, native and browser regression workflows, restrictive deployment response headers, and owner-scoped database policies. Anonymous access is an intentional product feature and must remain protected by enabled Supabase CAPTCHA, abuse controls, and the owner-scoped RLS policies documented in the production-readiness checklist.
+
+Automated scans and tests reduce risk but are not a penetration test, legal review, or security guarantee. Production credentials must remain in provider secret stores and must never be committed or exposed through browser-prefixed environment variables.

@@ -83,6 +83,7 @@ Game Review defaults to a 30-second search budget per non-terminal position. Thi
 - [Windows desktop checklist](docs/windows-desktop-checklist.md)
 - [Training-data sourcing and ingestion policy](docs/training-data-ingestion.md)
 - [Website implementation notes](website/README.md)
+- [Production readiness and release checklist](docs/production-readiness.md)
 
 ## Licensing
 
