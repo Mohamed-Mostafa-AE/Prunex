@@ -34,6 +34,9 @@ include(CTest)
 
 if(BUILD_TESTING)
     add_test(NAME start_position_perft_1 COMMAND prunex --perft 1)
+
+    add_test(NAME native_benchmark_smoke COMMAND prunex --bench 2)
+    set_tests_properties(native_benchmark_smoke PROPERTIES PASS_REGULAR_EXPRESSION "bench-total nodes")
     set_tests_properties(start_position_perft_1 PROPERTIES PASS_REGULAR_EXPRESSION "Perft depth 1: 20")
 
     add_test(NAME start_position_perft_2 COMMAND prunex --perft 2)
