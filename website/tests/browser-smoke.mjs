@@ -87,6 +87,11 @@ try {
   }
   if (launchLayout.pieceImages !== 32) throw new Error("Cburnett SVG pieces did not render: " + JSON.stringify(launchLayout));
 
+  const visiblePageText = await page.locator("body").innerText();
+  if (/\\b\\d+(?:\\.\\d+)?k\\s+nodes\\b/i.test(visiblePageText)) {
+    throw new Error("Internal node-count shorthand must not be shown in the interface.");
+  }
+
   const startup = await page.evaluate(() => ({
     engine: document.querySelector("#engine-state")?.textContent,
     status: document.querySelector("#status")?.textContent
@@ -127,12 +132,18 @@ try {
     undefined,
     { timeout: 60000 }
   );
-  const latestMoveHighlights = await page.evaluate(() => ({
-    from: document.querySelectorAll("#board .last-move-from").length,
-    to: document.querySelectorAll("#board .last-move-to").length
-  }));
-  if (latestMoveHighlights.from !== 1 || latestMoveHighlights.to !== 1) {
-    throw new Error("The most recent move should leave exactly one origin and destination square highlighted.");
+  const latestMoveHighlights = await page.evaluate(() => {
+    const destination = document.querySelector("#board .last-move-to");
+    return {
+      from: document.querySelectorAll("#board .last-move-from").length,
+      to: document.querySelectorAll("#board .last-move-to").length,
+      color: destination ? getComputedStyle(destination, "::after").backgroundColor : ""
+    };
+  });
+  const highlightRgb = latestMoveHighlights.color.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/);
+  if (latestMoveHighlights.from !== 1 || latestMoveHighlights.to !== 1 ||
+      !highlightRgb || Number(highlightRgb[3]) <= Number(highlightRgb[1]) * 1.2) {
+    throw new Error("The most recent move should have one origin and destination with a blue highlight: " + JSON.stringify(latestMoveHighlights));
   }
   await page.locator(".settings-group").nth(3).locator("summary").click();
   if (await page.locator("#sound-style option").count() !== 3) {
