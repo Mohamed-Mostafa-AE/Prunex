@@ -11,7 +11,8 @@ The website has a separate browser chess demo. It uses chess.js for the browser 
 - Implemented the engine's board and position representation.
 - Added legal move generation and handling for castling, en passant, and promotion.
 - Added the search and evaluation routines.
-- Added UCI commands and time controls.
+- Added UCI commands, time controls, and background search execution.
+- Added atomic search cancellation; UCI `stop`, `position`, `ucinewgame`, replacement `go`, and `quit` now stop and join active searches safely.
 - Added a Windows desktop interface.
 - Added regression tests for rules, search positions, and UCI behavior.
 - Added a website with an interactive browser demonstration.
@@ -19,7 +20,7 @@ The website has a separate browser chess demo. It uses chess.js for the browser 
 ## Known areas to improve
 
 1. Move desktop search off the UI thread so the window stays responsive during longer searches.
-2. Make UCI search cancellation asynchronous.
+2. Move desktop search off the UI thread so the window stays responsive during longer searches.
 3. Finish a manual Windows 10/11 test of the desktop interface.
 4. Decide on a license for the native engine before distributing its source publicly.
 
