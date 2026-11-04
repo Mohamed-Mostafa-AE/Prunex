@@ -61,6 +61,10 @@ const reviewKeyMoments = $("#review-key-moments");
 const archiveCount = $("#game-archive-count");
 const archiveList = $("#game-archive-list");
 const archiveNote = $("#game-archive-note");
+const linkAccountForm = $("#link-account-form");
+const accountRecoveryStatus = $("#account-recovery-status");
+const deleteAccountForm = $("#delete-account-form");
+const deleteAccountStatus = $("#delete-account-status");
 const evaluationFill = $("#evaluation-fill");
 const evaluationLabel = $("#evaluation-label");
 const analysisStatus = $("#analysis-status");
@@ -1805,6 +1809,60 @@ function enableSectionReveals() {
     observer.observe(target);
   });
 }
+
+linkAccountForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = linkAccountForm.querySelector('button[type="submit"]');
+  const email = $("#account-recovery-email").value;
+  accountRecoveryStatus.textContent = "Sending a verification link…";
+  accountRecoveryStatus.dataset.kind = "";
+  submit.disabled = true;
+  try {
+    const result = await gameArchive.linkGuestEmail(email);
+    accountRecoveryStatus.textContent =
+      "Verification sent to " + result.email +
+      ". Open the message and confirm this address. Your existing game history stays attached to this account.";
+    accountRecoveryStatus.dataset.kind = "success";
+  } catch (error) {
+    accountRecoveryStatus.textContent = error instanceof Error ? error.message : "Could not send the verification email.";
+    accountRecoveryStatus.dataset.kind = "error";
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+deleteAccountForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const confirmation = $("#delete-account-confirmation").value.trim();
+  if (confirmation !== "DELETE") {
+    deleteAccountStatus.textContent = 'Type DELETE exactly to confirm permanent account deletion.';
+    deleteAccountStatus.dataset.kind = "error";
+    return;
+  }
+  const submit = deleteAccountForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  deleteAccountStatus.textContent = "Revoking sessions and deleting your account data…";
+  deleteAccountStatus.dataset.kind = "";
+  try {
+    await gameArchive.deleteAccount();
+    deleteAccountStatus.textContent =
+      "Your account and cloud game history have been deleted. This browser's local archive was cleared. Close this tab to finish.";
+    deleteAccountStatus.dataset.kind = "success";
+    linkAccountForm.querySelectorAll("input,button").forEach(control => { control.disabled = true; });
+    deleteAccountForm.querySelectorAll("input,button").forEach(control => { control.disabled = true; });
+    archiveCount.textContent = "0 games";
+    archiveList.replaceChildren();
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Account deleted. No games remain in this local archive.";
+    archiveList.append(empty);
+    archiveNote.textContent = "The account and associated cloud records were deleted.";
+  } catch (error) {
+    deleteAccountStatus.textContent = error instanceof Error ? error.message : "Account deletion failed.";
+    deleteAccountStatus.dataset.kind = "error";
+    submit.disabled = false;
+  }
+});
 
 $("#year").textContent = String(new Date().getFullYear());
 applyPreferences();
