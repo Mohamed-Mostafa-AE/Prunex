@@ -73,8 +73,9 @@ grant insert (
 ) on public.prunex_game_reviews to authenticated;
 grant update on public.prunex_game_reviews to authenticated;
 
--- No direct client writes are granted to shared memory. A server-verified RPC
--- replaces/revokes samples atomically after checking ownership and consent.
+-- Column-level INSERT and DELETE grants are paired with RLS policies that
+-- require the owner and recorded consent. UPDATE is not granted. The RPC
+-- replaces/revokes samples atomically under invoker rights.
 grant select (
   id, position_key, side_to_move, move_uci, result_for_mover, eval_loss_cp, grade
 ) on public.prunex_position_memory to authenticated;
