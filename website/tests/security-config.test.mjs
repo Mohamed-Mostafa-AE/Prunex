@@ -42,7 +42,11 @@ for (const key of [
   "VITE_TURNSTILE_SITE_KEY=",
   "VITE_REQUIRE_GUEST_TURNSTILE=false"
 ]) assert.ok(envExample.includes(key), "Missing browser configuration: " + key);
-assert.ok(envExample.includes("NEON_DATABASE_URL="), "The server-only Neon connection must be documented.");\nassert.ok(envExample.includes("PRUNEX_OWNER_EMAIL="), "The single-owner allowlist must be documented.");\nassert.ok(!/VITE_[A-Z0-9_]*(NEON|DATABASE_URL|OWNER_EMAIL|SERVICE_ROLE|SECRET|PRIVATE_KEY)/i.test(envExample),\n  "Neon connection strings and owner allowlists must never be browser variables.");\nassert.ok(!/VITE_[A-Z0-9_]*(SERVICE_ROLE|SECRET|PRIVATE_KEY)/i.test(envExample),
+assert.ok(envExample.includes("NEON_DATABASE_URL="), "The server-only Neon connection must be documented.");
+assert.ok(envExample.includes("PRUNEX_OWNER_EMAIL="), "The single-owner allowlist must be documented.");
+assert.ok(!/VITE_[A-Z0-9_]*(NEON|DATABASE_URL|OWNER_EMAIL|SERVICE_ROLE|SECRET|PRIVATE_KEY)/i.test(envExample),
+  "Neon connection strings and owner allowlists must never be browser variables.");
+assert.ok(!/VITE_[A-Z0-9_]*(SERVICE_ROLE|SECRET|PRIVATE_KEY)/i.test(envExample),
   "Server credentials must never be exposed through Vite variables.");
 
 console.log("Security configuration: CSP, transport headers, isolation and public env contract passed.");
