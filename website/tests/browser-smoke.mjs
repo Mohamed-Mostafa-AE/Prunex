@@ -619,17 +619,6 @@ try {
     if (!expectsResize && (resizeDisplay.board !== "none" || resizeDisplay.history !== "none")) {
       throw new Error("Phone layouts must not show resize affordances at " + device.name + ": " + JSON.stringify(resizeDisplay));
     }
-    const resizeControls = await page.evaluate(() => ({
-      board: getComputedStyle(document.querySelector("#resize-board")).display,
-      history: getComputedStyle(document.querySelector("#resize-move-history")).display
-    }));
-    const expectsResize = device.width > 700;
-    if (expectsResize && (resizeControls.board === "none" || resizeControls.history === "none")) {
-      throw new Error("Tablet/laptop should retain resize controls at " + device.name + ": " + JSON.stringify(resizeControls));
-    }
-    if (!expectsResize && (resizeControls.board !== "none" || resizeControls.history !== "none")) {
-      throw new Error("Phone layouts must not expose resize controls at " + device.name + ": " + JSON.stringify(resizeControls));
-    }
     if (screenshotViewports.has(device.name)) {
       await page.screenshot({
         path: "artifacts/responsive-" + device.name + ".png",
