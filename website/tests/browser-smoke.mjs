@@ -112,7 +112,7 @@ try {
   const gripBox = await historyGrip.boundingBox();
   await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2 + 90, { steps: 6 });
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2 + 120, { steps: 8 });
   await page.mouse.up();
   const historyAfter = await historyList.evaluate(el => el.getBoundingClientRect().height);
   if (historyAfter < historyBefore + 70) {
