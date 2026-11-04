@@ -1693,8 +1693,30 @@ $("#reset-position").addEventListener("click", () => {
   search();
 });
 
+function enableSectionReveals() {
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (reducedMotion || !("IntersectionObserver" in window)) return;
+
+  const targets = document.querySelectorAll(
+    ".principles article, .section-heading, .architecture-card, .about-copy, .benchmark-copy, .benchmark-card, .editor-panel"
+  );
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      entry.target.classList.add("is-visible");
+      observer.unobserve(entry.target);
+    }
+  }, { threshold: 0.12, rootMargin: "0px 0px -24px 0px" });
+
+  targets.forEach(target => {
+    target.classList.add("reveal-on-scroll");
+    observer.observe(target);
+  });
+}
+
 $("#year").textContent = String(new Date().getFullYear());
 applyPreferences();
+enableSectionReveals();
 void refreshGameArchive();
 worker.postMessage({ type: "init" });
 render();
