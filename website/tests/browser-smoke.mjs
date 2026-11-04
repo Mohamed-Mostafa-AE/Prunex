@@ -754,6 +754,33 @@ try {
         touchTargets.promotionButton < 44 || touchTargets.navLink < 40) {
       throw new Error("Touch target sizing failed: " + JSON.stringify(touchTargets));
     }
+    await touchPage.waitForFunction(
+      () => document.querySelector("#engine-state")?.textContent === "Engine ready",
+      undefined,
+      { timeout: 60000 }
+    );
+    await touchPage.locator('[data-square="e2"]').click();
+    await touchPage.locator('[data-square="e4"]').click();
+    await touchPage.waitForFunction(
+      () => [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")),
+      undefined,
+      { timeout: 60000 }
+    );
+    await touchPage.waitForFunction(
+      () => [...document.querySelectorAll("#game-archive-list .archive-game")]
+        .some(row => row.textContent.includes("IN PROGRESS")),
+      undefined,
+      { timeout: 30000 }
+    );
+    const activeGameRows = await touchPage.locator("#game-archive-list .archive-game").count();
+    await touchPage.reload({ waitUntil: "networkidle" });
+    await touchPage.waitForFunction(
+      count => document.querySelectorAll("#game-archive-list .archive-game").length >= count &&
+        [...document.querySelectorAll("#game-archive-list .archive-game")]
+          .some(row => row.textContent.includes("IN PROGRESS")),
+      activeGameRows,
+      { timeout: 30000 }
+    );
   } finally {
     await touchContext.close();
   }
