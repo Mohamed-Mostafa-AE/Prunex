@@ -601,8 +601,8 @@ try {
   if (!pointLossData.length || pointLossData.some(value => value < 0 || value > 1)) {
     throw new Error("Move grades should store valid expected-point losses between 0 and 1.");
   }
-  if (!(await page.locator(".piece-quality-marker").count())) {
-    throw new Error("A reviewed Best/Brilliant move should display its quality marker on the corresponding board piece.");
+  if (await page.locator(".piece-quality-marker").count() !== 0) {
+    throw new Error("Live play must not display game-review move-quality markers.");
   }
   const moveGrades = await page.locator("#move-list .move-grade").allTextContents();
   if (!moveGrades.some(grade => ["BEST","BRILLIANT","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(grade))) {
