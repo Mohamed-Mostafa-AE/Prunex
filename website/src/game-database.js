@@ -56,11 +56,21 @@ export function isUsableMemory(sample) {
   return Boolean(
     sample &&
     typeof sample === "object" &&
+    typeof sample.id === "string" &&
+    sample.id.length >= 1 &&
+    sample.id.length <= 128 &&
+    typeof sample.positionKey === "string" &&
+    sample.positionKey.length >= 10 &&
+    sample.positionKey.length <= 100 &&
+    (sample.sideToMove === "w" || sample.sideToMove === "b") &&
+    typeof sample.moveUci === "string" &&
+    UCI_MOVE_PATTERN.test(sample.moveUci) &&
+    typeof sample.san === "string" &&
+    sample.san.length >= 1 &&
+    sample.san.length <= 16 &&
     Number.isInteger(sample.evalLossCp) &&
     sample.evalLossCp >= 0 &&
     sample.evalLossCp <= 30 &&
-    typeof sample.moveUci === "string" &&
-    UCI_MOVE_PATTERN.test(sample.moveUci) &&
     Number.isInteger(sample.resultForMover) &&
     [-1, 0, 1].includes(sample.resultForMover) &&
     SHARED_MEMORY_GRADES.has(sample.grade)
@@ -175,38 +185,22 @@ export function createGameArchive({ url = "", publishableKey = "", captchaTokenP
     const remoteSamples = (sharePositionMemory && Array.isArray(samples) ? samples : [])
       .filter(isUsableMemory)
       .map(sample => ({
-        id: sample.id,
-        game_id: record.id,
-        user_id: userId,
         position_key: sample.positionKey,
         side_to_move: sample.sideToMove,
         move_uci: sample.moveUci,
         san: sample.san,
         result_for_mover: sample.resultForMover,
         eval_loss_cp: sample.evalLossCp,
-        grade: sample.grade,
-        created_at: sample.createdAt
+        grade: sample.grade
       }));
-    if (remoteSamples.length) {
-      const { error: memoryError } = await supabase
-        .from("prunex_position_memory")
-        .upsert(remoteSamples, { onConflict: "id" });
-      if (memoryError) throw memoryError;
-    }
 
-    // Remove stale records and honor a withdrawn sharing choice.
-    const retainedIds = new Set(remoteSamples.map(sample => sample.id));
-    const staleIds = [...new Set((Array.isArray(samples) ? samples : [])
-      .map(sample => sample?.id)
-      .filter(id => typeof id === "string" && id.length > 0 && id.length <= 128))]
-      .filter(id => !retainedIds.has(id));
-    if (staleIds.length) {
-      const { error: cleanupError } = await supabase
-        .from("prunex_position_memory")
-        .delete()
-        .in("id", staleIds);
-      if (cleanupError) throw cleanupError;
-    }
+    // One authenticated RPC atomically replaces or clears every contribution
+    // for this owner/game. The server verifies ownership and recorded consent.
+    const { error: memoryError } = await supabase.rpc(
+      "replace_my_position_memory_for_game",
+      { target_game_id: record.id, position_samples: remoteSamples }
+    );
+    if (memoryError) throw memoryError;
 
     const synced = {
       ...record,

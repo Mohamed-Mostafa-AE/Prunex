@@ -40,7 +40,7 @@ for (const key of [
   "VITE_SUPABASE_URL=",
   "VITE_SUPABASE_PUBLISHABLE_KEY=",
   "VITE_TURNSTILE_SITE_KEY=",
-  "VITE_REQUIRE_CAPTCHA=false"
+  "VITE_REQUIRE_GUEST_TURNSTILE=false"
 ]) assert.ok(envExample.includes(key), "Missing browser configuration: " + key);
 assert.ok(!/VITE_[A-Z0-9_]*(SERVICE_ROLE|SECRET|PRIVATE_KEY)/i.test(envExample),
   "Server credentials must never be exposed through Vite variables.");

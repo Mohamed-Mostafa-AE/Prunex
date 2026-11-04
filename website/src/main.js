@@ -116,7 +116,7 @@ const gameArchive = createGameArchive({
   publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
   captchaTokenProvider: () => requestTurnstileToken({
     siteKey: import.meta.env.VITE_TURNSTILE_SITE_KEY || "",
-    required: import.meta.env.VITE_REQUIRE_CAPTCHA === "true",
+    required: import.meta.env.VITE_REQUIRE_GUEST_TURNSTILE === "true",
     container: $("#turnstile-widget-container")
   })
 });
