@@ -289,11 +289,7 @@ def ingest(args: argparse.Namespace) -> dict:
             "seed": args.seed,
             "target_proportions": SPLIT_SCHEMA,
             "actual_positions": dict(split_positions),
-            "actual_games": {
-                name: sum(1 for _ in open(target, "r", encoding="utf-8"))
-                if False else None
-                for name, target in targets.items()
-            },
+            "actual_games": {},
             "files": {
                 name: {"path": path.name, "sha256": output_hashes[name]}
                 for name, path in targets.items()
