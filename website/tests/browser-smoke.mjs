@@ -74,7 +74,7 @@ try {
   if (!archiveStatus.includes(expectedArchiveStatus)) {
     throw new Error("The game archive did not reach its expected mode: " + archiveStatus);
   }
-  for (const selector of ["#link-account-form", "#delete-account-form", "#account-recovery-email", "#delete-account-confirmation"]) {
+  for (const selector of ["#link-account-form", "#restore-account-form", "#delete-account-form", "#account-recovery-email", "#restore-account-email", "#delete-account-confirmation"]) {
     if (await page.locator(selector).count() !== 1) {
       throw new Error("Account recovery/deletion control missing: " + selector);
     }
