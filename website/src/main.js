@@ -652,12 +652,20 @@ function renderBoard() {
       const reviewedGrade = reviewedGradeRaw === "MISSED_WIN" ? "MISS" : reviewedGradeRaw;
       const reviewBadge = reviewedMove?.to === square && !!reviewedGrade &&
         ["APEX","BRILLIANT","GREAT","BEST","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(reviewedGrade);
-      const engineBadge = bestMoveDisplay === "piece" && bestMoveHint?.from === square;
       const gradeGlyph = {
         APEX:"✧", BRILLIANT:"✦", GREAT:"◆", BEST:"★", EXCELLENT:"✓", GOOD:"✓",
         INACCURACY:"!", MISTAKE:"!", BLUNDER:"×", MISS:"↘"
       };
-      if (reviewBadge || engineBadge) {
+      // Move-quality markers belong exclusively to game-review mode.
+      if (reviewBadge) {
+        const marker = document.createElement("span");
+        marker.className = "piece-quality-marker";
+        marker.dataset.grade = reviewedGrade;
+        marker.textContent = gradeGlyph[reviewedGrade] || "•";
+        marker.title = reviewedGrade + " move";
+        marker.setAttribute("aria-label", marker.title);
+        button.append(marker);
+      }
         const marker = document.createElement("span");
         marker.className = "piece-quality-marker";
         marker.dataset.grade = reviewBadge ? reviewedGrade : "BEST";
@@ -1693,6 +1701,42 @@ $("#reset-position").addEventListener("click", () => {
   search();
 });
 
+function setMoveHistoryHeight(value, persist = true) {
+  const height = Math.max(120, Math.min(560, Number(value) || 220));
+  const list = $("#move-list");
+  list.style.height = height + "px";
+  list.style.flex = "0 0 " + height + "px";
+  if (persist) savePreference("move-history-height", height);
+}
+
+function enableMoveHistoryResize() {
+  const list = $("#move-list");
+  const handle = $("#resize-move-history");
+  const panel = $(".analysis-panel");
+  setMoveHistoryHeight(loadPreference("move-history-height", "220"), false);
+  let pointerStart = null;
+  handle.addEventListener("pointerdown", event => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    pointerStart = { id: event.pointerId, y: event.clientY, height: list.getBoundingClientRect().height };
+    handle.setPointerCapture(event.pointerId);
+    panel.classList.add("is-resizing-history");
+  });
+  handle.addEventListener("pointermove", event => {
+    if (!pointerStart || event.pointerId !== pointerStart.id) return;
+    setMoveHistoryHeight(pointerStart.height + event.clientY - pointerStart.y, false);
+  });
+  const finish = event => {
+    if (!pointerStart || (event && event.pointerId !== pointerStart.id)) return;
+    pointerStart = null;
+    panel.classList.remove("is-resizing-history");
+    savePreference("move-history-height", Math.round(list.getBoundingClientRect().height));
+  };
+  handle.addEventListener("pointerup", finish);
+  handle.addEventListener("pointercancel", finish);
+  handle.addEventListener("lostpointercapture", finish);
+}
+
 function enableSectionReveals() {
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (reducedMotion || !("IntersectionObserver" in window)) return;
@@ -1716,6 +1760,7 @@ function enableSectionReveals() {
 
 $("#year").textContent = String(new Date().getFullYear());
 applyPreferences();
+enableMoveHistoryResize();
 enableSectionReveals();
 void refreshGameArchive();
 worker.postMessage({ type: "init" });
