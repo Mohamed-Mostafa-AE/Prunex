@@ -47,4 +47,4 @@ assert.doesNotMatch(archiveLogic, /localStorage\.setItem\([^)]*password/i,
   "The archive client must not persist passwords in localStorage.");
 assert.doesNotMatch(archiveLogic, /indexedDB[^;]*password/i,
   "Passwords must not be written to the game archive database.");
-console.log("Auth/email security: provider templates, archive preservation, account-only deletion, and password storage hygiene passed.");
+console.log("Account UI/security: account-only deletion, password visibility, and password storage hygiene passed.");
