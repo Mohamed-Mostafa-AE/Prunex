@@ -14,7 +14,7 @@ Both web documents are explicitly marked **Draft for review** and dated 4 Novemb
 ## Current implementation described by the draft/source
 
 - Website hosting: Vercel.
-- Identity provider: Supabase Auth. A guest Supabase account is created for cloud-archive flows; an owner may link a verified email to that existing guest account. Do not describe this as a conventional password account unless the implementation changes.
+- Identity provider: Supabase Auth. A guest Supabase account is created for cloud-archive flows. The player can link and verify an email on that existing identity, then set a password; password sign-in and email-based recovery are also implemented. Password values are sent to Supabase Auth and are not stored in Prunex game records or browser storage. The hosted project's manual identity-linking, password policy, confirmation and SMTP settings still require verification.
 - Primary private archive: Neon PostgreSQL. Normal archive reads/writes are routed through the same-origin server API. Owner identity is checked against the Supabase token, verified email, and configured `PRUNEX_OWNER_EMAIL`.
 - Legacy records: Supabase tables `prunex_games`, `prunex_game_reviews`, and `prunex_position_memory` remain as historical source/fallback data while migration is incomplete.
 - Browser-local data: IndexedDB can store games and move/review data on the current device. Deleting an account clears the current browser's local archive; it cannot remotely erase local browser data on other devices.
