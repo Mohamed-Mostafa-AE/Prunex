@@ -138,7 +138,7 @@ assert.equal(anonymousState.isAnonymous, true);
 assert.equal(anonymousState.emailConfirmed, false);
 await assert.rejects(
   () => passwordArchive.setAccountPassword("Strong-but-not-yet-ready-1"),
-  /verify the guest email/
+  /verify the guest email/i
 );
 await passwordArchive.linkGuestEmail("Owner@Example.com");
 assert.deepEqual(
