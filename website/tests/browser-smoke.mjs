@@ -986,6 +986,8 @@ try {
     document.querySelector("#stockfish2-evidence .benchmark-card")?.classList.contains("is-visible") &&
     document.querySelector("#stockfish2-evidence .benchmark-copy")?.classList.contains("is-visible")
   , undefined, { timeout: 10000 });
+  // The section reveal lasts 1.05s; capture only after the actual fade has settled.
+  await page.waitForTimeout(1500);
   await stockfishEvidence.screenshot({ path: "artifacts/stockfish2-evidence-desktop.png" });
 
   // Capture the same real page section at a narrow phone viewport for review.
@@ -1008,6 +1010,7 @@ try {
       document.querySelector("#stockfish2-evidence .benchmark-card")?.classList.contains("is-visible") &&
       document.querySelector("#stockfish2-evidence .benchmark-copy")?.classList.contains("is-visible")
     , undefined, { timeout: 15000 });
+    await evidenceMobilePage.waitForTimeout(1500);
     const mobileEvidenceCopy = await mobileEvidence.innerText();
     if (!mobileEvidenceCopy.includes("62–2–0") || !mobileEvidenceCopy.includes("Stockfish 19-derived")) {
       throw new Error("Mobile benchmark evidence lost its score or provenance disclosure.");
