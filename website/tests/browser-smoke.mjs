@@ -924,6 +924,8 @@ try {
       throw new Error("Touch annotations should draw an arrow after tapping an origin and destination.");
     }
     await touchPage.locator("#clear-marks").tap();
+    // Annotation mode intentionally owns taps; turn it off before testing chess moves.
+    await touchPage.locator("#board-annotations").uncheck();
 
     // Enter a review position from move history, then play directly on the board.
     // The board move itself must branch from the selected FEN with no resume button.
