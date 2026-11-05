@@ -74,16 +74,19 @@ age --decrypt --identity prunex-backup-identity.txt \
 pg_restore --list prunex-neon.dump
 ```
 
-4. Restore into an isolated PostgreSQL 18 database:
+4. Run the repository's local restore verifier from the checked-out repository:
 
 ```bash
-createdb prunex_restore
-pg_restore --exit-on-error --no-owner --no-acl \
-  --dbname=prunex_restore prunex-neon.dump
+bash tools/backup/verify-restore.sh \
+  /path/to/prunex-neon-YYYY-MM-DDTHH-MM-SSZ.dump.age \
+  /path/to/prunex-backup-identity.txt \
+  /path/to/SHA256SUMS
 ```
 
-5. Verify the restored `prunex_archive.games`, `game_reviews`, `position_memory`, and `migration_state` tables, row counts, owner IDs, policies, and RLS flags. Record the source artifact ID, restore date, PostgreSQL version, counts, and any errors.
-6. Securely delete the plaintext dump and disposable database after recording the result. Keep the private age identity offline.
+The script verifies the artifact checksum, decrypts into a temporary directory, starts an isolated PostgreSQL 18 Docker container, restores with `pg_restore --exit-on-error`, checks all four required archive tables and their RLS flags, prints row counts, and removes the container and plaintext dump when it exits. It uses only localhost port 55432; stop any service already using that port first.
+
+5. Record the source artifact ID, restore date, PostgreSQL version, the four row counts, RLS verification, and any errors. Reconcile counts against the live Neon archive and source migration record; do not treat a successful empty-schema restore as proof of data-bearing recovery.
+6. Keep the encrypted artifact and private age identity safe. The script removes its temporary plaintext dump and database container on exit. Keep the private age identity offline.
 
 Do not declare the backup gate complete until a real post-migration backup has been produced, downloaded, decrypted, and restored successfully, with row counts reconciled against the source.
 
