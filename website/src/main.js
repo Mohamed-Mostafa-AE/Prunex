@@ -78,8 +78,7 @@ const accountPasswordInput = $("#account-password");
 const accountPasswordConfirm = $("#account-password-confirm");
 const accountPasswordGuidance = $("#account-password-guidance");
 const accountPasswordStatus = $("#account-password-status");
-const resetPasswordForm = $("#reset-password-form");
-const resetPasswordStatus = $("#reset-password-status");
+const forgotPasswordButton = $("#forgot-password-link");
 const evaluationFill = $("#evaluation-fill");
 const evaluationLabel = $("#evaluation-label");
 const analysisStatus = $("#analysis-status");
@@ -88,6 +87,50 @@ const gameResultTitle = $("#game-result-title");
 const gameResultSubtitle = $("#game-result-subtitle");
 const gameResultCopy = $("#game-result-copy");
 const siteThemeToggle = $("#site-theme-toggle");
+
+function friendlyAccountError(error, fallback) {
+  const code = String(error?.code || "").toLowerCase();
+  const message = String(error?.message || "").toLowerCase();
+
+  if (code.includes("invalid_credentials") || message.includes("invalid login credentials")) {
+    return "That email and password don't match. Try again.";
+  }
+  if (code.includes("email_not_confirmed") || message.includes("email not confirmed")) {
+    return "Verify your email before signing in.";
+  }
+  if (code.includes("user_already_exists") || message.includes("already registered") || message.includes("already been registered")) {
+    return "An account already uses that email. Sign in to continue.";
+  }
+  if (code.includes("otp_expired") || message.includes("expired") || message.includes("invalid token")) {
+    return "That verification link has expired. Request a new one.";
+  }
+  if (code.includes("rate_limit") || message.includes("rate limit") || message.includes("too many requests")) {
+    return "Too many attempts. Wait a little, then try again.";
+  }
+  if (code.includes("weak_password") || message.includes("password should") || message.includes("password is too weak")) {
+    return "Choose a stronger password and try again.";
+  }
+  if (message.includes("manual linking") || message.includes("identity linking")) {
+    return "Account linking is temporarily unavailable. Try again later.";
+  }
+  if (message.includes("redirect") || message.includes("not allowed")) {
+    return "This account link isn't configured for this site. Contact support.";
+  }
+  if (message.includes("fetch") || message.includes("network") || message.includes("timeout")) {
+    return "Prunex couldn't reach the account service. Check your connection and try again.";
+  }
+  if (message.includes("valid email")) {
+    return "Enter a valid email address.";
+  }
+  if (message.includes("at least 12 characters")) {
+    return "Choose a password with at least 12 characters.";
+  }
+  if (message.includes("already has a permanent sign-in identity")) {
+    return "This browser is already linked to an account. Sign in to continue.";
+  }
+  return fallback;
+}
+
 const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
 const game = new Chess();
 let initialFen = game.fen();
@@ -400,7 +443,8 @@ async function refreshGameArchive() {
   } catch (error) {
     archiveCount.textContent = "Unavailable";
     archiveList.textContent = "The local game archive could not be opened in this browser.";
-    archiveNote.textContent = error instanceof Error ? error.message : "Local game archive unavailable.";
+    console.error("Could not open the local Prunex archive.", error);
+    archiveNote.textContent = "Your game archive couldn't be opened. Refresh the page and try again.";
   }
 }
 
@@ -429,8 +473,8 @@ async function persistGameProgress() {
     await refreshGameArchive();
   });
   archiveWriteQueue = task.catch(error => {
-    archiveNote.textContent = "This game is saved locally; cloud sync will retry: " +
-      (error instanceof Error ? error.message : "Unknown archive error.");
+    console.warn("Cloud sync will retry for this saved game.", error);
+    archiveNote.textContent = "This game is saved on this device. Cloud sync will retry automatically.";
   });
   return task;
 }
@@ -505,8 +549,8 @@ async function saveReviewedGame() {
     await gameArchive.saveReview(record, samples, { shareTrainingData: sharePositionMemory });
     await refreshGameArchive();
   } catch (error) {
-    archiveNote.textContent = "Review saved in memory for this session, but archive sync failed: " +
-      (error instanceof Error ? error.message : "Unknown error.");
+    console.warn("The review could not sync to the private archive.", error);
+    archiveNote.textContent = "Your review couldn't sync just now. Try again when the archive is available.";
   }
 }
 
@@ -1538,7 +1582,8 @@ async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAt
     void persistGameProgress();search();
   } catch (error) {
     render();
-    statusEl.textContent = error instanceof Error ? error.message : "Could not apply engine move.";
+    console.error("The browser engine returned a move that could not be applied.", error);
+    statusEl.textContent = "Prunex couldn't complete its move. Try again or start a new game.";
     statusEl.dataset.kind = "error";
   }
 }
@@ -1557,7 +1602,8 @@ worker.addEventListener("message", async (event) => {
     thinking = false;
     evaluating = false;
     render();
-    statusEl.textContent = "Engine failed to load: " + data.message;
+    console.error("The browser analysis engine failed to load.", data.message);
+    statusEl.textContent = "The analysis engine couldn't start. Reload the page and try again.";
     statusEl.dataset.kind = "error";
     return;
   }
@@ -1613,7 +1659,8 @@ worker.addEventListener("message", async (event) => {
     if (analyzingGame) {
       analyzingGame = false;
       evaluating = false;
-      reviewProgressLabel.textContent = "Game analysis failed: " + data.message;
+      console.warn("The browser engine could not finish this game review.", data.message);
+      reviewProgressLabel.textContent = "Review couldn't finish. You can try again.";
       reviewSummary.textContent = "The engine could not finish this review. You can try again.";
       stateEl.textContent = "Engine ready";
       stateEl.dataset.busy = "false";
@@ -1629,7 +1676,8 @@ worker.addEventListener("message", async (event) => {
     }
     thinking = false;
     render();
-    statusEl.textContent = "Engine error: " + data.message;
+    console.error("The browser chess engine reported an error.", data.message);
+    statusEl.textContent = "The chess engine ran into a problem. Try again or start a new game.";
     statusEl.dataset.kind = "error";
     return;
   }
@@ -1645,7 +1693,8 @@ worker.addEventListener("error", (event) => {
   ready = false;
   thinking = false;
   render();
-  statusEl.textContent = "Engine worker failed: " + event.message;
+  console.error("The browser chess engine worker stopped unexpectedly.", event.error || event.message);
+  statusEl.textContent = "The chess engine stopped unexpectedly. Reload the page to continue.";
   statusEl.dataset.kind = "error";
 });
 
@@ -1862,7 +1911,8 @@ $("#load-fen").addEventListener("click", () => {
     render();
     search();
   } catch (error) {
-    fenFeedback.textContent = error instanceof Error ? error.message : "Invalid FEN position";
+    console.info("The entered FEN position was rejected.", error);
+    fenFeedback.textContent = "That position isn't valid FEN. Check the notation and try again.";
     fenFeedback.dataset.kind = "error";
   }
 });
@@ -1968,7 +2018,7 @@ function enableSectionReveals() {
 
 
 async function refreshAccountPanel() {
-  const serviceForms = [linkAccountForm, restoreAccountForm, resetPasswordForm];
+  const serviceForms = [linkAccountForm, restoreAccountForm];
   try {
     const state = await gameArchive.getAccountState();
     const configured = state.configured === true;
@@ -2017,9 +2067,8 @@ async function refreshAccountPanel() {
       accountPasswordGuidance.textContent = "Email verified. Choose a unique password of at least 12 characters. Passwords are sent only to Supabase over HTTPS and are never stored by Prunex.";
     }
   } catch (error) {
-    accountSessionStatus.textContent = error instanceof Error
-      ? "Account status could not be checked: " + error.message
-      : "Account status could not be checked.";
+    console.warn("Could not check the current Prunex account state.", error);
+    accountSessionStatus.textContent = "Account details couldn't be checked. Refresh the page and try again.";
     accountPasswordGuidance.textContent = "Password setup stays locked until the current account can be verified.";
     accountPasswordInput.disabled = true;
     accountPasswordConfirm.disabled = true;
@@ -2041,7 +2090,8 @@ linkAccountForm.addEventListener("submit", async event => {
       ". Open the message and confirm this address. Your existing game history stays attached to this account.";
     accountRecoveryStatus.dataset.kind = "success";
   } catch (error) {
-    accountRecoveryStatus.textContent = error instanceof Error ? error.message : "Could not send the verification email.";
+    console.warn("The guest archive verification email could not be sent.", error);
+    accountRecoveryStatus.textContent = friendlyAccountError(error, "Verification email couldn't be sent. Check your address and try again.");
     accountRecoveryStatus.dataset.kind = "error";
   } finally {
     submit.disabled = false;
@@ -2061,7 +2111,7 @@ restoreAccountForm.addEventListener("submit", async event => {
     const current = await gameArchive.getAccountState();
     if (current.isAnonymous === true) {
       const proceed = window.confirm(
-        "This browser currently has a guest archive. Signing into a different account will not merge those games; they will remain attached to the guest account. To preserve these games under the owner email, cancel and use “Preserve this guest archive” first. Continue signing in?"
+        "This browser has a guest game archive. Signing in to another account won't move those games. Link and verify this archive first to keep it, or continue only if you intend to switch accounts."
       );
       if (!proceed) return;
     }
@@ -2072,7 +2122,9 @@ restoreAccountForm.addEventListener("submit", async event => {
     await refreshAccountPanel();
     await refreshGameArchive();
   } catch (error) {
-    restoreAccountStatus.textContent = error instanceof Error ? error.message : "Password sign-in failed.";
+    console.warn("Prunex password sign-in failed.", error);
+    $("#restore-account-password").value = "";
+    restoreAccountStatus.textContent = friendlyAccountError(error, "Couldn't sign in. Check your details and try again.");
     restoreAccountStatus.dataset.kind = "error";
   } finally {
     submit.disabled = false;
@@ -2106,28 +2158,37 @@ setPasswordForm.addEventListener("submit", async event => {
     accountPasswordStatus.dataset.kind = "success";
     await refreshAccountPanel();
   } catch (error) {
-    accountPasswordStatus.textContent = error instanceof Error ? error.message : "Could not save the password.";
+    console.warn("The Prunex password could not be saved.", error);
+    setPasswordForm.reset();
+    accountPasswordStatus.textContent = friendlyAccountError(error, "Password couldn't be saved. Check your details and try again.");
     accountPasswordStatus.dataset.kind = "error";
   } finally {
     submit.disabled = accountPasswordInput.disabled;
   }
 });
 
-resetPasswordForm.addEventListener("submit", async event => {
-  event.preventDefault();
-  const submit = resetPasswordForm.querySelector('button[type="submit"]');
-  submit.disabled = true;
-  resetPasswordStatus.textContent = "Sending a password-reset email…";
-  resetPasswordStatus.dataset.kind = "";
+forgotPasswordButton.addEventListener("click", async () => {
+  const emailInput = $("#restore-account-email");
+  if (!emailInput.value.trim()) {
+    restoreAccountStatus.textContent = "Enter your account email above first.";
+    restoreAccountStatus.dataset.kind = "error";
+    emailInput.focus();
+    return;
+  }
+
+  forgotPasswordButton.disabled = true;
+  restoreAccountStatus.textContent = "Sending a reset link…";
+  restoreAccountStatus.dataset.kind = "";
   try {
-    const result = await gameArchive.sendPasswordReset($("#reset-password-email").value);
-    resetPasswordStatus.textContent = "Password-reset email sent to " + result.email + ". Open it on this device, then choose a new password in this panel.";
-    resetPasswordStatus.dataset.kind = "success";
+    await gameArchive.sendPasswordReset(emailInput.value);
+    restoreAccountStatus.textContent = "If an account matches that email, a reset link will arrive shortly. Check your inbox and spam folder.";
+    restoreAccountStatus.dataset.kind = "success";
   } catch (error) {
-    resetPasswordStatus.textContent = error instanceof Error ? error.message : "Could not send the password-reset email.";
-    resetPasswordStatus.dataset.kind = "error";
+    console.warn("A password-reset email could not be requested.", error);
+    restoreAccountStatus.textContent = friendlyAccountError(error, "Couldn't start password recovery. Check the email and try again.");
+    restoreAccountStatus.dataset.kind = "error";
   } finally {
-    submit.disabled = false;
+    forgotPasswordButton.disabled = false;
   }
 });
 
@@ -2182,7 +2243,7 @@ deleteAccountForm.addEventListener("submit", async event => {
     deleteAccountStatus.textContent =
       "Your account and cloud game history have been deleted. This browser's local archive was cleared. Close this tab to finish.";
     deleteAccountStatus.dataset.kind = "success";
-    for (const form of [linkAccountForm, restoreAccountForm, setPasswordForm, resetPasswordForm, deleteAccountForm]) {
+    for (const form of [linkAccountForm, restoreAccountForm, setPasswordForm, deleteAccountForm]) {
       form.querySelectorAll("input,button").forEach(control => { control.disabled = true; });
     }
     if (accountDialog.open) accountDialog.close();
@@ -2194,7 +2255,8 @@ deleteAccountForm.addEventListener("submit", async event => {
     archiveList.append(empty);
     archiveNote.textContent = "The account and associated cloud records were deleted.";
   } catch (error) {
-    deleteAccountStatus.textContent = error instanceof Error ? error.message : "Account deletion failed.";
+    console.warn("Prunex account deletion failed.", error);
+    deleteAccountStatus.textContent = friendlyAccountError(error, "Account couldn't be closed. Sign in with the verified archive email and try again.");
     deleteAccountStatus.dataset.kind = "error";
     submit.disabled = false;
   }
