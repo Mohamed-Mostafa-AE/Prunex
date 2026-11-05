@@ -75,6 +75,27 @@ Retain all browser-engine and artwork license notices and corresponding-source o
 
 Monitor Vercel runtime errors and deployment health, Supabase Auth and Edge Function failures, database saturation, rate-limit events, and unusual guest-signup patterns. Keep a rollback deployment available. Use GitHub private vulnerability reporting, and rotate suspected exposed credentials before assessing downstream impact.
 
+## Current release-candidate audit — 2026-11-05
+
+### Verified repository and deployment evidence
+
+- Release-candidate source is on `feature/prunex-evaluation-intelligence`, commit `4880e54ff8875c128bb8fe4ce7b074c0cf238874`.
+- Website CI passed on that commit: deterministic build/unit checks, npm audit, Chromium browser interaction suite, required output assets, training-data tests, and Python dependency audit.
+- CodeQL passed on that commit.
+- Native compiler/sanitizer matrix passed at `596abec89d1820a65ee8b24df419dc6bfadbe6d9`; native WebAssembly parity and Windows x64 builds passed at `307016e5c733a640efcdaff239e35e4fdc7f314f`. Native source files have not changed since those validations.
+- Vercel preview deployment `prunex-review.vercel.app` is READY from the release-candidate commit. Production aliases have not been moved to this candidate.
+- Vercel server-only `NEON_DATABASE_URL`, `SUPABASE_URL`, and `SUPABASE_PUBLISHABLE_KEY` have been populated for Production and Preview. `NEON_DATABASE_URL` uses the restricted `prunex_app` role. The existing `PRUNEX_OWNER_EMAIL` secret was left unchanged; its value still requires a real authenticated-owner end-to-end check.
+
+### External release blockers still requiring operator action
+
+- The Neon project reports six hours of history retention. No scheduled off-provider backup, 90-day retention archive, or successful restore drill has been verified. Do not rely on a second empty table as a backup.
+- The live Supabase project contains an out-of-band migration named `vortex_cloud_encrypted_backups` that is not present in this repository. Its `vortex_private.encrypted_backups` table currently has no rows, and the connected project exposes no active backup/restore Edge Function. Identify the owner/source of this migration and reconcile it with version control before relying on it.
+- The Supabase-to-Neon legacy import is covered by a deterministic idempotency/owner-isolation test, but the live owner import has not yet been executed and reconciled against source counts.
+- The GitHub development branch is not protected. Configure required status checks and review/merge policy before promoting a release commit.
+- The Privacy Notice and Terms of Use remain drafts and need qualified legal review for the intended jurisdictions and audience.
+- Complete the manual Windows 10/11 desktop checklist on a real Windows machine. CI compilation and CTest do not substitute for interaction, responsiveness, promotion, undo, cancellation, and shutdown testing.
+- Complete live-domain account/recovery, archive save/list/review, memory opt-in/revocation, account-deletion, and response-header checks with a verified owner session.
+
 ## Release decision
 
 Passing repository CI is necessary but not sufficient for public production release. Provider configuration, live-domain end-to-end tests, legal review, backup/restore verification, and Windows desktop interaction checks remain explicit release gates.
