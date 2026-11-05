@@ -24,7 +24,7 @@ assert.ok(recovery.includes("saved games remain associated"), "Recovery copy mus
 assert.ok(changed.includes("{{ .SiteURL }}"), "Password-change notification must link to the configured site URL.");
 assert.ok(changed.includes("mohamedhussam09@gmail.com"), "Password-change notification must include the published support contact.");
 for (const template of [emailChange, recovery, changed]) {
-  assert.ok(!/service_role|secret_key|password\\s*=|Bearer\\s+[A-Za-z0-9._-]{20,}/i.test(template),
+  assert.ok(!/service_role|secret_key/i.test(template) && !template.includes("password =") && !template.includes("Bearer "),
     "Email templates must not contain credentials or embedded secrets.");
 }
 console.log("Supabase Auth templates: email confirmation, password recovery, notifications, archive wording, and secret hygiene passed.");
