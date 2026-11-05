@@ -115,6 +115,23 @@ try {
   if (await page.locator("#account-dialog").isVisible()) {
     throw new Error("Escape must close the account dialog.");
   }
+  const desktopViewport = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#account-toggle").click();
+  const mobileDialogBox = await page.locator("#account-dialog").boundingBox();
+  if (!mobileDialogBox || mobileDialogBox.x < 0 || mobileDialogBox.x + mobileDialogBox.width > 391) {
+    throw new Error("The account dialog must fit within a 390px mobile viewport.");
+  }
+  const mobilePasswordBox = await page.locator("#account-password").boundingBox();
+  if (!mobilePasswordBox || mobilePasswordBox.x < mobileDialogBox.x ||
+      mobilePasswordBox.x + mobilePasswordBox.width > mobileDialogBox.x + mobileDialogBox.width) {
+    throw new Error("Password inputs must remain inside the mobile account dialog.");
+  }
+  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) {
+    throw new Error("The account dialog must not introduce horizontal overflow on mobile.");
+  }
+  await page.keyboard.press("Escape");
+  await page.setViewportSize(desktopViewport);
   if (await page.locator("#game-archive-list .game-delete-button, #game-archive-list [aria-label*='Delete game'], #game-archive-list [aria-label*='Delete record']").count()) {
     throw new Error("Individual game-record deletion controls must not be exposed.");
   }
