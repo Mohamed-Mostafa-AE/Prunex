@@ -582,7 +582,7 @@ export function createGameArchive({
     if (error) throw error;
     const user = data?.user;
     if (!user) throw new Error("Your Prunex session is not available.");
-    if (user.is_anonymous === true || !(user.email_confirmed_at || user.confirmed_at)) {
+    if (!user.email || !(user.email_confirmed_at || user.confirmed_at)) {
       throw new Error("Verify the guest email in this browser before setting a password. Your game archive has not been moved.");
     }
     const { error: updateError } = await supabase.auth.updateUser({ password: value });
