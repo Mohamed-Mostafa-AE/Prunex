@@ -1,5 +1,9 @@
 # Prunex
 
+## Project name
+
+**Prunex** is the project's name; the available source history does not record a verified acronym expansion. The engine implements alpha–beta pruning, but that alone does not establish that `PRUN` is an expansion of the name, and no documented meaning for `EX` was found. The project therefore uses **Prunex** as a proper name rather than publishing an unverified expansion.
+
 Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
 
 > **Important distinction:** The browser demo is not the native C++ engine. It uses `chess.js` for game rules and the Stockfish.js 19 Full multi-threaded browser build for its opponent and analysis. The native engine is a separate C++ implementation.
