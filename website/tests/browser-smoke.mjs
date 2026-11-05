@@ -1027,34 +1027,28 @@ try {
         rect.height > 0 && rect.width > 0;
     }, undefined, { timeout: 15000 });
     const mobileEvidence = evidenceMobilePage.locator("#stockfish2-evidence");
-    await mobileEvidence.scrollIntoViewIfNeeded();
-    // The mobile topbar is sticky and wraps onto multiple rows. Keep the evidence
-    // section heading below the full navigation height before capturing it.
-    await evidenceMobilePage.evaluate(() => {
-      const section = document.querySelector("#stockfish2-evidence");
-      const topbar = document.querySelector(".topbar");
-      if (!section || !topbar) throw new Error("Mobile benchmark navigation or evidence section is missing.");
-      const topbarBottom = topbar.getBoundingClientRect().bottom;
-      const sectionTop = section.getBoundingClientRect().top;
-      if (sectionTop < topbarBottom + 12) {
-        window.scrollBy({ top: sectionTop - topbarBottom - 12, behavior: "instant" });
-      }
-    });
-    await evidenceMobilePage.waitForFunction(() => {
-      const section = document.querySelector("#stockfish2-evidence");
-      const topbar = document.querySelector(".topbar");
-      const card = section?.querySelector(".benchmark-card");
-      const copy = section?.querySelector(".benchmark-copy");
-      if (!section || !topbar || !card || !copy) return false;
-      return section.getBoundingClientRect().top >= topbar.getBoundingClientRect().bottom + 8 &&
-        card.classList.contains("is-visible") && copy.classList.contains("is-visible");
-    }, undefined, { timeout: 15000 });
+    const mobileEvidenceCard = mobileEvidence.locator(".benchmark-card");
+    const mobileEvidenceCopyBlock = mobileEvidence.locator(".benchmark-copy");
+    await mobileEvidenceCard.scrollIntoViewIfNeeded();
+    await mobileEvidenceCopyBlock.scrollIntoViewIfNeeded();
+    await evidenceMobilePage.waitForFunction(() =>
+      document.querySelector("#stockfish2-evidence .benchmark-card")?.classList.contains("is-visible") &&
+      document.querySelector("#stockfish2-evidence .benchmark-copy")?.classList.contains("is-visible")
+    , undefined, { timeout: 15000 });
     await evidenceMobilePage.waitForTimeout(1500);
     const mobileEvidenceCopy = await mobileEvidence.innerText();
     if (!mobileEvidenceCopy.includes("62–2–0") || !mobileEvidenceCopy.includes("Stockfish 19-derived")) {
       throw new Error("Mobile benchmark evidence lost its score or provenance disclosure.");
     }
-    await mobileEvidence.screenshot({ path: "artifacts/stockfish2-evidence-phone.png" });
+    // Locator screenshots crop to the section while sticky headers remain viewport-fixed.
+    // Temporarily hide the header only for this evidence image; restore it immediately after.
+    const mobileTopbar = evidenceMobilePage.locator(".topbar");
+    await mobileTopbar.evaluate(element => { element.dataset.screenshotVisibility = element.style.visibility; element.style.visibility = "hidden"; });
+    try {
+      await mobileEvidence.screenshot({ path: "artifacts/stockfish2-evidence-phone.png" });
+    } finally {
+      await mobileTopbar.evaluate(element => { element.style.visibility = element.dataset.screenshotVisibility || ""; delete element.dataset.screenshotVisibility; });
+    }
   } finally {
     await evidenceMobileContext.close();
   }
