@@ -39,7 +39,16 @@ jobs:
       - name: Audit npm dependency graph
         run: npm audit --audit-level=high
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - name: Verify preinstalled browser
+        id: browser
+        run: |
+          browser_path="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$browser_path" ]; then
+            echo "No system Chrome/Chromium executable is available on this runner."
+            exit 1
+          fi
+          "$browser_path" --version
+          echo "executable=$browser_path" >> "$GITHUB_OUTPUT"
       - name: Start Vite preview
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/prunex-preview.log 2>&1 &
@@ -55,6 +64,8 @@ jobs:
           exit 1
       - run: mkdir -p artifacts
       - name: Browser smoke test
+        env:
+          PRUNEX_CHROMIUM_EXECUTABLE_PATH: ${{ steps.browser.outputs.executable }}
         run: npm run test:browser
       - name: Required output assets
         run: |
