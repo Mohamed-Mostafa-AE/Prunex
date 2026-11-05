@@ -15,7 +15,7 @@ The repository is public. Artifact metadata (run date and encrypted file size) i
 
 ## One-time setup (repository owner)
 
-### 1. Generate an encryption keypair on your own computer
+### 1. Generate an encryption keypair on a trusted machine
 
 Install age from its official release/package source. Then run:
 
