@@ -1684,8 +1684,14 @@ clearMarksButton.addEventListener("click",()=>{annotations=[];annotationTapFrom=
 boardEl.addEventListener("contextmenu",event=>{if(showAnnotations)event.preventDefault();});
 boardEl.addEventListener("pointerdown",event=>{
   if(event.button===2&&showAnnotations){
-    const square=event.target.closest?.(".square[data-square]")?.dataset.square;
-    if(square){event.preventDefault();dragState={pointerId:event.pointerId,from:square,dragging:true,annotation:true};}
+    const squareEl=event.target.closest?.(".square[data-square]");
+    if(squareEl){
+      event.preventDefault();
+      // Capture the right-button gesture so pointerup still reaches the board
+      // when the pointer crosses square boundaries or briefly leaves the board.
+      try { squareEl.setPointerCapture(event.pointerId); } catch {}
+      dragState={pointerId:event.pointerId,from:squareEl.dataset.square,dragging:true,annotation:true};
+    }
     return;
   }
   onBoardPointerDown(event);
