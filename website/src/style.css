@@ -1145,12 +1145,10 @@ img, svg, video, canvas { max-width: 100%; }
 }
 
 
-.hero-copy h1.reveal-on-scroll {
-  clip-path:inset(0 0 100% 0);
-  transition:opacity .62s cubic-bezier(.2,.7,.2,1),transform .62s cubic-bezier(.2,.7,.2,1),
-    clip-path .82s cubic-bezier(.2,.8,.2,1);
-}
-.hero-copy h1.reveal-on-scroll.is-visible { clip-path:inset(0); }
+/* Do not fully clip the headline before observing it. A zero-visible clip can
+   prevent IntersectionObserver from ever revealing the hero title. */
+.hero-copy h1.reveal-on-scroll { clip-path:none; }
+.hero-copy h1.reveal-on-scroll.is-visible { clip-path:none; }
 .hero-copy .hero-lede.reveal-on-scroll { transition-delay:.10s; }
 .hero-copy .hero-description.reveal-on-scroll { transition-delay:.16s; }
 .hero-copy .hero-actions.reveal-on-scroll { transition-delay:.21s; }
@@ -1210,3 +1208,20 @@ img, svg, video, canvas { max-width: 100%; }
   }
 }
 
+
+/* Historical benchmark evidence card. */
+.stockfish-evidence-section { align-items:center; }
+.stockfish-evidence-section .benchmark-copy h2 { max-width:620px; }
+.stockfish-evidence-section .benchmark-copy p { max-width:590px; }
+.benchmark-disclosure {
+  margin:16px 0 0; padding:13px 15px;
+  border-left:2px solid #6e9ec9; background:rgba(118,164,204,.08);
+  color:var(--muted); font-size:11px; line-height:1.75;
+}
+.benchmark-evidence-links { display:grid; gap:9px; margin-top:20px; justify-items:start; }
+.stockfish-evidence-card .score-number { font-size:clamp(48px,5vw,64px); }
+.stockfish-evidence-card .match-score { font-size:clamp(36px,4vw,48px); }
+.stockfish-evidence-card .match-score span {
+  display:block; margin-top:5px; color:#b8cce1; font:11px var(--mono); letter-spacing:0;
+}
+.stockfish-evidence-card .benchmark-specs { margin-top:8px; }
