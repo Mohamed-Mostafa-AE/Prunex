@@ -74,7 +74,7 @@ Game Review defaults to a 15-second search budget per non-terminal position. Thi
 - The Windows desktop application still needs a complete manual run-through on Windows 10 or 11. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
 - The Windows desktop application still searches on the UI thread, so longer searches can temporarily make the window unresponsive. The UCI command-line interface runs searches in the background and supports responsive cancellation with `stop`.
 - No independent Elo rating has been established for the native C++ engine.
-- The reported 0.8.0 benchmark record is based on a Stockfish 19-derived browser build, not an independent strength result for the native C++ engine. See [docs/testing.md](docs/testing.md).
+- The archived historical Stockfish 2.0 match belongs to a separately identified Stockfish 19-derived Prunex 0.8.0 test executable, not the independent native C++20 engine: 62 wins, 2 draws and 0 losses in 64 games (98.44%) at 100,000 nodes per move. The raw PGN and run artifact are linked in [the evidence record](docs/stockfish-2-comparison.md). The separate 1M-node 63–1–0 result is owner-reported and not independently audited from raw games. No native C++ Prunex Elo rating is claimed.
 
 ## Project documentation
 
