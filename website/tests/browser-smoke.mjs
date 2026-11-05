@@ -41,6 +41,15 @@ page.on("console", message => {
 
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
+  // Guard the screenshot regression: the homepage h1 must survive the scroll reveal.
+  await page.waitForFunction(() => {
+    const heading = document.querySelector("#home .hero-copy h1");
+    if (!heading || !heading.classList.contains("is-visible")) return false;
+    const style = getComputedStyle(heading);
+    const rect = heading.getBoundingClientRect();
+    return style.visibility !== "hidden" && Number(style.opacity) > 0.95 &&
+      rect.height > 0 && rect.width > 0;
+  }, undefined, { timeout: 10000 });
   for (const [path, expectedHeading] of [
     ["privacy.html", "Privacy Notice"],
     ["terms.html", "Terms of Use"]
@@ -949,8 +958,67 @@ try {
     await touchContext.close();
   }
 
+  // The historical Stockfish evidence must remain visible, qualified, and linked.
+  const stockfishEvidence = page.locator("#stockfish2-evidence");
+  if (await stockfishEvidence.count() !== 1) {
+    throw new Error("The historical Stockfish 2.0 evidence section is missing.");
+  }
+  const stockfishEvidenceCopy = await stockfishEvidence.innerText();
+  for (const expected of [
+    "62–2–0", "98.44%", "100,000 nodes per move", "128 MB hash",
+    "Stockfish 19-derived", "not the independently implemented native C++20 Prunex engine"
+  ]) {
+    if (!stockfishEvidenceCopy.includes(expected)) {
+      throw new Error("Stockfish evidence disclosure is missing: " + expected);
+    }
+  }
+  for (const href of [
+    "https://github.com/Mohamed-Mostafa-AE/Prunex/blob/feature/prunex-evaluation-intelligence/docs/stockfish-2-comparison.md",
+    "https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143",
+    "https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143/artifacts/13061744082"
+  ]) {
+    if (await stockfishEvidence.locator('a[href="' + href + '"]').count() !== 1) {
+      throw new Error("A primary benchmark evidence link is missing: " + href);
+    }
+  }
+  await stockfishEvidence.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() =>
+    document.querySelector("#stockfish2-evidence .benchmark-card")?.classList.contains("is-visible") &&
+    document.querySelector("#stockfish2-evidence .benchmark-copy")?.classList.contains("is-visible")
+  , undefined, { timeout: 10000 });
+  await stockfishEvidence.screenshot({ path: "artifacts/stockfish2-evidence-desktop.png" });
+
+  // Capture the same real page section at a narrow phone viewport for review.
+  const evidenceMobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true
+  });
+  try {
+    const evidenceMobilePage = await evidenceMobileContext.newPage();
+    await evidenceMobilePage.goto(baseUrl, { waitUntil: "networkidle" });
+    await evidenceMobilePage.waitForFunction(() =>
+      document.querySelector("#home .hero-copy h1")?.classList.contains("is-visible") &&
+      Number(getComputedStyle(document.querySelector("#home .hero-copy h1")).opacity) > 0.95
+    , undefined, { timeout: 15000 });
+    const mobileEvidence = evidenceMobilePage.locator("#stockfish2-evidence");
+    await mobileEvidence.scrollIntoViewIfNeeded();
+    await evidenceMobilePage.waitForFunction(() =>
+      document.querySelector("#stockfish2-evidence .benchmark-card")?.classList.contains("is-visible") &&
+      document.querySelector("#stockfish2-evidence .benchmark-copy")?.classList.contains("is-visible")
+    , undefined, { timeout: 15000 });
+    const mobileEvidenceCopy = await mobileEvidence.innerText();
+    if (!mobileEvidenceCopy.includes("62–2–0") || !mobileEvidenceCopy.includes("Stockfish 19-derived")) {
+      throw new Error("Mobile benchmark evidence lost its score or provenance disclosure.");
+    }
+    await mobileEvidence.screenshot({ path: "artifacts/stockfish2-evidence-phone.png" });
+  } finally {
+    await evidenceMobileContext.close();
+  }
+
   if (failures.length) throw new Error(failures.join("\\n"));
-  console.log("PASS: startup, human move and engine reply, compact board, resizing, three piece sets, themes, FEN import and validation, reset, black-side play, mobile review navigation, touch annotations, and responsive layout.");
+  console.log("PASS: engine/game interactions, responsive layout, visible hero headline, and qualified Stockfish 2.0 evidence with primary source links.");
 } finally {
   await browser.close();
 }
