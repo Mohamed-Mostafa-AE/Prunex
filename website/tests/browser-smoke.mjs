@@ -107,6 +107,10 @@ try {
       throw new Error("Password inputs must default to masked text.");
     }
   }
+  // The CI environment intentionally has no Supabase credentials, so enable
+  // this disabled field and its reveal control only for the visibility interaction.
+  await page.locator("#restore-account-password").evaluate(element => { element.disabled = false; });
+  await page.locator('[data-password-toggle="restore-account-password"]').evaluate(element => { element.disabled = false; });
   await page.locator('[data-password-toggle="restore-account-password"]').click();
   if ((await page.locator("#restore-account-password").getAttribute("type")) !== "text") {
     throw new Error("The password visibility control must reveal the password on request.");
