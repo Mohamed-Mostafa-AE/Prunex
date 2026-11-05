@@ -76,7 +76,7 @@ docker run --detach --name "$container_name" \
 container_started=1
 
 ready=0
-for attempt in $(seq 1 60); do
+for ((attempt = 1; attempt <= 60; attempt++)); do
   if docker exec "$container_name" pg_isready -U postgres >/dev/null 2>&1; then
     ready=1
     break
