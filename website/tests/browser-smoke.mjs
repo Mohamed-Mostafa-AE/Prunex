@@ -1018,10 +1018,14 @@ try {
   try {
     const evidenceMobilePage = await evidenceMobileContext.newPage();
     await evidenceMobilePage.goto(baseUrl, { waitUntil: "networkidle" });
-    await evidenceMobilePage.waitForFunction(() =>
-      document.querySelector("#home .hero-copy h1")?.classList.contains("is-visible") &&
-      Number(getComputedStyle(document.querySelector("#home .hero-copy h1")).opacity) > 0.95
-    , undefined, { timeout: 15000 });
+    await evidenceMobilePage.waitForFunction(() => {
+      const heading = document.querySelector("#home .hero-copy h1");
+      if (!heading || heading.classList.contains("reveal-on-scroll")) return false;
+      const style = getComputedStyle(heading);
+      const rect = heading.getBoundingClientRect();
+      return style.visibility !== "hidden" && Number(style.opacity) > 0.95 &&
+        rect.height > 0 && rect.width > 0;
+    }, undefined, { timeout: 15000 });
     const mobileEvidence = evidenceMobilePage.locator("#stockfish2-evidence");
     await mobileEvidence.scrollIntoViewIfNeeded();
     await evidenceMobilePage.waitForFunction(() =>
