@@ -1255,3 +1255,9 @@ img, svg, video, canvas { max-width: 100%; }
   color:#7389a1;
   font-size:9px;
 }
+
+/* Prevent sticky mobile navigation from covering the benchmark section on anchor/scroll navigation. */
+#stockfish2-evidence { scroll-margin-top: 96px; }
+@media (max-width: 760px) {
+  #stockfish2-evidence { scroll-margin-top: 152px; }
+}
