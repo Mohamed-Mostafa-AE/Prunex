@@ -10,7 +10,11 @@ if (!contentSecurityPolicy.includes("https://ttcejatqtvphzenjkkbh.supabase.co") 
   throw new Error("Production CSP must allow this project's Supabase API and WebSocket endpoints.");
 }
 
-const browser = await chromium.launch({ headless: true });
+const browserLaunchOptions = { headless: true };
+if (process.env.PRUNEX_CHROMIUM_EXECUTABLE_PATH) {
+  browserLaunchOptions.executablePath = process.env.PRUNEX_CHROMIUM_EXECUTABLE_PATH;
+}
+const browser = await chromium.launch(browserLaunchOptions);
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const failures = [];
 const workers = [];
