@@ -93,4 +93,98 @@ await assert.rejects(
   /not configured/
 );
 
-console.log("Game database: ranking, strict memory validation, and email recovery checks passed.");
+
+const passwordAuthCalls = [];
+let passwordTestUser = {
+  id: "guest-user",
+  is_anonymous: true,
+  email: null,
+  email_confirmed_at: null,
+  confirmed_at: null
+};
+const passwordArchive = createGameArchive({
+  url: "https://example.supabase.co",
+  publishableKey: "sb_publishable_test",
+  getRedirectTo: () => "https://prunex.example",
+  clientFactory: () => ({
+    auth: {
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+      getSession: async () => ({ data: { session: { user: passwordTestUser } }, error: null }),
+      getUser: async () => ({ data: { user: passwordTestUser }, error: null }),
+      updateUser: async attributes => {
+        passwordAuthCalls.push({ method: "updateUser", attributes });
+        passwordTestUser = { ...passwordTestUser, ...attributes };
+        return { data: { user: passwordTestUser }, error: null };
+      },
+      signInWithPassword: async credentials => {
+        passwordAuthCalls.push({ method: "signInWithPassword", credentials });
+        passwordTestUser = {
+          id: "verified-user",
+          is_anonymous: false,
+          email: credentials.email,
+          email_confirmed_at: "2026-11-05T00:00:00.000Z"
+        };
+        return { data: { user: passwordTestUser, session: { user: passwordTestUser } }, error: null };
+      },
+      resetPasswordForEmail: async (email, options) => {
+        passwordAuthCalls.push({ method: "resetPasswordForEmail", email, options });
+        return { error: null };
+      }
+    }
+  })
+});
+const anonymousState = await passwordArchive.getAccountState();
+assert.equal(anonymousState.isAnonymous, true);
+assert.equal(anonymousState.emailConfirmed, false);
+await assert.rejects(
+  () => passwordArchive.setAccountPassword("Strong-but-not-yet-ready-1"),
+  /verify the guest email/
+);
+await passwordArchive.linkGuestEmail("Owner@Example.com");
+assert.deepEqual(
+  passwordAuthCalls[0],
+  { method: "updateUser", attributes: { email: "owner@example.com" } },
+  "guest linking must update the email only; it must not attach a password before verification"
+);
+assert.equal(passwordTestUser.is_anonymous, true, "email linking must preserve the guest identity pending confirmation");
+passwordTestUser = {
+  ...passwordTestUser,
+  is_anonymous: false,
+  email: "owner@example.com",
+  email_confirmed_at: "2026-11-05T00:00:00.000Z"
+};
+const verifiedState = await passwordArchive.getAccountState();
+assert.equal(verifiedState.emailConfirmed, true);
+await assert.rejects(
+  () => passwordArchive.setAccountPassword("short"),
+  /at least 12 characters/
+);
+await passwordArchive.setAccountPassword("A-long-unique-password-2026");
+assert.deepEqual(
+  passwordAuthCalls[1],
+  { method: "updateUser", attributes: { password: "A-long-unique-password-2026" } },
+  "password must only be added after email confirmation"
+);
+const signedIn = await passwordArchive.signInWithPassword(" OWNER@EXAMPLE.COM ", "A-long-unique-password-2026");
+assert.equal(signedIn.email, "owner@example.com");
+assert.deepEqual(passwordAuthCalls[2], {
+  method: "signInWithPassword",
+  credentials: { email: "owner@example.com", password: "A-long-unique-password-2026" }
+});
+const reset = await passwordArchive.sendPasswordReset(" OWNER@EXAMPLE.COM ");
+assert.deepEqual(reset, { email: "owner@example.com", verificationRequired: true });
+assert.deepEqual(passwordAuthCalls[3], {
+  method: "resetPasswordForEmail",
+  email: "owner@example.com",
+  options: { redirectTo: "https://prunex.example" }
+});
+await assert.rejects(
+  () => passwordArchive.signInWithPassword("not-an-email", "password"),
+  /valid email/
+);
+await assert.rejects(
+  () => passwordArchive.sendPasswordReset("not-an-email"),
+  /valid email/
+);
+
+console.log("Game database: ranking, strict memory validation, guest-email linking, verified password setup, sign-in, and recovery checks passed.");
