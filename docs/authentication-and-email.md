@@ -14,7 +14,7 @@ Supabase can continue reporting `is_anonymous: true` after the email is confirme
 
 The application and unit test explicitly verify that setting the password converts the same guest user ID rather than creating or merging another account.
 
-Password sign-in uses `signInWithPassword` and never creates a new account. If the browser is still using a guest session, the UI warns that signing into another account does not merge or transfer the guest archive. Password reset uses `resetPasswordForEmail`; the `PASSWORD_RECOVERY` event opens the password form.
+Password sign-in uses `signInWithPassword` and never creates a new account. If the browser is still using a guest session, the UI warns that signing into another account does not merge or transfer the guest archive. Password recovery is an inline action in the sign-in form and uses the entered email with `resetPasswordForEmail`; the `PASSWORD_RECOVERY` event opens the password form. The sign-in error handler clears the entered password after an unsuccessful attempt and uses customer-facing messages rather than exposing provider error text.
 
 The private Neon archive API independently checks that the authenticated email is confirmed and matches `PRUNEX_OWNER_EMAIL`. A valid Supabase account alone does not grant access to the owner's archive.
 
@@ -26,7 +26,7 @@ The repository includes HTML templates:
 - `supabase/templates/prunex-password-recovery.html`
 - `supabase/templates/prunex-password-changed.html`
 
-Their local Supabase config sections are in `supabase/config.toml`. The website build runs `website/tests/auth-email.test.mjs` to check provider URL variables, archive-preservation copy, and secret hygiene.
+Their local Supabase config sections are in `supabase/config.toml`. The repository-root `scripts/test-auth-email-templates.mjs` validates the provider URL variables, archive-preservation copy and template secret hygiene. Website tests cover account-only deletion, password storage hygiene and the inline account interface; `website/tests/account-messages.test.mjs` checks customer-facing error mapping.
 
 ## Hosted Supabase activation — required
 
@@ -43,7 +43,7 @@ The connected Supabase actions in this workspace expose project and documentatio
 
 ## Security properties covered in code
 
-- Passwords have a 12-character minimum in the UI and client service.
+- Passwords have a 12-character minimum in the UI and client service. The hosted Supabase password policy must be checked separately so server-side rules are consistent.
 - Password setup refuses anonymous or unconfirmed identities.
 - The UI never stores passwords in browser storage.
 - Password sign-in does not create a user and warns before leaving a guest session.
