@@ -41,10 +41,10 @@ page.on("console", message => {
 
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
-  // Guard the screenshot regression: the homepage h1 must survive the scroll reveal.
+  // The primary hero headline must render immediately; it is not gated by scroll animation.
   await page.waitForFunction(() => {
     const heading = document.querySelector("#home .hero-copy h1");
-    if (!heading || !heading.classList.contains("is-visible")) return false;
+    if (!heading || heading.classList.contains("reveal-on-scroll")) return false;
     const style = getComputedStyle(heading);
     const rect = heading.getBoundingClientRect();
     return style.visibility !== "hidden" && Number(style.opacity) > 0.95 &&
@@ -131,6 +131,20 @@ try {
   if ((await page.locator(".architecture-header").innerText()).includes("0.5.1")) throw new Error("Stale Prunex 0.5.1 version remains in architecture card.");
   if (!(await page.locator("#testing .benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
+  const benchmarkTeaser = await page.locator(".benchmark-teaser").innerText();
+  if (!benchmarkTeaser.includes("62–2–0") ||
+      !benchmarkTeaser.includes("Stockfish 2.0") ||
+      !benchmarkTeaser.includes("Stockfish 19-derived") ||
+      !benchmarkTeaser.includes("not the independent native C++20 engine")) {
+    throw new Error("The hero must disclose the historical Stockfish 2.0 result and its Stockfish-derived build lineage.");
+  }
+  const benchmarkEvidenceHref = await page.locator(".benchmark-teaser a").getAttribute("href");
+  if (!benchmarkEvidenceHref?.includes("docs/stockfish-2-comparison.md")) {
+    throw new Error("The hero benchmark citation must link to the GitHub evidence record.");
+  }
+  if (!(await page.locator("#stockfish2-evidence .stockfish-evidence-card").count())) {
+    throw new Error("The full Stockfish 2.0 evidence section is missing.");
+  }
   const testingCopy = await page.locator("#testing").innerText();
   const standardsCopy = await page.locator("#analysis-standards").innerText();
   if (!standardsCopy.includes("Strength is earned in testing") || !standardsCopy.includes("45")) {
