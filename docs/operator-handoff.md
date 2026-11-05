@@ -1,47 +1,38 @@
-# Prunex 0.8.0 — operator handoff
+# Release operations and external controls
 
-This page lists the small number of actions that require the repository owner or an external reviewer. The application code, benchmark evidence trail, preview deployment, backup workflow, restore helper and verification documents have been prepared in this branch.
+This document records release tasks that cannot be completed by repository code or CI alone. It is intended for maintainers and reviewers.
 
-## 1. Protect the default branch
+## Main-branch protection
 
-Open [GitHub → Settings → Rules → Rulesets](https://github.com/Mohamed-Mostafa-AE/Prunex/settings/rules) and create an active ruleset for `main`.
+The repository's active ruleset, **Protect main**, currently prevents branch deletion and force-pushes and requires pull requests. It does not yet require CI status checks or approvals. Configure the required website, CodeQL, native, WebAssembly, Windows, backup-tool and benchmark-audit checks before merging a release candidate. The ruleset must be checked again after saving.
 
-Use the exact settings in [GitHub branch protection setup](github-branch-protection.md): require pull requests, block force pushes and deletion, and require the specified successful CI checks. The connected GitHub integration can read branch status but cannot write admin rulesets. Confirm the ruleset is active after saving.
+See [GitHub branch protection](github-branch-protection.md) for the exact control names and recommended settings.
 
-## 2. Activate encrypted 90-day backups
+## Encrypted database backups
 
-Open [Backup and restore runbook](backup-restore-runbook.md). The workflow is already committed at `.github/workflows/prunex-db-backup.yml` and is tested by `.github/workflows/backup-tools-ci.yml`.
+The encrypted backup workflow is committed at `.github/workflows/prunex-db-backup.yml`. Its prerequisites are:
 
-On your own computer, generate an age keypair and keep the private identity file offline. In GitHub Actions settings, add:
-- Repository variable `PRUNEX_BACKUP_AGE_RECIPIENT` = the public `age1...` recipient.
-- Repository secret `NEON_BACKUP_DATABASE_URL` = Neon PostgreSQL 18 connection string using `neondb_owner` (or a role confirmed to bypass RLS).
+- Actions variable `PRUNEX_BACKUP_AGE_RECIPIENT`: the public age recipient.
+- Actions secret `NEON_BACKUP_DATABASE_URL`: an owner-level PostgreSQL connection with permission to read all rows, including RLS-protected rows.
 
-Do not paste the private identity or database connection string into ChatGPT, issues, or commits. Once PR #10 is reviewed/merged to `main`, run the workflow manually once and check that a `prunex-neon-backup-...` artifact is created with a 90-day expiry. Artifact storage can consume Actions storage allowance. Then complete the local restore drill with `tools/backup/verify-restore.sh`.
+The matching private age identity must remain offline and must never be committed or shared. The workflow should be merged to `main`, run manually once, and checked for an encrypted artifact with the configured retention. Complete a data-bearing restore drill using `tools/backup/verify-restore.sh`; an empty-schema restore does not verify recovery of user records.
 
-## 3. Link your actual guest archive
+See [Backup and restore runbook](backup-restore-runbook.md) for encryption, retention and restore details.
 
-Use [Owner account activation](owner-account-activation.md). On the browser/device profile that contains your own guest archive, open [the review website](https://prunex-review.vercel.app/), open Play → Game archive → Account & Data, and use **Link this guest archive to the verified owner email**. Use the exact email configured in Vercel's `PRUNEX_OWNER_EMAIL` setting. Complete the email verification link in that same browser profile.
+## Legacy guest archive migration
 
-Then tell me only that verification succeeded and the archive still shows your games. Do not send a magic-link URL, access token, refresh token, or browser storage export. I will confirm the authenticated user and migrate only that verified owner's records; all other guest archives remain untouched.
+Legacy guest data must be linked from its original browser profile. Do not infer ownership from row counts or select an anonymous user based on guesswork. The email must be linked and verified on the existing Supabase identity before the owner-scoped import runs.
 
-## 4. Run the Windows desktop acceptance test
+See [Guest archive linking and migration](owner-account-activation.md). Only the verified identity matching the server-side `PRUNEX_OWNER_EMAIL` allowlist may be imported. Other guest identities must remain untouched.
 
-Download the [passing Prunex-Windows-x64 artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433290/artifacts/13437603709). Extract it and run `Release/Prunex.exe`. The archive includes the CLI engine, build manifest, executable SHA-256 hashes and CTest log. It currently expires **5 December 2026**.
+## Windows desktop acceptance
 
-Complete [the Windows acceptance record](windows-acceptance-record.md) on Windows 10 or 11. Return the checklist with pass/fail results, Windows build and any logs/screenshots. The existing CI result is not a substitute for the interactive test.
+CI verifies the Windows x64 build, architecture, tests and UCI smoke test. It does not replace interactive testing on Windows 10 or 11. Complete [the Windows acceptance record](windows-acceptance-record.md), including search cancellation, new game, undo, promotion, close/shutdown and display behavior.
 
-## 5. Obtain legal review
+## Legal and privacy review
 
-Send the current [Privacy Notice](https://prunex-review.vercel.app/privacy.html), [Terms of Use](https://prunex-review.vercel.app/terms.html), and [counsel review brief](legal-review-brief.md) to a qualified lawyer/privacy professional who can assess the actual operator, audience and jurisdictions. Ask for redlines or written sign-off. Do not remove the visible Draft labels until the reviewed versions are incorporated and approved.
+The [Privacy Notice](../website/privacy.html) and [Terms of Use](../website/terms.html) remain drafts. They require review by qualified counsel against the actual operator, audience, age/consent obligations, jurisdictions, transfers, retention and deletion processes. Keep the visible draft labels until the final wording is approved.
 
-## What to send back
+## Release decision
 
-You can report progress in one message without sharing secrets:
-
-- Branch ruleset: active / not yet.
-- Backup settings: both added / not yet; first run: passed / failed / not run.
-- Owner link: verified / exact error (no link tokens).
-- Windows checklist: attach or paste the completed acceptance record.
-- Legal review: redlines received / written approval received / still pending.
-
-Once these confirmations arrive, the remaining database checks can be performed against real evidence instead of assumptions.
+A green CI run is necessary but not sufficient for production promotion. The owner-authenticated archive migration, email provider delivery, data-bearing backup/restore, legal review, manual Windows acceptance and required branch checks are separate release gates.
