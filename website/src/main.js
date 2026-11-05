@@ -1999,7 +1999,7 @@ async function refreshAccountPanel() {
     }
 
     if (state.email) {
-      for (const selector of ["#account-recovery-email", "#restore-account-email", "#reset-password-email"]) {
+      for (const selector of ["#account-recovery-email", "#restore-account-email"]) {
         const input = $(selector);
         if (input && !input.value) input.value = state.email;
       }
