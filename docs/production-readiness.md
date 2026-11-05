@@ -78,6 +78,15 @@ Monitor Vercel runtime errors and deployment health, Supabase Auth and Edge Func
 ## Current release-candidate audit — 2026-11-05
 
 ### Verified repository and deployment evidence
+### Follow-up verification — 2026-11-05
+
+- The website hero headline was removed from the IntersectionObserver reveal list and given an immediate-visible CSS rule, so the primary product heading no longer depends on a scroll callback. The browser smoke test now asserts that the hero heading is present, visible, and not assigned the reveal class.
+- A first-screen benchmark citation links to the Stockfish 2.0 evidence record. The full section includes the original run, retained PGN/build artifact, original job log, independent audit job, and explicit Stockfish 19-derived/native-engine distinction.
+- The original benchmark ZIP was downloaded and independently inspected locally. The 64-game PGN header recount returned 62 wins, 2 draws, 0 losses; 63/64 points (98.44%); 32 games per color; 16 openings with four games each; 62 checkmates and 2 threefold repetitions. The PGN and JSON SHA-256 values match the recorded checksums.
+- Vercel's project-level routing rule `prunex-security-headers` was reconciled with the repository CSP; the production site and review preview now return HTTP 200 with the expected Supabase and Cloudflare Turnstile origins and the transport/frame/isolation headers. This was a headers-only production change; the new application version has not been promoted.
+- Preview deployment `dpl_B2R38W42UvvcaQ4UT1hwLJmXMDcL` is READY from commit `c1f4c735a221ec030fc6f4ff9c5b2e90638d25a3`. Its homepage HTML and served JS/CSS assets include the updated hero and benchmark content. A Playwright browser check for this same commit has not yet completed: the GitHub Actions job is stalled in `npx playwright install --with-deps chromium`, before the browser smoke test step. Do not claim full visual browser validation until the job passes.
+- On the same commit, CodeQL (C/C++ and JavaScript/TypeScript), Windows x64 MSVC validation, native WebAssembly parity, native GCC/Clang regression suites, and GCC ASan/UBSan all passed. The archived benchmark audit also passed. The website build and npm audit passed, but its Playwright stage remains outstanding.
+
 
 - Release-candidate source is on `feature/prunex-evaluation-intelligence`, commit `4880e54ff8875c128bb8fe4ce7b074c0cf238874`.
 - Website CI passed on that commit: deterministic build/unit checks, npm audit, Chromium browser interaction suite, required output assets, training-data tests, and Python dependency audit.
