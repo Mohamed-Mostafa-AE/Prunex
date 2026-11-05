@@ -26,8 +26,82 @@
           <a href="#testing">Testing</a>
           <a href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
-        <div class="top-actions"><button id="site-theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span id="theme-toggle-icon" aria-hidden="true">☾</span><span id="theme-toggle-label">Dark mode</span></button><a class="top-cta" href="#play">Try the demo <span aria-hidden="true">↗</span></a></div>
+        <div class="top-actions">
+          <button id="account-toggle" class="account-toggle" type="button" aria-haspopup="dialog" aria-controls="account-dialog">
+            <span class="account-toggle-full">Account &amp; password</span><span class="account-toggle-short">Account</span>
+          </button>
+          <button id="site-theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span id="theme-toggle-icon" aria-hidden="true">☾</span><span id="theme-toggle-label">Dark mode</span></button>
+          <a class="top-cta" href="#play">Try the demo <span aria-hidden="true">↗</span></a>
+        </div>
       </header>
+
+      <dialog id="account-dialog" class="account-dialog" aria-labelledby="account-dialog-title">
+        <div class="account-dialog-inner">
+          <div class="account-dialog-header">
+            <div><span class="panel-kicker">PRUNEX IDENTITY</span><h2 id="account-dialog-title">Account &amp; password</h2></div>
+            <button id="account-close" class="account-close" type="button" aria-label="Close account settings">×</button>
+          </div>
+          <div class="account-session-card">
+            <span class="account-panel-kicker">CURRENT SESSION</span>
+            <p id="account-session-status" role="status" aria-live="polite">Checking this browser's account…</p>
+          </div>
+          <div class="account-dialog-grid">
+            <section id="account-link-panel" class="account-panel">
+              <div class="account-panel-heading"><span>01</span><h3>Preserve this guest archive</h3></div>
+              <p class="account-panel-copy">Use the browser profile where your games were played. Verify the owner email here first; your games remain attached to this guest account.</p>
+              <form id="link-account-form" class="account-form">
+                <label for="account-recovery-email">Owner email</label>
+                <div class="account-form-row">
+                  <input id="account-recovery-email" type="email" autocomplete="email" placeholder="you@example.com" required>
+                  <button class="button" type="submit">Send verification</button>
+                </div>
+                <p id="account-recovery-status" class="account-status" aria-live="polite">After the email arrives, open its confirmation link in this same browser profile. Then return here to set your password.</p>
+              </form>
+            </section>
+            <section class="account-panel">
+              <div class="account-panel-heading"><span>02</span><h3>Password</h3></div>
+              <form id="set-password-form" class="account-form">
+                <p id="account-password-guidance" class="account-panel-copy">Verify your guest email first. The password step becomes available after confirmation.</p>
+                <label for="account-password">New password</label>
+                <div class="password-input-row">
+                  <input id="account-password" type="password" autocomplete="new-password" minlength="12" placeholder="At least 12 characters" required disabled>
+                  <button class="password-visibility-toggle" type="button" data-password-toggle="account-password" aria-controls="account-password" aria-pressed="false">Show</button>
+                </div>
+                <label for="account-password-confirm">Confirm password</label>
+                <div class="password-input-row">
+                  <input id="account-password-confirm" type="password" autocomplete="new-password" minlength="12" placeholder="Re-enter your password" required disabled>
+                  <button class="password-visibility-toggle" type="button" data-password-toggle="account-password-confirm" aria-controls="account-password-confirm" aria-pressed="false">Show</button>
+                </div>
+                <button id="set-password-submit" class="button button-primary" type="submit" disabled>Save password</button>
+                <p id="account-password-status" class="account-status" aria-live="polite">Passwords are never stored in browser storage.</p>
+              </form>
+            </section>
+            <section class="account-panel account-panel-wide">
+              <div class="account-panel-heading"><span>03</span><h3>Sign in or recover access</h3></div>
+              <form id="restore-account-form" class="account-form">
+                <label for="restore-account-email">Email</label>
+                <input id="restore-account-email" type="email" autocomplete="username" placeholder="you@example.com" required>
+                <label for="restore-account-password">Password</label>
+                <div class="password-input-row">
+                  <input id="restore-account-password" type="password" autocomplete="current-password" placeholder="Your Prunex password" required>
+                  <button class="password-visibility-toggle" type="button" data-password-toggle="restore-account-password" aria-controls="restore-account-password" aria-pressed="false">Show</button>
+                </div>
+                <button class="button" type="submit">Sign in with password</button>
+                <p id="restore-account-status" class="account-status" aria-live="polite">Signing in will not merge a different guest archive. Prunex will warn before switching away from a guest session.</p>
+              </form>
+              <form id="reset-password-form" class="account-form account-reset-form">
+                <label for="reset-password-email">Forgot your password?</label>
+                <div class="account-form-row">
+                  <input id="reset-password-email" type="email" autocomplete="email" placeholder="Account email" required>
+                  <button class="button" type="submit">Send reset email</button>
+                </div>
+                <p id="reset-password-status" class="account-status" aria-live="polite">The reset link returns to this site so you can choose a new password.</p>
+              </form>
+            </section>
+          </div>
+          <p class="account-dialog-footnote">Account access is verified by Supabase. Private cloud archive access is additionally restricted to the configured owner email. Your password is sent only to the authentication provider over HTTPS.</p>
+        </div>
+      </dialog>
 
       <main>
         <section class="hero" id="home">
@@ -176,29 +250,13 @@
                 <details class="account-management">
                   <summary>ACCOUNT &amp; DATA</summary>
                   <div class="account-management-body">
-                    <form id="link-account-form" class="account-form">
-                      <label for="account-recovery-email">Link this guest archive to the verified owner email</label>
-                      <div class="account-form-row">
-                        <input id="account-recovery-email" type="email" autocomplete="email" placeholder="you@example.com" required>
-                        <button class="button" type="submit">Send verification</button>
-                      </div>
-                      <p id="account-recovery-status" class="account-status" aria-live="polite">Verify the single owner email to sync this archive across devices. Other visitors continue using local storage only.</p>
-                    </form>
-                    <form id="restore-account-form" class="account-form">
-                      <label for="restore-account-email">Sign in to an existing game archive</label>
-                      <div class="account-form-row">
-                        <input id="restore-account-email" type="email" autocomplete="email" placeholder="you@example.com" required>
-                        <button class="button" type="submit">Send sign-in link</button>
-                      </div>
-                      <p id="restore-account-status" class="account-status" aria-live="polite">On a new device, enter the verified email linked to your archive. Prunex will send a magic link without creating a second account.</p>
-                    </form>
                     <form id="delete-account-form" class="account-form account-delete-form">
-                      <label for="delete-account-confirmation">Delete this account and its cloud game history</label>
+                      <label for="delete-account-confirmation">Delete your Prunex account</label>
                       <div class="account-form-row">
                         <input id="delete-account-confirmation" type="text" autocomplete="off" placeholder="Type DELETE" required>
                         <button class="button account-delete-button" type="submit">Delete account</button>
                       </div>
-                      <p id="delete-account-status" class="account-status" aria-live="polite">Deletion is permanent. It removes the owner-only cloud games, reviews and private position memory, plus this browser's local archive.</p>
+                      <p id="delete-account-status" class="account-status" aria-live="polite">Permanent account closure removes the account and its associated cloud archive, reviews, private position memory, and this browser's local archive. Individual game-record deletion is not available.</p>
                     </form>
                   </div>
                 </details>
