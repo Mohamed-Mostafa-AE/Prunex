@@ -132,3 +132,38 @@ Passing repository CI is necessary but not sufficient for public production rele
 - All other automated workflows passed on the same candidate commit: [CodeQL #42075433228](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433228), [Windows x64 #42075433290](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433290), [native compiler/sanitizer matrix #42075433347](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433347), [native WebAssembly parity #42075433612](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433612), and [archived benchmark audit #42075433294](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433294).
 - The Vercel production site still serves the previous application build. No production application promotion was performed. The only prior production change was the project-level security-header routing-rule correction. The backup/restore, owner identity/migration, legal, manual desktop, and GitHub protection gates listed above remain open, so this is not yet an unrestricted production release approval.
 
+
+## Operator handoff and prepared automation — 2026-11-05
+
+### Encrypted 90-day Neon backup pipeline prepared
+
+- Added `.github/workflows/prunex-db-backup.yml`: daily at 02:17 UTC, plus manual dispatch, with a PostgreSQL 18 custom-format dump, age encryption **before upload**, SHA-256 checksum, and GitHub artifact retention requested at 90 days.
+- The workflow is restricted to `main`, uses no pull-request triggers, and uploads only ciphertext plus its checksum because this repository is public. Public artifact metadata (run time and ciphertext size) remains visible.
+- The backup job fails closed unless the connection points to PostgreSQL 18 and the credential can bypass RLS. Live Neon inspection confirmed `neondb_owner` has `BYPASSRLS`; the restricted `prunex_app` connection is not sufficient.
+- No backup secret or encryption key has been added. To activate, follow [`docs/backup-restore-runbook.md`](backup-restore-runbook.md): create an age keypair locally; add the public recipient as Actions variable `PRUNEX_BACKUP_AGE_RECIPIENT`; add an owner-level connection string as Actions secret `NEON_BACKUP_DATABASE_URL`; merge the workflow to `main`; manually run once; verify the encrypted artifact appears and has the intended expiry.
+- Artifact retention is requested as 90 days. GitHub's public-repository cap is 90 days, subject to any lower organization/enterprise policy. GitHub Actions artifact storage is billable based on usage; check allowance and usage before enabling a recurring full-database export.
+- Added [`tools/backup/verify-restore.sh`](../tools/backup/verify-restore.sh), which verifies checksums, decrypts locally, restores to disposable PostgreSQL 18 via Docker, checks the four archive tables and RLS flags, prints row counts and cleans up. A real data-bearing drill still requires the first post-migration backup artifact.
+- Added [backup automation CI](../.github/workflows/backup-tools-ci.yml) to shell-check the verifier and parse the workflow YAML.
+
+### Owner migration handoff prepared
+
+- Added [`docs/owner-account-activation.md`](owner-account-activation.md). The intended action is to link the current owner's existing guest session to the configured Vercel `PRUNEX_OWNER_EMAIL` using the in-app **Account & Data → Link this guest archive** control, then complete the email verification in the same browser profile.
+- Rechecked live Supabase on 2026-11-05: 11 anonymous users, 0 email-confirmed users, 35 games across 5 guest IDs (7 each), 3 reviews, 0 position-memory samples. No owner was guessed or any guest rows changed.
+- After the owner confirms verification, the migration can be run for that single ID and reconciled. Other guest records will remain untouched.
+
+### Legal and Windows operator packs prepared
+
+- Added [`docs/legal-review-brief.md`](legal-review-brief.md), grounded in the current Privacy Notice, Terms, account code and provider architecture. It lists specific questions for qualified counsel, including jurisdiction, minor/child audience, consent, transfers, retention/deletion, and licensing.
+- Added [`docs/windows-acceptance-record.md`](windows-acceptance-record.md) with the actual passing Windows x64 build artifact, executable SHA-256 values, expiry date and manual UI acceptance checklist. This still needs to be run by the operator on a real Windows 10/11 desktop.
+- Added [`docs/github-branch-protection.md`](github-branch-protection.md) with concrete ruleset configuration. The connected GitHub app still lacks the admin-write capability to apply it directly.
+
+### User actions required to finish the live gates
+
+1. Apply the `main` ruleset in [GitHub repository rules](https://github.com/Mohamed-Mostafa-AE/Prunex/settings/rules).
+2. Generate the age identity offline and add the two Actions settings listed in the backup runbook. Do not send the private identity or database connection string in chat.
+3. Link and verify the intended guest archive in the same browser profile as described in `docs/owner-account-activation.md`.
+4. Run the Windows executable and return the completed acceptance record.
+5. Obtain legal counsel's redlines/sign-off for the two draft legal pages.
+
+No production migration, database data modification, billing-plan upgrade, or Vercel production promotion was performed as part of this operator-pack preparation.
+
