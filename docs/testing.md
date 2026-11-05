@@ -32,15 +32,19 @@ The supplied fixed-move-time records for the native **Prunex 0.5.1** engine show
 
 These were small match runs, not an Elo test or a controlled SPRT. They should not be used as a general rating estimate.
 
-## Separate browser-build match record
+## Historical Stockfish 2.0 comparison — separate Stockfish-derived test build
 
-A separate reported 64-game record labelled **Prunex 0.8.0** is **63 wins, 1 draw, and 0 losses** (63.5/64 points, or 99.22%) against Stockfish 2.0 64-bit. The reported match used 1,000,000 nodes per move, 256 MB hash, one thread, and 16 openings played twice with colors reversed.
+A historical test executable labelled **Prunex 0.8.0 (Stockfish 19-derived)** completed an archived 64-game GitHub Actions match against Stockfish 2.0 built from the official `sf_2.0` source tag:
 
-**Provenance matters:** the 0.8.0 build used for this record is based on Stockfish 19. It is not the native C++ Prunex 0.5.1 engine, and this match result must not be presented as a result achieved by the independently developed native engine.
+| Wins | Draws | Losses | Points | Score |
+|---:|---:|---:|---:|---:|
+| 62 | 2 | 0 | 63 / 64 | 98.44% |
 
-Applying the inverse Elo expected-score formula to 63.5/64 gives an estimated rating gap of approximately **+842 points**. CCRL lists Stockfish 2.0.1 64-bit at **3,062 Elo**; using that nearby version as a proxy baseline gives a score-derived estimate of approximately **3,904 Elo**. See the [CCRL Stockfish 2.0.1 engine record](https://www.computerchess.org.uk/ccrl/4040/cgi/engine_details.cgi?eng=Stockfish+2.0.1+64-bit).
+The archived run used 100,000 nodes per move, 128 MB hash per engine, one thread per engine, 16 openings played twice with colours reversed, and 32 games per colour. The complete PGN and JSON summary are in the [successful GitHub Actions run and retained artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143). See the [full evidence record](stockfish-2-comparison.md) for build lineage, exact configuration, two draw games, artifact/file SHA-256 checksums, and limitations.
 
-This is an experimental, score-derived comparison—not an official or independently established rating. The opponent baseline is for Stockfish 2.0.1 rather than the exact Stockfish 2.0 binary, and the match's 1M-nodes-per-move conditions are not CCRL's 40/15 test conditions. It should not be used to claim an Elo rating for the native C++ engine.
+**This was a Stockfish 19-derived test executable, not the independently implemented native C++20 Prunex engine.** It does not establish a native-engine Elo rating. The current website browser engine is a separately packaged Stockfish.js build; it is not claimed to be byte-identical to the historical test executable.
+
+A separate owner-reported 1,000,000-nodes-per-move run is documented as 63 wins, 1 draw and 0 losses (99.22%), but its raw PGN/JSONL was not in the archived Actions artifact and it has not been independently recounted. It is not combined with the verified 62–2–0 score above.
 
 ## Still to test
 
