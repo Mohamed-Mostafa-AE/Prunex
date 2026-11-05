@@ -1,6 +1,10 @@
 # GitHub default-branch protection setup
 
-The connected GitHub integration can read repository metadata but does not have the administrative write permission needed to create branch rules. Configure this once as the repository owner.
+## Live check — 5 November 2026
+
+The repository currently has an **Active** ruleset named **Protect main** (ID `26650516`) targeting the default branch. It enforces pull requests, prevents branch deletion, and blocks force-pushes. It currently requires **0 approvals** and has **no required status-check rule**. This means the ruleset is active, but a pull request can still be merged without the CI checks passing.
+
+The connected GitHub integration can inspect this ruleset but does not expose a ruleset-write action. The repository owner must add the status-check rule in GitHub Settings → Rules → Rulesets. The recommended checks below are the next configuration step. Do not treat the current Active badge alone as proof that CI is enforced.
 
 Open [Settings → Rules → Rulesets](https://github.com/Mohamed-Mostafa-AE/Prunex/settings/rules).
 
