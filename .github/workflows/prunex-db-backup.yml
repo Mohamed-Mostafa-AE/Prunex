@@ -1,0 +1,97 @@
+name: Prunex encrypted database backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+concurrency:
+  group: prunex-encrypted-database-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  encrypted-backup:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      NEON_BACKUP_DATABASE_URL: ${{ secrets.NEON_BACKUP_DATABASE_URL }}
+      PRUNEX_BACKUP_AGE_RECIPIENT: ${{ vars.PRUNEX_BACKUP_AGE_RECIPIENT }}
+    steps:
+      - name: Validate backup configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${NEON_BACKUP_DATABASE_URL}" ]]; then
+            echo "::error::Add the NEON_BACKUP_DATABASE_URL Actions secret."
+            exit 1
+          fi
+          if [[ -z "${PRUNEX_BACKUP_AGE_RECIPIENT}" ]]; then
+            echo "::error::Add the PRUNEX_BACKUP_AGE_RECIPIENT Actions variable."
+            exit 1
+          fi
+          if [[ "${PRUNEX_BACKUP_AGE_RECIPIENT}" != age1* ]]; then
+            echo "::error::PRUNEX_BACKUP_AGE_RECIPIENT does not look like an age recipient."
+            exit 1
+          fi
+
+      - name: Install age
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes age
+
+      - name: Create and encrypt full Neon database dump
+        id: backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "${RUNNER_TEMP}/prunex-backup"
+
+          # Use PostgreSQL 18 client tools to match the Neon PostgreSQL 18 server.
+          # The connection role must own the archive tables or have BYPASSRLS.
+          docker run --rm --network host \
+            -e NEON_BACKUP_DATABASE_URL \
+            -v "${RUNNER_TEMP}/prunex-backup:/backup" \
+            postgres:18 bash -euc '
+              server_version="$(psql "$NEON_BACKUP_DATABASE_URL" -XAtqc "SHOW server_version_num")"
+              dump_version="$(pg_dump --version | grep -oE "[0-9]+" | head -n1)"
+              if [[ "$server_version" -lt 180000 || "$server_version" -ge 190000 || "$dump_version" != "18" ]]; then
+                echo "Expected PostgreSQL 18 server and pg_dump 18 client."
+                exit 1
+              fi
+              can_read_all="$(psql "$NEON_BACKUP_DATABASE_URL" -XAtqc "SELECT (rolsuper OR rolbypassrls)::text FROM pg_roles WHERE rolname = current_user")"
+              if [[ "$can_read_all" != "true" ]]; then
+                echo "Backup role must have BYPASSRLS or be superuser; refusing a potentially incomplete dump."
+                exit 1
+              fi
+              pg_dump --format=custom --no-owner --no-acl --file=/backup/prunex-neon.dump "$NEON_BACKUP_DATABASE_URL"
+            '
+
+          backup_date="$(date -u +%Y-%m-%dT%H-%M-%SZ)"
+          encrypted_file="${RUNNER_TEMP}/prunex-backup/prunex-neon-${backup_date}.dump.age"
+          age --recipient "${PRUNEX_BACKUP_AGE_RECIPIENT}" \
+            --output "$encrypted_file" \
+            "${RUNNER_TEMP}/prunex-backup/prunex-neon.dump"
+
+          # Check that the file is an age ciphertext before removing plaintext.
+          head -c 20 "$encrypted_file" | grep -q "age-encryption.org/v1"
+          (
+            cd "${RUNNER_TEMP}/prunex-backup"
+            sha256sum "$(basename "$encrypted_file")" > SHA256SUMS
+          )
+          rm -f "${RUNNER_TEMP}/prunex-backup/prunex-neon.dump"
+          echo "encrypted_file=$encrypted_file" >> "$GITHUB_OUTPUT"
+          echo "Backup encrypted successfully. Plaintext dump removed."
+
+      - name: Upload encrypted backup (90-day retention)
+        uses: actions/upload-artifact@v6
+        with:
+          name: prunex-neon-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/prunex-backup/*
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
