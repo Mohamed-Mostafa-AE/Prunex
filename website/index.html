@@ -48,9 +48,9 @@
           <div class="account-dialog-grid">
             <section id="account-link-panel" class="account-panel">
               <div class="account-panel-heading"><span>01</span><h3>Preserve this guest archive</h3></div>
-              <p class="account-panel-copy">Use the browser profile where your games were played and enter the exact email configured as Vercel's PRUNEX_OWNER_EMAIL. Verify it here first; your games remain attached to this guest account.</p>
+              <p class="account-panel-copy">Link the email approved for your private archive. Complete verification in this browser profile to keep these games with the same account.</p>
               <form id="link-account-form" class="account-form">
-                <label for="account-recovery-email">Owner email (must match PRUNEX_OWNER_EMAIL)</label>
+                <label for="account-recovery-email">Email for your private archive</label>
                 <div class="account-form-row">
                   <input id="account-recovery-email" type="email" autocomplete="email" placeholder="you@example.com" required>
                   <button class="button" type="submit">Send verification</button>
@@ -86,16 +86,11 @@
                   <input id="restore-account-password" type="password" autocomplete="current-password" placeholder="Your Prunex password" required>
                   <button class="password-visibility-toggle" type="button" data-password-toggle="restore-account-password" aria-controls="restore-account-password" aria-pressed="false">Show</button>
                 </div>
-                <button class="button" type="submit">Sign in with password</button>
-                <p id="restore-account-status" class="account-status" aria-live="polite">Signing in will not merge a different guest archive. Prunex will warn before switching away from a guest session.</p>
-              </form>
-              <form id="reset-password-form" class="account-form account-reset-form">
-                <label for="reset-password-email">Forgot your password?</label>
-                <div class="account-form-row">
-                  <input id="reset-password-email" type="email" autocomplete="email" placeholder="Account email" required>
-                  <button class="button" type="submit">Send reset email</button>
+                <div class="account-signin-actions">
+                  <button class="button button-primary" type="submit">Sign in</button>
+                  <button id="forgot-password-link" class="account-inline-link" type="button">Forgot password?</button>
                 </div>
-                <p id="reset-password-status" class="account-status" aria-live="polite">The reset link returns to this site so you can choose a new password.</p>
+                <p id="restore-account-status" class="account-status" aria-live="polite">Signing in here will not merge a different guest archive. Prunex will ask before switching away from a guest session.</p>
               </form>
             </section>
           </div>
@@ -350,6 +345,7 @@
             <p>Prunex 0.8.0 is a chess engine written from the ground up in C++20. Its source includes the position model, legal move generation, search, evaluation, and Universal Chess Interface (UCI) support.</p>
             <p>The search uses Zobrist hashing, a transposition table, iterative deepening, aspiration windows, principal-variation search, move ordering, late-move reductions, and quiescence search. The evaluation uses a tapered positional model.</p>
             <p>The native project is built with CMake. Its Windows GUI uses the Win32 API, while the engine can also be driven through its UCI interface.</p>
+            <p class="name-origin-note"><strong>About the name:</strong> Prunex is a project name, not a published acronym. The available project history does not record a verified expansion. Alpha–beta pruning is part of the engine's search, but that does not establish a letter-by-letter meaning for the name.</p>
             <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">Explore source code and build instructions <span aria-hidden="true">↗</span></a>
           </div>
         </section>
@@ -365,7 +361,7 @@
           </div>
           <div class="benchmark-card">
             <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">LINUX TESTS</span></div>
-            <div class="score-number">44<span>/44</span></div>
+            <div class="score-number"><span class="score-primary">44</span><span class="score-secondary">/44</span></div>
             <p class="score-label">Regression tests passed in each recorded configuration</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
@@ -396,10 +392,10 @@
           </div>
           <div class="benchmark-card match-card stockfish-evidence-card">
             <div class="benchmark-card-top"><span>ARCHIVED ACTIONS RUN</span><span class="record-tag">64 GAMES</span></div>
-            <div class="score-number">62–2–0</div>
+            <div class="score-number"><span class="score-primary">62–2–0</span></div>
             <p class="score-label">Wins · draws · losses against Stockfish 2.0</p>
             <div class="benchmark-divider"></div>
-            <div class="match-score">98.44% <span>63 / 64 points</span></div>
+            <div class="match-score"><span class="match-score-primary">98.44%</span><span class="match-score-secondary">63 / 64 points</span></div>
             <dl class="benchmark-specs">
               <div><dt>Nodes per move</dt><dd>100,000 each</dd></div>
               <div><dt>Hash</dt><dd>128 MB each</dd></div>
@@ -420,7 +416,7 @@
           </div>
           <div class="benchmark-card match-card">
             <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">VALIDATION</span></div>
-            <div class="score-number">45<span> cases</span></div>
+            <div class="score-number"><span class="score-primary">45</span><span class="score-secondary">cases</span></div>
             <p class="score-label">Current native CTest suite</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
