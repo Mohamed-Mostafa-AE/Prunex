@@ -45,7 +45,7 @@ The Vercel Node.js archive function also requires these **server-only** variable
 | `SUPABASE_PUBLISHABLE_KEY` | Server-side Supabase Auth verification key | Yes |
 | `PRUNEX_OWNER_EMAIL` | Verified owner allowlist for the private archive | Yes |
 
-The archive uses Neon as its primary write/read store. Supabase remains the identity provider, legacy-import source, and owner-scoped read fallback; it is not a general write-through replica of Neon. The archive API connects using the restricted `prunex_app` database role and sets the owner context inside each transaction. Do not replace this role with the database owner or a superuser.
+The archive uses Neon as its primary write/read store. Supabase remains the identity provider, legacy-import source, and owner-scoped read fallback; it is not a general write-through replica of Neon. Configure `NEON_DATABASE_URL` to connect as the restricted `prunex_app` database role, not the database owner or a superuser. The API sets the verified owner context inside each transaction; the database applies row-level security using that context.
 
 A production deployment is not validated until an end-to-end run confirms guest creation, private game saving, review saving, opt-in memory replacement, opt-out revocation, account deletion, and live response headers. No CAPTCHA should appear in the current configuration.
 
