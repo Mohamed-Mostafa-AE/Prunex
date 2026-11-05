@@ -1972,17 +1972,19 @@ async function refreshAccountPanel() {
   try {
     const state = await gameArchive.getAccountState();
     const configured = state.configured === true;
-    const verified = configured && state.authenticated === true &&
-      state.isAnonymous !== true && state.emailConfirmed === true;
+    // Supabase keeps is_anonymous=true after email verification; adding the
+    // password is the operation that converts the preserved guest identity.
+    const emailVerified = state.emailConfirmed === true && Boolean(state.email);
+    const canSetPassword = configured && state.authenticated === true && emailVerified;
 
     for (const form of serviceForms) {
       form.querySelectorAll("input, button").forEach(control => {
         control.disabled = !configured;
       });
     }
-    accountPasswordInput.disabled = !verified;
-    accountPasswordConfirm.disabled = !verified;
-    setPasswordForm.querySelector('button[type="submit"]').disabled = !verified;
+    accountPasswordInput.disabled = !canSetPassword;
+    accountPasswordConfirm.disabled = !canSetPassword;
+    setPasswordForm.querySelector('button[type="submit"]').disabled = !canSetPassword;
     for (const toggle of document.querySelectorAll("[data-password-toggle]")) {
       const input = document.getElementById(toggle.dataset.passwordToggle);
       toggle.disabled = !input || input.disabled;
@@ -1995,18 +1997,21 @@ async function refreshAccountPanel() {
       }
     }
 
-    accountLinkPanel.hidden = verified;
+    accountLinkPanel.hidden = emailVerified;
     if (!configured) {
       accountSessionStatus.textContent = "Account services are not configured on this deployment. Your local game archive remains available.";
       accountPasswordGuidance.textContent = "Password setup becomes available when the Prunex authentication service is configured and your email is verified.";
-    } else if (!state.authenticated || state.isAnonymous) {
-      accountSessionStatus.textContent = state.email && !state.emailConfirmed
-        ? "Guest archive active. Email verification is pending for " + state.email + ". Complete the link in this same browser."
-        : "Guest archive active in this browser. Link and verify the owner email here before setting a password.";
-      accountPasswordGuidance.textContent = "Verify the guest email above first. Supabase requires the email identity to be confirmed before a password can be added. Return to this same browser after confirmation, then enter the password here.";
-    } else if (!state.emailConfirmed) {
-      accountSessionStatus.textContent = "A permanent sign-in identity is present, but its email is not yet confirmed. Complete email verification before setting a password.";
-      accountPasswordGuidance.textContent = "Email verification is still pending. The password fields will unlock after the provider confirms the email.";
+    } else if (!state.authenticated) {
+      accountSessionStatus.textContent = "Guest archive active in this browser. Link and verify the owner email here before setting a password.";
+      accountPasswordGuidance.textContent = "Verify the guest email above first. Return to this same browser after confirmation, then enter the password here.";
+    } else if (!emailVerified) {
+      accountSessionStatus.textContent = state.email
+        ? "Email verification is pending for " + state.email + ". Complete the verification in this same browser profile."
+        : "This guest archive has no verified email yet. Link the exact owner email above.";
+      accountPasswordGuidance.textContent = "Supabase requires the email identity to be confirmed before a password can be added. The password fields unlock after the provider confirms the email.";
+    } else if (state.isAnonymous) {
+      accountSessionStatus.textContent = "Email verified: " + state.email + ". Your original guest archive is still attached to this session; setting a password completes account linking.";
+      accountPasswordGuidance.textContent = "Email verification succeeded. Supabase may still mark this session as anonymous until a password is added. Choose a unique password of at least 12 characters to complete conversion without changing the user ID or moving your games.";
     } else {
       accountSessionStatus.textContent = "Verified account: " + state.email + ". You can set or change the password for this account.";
       accountPasswordGuidance.textContent = "Email verified. Choose a unique password of at least 12 characters. Passwords are sent only to Supabase over HTTPS and are never stored by Prunex.";
