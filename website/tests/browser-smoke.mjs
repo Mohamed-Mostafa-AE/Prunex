@@ -119,6 +119,10 @@ try {
   if (await page.locator("#account-dialog").isVisible()) {
     throw new Error("Escape must close the account dialog.");
   }
+  await page.locator("#account-toggle").click();
+  if (!(await page.locator("#account-dialog").isVisible())) {
+    throw new Error("The account dialog must reopen before account recovery checks.");
+  }
   if (await page.locator("#reset-password-form, #reset-password-email").count()) {
     throw new Error("Password recovery must not create a separate form or section.");
   }
