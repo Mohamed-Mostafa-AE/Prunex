@@ -815,8 +815,12 @@ try {
     await analysisSettingsDesktop.locator("summary").click();
   }
   await page.locator("#board-annotations").check();
-  const arrowStart = await page.locator('[data-square="a1"]').boundingBox();
-  const arrowEnd = await page.locator('[data-square="a3"]').boundingBox();
+  const annotationStartSquare = page.locator('[data-square="a1"]');
+  const annotationEndSquare = page.locator('[data-square="a3"]');
+  await annotationStartSquare.scrollIntoViewIfNeeded();
+  await annotationEndSquare.scrollIntoViewIfNeeded();
+  const arrowStart = await annotationStartSquare.boundingBox();
+  const arrowEnd = await annotationEndSquare.boundingBox();
   if (!arrowStart || !arrowEnd) throw new Error("Annotation test squares are not visible.");
   await page.mouse.move(arrowStart.x + arrowStart.width / 2, arrowStart.y + arrowStart.height / 2);
   await page.mouse.down({ button: "right" });
