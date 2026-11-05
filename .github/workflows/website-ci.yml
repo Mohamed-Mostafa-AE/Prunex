@@ -5,11 +5,15 @@ on:
     paths:
       - 'website/**'
       - 'tools/training/**'
+      - 'supabase/**'
+      - 'scripts/test-auth-email-templates.mjs'
       - '.github/workflows/website-ci.yml'
   pull_request:
     paths:
       - 'website/**'
       - 'tools/training/**'
+      - 'supabase/**'
+      - 'scripts/test-auth-email-templates.mjs'
       - '.github/workflows/website-ci.yml'
   workflow_dispatch:
 
@@ -34,6 +38,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+      - name: Validate Supabase Auth email templates
+        working-directory: .
+        run: node scripts/test-auth-email-templates.mjs
       - name: Install exact dependency graph
         run: npm ci --no-audit --no-fund
       - name: Audit npm dependency graph
