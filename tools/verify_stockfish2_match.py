@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Independently recount the archived Stockfish 2.0 match PGN.
+"""Recount the archived Stockfish 2.0 PGN and compare it with its JSON summary.
 
-This checks PGN headers and summary consistency. It does not replay moves;
-the original tournament runner separately rejected illegal engine moves.
+This validates PGN headers/results/settings. It does not replay SAN moves; the
+historical match runner separately rejected illegal engine moves.
 """
 from __future__ import annotations
 
@@ -10,12 +10,11 @@ import argparse
 import collections
 import json
 import re
-import sys
 from pathlib import Path
 
 HEADER = re.compile(r'^\[(\w+) "(.*)"\]$')
-EXPECTED_ENGINE = "Prunex 0.8.0 (Stockfish 19-derived)"
-EXPECTED_OPPONENT = "Stockfish 2.0"
+ENGINE = "Prunex 0.8.0 (Stockfish 19-derived)"
+OPPONENT = "Stockfish 2.0"
 
 
 def load_games(path: Path) -> list[dict[str, str]]:
@@ -42,7 +41,6 @@ def verify(pgn_path: Path, summary_path: Path) -> dict:
 
     if len(games) != 64:
         errors.append(f"Expected 64 games, found {len(games)}")
-
     rounds = [int(g["Round"]) for g in games if g.get("Round", "").isdigit()]
     if len(rounds) != 64 or sorted(rounds) != list(range(1, 65)):
         errors.append("Round headers must contain each round 1 through 64 exactly once")
@@ -63,16 +61,14 @@ def verify(pgn_path: Path, summary_path: Path) -> dict:
             continue
         colors[color] += 1
         openings[game["Opening"]] += 1
-
-        expected_white = EXPECTED_ENGINE if color == "White" else EXPECTED_OPPONENT
-        expected_black = EXPECTED_ENGINE if color == "Black" else EXPECTED_OPPONENT
+        expected_white = ENGINE if color == "White" else OPPONENT
+        expected_black = ENGINE if color == "Black" else OPPONENT
         if game["White"] != expected_white or game["Black"] != expected_black:
             errors.append(f"Game {number} player names disagree with PrunexColor")
         if game["NodeControl"] != "100000 nodes/move":
             errors.append(f"Game {number} has unexpected node control")
         if game["PrunexContempt"] != "0":
             errors.append(f"Game {number} has unexpected Prunex contempt")
-
         result = game["Result"]
         if result == "1/2-1/2":
             draws += 1
@@ -88,11 +84,11 @@ def verify(pgn_path: Path, summary_path: Path) -> dict:
         errors.append(f"Expected 32 games per colour, found {dict(colors)}")
     if len(openings) != 16 or any(count != 4 for count in openings.values()):
         errors.append("Expected 16 openings with four games each")
+
     expected = {
         "games": 64, "wins": 62, "draws": 2, "losses": 0,
-        "points": 63, "score_percent": 98.44,
-        "nodes_per_move": 100000, "prunex_hash_mb": 128,
-        "opponent_hash_mb": 128, "openings": 16,
+        "points": 63, "score_percent": 98.44, "nodes_per_move": 100000,
+        "prunex_hash_mb": 128, "opponent_hash_mb": 128, "openings": 16,
         "prunex_white": 32, "prunex_black": 32,
     }
     actual = {
@@ -102,24 +98,35 @@ def verify(pgn_path: Path, summary_path: Path) -> dict:
         "opponent_hash_mb": 128, "openings": len(openings),
         "prunex_white": colors["White"], "prunex_black": colors["Black"],
     }
+    summary_colors = summary.get("color_balance", {})
+    summary_aliases = {
+        "prunex_white": summary.get("prunex_white", summary_colors.get("prunex_white")),
+        "prunex_black": summary.get("prunex_black", summary_colors.get("prunex_black")),
+    }
     for key, value in expected.items():
         if actual[key] != value:
             errors.append(f"{key}: expected {value!r}, found {actual[key]!r}")
-        if summary.get(key) != value:
-            errors.append(f"summary.json {key}: expected {value!r}, found {summary.get(key)!r}")
+        summary_value = summary_aliases[key] if key in summary_aliases else summary.get(key)
+        if summary_value != value:
+            errors.append(f"summary.json {key}: expected {value!r}, found {summary_value!r}")
 
-    if summary.get("test_engine") != EXPECTED_ENGINE:
-        errors.append("summary.json test_engine identity mismatch")
-    if summary.get("opponent") != EXPECTED_OPPONENT:
-        errors.append("summary.json opponent identity mismatch")
+    summary_engine = summary.get("test_engine", summary.get("prunex"))
+    summary_opponent = summary.get("opponent", "")
+    if summary_engine != ENGINE:
+        errors.append(f"summary engine identity mismatch: {summary_engine!r}")
+    if not str(summary_opponent).startswith(OPPONENT):
+        errors.append(f"summary opponent identity mismatch: {summary_opponent!r}")
+    if summary.get("prunex_contempt", 0) != 0:
+        errors.append("summary has unexpected Prunex contempt")
+    if summary.get("repeats", 2) != 2:
+        errors.append("summary must record two repetitions per opening")
+    if summary.get("threads_each", 1) != 1:
+        errors.append("summary must record one thread per engine")
 
-    result = {
-        **actual,
-        "openings": dict(sorted(openings.items())),
-        "result": "PASS" if not errors else "FAIL",
-        "errors": errors,
+    return {
+        **actual, "openings": dict(sorted(openings.items())),
+        "result": "PASS" if not errors else "FAIL", "errors": errors,
     }
-    return result
 
 
 def main() -> int:
