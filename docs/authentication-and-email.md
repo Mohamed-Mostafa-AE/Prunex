@@ -10,7 +10,9 @@ The supported sequence is deliberately two-stage:
 2. The user confirms the email using the provider-generated `{{ .ConfirmationURL }}` link, in the same browser profile.
 3. The user returns to Prunex and sets a password with `auth.updateUser({ password })`.
 
-Do not send email and password together while the user is still anonymous. The password form remains locked until the session is permanent and the email is confirmed. The password is entered again after confirmation; it is not persisted in local storage, IndexedDB, URLs, or the archive.
+Supabase can continue reporting `is_anonymous: true` after the email is confirmed and before the password is added. This is expected: the verified email makes the session eligible for password setup, and adding the password completes conversion to a permanent identity. Do not gate the password form on `is_anonymous === false`; gate it on an authenticated session plus a confirmed email address. The password is entered again after confirmation; it is not persisted in local storage, IndexedDB, URLs, or the archive.
+
+The application and unit test explicitly verify that setting the password converts the same guest user ID rather than creating or merging another account.
 
 Password sign-in uses `signInWithPassword` and never creates a new account. If the browser is still using a guest session, the UI warns that signing into another account does not merge or transfer the guest archive. Password reset uses `resetPasswordForEmail`; the `PASSWORD_RECOVERY` event opens the password form.
 
