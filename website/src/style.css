@@ -522,7 +522,7 @@ h2 span { color: var(--blue); }
   .board-frame { padding: 5px; }
   .evaluation-column { flex-basis: 18px; }
   .evaluation-label { font-size: 7px; }
-  .game-result-overlay { inset: 5px; }
+  .game-result-overlay { inset: 3px; }
   .game-result-panel { padding: 16px 13px 13px; }
   .game-result-close { top: 9px; right: 9px; }
   .game-result-topline { gap: 8px; padding-right: 23px; }
