@@ -1935,7 +1935,7 @@ function enableSectionReveals() {
   if (reducedMotion || !("IntersectionObserver" in window)) return;
 
   const targets = document.querySelectorAll(
-    ".principles article, .hero-copy .eyebrow, .hero-copy h1, .hero-copy .hero-lede, " +
+    ".principles article, .hero-copy .eyebrow, .hero-copy .hero-lede, " +
     ".hero-copy .hero-description, .hero-copy .hero-actions, .hero-copy .hero-meta, " +
     ".section-heading h2, .section-heading > p, .architecture-card, .about-copy, " +
     ".benchmark-copy, .benchmark-card, .editor-panel"
