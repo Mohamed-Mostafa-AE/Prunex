@@ -18,7 +18,7 @@ encrypted_backup="$(realpath "$1")"
 identity_file="$(realpath "$2")"
 checksum_file="${3:-}"
 
-for command in age docker sha256sum realpath; do
+for command in age docker sha256sum realpath openssl; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "Required command not found: $command" >&2
     exit 1
@@ -57,10 +57,11 @@ chmod 700 "$restore_dir"
 age --decrypt --identity "$identity_file" \
   --output "$restore_dir/prunex-neon.dump" "$encrypted_backup"
 
-pg_restore --list "$restore_dir/prunex-neon.dump" >/dev/null || {
-  echo "Decrypted file is not a readable PostgreSQL custom-format dump." >&2
-  exit 1
-}
+docker run --rm --volume "$restore_dir:/backup:ro" postgres:18 \
+  pg_restore --list /backup/prunex-neon.dump >/dev/null || {
+    echo "Decrypted file is not a readable PostgreSQL custom-format dump." >&2
+    exit 1
+  }
 
 if docker ps --format '{{.Ports}}' | grep -q '127.0.0.1:55432->'; then
   echo "Port 55432 is already in use. Stop the other local container and retry." >&2
