@@ -1983,6 +1983,10 @@ async function refreshAccountPanel() {
     accountPasswordInput.disabled = !verified;
     accountPasswordConfirm.disabled = !verified;
     setPasswordForm.querySelector('button[type="submit"]').disabled = !verified;
+    for (const toggle of document.querySelectorAll("[data-password-toggle]")) {
+      const input = document.getElementById(toggle.dataset.passwordToggle);
+      toggle.disabled = !input || input.disabled;
+    }
 
     if (state.email) {
       for (const selector of ["#account-recovery-email", "#restore-account-email", "#reset-password-email"]) {
