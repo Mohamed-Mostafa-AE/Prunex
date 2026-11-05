@@ -41,6 +41,7 @@ This experiment establishes the outcome of this specific 64-game, equal-node-con
 
 - [Successful GitHub Actions run #41253517143](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143)
 - [Download the retained benchmark artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143/artifacts/13061744082) — includes the complete PGN, summary JSON, test executable, Stockfish 19-derived source archive, provenance text and both GPLv3 license files. The artifact was listed as unexpired when checked on 2026-11-05 and has a displayed expiry of 2027-01-29.
+- [Automated PGN/summary audit run #42066798928](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42066798928) — downloaded that artifact, recounted all 64 games and verified the PGN and JSON summary SHA-256 hashes. The checker is [tools/verify_stockfish2_match.py](../tools/verify_stockfish2_match.py).
 - [Workflow source at the tested commit](https://github.com/Mohamed-Mostafa-AE/Prunex/blob/0b359558b42204a099e8391d7b5cc17d5d31352c/.github/workflows/prunex-sf19-full.yml)
 - [Tournament runner at the tested commit](https://github.com/Mohamed-Mostafa-AE/Prunex/blob/0b359558b42204a099e8391d7b5cc17d5d31352c/tools/prunex_stockfish4_match.py)
 - [Official Stockfish 19 source tag](https://github.com/official-stockfish/Stockfish/tree/sf_19)
