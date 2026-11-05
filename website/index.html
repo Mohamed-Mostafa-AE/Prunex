@@ -316,7 +316,36 @@
           </div>
         </section>
 
-        <section class="match-section section-wrap" id="analysis-standards">
+        <section class="match-section section-wrap stockfish-evidence-section" id="stockfish2-evidence">
+          <div class="benchmark-copy">
+            <div class="eyebrow"><span class="eyebrow-line"></span> HISTORICAL MATCH · 2026-10-31</div>
+            <h2>A documented comparison against Stockfish 2.0.</h2>
+            <p>A historical test executable labelled <strong>Prunex 0.8.0 (Stockfish 19-derived)</strong> scored 62 wins, 2 draws and 0 losses over 64 games against Stockfish 2.0, built from the official <code>sf_2.0</code> source tag.</p>
+            <p>The match used 100,000 nodes per move, 128 MB hash per engine, one thread per engine, 16 openings repeated with colours reversed, and 32 games as each colour. The full PGN, run summary, source lineage, licenses and checksums are linked in the evidence report.</p>
+            <p class="benchmark-disclosure"><strong>Important distinction:</strong> this was a Stockfish 19-derived historical test executable, not the independently implemented native C++20 Prunex engine. It is not an Elo rating or a claim about the native engine's playing strength.</p>
+            <div class="benchmark-evidence-links">
+              <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/blob/feature/prunex-evaluation-intelligence/docs/stockfish-2-comparison.md" target="_blank" rel="noreferrer">Read the benchmark evidence record <span aria-hidden="true">↗</span></a>
+              <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143" target="_blank" rel="noreferrer">Open the successful GitHub Actions run <span aria-hidden="true">↗</span></a>
+              <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143/artifacts/13061744082" target="_blank" rel="noreferrer">Download the PGN and build artifact <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+          <div class="benchmark-card match-card stockfish-evidence-card">
+            <div class="benchmark-card-top"><span>ARCHIVED ACTIONS RUN</span><span class="record-tag">64 GAMES</span></div>
+            <div class="score-number">62–2–0</div>
+            <p class="score-label">Wins · draws · losses against Stockfish 2.0</p>
+            <div class="benchmark-divider"></div>
+            <div class="match-score">98.44% <span>63 / 64 points</span></div>
+            <dl class="benchmark-specs">
+              <div><dt>Nodes per move</dt><dd>100,000 each</dd></div>
+              <div><dt>Hash</dt><dd>128 MB each</dd></div>
+              <div><dt>Openings</dt><dd>16 × 2 colours</dd></div>
+              <div><dt>Colour balance</dt><dd>32 / 32</dd></div>
+            </dl>
+            <p class="benchmark-caveat">The tested Prunex-labelled executable was Stockfish 19-derived. This historical result must not be attributed to the independent native C++20 engine.</p>
+          </div>
+        </section>
+
+<section class="match-section section-wrap" id="analysis-standards">
           <div class="benchmark-copy">
             <div class="eyebrow"><span class="eyebrow-line"></span> PERFORMANCE STANDARD</div>
             <h2>Strength is earned in testing.</h2>
