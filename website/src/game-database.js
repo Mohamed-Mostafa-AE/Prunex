@@ -124,10 +124,23 @@ export function createGameArchive({
   let sessionPromise = null;
   let sharedStatus = supabase ? "not-connected" : "not-configured";
   let lastSharedError = "";
+  const authStateListeners = new Set();
 
   if (supabase?.auth?.onAuthStateChange) {
-    supabase.auth.onAuthStateChange(() => {
+    supabase.auth.onAuthStateChange((event, session) => {
       sessionPromise = null;
+      const user = session?.user ? {
+        email: session.user.email || "",
+        isAnonymous: session.user.is_anonymous === true,
+        emailConfirmed: Boolean(session.user.email_confirmed_at || session.user.confirmed_at)
+      } : null;
+      for (const listener of authStateListeners) {
+        try {
+          listener(event, user);
+        } catch (error) {
+          console.warn("A Prunex account-state listener failed.", error);
+        }
+      }
     });
   }
 
@@ -537,6 +550,79 @@ export function createGameArchive({
     return { email: normalizedEmail, verificationRequired: true };
   }
 
+
+  async function getAccountState() {
+    if (!supabase) {
+      return { configured: false, authenticated: false, email: "", isAnonymous: false, emailConfirmed: false };
+    }
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return { configured: true, authenticated: false, email: "", isAnonymous: false, emailConfirmed: false };
+    }
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    const user = data?.user;
+    if (!user) {
+      return { configured: true, authenticated: false, email: "", isAnonymous: false, emailConfirmed: false };
+    }
+    return {
+      configured: true,
+      authenticated: true,
+      email: user.email || "",
+      isAnonymous: user.is_anonymous === true,
+      emailConfirmed: Boolean(user.email_confirmed_at || user.confirmed_at)
+    };
+  }
+
+  async function setAccountPassword(password) {
+    if (!supabase) throw new Error("Password setup is not configured.");
+    const value = String(password || "");
+    if (value.length < 12) throw new Error("Use a password with at least 12 characters.");
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    const user = data?.user;
+    if (!user) throw new Error("Your Prunex session is not available.");
+    if (user.is_anonymous === true || !(user.email_confirmed_at || user.confirmed_at)) {
+      throw new Error("Verify the guest email in this browser before setting a password. Your game archive has not been moved.");
+    }
+    const { error: updateError } = await supabase.auth.updateUser({ password: value });
+    if (updateError) throw updateError;
+    return { email: user.email || "" };
+  }
+
+  async function signInWithPassword(email, password) {
+    if (!supabase) throw new Error("Password sign-in is not configured.");
+    const normalizedEmail = normalizeRecoveryEmail(email);
+    const value = String(password || "");
+    if (!value) throw new Error("Enter your Prunex password.");
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: value
+    });
+    if (error) throw error;
+    if (!data?.session?.user?.id || data.session.user.is_anonymous === true) {
+      throw new Error("Password sign-in did not return a permanent account session.");
+    }
+    sessionPromise = Promise.resolve(data.session);
+    return { email: data.user?.email || normalizedEmail };
+  }
+
+  async function sendPasswordReset(email) {
+    if (!supabase) throw new Error("Password recovery is not configured.");
+    const normalizedEmail = normalizeRecoveryEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: authEmailRedirectTo()
+    });
+    if (error) throw error;
+    return { email: normalizedEmail, verificationRequired: true };
+  }
+
+  function subscribeAuthState(listener) {
+    if (typeof listener !== "function") throw new TypeError("An account-state listener function is required.");
+    authStateListeners.add(listener);
+    return () => authStateListeners.delete(listener);
+  }
+
   async function sendRecoveryLink(email) {
     if (!supabase) throw new Error("Cloud account recovery is not configured.");
     const normalizedEmail = normalizeRecoveryEmail(email);
@@ -596,6 +682,8 @@ export function createGameArchive({
 
   return {
     newId, saveGame, saveReview, listGames, findExperiencedMove,
-    linkGuestEmail, sendRecoveryLink, deleteAccount, getStatus, getLastError
+    linkGuestEmail, sendRecoveryLink, getAccountState, setAccountPassword,
+    signInWithPassword, sendPasswordReset, subscribeAuthState,
+    deleteAccount, getStatus, getLastError
   };
 }
