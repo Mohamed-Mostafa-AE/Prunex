@@ -1225,3 +1225,33 @@ img, svg, video, canvas { max-width: 100%; }
   display:block; margin-top:5px; color:#b8cce1; font:11px var(--mono); letter-spacing:0;
 }
 .stockfish-evidence-card .benchmark-specs { margin-top:8px; }
+
+
+/* The primary title is essential content, not scroll-triggered decoration. */
+#home .hero-copy > h1 {
+  clip-path:none !important;
+  opacity:1 !important;
+  transform:none !important;
+}
+
+/* A compact, explicit citation to the historical matchup from the first screen. */
+.hero-copy .benchmark-teaser {
+  max-width:610px;
+  margin:17px 0 0;
+  color:var(--muted);
+  font-size:10.5px;
+  line-height:1.75;
+}
+.hero-copy .benchmark-teaser a {
+  color:var(--blue);
+  font-weight:600;
+  text-decoration:underline;
+  text-decoration-color:rgba(45,131,199,.35);
+  text-underline-offset:3px;
+}
+.hero-copy .benchmark-teaser span {
+  display:block;
+  margin-top:3px;
+  color:#7389a1;
+  font-size:9px;
+}
