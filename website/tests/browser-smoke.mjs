@@ -87,7 +87,7 @@ try {
   if (!archiveStatus.includes(expectedArchiveStatus)) {
     throw new Error("The game archive did not reach its expected mode: " + archiveStatus);
   }
-  for (const selector of ["#account-toggle", "#account-dialog", "#link-account-form", "#restore-account-form", "#set-password-form", "#reset-password-form", "#delete-account-form", "#account-recovery-email", "#restore-account-email", "#restore-account-password", "#account-password", "#account-password-confirm", "#reset-password-email", "#delete-account-confirmation"]) {
+  for (const selector of ["#account-toggle", "#account-dialog", "#link-account-form", "#restore-account-form", "#set-password-form", "#delete-account-form", "#account-recovery-email", "#restore-account-email", "#restore-account-password", "#account-password", "#account-password-confirm", "#forgot-password-link", "#delete-account-confirmation"]) {
     if (await page.locator(selector).count() !== 1) {
       throw new Error("Account recovery/deletion control missing: " + selector);
     }
@@ -99,7 +99,7 @@ try {
   if (!(await page.locator("#account-dialog").isVisible())) {
     throw new Error("The top-bar account control must open account and password settings.");
   }
-  for (const selector of ["#account-recovery-email", "#account-password", "#account-password-confirm", "#restore-account-password", "#reset-password-email"]) {
+  for (const selector of ["#account-recovery-email", "#account-password", "#account-password-confirm", "#restore-account-password"]) {
     if (await page.locator(selector).count() !== 1) throw new Error("Missing account/password field: " + selector);
   }
   for (const selector of ["#account-password", "#account-password-confirm", "#restore-account-password"]) {
@@ -107,8 +107,8 @@ try {
       throw new Error("Password inputs must default to masked text.");
     }
   }
-  // The CI environment intentionally has no Supabase credentials, so enable
-  // this disabled field and its reveal control only for the visibility interaction.
+  // CI has no live Supabase credentials. Enable the disabled password field
+  // only to exercise the show/hide interaction without calling the provider.
   await page.locator("#restore-account-password").evaluate(element => { element.disabled = false; });
   await page.locator('[data-password-toggle="restore-account-password"]').evaluate(element => { element.disabled = false; });
   await page.locator('[data-password-toggle="restore-account-password"]').click();
@@ -119,6 +119,48 @@ try {
   if (await page.locator("#account-dialog").isVisible()) {
     throw new Error("Escape must close the account dialog.");
   }
+  if (await page.locator("#reset-password-form, #reset-password-email").count()) {
+    throw new Error("Password recovery must not create a separate form or section.");
+  }
+  if (await page.locator("#forgot-password-link").count() !== 1 ||
+      !(await page.locator("#restore-account-form #forgot-password-link").isVisible())) {
+    throw new Error("Forgot password must remain an inline sign-in action.");
+  }
+
+  // Simulate a browser-supplied autofill value using the same CSS state hook.
+  // A real saved-address/password selection is browser-profile data and is not
+  // available to a clean CI browser context.
+  const ownerEmail = page.locator("#account-recovery-email");
+  await ownerEmail.evaluate(element => {
+    element.disabled = false;
+    element.value = "archive-owner@example.com";
+    element.classList.add("is-autofilled");
+  });
+  const autofillStyle = await ownerEmail.evaluate(element => {
+    const style = getComputedStyle(element);
+    return {
+      color: style.webkitTextFillColor,
+      background: style.boxShadow,
+      font: style.fontFamily,
+      height: element.getBoundingClientRect().height,
+      width: element.getBoundingClientRect().width
+    };
+  });
+  if (autofillStyle.color !== "rgb(241, 247, 255)" ||
+      !autofillStyle.background.includes("rgb(4, 19, 38)") ||
+      autofillStyle.height < 34 || autofillStyle.width < 120) {
+    throw new Error("Autofilled archive email text must retain the dark-field color, font, and usable dimensions.");
+  }
+  const emailInputBox = await ownerEmail.boundingBox();
+  const emailButtonBox = await page.locator("#link-account-form button[type='submit']").boundingBox();
+  const emailPanelBox = await page.locator("#account-link-panel").boundingBox();
+  if (!emailInputBox || !emailButtonBox || !emailPanelBox ||
+      emailInputBox.x < emailPanelBox.x || emailInputBox.x + emailInputBox.width > emailPanelBox.x + emailPanelBox.width + 1 ||
+      emailButtonBox.x < emailPanelBox.x || emailButtonBox.x + emailButtonBox.width > emailPanelBox.x + emailPanelBox.width + 1 ||
+      emailButtonBox.y < emailInputBox.y + emailInputBox.height - 1) {
+    throw new Error("The archive email and verification button must stack without clipping or overlap.");
+  }
+
   const desktopViewport = page.viewportSize();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator("#account-toggle").click();
@@ -133,6 +175,25 @@ try {
   }
   if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) {
     throw new Error("The account dialog must not introduce horizontal overflow on mobile.");
+  }
+  const scoreLayout = await page.locator(".score-number").evaluateAll(elements => elements.map(element => {
+    const primary = element.querySelector(".score-primary")?.getBoundingClientRect();
+    const secondary = element.querySelector(".score-secondary")?.getBoundingClientRect();
+    const parent = element.getBoundingClientRect();
+    return {
+      display: getComputedStyle(element).display,
+      primary: primary && { x: primary.x, y: primary.y, right: primary.right, bottom: primary.bottom },
+      secondary: secondary && { x: secondary.x, y: secondary.y, right: secondary.right, bottom: secondary.bottom },
+      parent: { x: parent.x, y: parent.y, right: parent.right, bottom: parent.bottom }
+    };
+  }));
+  if (!scoreLayout.length || scoreLayout.some(item =>
+      item.display !== "flex" ||
+      !item.primary ||
+      (item.secondary && item.secondary.x < item.primary.right - 1 && item.secondary.y < item.primary.bottom - 1) ||
+      item.primary.x < item.parent.x - 1 || item.primary.right > item.parent.right + 1 ||
+      (item.secondary && item.secondary.right > item.parent.right + 1))) {
+    throw new Error("Benchmark score figures must remain separated and inside their cards on mobile.");
   }
   await page.keyboard.press("Escape");
   await page.setViewportSize(desktopViewport);
