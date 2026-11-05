@@ -406,9 +406,16 @@ try {
   const resizeGripLocator = page.locator("#resize-board");
   await resizeGripLocator.scrollIntoViewIfNeeded();
   const boardBeforeGrip = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
+  const gripBeforeScreenshot = await resizeGripLocator.boundingBox();
+  if (!gripBeforeScreenshot) throw new Error("Board resize grip is unavailable.");
+  await page.locator(".board-frame").screenshot({ path: "artifacts/board-resize-debug.png" });
+
+  // A locator screenshot may scroll the page to bring its target into view.
+  // Re-read the viewport-relative coordinates afterwards so the pointer drag
+  // starts on the grip, not at coordinates captured before that scroll.
   const resizeGrip = await resizeGripLocator.boundingBox();
-  if (!resizeGrip) throw new Error("Board resize grip is unavailable.");
-  const gripHitTest = await page.locator("#resize-board").evaluate(el => {
+  if (!resizeGrip) throw new Error("Board resize grip left the viewport after its screenshot.");
+  const gripHitTest = await resizeGripLocator.evaluate(el => {
     const rect = el.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
@@ -428,7 +435,6 @@ try {
       mediaMatches: matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (orientation: landscape) and (max-height: 520px) and (max-width: 900px)").matches
     };
   });
-  await page.locator(".board-frame").screenshot({ path: "artifacts/board-resize-debug.png" });
   await page.mouse.move(resizeGrip.x + resizeGrip.width / 2, resizeGrip.y + resizeGrip.height / 2);
   await page.mouse.down();
   await page.mouse.move(resizeGrip.x + resizeGrip.width / 2 + 90, resizeGrip.y + resizeGrip.height / 2 + 90, { steps: 8 });
