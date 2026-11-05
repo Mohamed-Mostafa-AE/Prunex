@@ -13,7 +13,9 @@ The Prunex browser flow links the current anonymous Supabase session to an email
 3. Confirm the archive shown is yours before continuing. Do not use the flow from a fresh browser profile with no existing guest games.
 4. In **Link this guest archive to the verified owner email**, enter the exact email address configured in the Vercel `PRUNEX_OWNER_EMAIL` setting. Do not use an alternate address.
 5. Submit, open the verification email, and complete its link in the same browser profile. Return to the review site.
-6. Confirm the account is no longer shown as a guest and that your own archived games remain visible. Do not use **Delete account** or clear site data during this process.
+6. Open **Account & password** in the top bar. Once the page reports that the email is verified, enter a new password (at least 12 characters) and confirm it.
+7. Password setup is deliberately available only after email verification. Re-enter the password after you return; Prunex does not save it in browser storage.
+8. Confirm the account is no longer shown as a guest and that your own archived games remain visible. Do not use **Delete account**, sign into a different account, or clear site data during this process.
 
 If the page reports a redirect-URL error, stop and send the exact error text. The Supabase Auth URL configuration must allow the preview origin. Do not try to work around it by creating another account.
 
