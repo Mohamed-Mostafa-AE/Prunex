@@ -87,10 +87,36 @@ try {
   if (!archiveStatus.includes(expectedArchiveStatus)) {
     throw new Error("The game archive did not reach its expected mode: " + archiveStatus);
   }
-  for (const selector of ["#link-account-form", "#restore-account-form", "#delete-account-form", "#account-recovery-email", "#restore-account-email", "#delete-account-confirmation"]) {
+  for (const selector of ["#account-toggle", "#account-dialog", "#link-account-form", "#restore-account-form", "#set-password-form", "#reset-password-form", "#delete-account-form", "#account-recovery-email", "#restore-account-email", "#restore-account-password", "#account-password", "#account-password-confirm", "#reset-password-email", "#delete-account-confirmation"]) {
     if (await page.locator(selector).count() !== 1) {
       throw new Error("Account recovery/deletion control missing: " + selector);
     }
+  }
+  if (await page.locator("#account-dialog").isVisible()) {
+    throw new Error("The account dialog must remain closed until the user opens it.");
+  }
+  await page.locator("#account-toggle").click();
+  if (!(await page.locator("#account-dialog").isVisible())) {
+    throw new Error("The top-bar account control must open account and password settings.");
+  }
+  for (const selector of ["#account-recovery-email", "#account-password", "#account-password-confirm", "#restore-account-password", "#reset-password-email"]) {
+    if (await page.locator(selector).count() !== 1) throw new Error("Missing account/password field: " + selector);
+  }
+  for (const selector of ["#account-password", "#account-password-confirm", "#restore-account-password"]) {
+    if ((await page.locator(selector).getAttribute("type")) !== "password") {
+      throw new Error("Password inputs must default to masked text.");
+    }
+  }
+  await page.locator('[data-password-toggle="restore-account-password"]').click();
+  if ((await page.locator("#restore-account-password").getAttribute("type")) !== "text") {
+    throw new Error("The password visibility control must reveal the password on request.");
+  }
+  await page.keyboard.press("Escape");
+  if (await page.locator("#account-dialog").isVisible()) {
+    throw new Error("Escape must close the account dialog.");
+  }
+  if (await page.locator("#game-archive-list .game-delete-button, #game-archive-list [aria-label*='Delete game'], #game-archive-list [aria-label*='Delete record']").count()) {
+    throw new Error("Individual game-record deletion controls must not be exposed.");
   }
   if (await page.locator("#turnstile-widget-container").isVisible()) {
     throw new Error("Turnstile should stay hidden until guest registration actually requires verification.");
@@ -1054,7 +1080,7 @@ try {
   }
 
   if (failures.length) throw new Error(failures.join("\\n"));
-  console.log("PASS: engine/game interactions, responsive layout, visible hero headline, and qualified Stockfish 2.0 evidence with primary source links.");
+  console.log("PASS: engine/game interactions, responsive layout, account dialog, password reveal, no per-game deletion, visible hero headline, and qualified Stockfish 2.0 evidence.");
 } finally {
   await browser.close();
 }
