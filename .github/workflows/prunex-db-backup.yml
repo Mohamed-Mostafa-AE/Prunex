@@ -78,7 +78,7 @@ jobs:
             "${RUNNER_TEMP}/prunex-backup/prunex-neon.dump"
 
           # Check that the file is an age ciphertext before removing plaintext.
-          head -c 20 "$encrypted_file" | grep -q "age-encryption.org/v1"
+          head -n 1 "$encrypted_file" | grep -qx "age-encryption.org/v1"
           (
             cd "${RUNNER_TEMP}/prunex-backup"
             sha256sum "$(basename "$encrypted_file")" > SHA256SUMS
