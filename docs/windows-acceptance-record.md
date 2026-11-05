@@ -2,6 +2,17 @@
 
 The automated Windows x64 workflow verifies compilation, CTest, executable architecture and UCI startup. It does not test interactive desktop rendering or human input. Complete this record on a physical or virtual Windows 10/11 desktop.
 
+## Tested Windows x64 build available now
+
+The latest passing Windows workflow is [run #42075433290](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433290). Download its artifact [`Prunex-Windows-x64`](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433290/artifacts/13437603709). It contains:
+
+- `Release/Prunex.exe` — GUI executable, 93,696 bytes, SHA-256 `693DE11F75209AB6F7BDA3EE14C53EBDEE9CBB1322A949011158597D94894393`
+- `Release/prunex-cli.exe` — CLI engine, 94,208 bytes, SHA-256 `B2AB5349269592F7841C00B302029B1F1D3649CA46AD0317CB9D2A3C650F06C6`
+- `windows-build-manifest.json` — identifies commit `e41f24cc10448b2e2deac4f7ae956266d8910173`, MSVC/Visual Studio 2022, Release, x64.
+- `Testing/Temporary/LastTest.log` — CTest output.
+
+The artifact is currently scheduled to expire on **5 December 2026**. Download it before then. The CI run verifies the build, CTest, AMD64 PE machine type and UCI startup; your manual acceptance record below is still required for desktop interaction.
+
 ## Environment
 
 - Date/time:
