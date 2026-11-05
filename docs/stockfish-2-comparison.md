@@ -38,6 +38,15 @@ This experiment establishes the outcome of this specific 64-game, equal-node-con
 - a general or tournament-certified strength rating.
 
 ## Primary GitHub evidence
+### Permanent repository copy
+
+The machine-readable run summary, source provenance statement, checksums, and evidence index are now committed under [`benchmarks/stockfish-2.0/`](../benchmarks/stockfish-2.0/). The full PGN remains in the original Actions artifact linked below; `SHA256SUMS` contains checksums for the PGN and original JSON summary inside that artifact ZIP.
+
+- [Permanent summary JSON](../benchmarks/stockfish-2.0/summary.json)
+- [Permanent source provenance](../benchmarks/stockfish-2.0/provenance.txt)
+- [Artifact checksums](../benchmarks/stockfish-2.0/SHA256SUMS)
+- [Evidence directory README](../benchmarks/stockfish-2.0/README.md)
+
 
 ### Original match run
 
