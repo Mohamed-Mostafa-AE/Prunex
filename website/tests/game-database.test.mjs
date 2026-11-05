@@ -114,12 +114,13 @@ const passwordArchive = createGameArchive({
       updateUser: async attributes => {
         passwordAuthCalls.push({ method: "updateUser", attributes });
         passwordTestUser = { ...passwordTestUser, ...attributes };
+        if (attributes.password) passwordTestUser.is_anonymous = false;
         return { data: { user: passwordTestUser }, error: null };
       },
       signInWithPassword: async credentials => {
         passwordAuthCalls.push({ method: "signInWithPassword", credentials });
         passwordTestUser = {
-          id: "verified-user",
+          id: "guest-user",
           is_anonymous: false,
           email: credentials.email,
           email_confirmed_at: "2026-11-05T00:00:00.000Z"
@@ -149,12 +150,15 @@ assert.deepEqual(
 assert.equal(passwordTestUser.is_anonymous, true, "email linking must preserve the guest identity pending confirmation");
 passwordTestUser = {
   ...passwordTestUser,
-  is_anonymous: false,
+  is_anonymous: true,
   email: "owner@example.com",
   email_confirmed_at: "2026-11-05T00:00:00.000Z"
 };
 const verifiedState = await passwordArchive.getAccountState();
 assert.equal(verifiedState.emailConfirmed, true);
+assert.equal(verifiedState.isAnonymous, true,
+  "Supabase may keep the verified guest session anonymous until a password is added");
+const originalGuestId = passwordTestUser.id;
 await assert.rejects(
   () => passwordArchive.setAccountPassword("short"),
   /at least 12 characters/
@@ -165,6 +169,10 @@ assert.deepEqual(
   { method: "updateUser", attributes: { password: "A-long-unique-password-2026" } },
   "password must only be added after email confirmation"
 );
+assert.equal(passwordTestUser.id, originalGuestId,
+  "setting a password must convert the existing guest identity without changing its user ID");
+assert.equal(passwordTestUser.is_anonymous, false,
+  "adding the password completes the anonymous-to-permanent account conversion");
 const signedIn = await passwordArchive.signInWithPassword(" OWNER@EXAMPLE.COM ", "A-long-unique-password-2026");
 assert.equal(signedIn.email, "owner@example.com");
 assert.deepEqual(passwordAuthCalls[2], {
