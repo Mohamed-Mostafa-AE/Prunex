@@ -39,11 +39,34 @@ This experiment establishes the outcome of this specific 64-game, equal-node-con
 
 ## Primary GitHub evidence
 
-- [Successful GitHub Actions run #41253517143](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143)
-- [Download the retained benchmark artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143/artifacts/13061744082) — includes the complete PGN, summary JSON, test executable, Stockfish 19-derived source archive, provenance text and both GPLv3 license files. The artifact was listed as unexpired when checked on 2026-11-05 and has a displayed expiry of 2027-01-29.
-- [Automated PGN/summary audit run #42066798928](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42066798928) — downloaded that artifact, recounted all 64 games and verified the PGN and JSON summary SHA-256 hashes. The checker is [tools/verify_stockfish2_match.py](../tools/verify_stockfish2_match.py).
-- [Workflow source at the tested commit](https://github.com/Mohamed-Mostafa-AE/Prunex/blob/0b359558b42204a099e8391d7b5cc17d5d31352c/.github/workflows/prunex-sf19-full.yml)
-- [Tournament runner at the tested commit](https://github.com/Mohamed-Mostafa-AE/Prunex/blob/0b359558b42204a099e8391d7b5cc17d5d31352c/tools/prunex_stockfish4_match.py)
+### Original match run
+
+- [Successful GitHub Actions run #41253517143](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143) — completed successfully on 2026-10-31. It ran the full 64-game match and uploaded the PGN, JSON summary, test executable, source archive, provenance and licenses.
+- [Original match job log](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143/job/124691757657) — records the two engine builds, harness invocation, per-game JSON output, final 62/2/0 summary, and artifact upload.
+- [Run source commit](https://github.com/Mohamed-Mostafa-AE/Prunex/commit/0b359558b42204a099e8391d7b5cc17d5d31352c) — commit `0b359558b42204a099e8391d7b5cc17d5d31352c`, titled “Run 64-game perfect-score confirmation for Prunex 0.8.0 against official Stockfish 2.0”.
+- [Workflow source at the tested commit](https://github.com/Mohamed-Mostafa-AE/Prunex/blob/0b359558b42204a099e8391d7b5cc17d5d31352c/.github/workflows/prunex-sf19-full.yml) — shows the exact source checkouts and build commands. It checks out official Stockfish `sf_19`, changes the UCI name string in `src/misc.cpp`, and builds that Stockfish 19 source as the test executable. It separately checks out and builds official Stockfish `sf_2.0`.
+- [Tournament runner at the tested commit](https://github.com/Mohamed-Mostafa-AE/Prunex/blob/0b359558b42204a099e8391d7b5cc17d5d31352c/tools/prunex_stockfish4_match.py) — records the opening suite, resource settings, PGN headers, and legality check before each move is applied.
+
+### Archived primary artifact
+
+- [Download the retained benchmark artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143/artifacts/13061744082). It is 79,215,154 bytes and contains:
+  - `benchmark-results/prunex-vs-stockfish-2.0.pgn` — all 64 complete games;
+  - `benchmark-results/summary.json` — machine-readable W/D/L, points and run settings;
+  - `prunex-0.8.0` — the tested x86-64 executable;
+  - `Prunex-0.8.0-source.tar.gz` and `prunex-provenance.txt`;
+  - GPLv3 license files for both engine builds.
+- The artifact was still unexpired when checked on 2026-11-05. GitHub lists its expiry as **2027-01-29 23:40:37 UTC**. The ZIP digest published by GitHub is `2dc1107808fcef3371e98dd40fe93c86e6c9953d8ceea1301bc061519145369e`.
+- The archived provenance identifies Stockfish 19 commit `edb0d9db6731067ec50ce619ff372b463bc4dd5d`, tag `sf_19`, and states that the sole source edit changes the UCI engine name. No separately recorded binary hash or resolved commit SHA for the Stockfish 2.0 opponent is present in the artifact.
+
+### Independent artifact audit
+
+- [Automated PGN/summary audit run #42066798928](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42066798928) — completed successfully on 2026-11-05.
+- [Audit job log](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42066798928/job/127383005009) — its steps show download of the original artifact, recount of all games against the JSON summary, and verification of the PGN and summary SHA-256 hashes.
+- [Audit workflow source](https://github.com/Mohamed-Mostafa-AE/Prunex/blob/feature/prunex-evaluation-intelligence/.github/workflows/stockfish2-evidence-audit.yml) and [independent checker](../tools/verify_stockfish2_match.py).
+- The checker validates PGN headers, round numbering, identities, results, openings, colour balance, node-control settings, summary agreement and checksums. It does not replay every SAN move from the PGN; legality during the original run is checked by the tournament runner before each move is applied.
+
+### Upstream source tags
+
 - [Official Stockfish 19 source tag](https://github.com/official-stockfish/Stockfish/tree/sf_19)
 - [Official Stockfish 2.0 source tag](https://github.com/official-stockfish/Stockfish/tree/sf_2.0)
 
