@@ -68,6 +68,18 @@ const restoreAccountForm = $("#restore-account-form");
 const restoreAccountStatus = $("#restore-account-status");
 const deleteAccountForm = $("#delete-account-form");
 const deleteAccountStatus = $("#delete-account-status");
+const accountToggle = $("#account-toggle");
+const accountDialog = $("#account-dialog");
+const accountClose = $("#account-close");
+const accountSessionStatus = $("#account-session-status");
+const accountLinkPanel = $("#account-link-panel");
+const setPasswordForm = $("#set-password-form");
+const accountPasswordInput = $("#account-password");
+const accountPasswordConfirm = $("#account-password-confirm");
+const accountPasswordGuidance = $("#account-password-guidance");
+const accountPasswordStatus = $("#account-password-status");
+const resetPasswordForm = $("#reset-password-form");
+const resetPasswordStatus = $("#reset-password-status");
 const evaluationFill = $("#evaluation-fill");
 const evaluationLabel = $("#evaluation-label");
 const analysisStatus = $("#analysis-status");
@@ -1954,6 +1966,58 @@ function enableSectionReveals() {
   });
 }
 
+
+async function refreshAccountPanel() {
+  const serviceForms = [linkAccountForm, restoreAccountForm, resetPasswordForm];
+  try {
+    const state = await gameArchive.getAccountState();
+    const configured = state.configured === true;
+    const verified = configured && state.authenticated === true &&
+      state.isAnonymous !== true && state.emailConfirmed === true;
+
+    for (const form of serviceForms) {
+      form.querySelectorAll("input, button").forEach(control => {
+        control.disabled = !configured;
+      });
+    }
+    accountPasswordInput.disabled = !verified;
+    accountPasswordConfirm.disabled = !verified;
+    setPasswordForm.querySelector('button[type="submit"]').disabled = !verified;
+
+    if (state.email) {
+      for (const selector of ["#account-recovery-email", "#restore-account-email", "#reset-password-email"]) {
+        const input = $(selector);
+        if (input && !input.value) input.value = state.email;
+      }
+    }
+
+    accountLinkPanel.hidden = verified;
+    if (!configured) {
+      accountSessionStatus.textContent = "Account services are not configured on this deployment. Your local game archive remains available.";
+      accountPasswordGuidance.textContent = "Password setup becomes available when the Prunex authentication service is configured and your email is verified.";
+    } else if (!state.authenticated || state.isAnonymous) {
+      accountSessionStatus.textContent = state.email && !state.emailConfirmed
+        ? "Guest archive active. Email verification is pending for " + state.email + ". Complete the link in this same browser."
+        : "Guest archive active in this browser. Link and verify the owner email here before setting a password.";
+      accountPasswordGuidance.textContent = "Verify the guest email above first. Supabase requires the email identity to be confirmed before a password can be added. Return to this same browser after confirmation, then enter the password here.";
+    } else if (!state.emailConfirmed) {
+      accountSessionStatus.textContent = "A permanent sign-in identity is present, but its email is not yet confirmed. Complete email verification before setting a password.";
+      accountPasswordGuidance.textContent = "Email verification is still pending. The password fields will unlock after the provider confirms the email.";
+    } else {
+      accountSessionStatus.textContent = "Verified account: " + state.email + ". You can set or change the password for this account.";
+      accountPasswordGuidance.textContent = "Email verified. Choose a unique password of at least 12 characters. Passwords are sent only to Supabase over HTTPS and are never stored by Prunex.";
+    }
+  } catch (error) {
+    accountSessionStatus.textContent = error instanceof Error
+      ? "Account status could not be checked: " + error.message
+      : "Account status could not be checked.";
+    accountPasswordGuidance.textContent = "Password setup stays locked until the current account can be verified.";
+    accountPasswordInput.disabled = true;
+    accountPasswordConfirm.disabled = true;
+    setPasswordForm.querySelector('button[type="submit"]').disabled = true;
+  }
+}
+
 linkAccountForm.addEventListener("submit", async event => {
   event.preventDefault();
   const submit = linkAccountForm.querySelector('button[type="submit"]');
@@ -1980,23 +2044,116 @@ restoreAccountForm.addEventListener("submit", async event => {
   event.preventDefault();
   const submit = restoreAccountForm.querySelector('button[type="submit"]');
   const email = $("#restore-account-email").value;
-  restoreAccountStatus.textContent = "Requesting a sign-in link…";
+  const password = $("#restore-account-password").value;
+  restoreAccountStatus.textContent = "Checking your Prunex account…";
   restoreAccountStatus.dataset.kind = "";
   submit.disabled = true;
   try {
-    const result = await gameArchive.sendRecoveryLink(email);
-    restoreAccountStatus.textContent =
-      "Sign-in link requested for " + result.email +
-      ". Open it on this device to load the archive linked to that address. No new account will be created.";
+    const current = await gameArchive.getAccountState();
+    if (current.isAnonymous === true) {
+      const proceed = window.confirm(
+        "This browser currently has a guest archive. Signing into a different account will not merge those games; they will remain attached to the guest account. To preserve these games under the owner email, cancel and use “Preserve this guest archive” first. Continue signing in?"
+      );
+      if (!proceed) return;
+    }
+    const result = await gameArchive.signInWithPassword(email, password);
+    restoreAccountStatus.textContent = "Signed in as " + result.email + ". Your private archive is being refreshed.";
     restoreAccountStatus.dataset.kind = "success";
+    restoreAccountForm.reset();
+    await refreshAccountPanel();
+    await refreshGameArchive();
   } catch (error) {
-    restoreAccountStatus.textContent = error instanceof Error
-      ? error.message
-      : "Could not request the sign-in link.";
+    restoreAccountStatus.textContent = error instanceof Error ? error.message : "Password sign-in failed.";
     restoreAccountStatus.dataset.kind = "error";
   } finally {
     submit.disabled = false;
   }
+});
+
+
+setPasswordForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const password = accountPasswordInput.value;
+  const confirmation = accountPasswordConfirm.value;
+  if (password.length < 12) {
+    accountPasswordStatus.textContent = "Use a password with at least 12 characters.";
+    accountPasswordStatus.dataset.kind = "error";
+    return;
+  }
+  if (password !== confirmation) {
+    accountPasswordStatus.textContent = "The two passwords do not match.";
+    accountPasswordStatus.dataset.kind = "error";
+    accountPasswordConfirm.focus();
+    return;
+  }
+  const submit = setPasswordForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  accountPasswordStatus.textContent = "Saving your password securely…";
+  accountPasswordStatus.dataset.kind = "";
+  try {
+    const result = await gameArchive.setAccountPassword(password);
+    setPasswordForm.reset();
+    accountPasswordStatus.textContent = "Password saved for " + result.email + ". You can now sign in on another device.";
+    accountPasswordStatus.dataset.kind = "success";
+    await refreshAccountPanel();
+  } catch (error) {
+    accountPasswordStatus.textContent = error instanceof Error ? error.message : "Could not save the password.";
+    accountPasswordStatus.dataset.kind = "error";
+  } finally {
+    submit.disabled = accountPasswordInput.disabled;
+  }
+});
+
+resetPasswordForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const submit = resetPasswordForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  resetPasswordStatus.textContent = "Sending a password-reset email…";
+  resetPasswordStatus.dataset.kind = "";
+  try {
+    const result = await gameArchive.sendPasswordReset($("#reset-password-email").value);
+    resetPasswordStatus.textContent = "Password-reset email sent to " + result.email + ". Open it on this device, then choose a new password in this panel.";
+    resetPasswordStatus.dataset.kind = "success";
+  } catch (error) {
+    resetPasswordStatus.textContent = error instanceof Error ? error.message : "Could not send the password-reset email.";
+    resetPasswordStatus.dataset.kind = "error";
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+accountToggle.addEventListener("click", () => {
+  if (!accountDialog.open) accountDialog.showModal();
+  void refreshAccountPanel();
+});
+accountClose.addEventListener("click", () => accountDialog.close());
+accountDialog.addEventListener("click", event => {
+  if (event.target === accountDialog) accountDialog.close();
+});
+
+document.querySelectorAll("[data-password-toggle]").forEach(toggle => {
+  toggle.addEventListener("click", () => {
+    const input = document.getElementById(toggle.dataset.passwordToggle);
+    if (!input) return;
+    const reveal = input.type === "password";
+    input.type = reveal ? "text" : "password";
+    toggle.textContent = reveal ? "Hide" : "Show";
+    toggle.setAttribute("aria-pressed", String(reveal));
+    toggle.setAttribute("aria-label", (reveal ? "Hide " : "Show ") + "password");
+  });
+});
+
+gameArchive.subscribeAuthState(event => {
+  window.setTimeout(() => {
+    if (event === "PASSWORD_RECOVERY") {
+      accountPasswordStatus.textContent = "Choose a new password to finish recovering your Prunex account.";
+      accountPasswordStatus.dataset.kind = "";
+      if (!accountDialog.open) accountDialog.showModal();
+      void refreshAccountPanel().then(() => accountPasswordInput.focus());
+    } else {
+      void refreshAccountPanel();
+    }
+  }, 0);
 });
 
 deleteAccountForm.addEventListener("submit", async event => {
@@ -2016,8 +2173,10 @@ deleteAccountForm.addEventListener("submit", async event => {
     deleteAccountStatus.textContent =
       "Your account and cloud game history have been deleted. This browser's local archive was cleared. Close this tab to finish.";
     deleteAccountStatus.dataset.kind = "success";
-    linkAccountForm.querySelectorAll("input,button").forEach(control => { control.disabled = true; });
-    deleteAccountForm.querySelectorAll("input,button").forEach(control => { control.disabled = true; });
+    for (const form of [linkAccountForm, restoreAccountForm, setPasswordForm, resetPasswordForm, deleteAccountForm]) {
+      form.querySelectorAll("input,button").forEach(control => { control.disabled = true; });
+    }
+    if (accountDialog.open) accountDialog.close();
     archiveCount.textContent = "0 games";
     archiveList.replaceChildren();
     const empty = document.createElement("div");
@@ -2033,6 +2192,7 @@ deleteAccountForm.addEventListener("submit", async event => {
 });
 
 $("#year").textContent = String(new Date().getFullYear());
+void refreshAccountPanel();
 applyPreferences();
 enableMoveHistoryResize();
 enableSectionReveals();
