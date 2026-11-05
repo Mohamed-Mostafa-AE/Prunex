@@ -36,6 +36,17 @@ Optional later hardening: create a Cloudflare Turnstile widget and secret, enabl
 
 Do not add `SUPABASE_SERVICE_ROLE_KEY`, the Turnstile secret, Vercel tokens, signing keys, or private credentials to the website build environment under a `VITE_` prefix.
 
+The Vercel Node.js archive function also requires these **server-only** variables in both Production and Preview. They must never use a `VITE_` prefix:
+
+| Variable | Purpose | Secret? |
+| --- | --- | --- |
+| `NEON_DATABASE_URL` | Neon PostgreSQL connection string for the private archive | Yes |
+| `SUPABASE_URL` | Server-side Supabase Auth token verification endpoint | Yes |
+| `SUPABASE_PUBLISHABLE_KEY` | Server-side Supabase Auth verification key | Yes |
+| `PRUNEX_OWNER_EMAIL` | Verified owner allowlist for the private archive | Yes |
+
+The archive uses Neon as its primary write/read store. Supabase remains the identity provider, legacy-import source, and owner-scoped read fallback; it is not a general write-through replica of Neon. The archive API connects using the restricted `prunex_app` database role and sets the owner context inside each transaction. Do not replace this role with the database owner or a superuser.
+
 A production deployment is not validated until an end-to-end run confirms guest creation, private game saving, review saving, opt-in memory replacement, opt-out revocation, account deletion, and live response headers. No CAPTCHA should appear in the current configuration.
 
 ## GitHub and dependency supply chain
