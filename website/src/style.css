@@ -192,8 +192,24 @@ h2 span { color: var(--blue); }
 .benchmark-card { padding: 23px; border: 1px solid #2c4968; background: #0d1c30; color: #edf5fd; }
 .benchmark-card-top { display: flex; justify-content: space-between; gap: 12px; color: #aec8e3; font: 9px var(--mono); letter-spacing: .06em; }
 .record-tag { color: #8bcaff; }
-.score-number { margin-top: 23px; color: #f1f7ff; font: 600 59px/1 Manrope, sans-serif; letter-spacing: -.07em; }
-.score-number span { margin-left: 4px; color: #7abfff; font-size: 26px; }
+.score-number {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 23px;
+  color: #f1f7ff;
+  font: 600 59px/1 Manrope, sans-serif;
+}
+.score-primary { min-width: 0; letter-spacing: -.045em; }
+.score-secondary {
+  display: inline-block;
+  color: #7abfff;
+  font: 600 26px/1.15 Manrope, sans-serif;
+  letter-spacing: -.015em;
+  white-space: nowrap;
+}
 .score-label { margin: 8px 0 15px; color: #b8cce1; font-size: 11px; }
 .benchmark-divider { height: 1px; margin: 19px 0 13px; background: var(--night-line); }
 .benchmark-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0; }
@@ -203,7 +219,22 @@ h2 span { color: var(--blue); }
 .benchmark-caveat { margin: 18px 0 0; padding-top: 13px; border-top: 1px solid var(--night-line); color: #b4c8de; font-size: 9px; line-height: 1.75; }
 .match-section { display: grid; grid-template-columns: minmax(0, .95fr) minmax(340px, .85fr); align-items: center; gap: clamp(40px, 8vw, 100px); border-top: 1px solid var(--line); }
 .match-section .benchmark-copy h2 { max-width: 580px; }
-.match-score { margin-top: 23px; color: #f1f7ff; font: 700 clamp(48px, 6vw, 66px)/1 Manrope, sans-serif; letter-spacing: -.075em; white-space: nowrap; }
+.match-score {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+  margin-top: 23px;
+  color: #f1f7ff;
+  font: 700 clamp(48px, 6vw, 66px)/1 Manrope, sans-serif;
+}
+.match-score-primary { letter-spacing: -.045em; white-space: nowrap; }
+.match-score-secondary {
+  color: #b8cce1;
+  font: 500 13px/1.4 var(--mono);
+  letter-spacing: 0;
+}
 .match-card { min-width: 0; }
 
 .footer { padding: 34px 0 22px; border-top: 1px solid var(--line); }
@@ -1071,11 +1102,45 @@ img, svg, video, canvas { max-width: 100%; }
 .account-panel-heading > span { color:#64baff; font:10px var(--mono); }
 .account-panel-heading h3 { margin:0; color:#eaf4ff; font:600 13px Manrope,sans-serif; }
 .account-panel-copy { margin:0 0 10px; color:#9db7d1; font:10px/1.7 var(--mono); }
-.account-panel .account-form { gap:8px; }
+.account-panel .account-form { min-width:0; gap:8px; }
 .account-panel .account-form label { color:#d6e7f8; font-size:10px; }
-.account-panel .account-form input { width:100%; min-width:0; min-height:39px; padding:0 10px; border:1px solid #385b7d; border-radius:3px; background:#041326; color:#f1f7ff; font:11px var(--mono); }
+.account-panel .account-form input {
+  display:block;
+  width:100%;
+  min-width:0;
+  min-height:39px;
+  padding:0 10px;
+  border:1px solid #385b7d;
+  border-radius:3px;
+  background:#041326;
+  color:#f1f7ff;
+  font:11px/1.45 var(--mono);
+  letter-spacing:normal;
+  font-variant-ligatures:none;
+  caret-color:#f1f7ff;
+}
 .account-panel .account-form input:disabled { opacity:.45; cursor:not-allowed; }
 .account-panel .account-form .button { min-height:39px; padding:0 12px; font-size:10px; }
+.account-panel .account-form-row {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:8px;
+  min-width:0;
+}
+.account-panel .account-form-row .button { width:100%; }
+.account-panel .account-form input:-webkit-autofill,
+.account-panel .account-form input:-webkit-autofill:hover,
+.account-panel .account-form input:-webkit-autofill:focus,
+.account-panel .account-form input:-webkit-autofill:active,
+.account-panel .account-form input:autofill,
+.account-panel .account-form input.is-autofilled {
+  -webkit-text-fill-color:#f1f7ff;
+  caret-color:#f1f7ff;
+  -webkit-box-shadow:0 0 0 1000px #041326 inset;
+  box-shadow:0 0 0 1000px #041326 inset;
+  border-color:#54789a;
+  transition:background-color 9999s ease-out 0s;
+}
 .password-input-row { display:flex; align-items:stretch; gap:6px; min-width:0; }
 .password-input-row input { flex:1 1 auto; width:100%; min-width:0; }
 .password-visibility-toggle {
@@ -1083,7 +1148,31 @@ img, svg, video, canvas { max-width: 100%; }
   background:#102b47; color:#c9e4ff; font-size:10px; cursor:pointer;
 }
 .password-visibility-toggle:hover { border-color:#67b9f5; background:#173a5e; }
-.account-reset-form { margin-top:15px; padding-top:13px; border-top:1px solid rgba(139,187,230,.18); }
+.account-signin-actions { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+.account-inline-link {
+  min-height:39px;
+  padding:0 3px;
+  border:0;
+  background:transparent;
+  color:#8bcaff;
+  font:600 10px/1.4 var(--mono);
+  text-decoration:underline;
+  text-underline-offset:3px;
+  cursor:pointer;
+}
+.account-inline-link:hover { color:#d7edff; }
+.account-inline-link:focus-visible { outline:2px solid #8bcaff; outline-offset:3px; }
+.name-origin-note {
+  max-width:520px;
+  margin:18px 0 0;
+  padding:12px 14px;
+  border-left:2px solid #8bbce5;
+  background:rgba(24,114,185,.055);
+  color:#60758e;
+  font-size:11px;
+  line-height:1.75;
+}
+.name-origin-note strong { color:#294c70; }
 .account-dialog-footnote { margin:14px 0 0; color:#829fb9; font:9px/1.65 var(--mono); }
 .account-panel[hidden] { display:none !important; }
 .account-status[data-kind="error"] { color:#ffb7bd; }
@@ -1106,8 +1195,11 @@ img, svg, video, canvas { max-width: 100%; }
   .top-cta { padding:9px 9px; font-size:9px; }
   .account-dialog-inner { padding:14px; }
   .account-panel { padding:12px; }
-  .account-panel .account-form-row { flex-direction:column; }
-  .account-panel .account-form-row .button { width:100%; }
+  .account-signin-actions { gap:8px; }
+  .score-number { gap:6px; font-size:clamp(48px,14vw,59px); }
+  .score-secondary { font-size:23px; }
+  .match-score { gap:5px 10px; font-size:clamp(44px,12vw,58px); }
+  .match-score-secondary { font-size:12px; }
 }
 
 .turnstile-widget {
