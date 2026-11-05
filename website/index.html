@@ -48,9 +48,9 @@
           <div class="account-dialog-grid">
             <section id="account-link-panel" class="account-panel">
               <div class="account-panel-heading"><span>01</span><h3>Preserve this guest archive</h3></div>
-              <p class="account-panel-copy">Use the browser profile where your games were played. Verify the owner email here first; your games remain attached to this guest account.</p>
+              <p class="account-panel-copy">Use the browser profile where your games were played and enter the exact email configured as Vercel's PRUNEX_OWNER_EMAIL. Verify it here first; your games remain attached to this guest account.</p>
               <form id="link-account-form" class="account-form">
-                <label for="account-recovery-email">Owner email</label>
+                <label for="account-recovery-email">Owner email (must match PRUNEX_OWNER_EMAIL)</label>
                 <div class="account-form-row">
                   <input id="account-recovery-email" type="email" autocomplete="email" placeholder="you@example.com" required>
                   <button class="button" type="submit">Send verification</button>
