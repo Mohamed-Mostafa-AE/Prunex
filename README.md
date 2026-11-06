@@ -68,7 +68,7 @@ All six source-validation workflows passed on release-candidate commit `4bb43dba
 
 The website workflow also passed after the documentation update to the browser project: [Run 42285430091](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42285430091).
 
-The five commits after `4bb43db`, through documentation head `cd28e5edcece91587516be3d4ffacc0509375681`, change documentation only. A new CodeQL run for that latest documentation-only head is queued; it is not counted as a new pass. These results are CI validation, not production certification. Backup-tool validation is not a data-bearing backup-and-restore test, and manual acceptance on Windows 10/11 client devices remains outstanding.
+Subsequent updates after `4bb43db` have changed documentation only; the native and browser source code has not changed since the validation listed above. The website workflow also passed after the browser documentation update. A fresh CodeQL scan for the latest documentation-only updates is pending. These results are CI validation, not production certification. Backup-tool validation is not a data-bearing backup-and-restore test, and manual acceptance on Windows 10/11 client devices remains outstanding.
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5; supported depths 1–10). See [Testing](docs/testing.md) for methodology and limitations.
 
