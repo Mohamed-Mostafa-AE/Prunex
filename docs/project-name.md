@@ -1,8 +1,8 @@
 # Project name
 
-**Prunex** is a coined project name built around two ideas from the original naming note:
+**Prunex** is a coined name built from two ideas in chess-engine design:
 
-- **PRUN** refers to pruning in game-tree search, particularly alpha–beta pruning.
-- **EX** refers to competitive execution.
+- **PRUN** comes from **alpha–beta PRUNing**, the search technique that eliminates branches that cannot affect the final minimax decision.
+- **EX** represents the **execution of adversarial search**: carrying out the search over candidate moves while accounting for the opponent's possible replies.
 
-This records the founder's stated inspiration for the name. It is not a formal acronym, and no longer expansion is asserted. The engine's use of alpha–beta search is documented separately in the native-engine architecture and source code.
+Together, the name reflects the project's focus on efficient adversarial search and its execution. This is the intended naming inspiration, not a formally standardized acronym.
