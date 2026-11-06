@@ -9,8 +9,7 @@ Keep this README factual: the native engine is handcrafted HCE; NNUE evaluation 
   <p><strong>Student Developer · C++ · Chess-Engine Engineering · Aerospace Engineering</strong></p>
   <p>
     <a href="https://github.com/Mohamed-Mostafa-AE/Prunex">Prunex</a> ·
-    <a href="https://prunex-play.vercel.app/">Prunex Play</a> ·
-    <a href="https://www.linkedin.com/">LinkedIn</a>
+    <a href="https://prunex-play.vercel.app/">Prunex Play</a>
   </p>
 </div>
 
