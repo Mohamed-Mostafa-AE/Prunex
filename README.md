@@ -65,13 +65,9 @@ Run `./build/prunex --bench` for the fixed five-position native search benchmark
 
 **Website:** https://prunex-play.vercel.app/
 
-The browser demo is a separate web experience. It uses Stockfish.js 19 Full (multi-threaded) as its opponent and analysis engine; it does not run the native C++ Prunex engine. The third-party engine and chess-piece artwork retain their own licenses and notices in `website/public/`.
+**Prunex Play** is a separate browser application; it does not execute the native C++ engine. Its opponent and review pipeline use the Stockfish.js 19 Full multi-threaded browser build. The site uses `chess.js` for browser game rules. Third-party browser components retain their own licenses and corresponding-source notices in `website/public/`. Cross-origin isolation enables shared-memory multithreading.
 
-## Browser engine and evaluation
-
-The browser experience is branded **Prunex Play**. It is a separate web application with its own browser-side opponent and review pipeline; it does not execute the native C++ engine. Third-party browser components retain their own license notices and corresponding-source links in the website build. The full browser build uses cross-origin isolation for shared-memory multithreading.
-
-Game Review defaults to a 15-second search budget per non-terminal position. This is a time budget, not a guaranteed depth. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for calibration training, validation, benchmarking, and the separate upstream NNUE-training path.
+Game Review uses a 15-second search budget per non-terminal position. This is a time budget, not a guaranteed search depth. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for calibration, validation and benchmarking details.
 
 ## Known limitations
 
