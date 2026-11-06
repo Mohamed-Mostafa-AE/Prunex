@@ -13,8 +13,8 @@ This review focuses on functional correctness, design, complexity, test quality,
 - Native tests run under GCC, Clang, sanitizers, and Windows x64. A separate WebAssembly target is checked against native results.
 - The Windows interface runs engine search on a background thread and applies completed results on the UI thread. Cancellation and stale-result handling have explicit paths.
 - Browser concerns are already split into focused modules for archive access, account feedback, review metrics, and challenge-token handling.
-- The documentation distinguishes the native engine from the browser experience and preserves the separate licensing obligations for bundled browser components.
-- Public materials do not make a native Elo or comparative match claim without a reproducible result.
+- The documentation now separates the native handcrafted tapered evaluator from the browser's upstream Stockfish NNUE integration, and preserves their distinct licensing boundaries.
+- Public materials do not make a native Elo or comparative-match claim without a reproducible result.
 
 ## Findings
 
@@ -34,7 +34,7 @@ The website entry module is a large controller covering game interaction, review
 
 The desktop smoke test's four depth-increase clicks were outside the plus button's client-coordinate hit area. The test therefore left the engine at its default depth, allowing the search to finish before the temporary thinking state could be observed.
 
-**Correction:** the clicks now target the centre of the visible plus button. The Windows workflow must pass again on this updated commit before the interaction path is described as verified.
+**Correction:** the clicks now target the centre of the visible plus button. The updated Windows x64 workflow passed on pull-request head `6fe61051538f2122191cba67e79921a8ba67ee06`, including the GUI startup, legal move, engine reply, undo, search cancellation, board flip, and clean shutdown path.
 
 ### Merge protection
 
