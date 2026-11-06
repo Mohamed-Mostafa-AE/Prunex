@@ -1,6 +1,6 @@
 # Prunex Windows 10/11 acceptance record
 
-The automated Windows x64 workflow verifies compilation, CTest, executable architecture and UCI startup. It does not test interactive desktop rendering or human input. Complete this record on a physical or virtual Windows 10/11 desktop.
+The automated Windows x64 workflow verifies compilation, CTest, executable architecture, UCI startup, and a basic GUI launch/responsiveness/clean-shutdown smoke test. It does not verify human move input, promotion, board rendering at multiple DPI settings, or sustained search interaction. Those checks remain a hands-on Windows 10/11 acceptance task.
 
 ## Tested Windows x64 build available now
 
@@ -38,9 +38,10 @@ The artifact is currently scheduled to expire on **5 December 2026**. Download i
 - [ ] Check, checkmate, stalemate, and draw states render correctly.
 - [ ] Engine search starts, returns a move, and can be cancelled.
 - [ ] The window remains responsive at search depths 1, 4, and 8.
-- [ ] Resize, maximize, minimize, restore, and full-screen transitions work.
+- [ ] The fixed-size window fits the tested display without clipping; record the display resolution and scaling.
 - [ ] Board flip does not break square selection or move input.
 - [ ] Close during an active search exits cleanly; no orphaned engine process remains.
+- [ ] Start a new game during an active search; the previous search result does not modify the new game.
 - [ ] Repeated launch/close cycles do not leave stale processes or corrupt settings.
 
 ## Results
