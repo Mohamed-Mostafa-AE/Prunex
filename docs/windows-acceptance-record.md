@@ -1,6 +1,6 @@
 # Prunex Windows 10/11 acceptance record
 
-The automated Windows x64 workflow verifies compilation, CTest, executable architecture, UCI startup, and a basic GUI launch/responsiveness/clean-shutdown smoke test. It does not verify human move input, promotion, board rendering at multiple DPI settings, or sustained search interaction. Those checks remain a hands-on Windows 10/11 acceptance task.
+The automated Windows x64 workflow verifies compilation, CTest, executable architecture, UCI startup, and desktop interaction through the window message loop. The GUI smoke test plays e2-e4, waits for the engine reply, checks paired Undo, starts another search and cancels it with New Game, flips the board, and verifies clean shutdown. Human acceptance is still required for visual rendering at multiple DPI settings, promotion choices, sustained search responsiveness, and real mouse/touchpad input.
 
 ## Tested Windows x64 build available now
 
@@ -25,23 +25,24 @@ The artifact expires on **6 December 2026 at 13:57 UTC**. CI verifies x64 PE exe
 
 ## Acceptance checks
 
-- [ ] Release executable launches without missing-DLL or SmartScreen/runtime error.
+Automated in the latest Windows x64 workflow:
+- [x] Release executable launches and creates a responsive top-level window.
+- [x] A legal e2-e4 move is accepted through the GUI message loop.
+- [x] The engine returns a reply and the title reports the expected two plies.
+- [x] Undo restores the starting position after a human/engine pair.
+- [x] New Game cancels an active search and restores the starting position.
+- [x] Board flip remains responsive.
+- [x] Normal window close exits without leaving the process running.
+
+Manual Windows 10/11 acceptance:
+- [ ] Record Windows edition/build, display resolution, and scaling.
 - [ ] Board, coordinates, controls, and status render at 100% and 150% display scaling.
 - [ ] Board fits a 1366×768 window and a 1920×1080 display without clipping.
-- [ ] New game and side-to-move state work.
-- [ ] Legal moves are accepted and illegal moves are rejected without corrupting position.
-- [ ] Undo works after a human-only move.
-- [ ] Undo restores both half-moves after a human/engine pair.
-- [ ] Redo/review navigation works where available.
-- [ ] Pawn promotion works for all four promotion pieces.
-- [ ] Check, checkmate, stalemate, and draw states render correctly.
-- [ ] Engine search starts, returns a move, and can be cancelled.
-- [ ] The window remains responsive at search depths 1, 4, and 8.
-- [ ] The fixed-size window fits the tested display without clipping; record the display resolution and scaling.
-- [ ] Board flip does not break square selection or move input.
-- [ ] Close during an active search exits cleanly; no orphaned engine process remains.
-- [ ] Start a new game during an active search; the previous search result does not modify the new game.
-- [ ] Repeated launch/close cycles do not leave stale processes or corrupt settings.
+- [ ] Test with a physical mouse or touchpad and confirm square selection is reliable.
+- [ ] Try all four pawn-promotion choices; the current GUI's default promotion behavior should be checked explicitly.
+- [ ] Check checkmate, stalemate, and draw states visually.
+- [ ] Observe responsiveness during sustained search at depths 1, 4, and 8.
+- [ ] Repeat launch/close cycles on the target machine and check for stale processes or damaged settings.
 
 ## Results
 
