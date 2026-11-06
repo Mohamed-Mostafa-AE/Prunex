@@ -1,21 +1,19 @@
 # Prunex 0.8.0 — LinkedIn announcement
 
-## Post copy
+## Post
 
 I’m sharing **Prunex 0.8.0**, a C++20 chess-engine project I’ve been building.
 
 The native engine implements its own board representation, legal move generation, iterative-deepening alpha–beta search, position evaluation, and UCI interface. The project also includes a Windows desktop application and a separate browser experience for playing and reviewing games.
 
-The 46-case regression suite passes on GCC, Clang, AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows GUI smoke test also completes a legal move, engine reply, paired undo, search cancellation, board flip, and clean shutdown. Browser tests, WebAssembly parity, and both CodeQL analyses pass as well.
-
-I’m continuing to improve search and evaluation, with an emphasis on reproducible testing and measurable progress.
+The 46-case native regression suite passes on GCC, Clang, AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows workflow also exercises move input, an engine reply, undo, search cancellation, board flip, and clean shutdown. Browser tests, WebAssembly parity, and CodeQL checks pass on the current release-candidate commit.
 
 **Project and source:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
-**Validation evidence:** [Native tests and sanitizers](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005141) · [Windows build and GUI test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005114) · [Windows binary artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005114/artifacts/13520266801) · [Website and Playwright](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005146) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005158) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005205)
+**Validation evidence:** [Native and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559531) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559544) · [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559692) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559596) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559539)
 
-#Cplusplus #ChessProgramming #SoftwareEngineering #SystemsProgramming
+#Cplusplus #ChessProgramming #SoftwareEngineering
 
-## Image notes
+## Image guidance
 
-The two supplied 1200 × 675 images are captures from the latest responsive website review: one shows the Prunex website overview and the other shows the browser chess experience. They are product visuals, not benchmark results or screenshots of the native Windows application.
+Attach the two supplied 1200 × 675 product captures to the post: the website overview and the native-engine architecture section. They were captured by the website review workflow for commit `20973e346c8d78e852f65aca256ecc6f17dc1a1b`. They illustrate the project; they are not benchmark results or screenshots of the native Windows application.
