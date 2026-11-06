@@ -4,14 +4,14 @@ The automated Windows x64 workflow verifies compilation, CTest, executable archi
 
 ## Tested Windows x64 build available now
 
-The latest passing Windows workflow is [run #42229642503](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642503). Download its artifact [`Prunex-Windows-x64`](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642503/artifacts/13506873704). It contains:
+The latest passing Windows workflow is [run #42232100449](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232100449). Download its artifact [`Prunex-Windows-x64`](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232100449/artifacts/13510101375). It contains:
 
-- `Release/Prunex.exe` — GUI executable, 93,696 bytes, SHA-256 `9115CBBBE8F8957C4448277C1659904450F5C560B8B3C3A902754DB7000307D4`
-- `Release/prunex-cli.exe` — CLI engine, 94,208 bytes, SHA-256 `44188A25C93B7070CCE1EBE632A51E8C2C42F2D98E806A65B8FE68F1A2E9A721`
-- `windows-build-manifest.json` — commit `2ff47018cd45f9fcfeafe9c492c55fd8e88855e4`, Visual Studio 2022, Release, x64.
+- `Release/Prunex.exe` — GUI executable, 96,768 bytes, SHA-256 `0DD2077D09D9EE309E096DEE35B9D9F98596C69F0D42FB6FA977548B956879A1`
+- `Release/prunex-cli.exe` — CLI engine, 94,208 bytes, SHA-256 `09A7B1901E8A9818C8E3A4F7D70A631BEE2B9E724A30A61602E3E492BF401919`
+- `windows-build-manifest.json` — Visual Studio 2022, Release, x64; commit `eb1ea467427f769af42ba088e99f20c9c2619617`.
 - `Testing/Temporary/LastTest.log` — CTest output (46/46 passed).
 
-The artifact expires on **6 December 2026 at 13:57 UTC**. CI verifies x64 PE executables, all native tests, UCI startup, and a basic GUI launch/responsiveness/clean-shutdown smoke test. Manual move input, promotion, DPI, and sustained-search acceptance remains separate.
+The artifact expires on **6 December 2026 at 14:14 UTC**. CI also verified a legal e2-e4 input, engine reply, paired undo, depth-8 search cancellation through New Game, board flip responsiveness, and normal shutdown. The remaining manual acceptance is visual rendering at 100%/150% scaling, screen fit, all promotion choices, physical pointing-device input, and sustained-search responsiveness.
 ## Environment
 
 - Date/time:
@@ -25,12 +25,12 @@ The artifact expires on **6 December 2026 at 13:57 UTC**. CI verifies x64 PE exe
 
 ## Acceptance checks
 
-Automated in the latest Windows x64 workflow:
+Automated in Windows CI run #42232100449:
 - [x] Release executable launches and creates a responsive top-level window.
 - [x] A legal e2-e4 move is accepted through the GUI message loop.
-- [x] The engine returns a reply and the title reports the expected two plies.
+- [x] The engine returns a reply and the window title reports two plies.
 - [x] Undo restores the starting position after a human/engine pair.
-- [x] New Game cancels an active search and restores the starting position.
+- [x] A depth-8 search starts; New Game cancels it and restores the starting position.
 - [x] Board flip remains responsive.
 - [x] Normal window close exits without leaving the process running.
 
@@ -39,7 +39,7 @@ Manual Windows 10/11 acceptance:
 - [ ] Board, coordinates, controls, and status render at 100% and 150% display scaling.
 - [ ] Board fits a 1366×768 window and a 1920×1080 display without clipping.
 - [ ] Test with a physical mouse or touchpad and confirm square selection is reliable.
-- [ ] Try all four pawn-promotion choices; the current GUI's default promotion behavior should be checked explicitly.
+- [ ] Test all four promotion choices.
 - [ ] Check checkmate, stalemate, and draw states visually.
 - [ ] Observe responsiveness during sustained search at depths 1, 4, and 8.
 - [ ] Repeat launch/close cycles on the target machine and check for stale processes or damaged settings.
