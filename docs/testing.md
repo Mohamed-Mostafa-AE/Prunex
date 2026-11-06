@@ -30,7 +30,7 @@ All six source-validation workflows passed for pull-request head `4bb43dbacb7a8c
 
 The website workflow also passed after the documentation update to the browser project: [Run 42285430091](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42285430091).
 
-Subsequent commits after `4bb43db` change documentation only; the native and browser source code has not changed since the source-validation head. A fresh CodeQL scan for the latest documentation-only updates is pending. Backup-tool validation checks the workflow and tooling; it is not evidence of a successful data-bearing backup or restore.
+The 13 commits after `4bb43db` on the current PR branch change documentation only; the native and browser source code has not changed since the source-validation head. CodeQL also passed on the latest documentation branch head `6defec6b744fb02bef172e447e45e38a928c6118`, with no new alerts in the changed files: [latest CodeQL run](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42291135246). Backup-tool validation checks the workflow and tooling; it is not evidence of a successful data-bearing backup or restore.
 
 ## Browser and account tests
 
