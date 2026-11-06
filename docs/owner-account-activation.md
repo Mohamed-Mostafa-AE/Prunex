@@ -1,39 +1,46 @@
-# Guest archive linking and migration
+# Legacy archive ownership and migration
 
-## Purpose
+## Identity model
 
-Prunex supports browser guest sessions so games can be saved before a player creates a recoverable sign-in identity. A guest archive belongs to the Supabase user ID created in that browser session. It cannot be identified reliably from the player's name, email address, or the number of saved games.
+A Prunex cloud archive belongs to the Supabase Auth user ID that created its records. The player's email address, display name, record count, or browser hostname is not a substitute for that identity.
 
-## Preserve the existing identity
+Guest sessions are valid Auth identities. Games and reviews are scoped to the authenticated user's ID by row-level security. Email linking must update the current guest identity; it must not create a replacement account and then attempt to infer or merge ownership.
 
-The email-linking flow must start in the browser profile that contains the intended games:
+## Guest-to-password conversion
 
-1. Open the Prunex review site in the original browser profile.
-2. Open **Account & password** from the top bar.
-3. Confirm that the visible archive is the intended archive.
-4. Enter the email authorised for private archive access and request verification.
-5. Complete the email confirmation in the same browser profile.
-6. Return to Prunex and set a password after the email is confirmed.
-7. Confirm that the original games remain visible before closing the browser or changing accounts.
+The supported identity transition is:
 
-The flow calls `supabase.auth.updateUser({ email })` on the current anonymous identity. Supabase requires the email to be verified before a password can be added. Supabase may continue reporting `is_anonymous: true` between email verification and password creation; adding the password completes conversion of that same user identity. The user ID must remain unchanged.
+1. Start with the existing anonymous Auth session that owns the intended archive.
+2. Enable manual identity linking in the hosted Supabase Auth configuration.
+3. Update the email on that same session using `supabase.auth.updateUser({ email })`.
+4. Complete the provider confirmation flow in the browser session that initiated the request.
+5. After the email is confirmed, set the password on the current session with `supabase.auth.updateUser({ password })`.
 
-Do not clear site data, sign out, or sign into a different account before the guest archive has been linked. Signing into an existing account does not merge another guest archive.
+Supabase can continue reporting `is_anonymous: true` after email confirmation and before password creation. The confirmed email makes the existing session eligible for password setup; setting the password completes the conversion. The Auth user ID must remain unchanged throughout.
 
-## Owner-scoped import checks
+Signing in to an unrelated account does not move, merge, or recover a separate guest archive. Browser-local IndexedDB data is independent of the cloud archive and must not be removed as part of an identity-linking operation.
 
-The server must verify all of the following before importing legacy rows:
+## Import authorization
 
-- the Supabase access token is valid;
-- the email is confirmed;
-- the verified email matches the server-only `PRUNEX_OWNER_EMAIL` allowlist;
-- the import is scoped to the authenticated Supabase user ID;
-- migration state makes retries idempotent.
+The server must verify every condition before importing legacy rows:
 
-Games, reviews and private position-memory rows are imported only for that user ID. Other guest IDs must not be merged, reassigned, or deleted.
+- The supplied Supabase access token is valid.
+- The authenticated email is confirmed.
+- The confirmed email matches the server-only `PRUNEX_OWNER_EMAIL` allowlist.
+- The source records are filtered by the exact authenticated Supabase user ID.
+- The import operation is idempotent and records source counts in migration state.
+- No other guest identity is reassigned, combined, or deleted.
 
-After import, compare source and destination counts for that user, verify the migration-state record, repeat the import to confirm idempotency, and test archive list/review access. Keep an audit record of the verified source identity and migration outcome without recording access tokens or session secrets.
+The source and destination count checks must include games, reviews, and position-memory records. A successful import is not established by an HTTP success response alone; it requires exact counts, review/game foreign-key integrity, owner scoping, and a retry that does not duplicate rows.
 
-## Security
+## Current source and destination state
 
-Never request or store email magic-link URLs, access tokens, refresh tokens, session cookies, browser storage exports, or passwords in issue comments, pull requests, screenshots or repository files. Passwords are sent to Supabase Auth over HTTPS and are not part of game records.
+On 6 November 2026, the source Supabase project contained 35 games and 3 reviews across five anonymous identities. A separate confirmed email identity had no games or reviews. The intended archive identity was therefore unresolved and no owner migration was performed.
+
+Neon contained a checksummed recovery snapshot of the source counts, but its active archive tables contained no imported games or reviews at the time of inspection. This snapshot is not a substitute for a verified owner identity or a data-bearing database backup.
+
+## Security requirements
+
+Never place access tokens, refresh tokens, session cookies, magic-link URLs, passwords, browser-storage exports, or private recovery keys in repository files, screenshots, issues, or pull requests.
+
+Keep identity verification, import authorization, and migration audit records server-side. Do not log session secrets or infer ownership from anonymous-account counts.
