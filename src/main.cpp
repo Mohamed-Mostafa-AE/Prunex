@@ -406,8 +406,10 @@ int evaluate(const Position& p) {
         int king=kingSquare(p,color);
         if(king>=0&&(color==WHITE?rankOf(king)<=2:rankOf(king)>=5)) {
             const int enemy=1-color;
-            const int enemyHeavy=std::count(p.board.begin(),p.board.end(),makePiece(4,enemy))
-                               +std::count(p.board.begin(),p.board.end(),makePiece(5,enemy));
+            // The board has 128 slots, so this count safely fits in int.
+            const int enemyHeavy=static_cast<int>(
+                std::count(p.board.begin(),p.board.end(),makePiece(4,enemy))
+                +std::count(p.board.begin(),p.board.end(),makePiece(5,enemy)));
             if(enemyHeavy>0) {
                 const int shieldRank=rankOf(king)+(color==WHITE?1:-1);
                 for(int shieldFile=std::max(0,fileOf(king)-1);shieldFile<=std::min(7,fileOf(king)+1);++shieldFile) {
