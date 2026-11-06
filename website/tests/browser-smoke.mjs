@@ -146,6 +146,9 @@ try {
       { name: "ADDRESS_HOME_COUNTRY", value: "EG" }
     ]
   };
+  // The CI build intentionally has no live account provider, so enable the
+  // form control as a configured-session fixture before asking Chromium to fill it.
+  await ownerEmail.evaluate(element => { element.disabled = false; });
   const autofillCdp = await page.context().newCDPSession(page);
   await autofillCdp.send("Autofill.enable");
   await autofillCdp.send("Autofill.setAddresses", { addresses: [autofillAddress] });
