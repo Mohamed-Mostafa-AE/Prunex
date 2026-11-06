@@ -5,6 +5,7 @@ Prunex native-engine implementation and native regression tests:
 
 - `src/main.cpp`
 - `src/gui.cpp`
+- `src/wasm_api.cpp` (the WebAssembly API compiled from the native engine implementation)
 - `tests/**`
 - the root `CMakeLists.txt`
 
