@@ -307,19 +307,13 @@ try {
   if ((await page.locator(".architecture-header").innerText()).includes("0.5.1")) throw new Error("Stale Prunex 0.5.1 version remains in architecture card.");
   if (!(await page.locator("#testing .benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
-  const benchmarkTeaser = await page.locator(".benchmark-teaser").innerText();
-  if (!benchmarkTeaser.includes("62–2–0") ||
-      !benchmarkTeaser.includes("Stockfish 2.0") ||
-      !benchmarkTeaser.includes("Stockfish 19-derived") ||
-      !benchmarkTeaser.includes("This is not a result for the independent native C++20 engine.")) {
-    throw new Error("The hero must disclose the historical Stockfish 2.0 result and its Stockfish-derived build lineage.");
+  if (await page.locator(".benchmark-teaser, #stockfish2-evidence").count() !== 0) {
+    throw new Error("Withdrawn historical match claims must not appear as Prunex product results.");
   }
-  const benchmarkEvidenceHref = await page.locator(".benchmark-teaser a").getAttribute("href");
-  if (!benchmarkEvidenceHref?.includes("docs/stockfish-2-comparison.md")) {
-    throw new Error("The hero benchmark citation must link to the GitHub evidence record.");
-  }
-  if (!(await page.locator("#stockfish2-evidence .stockfish-evidence-card").count())) {
-    throw new Error("The full Stockfish 2.0 evidence section is missing.");
+  const nameOrigin = await page.locator("#about .name-origin-note").innerText();
+  if (!nameOrigin.includes("PRUN") || !nameOrigin.includes("alpha–beta pruning") ||
+      !nameOrigin.includes("competitive execution") || !nameOrigin.includes("not documented")) {
+    throw new Error("The project-name note must distinguish the founder's recollection from an unverified expansion.");
   }
   const testingCopy = await page.locator("#testing").innerText();
   const standardsCopy = await page.locator("#analysis-standards").innerText();
@@ -1148,85 +1142,8 @@ try {
     await touchContext.close();
   }
 
-  // The historical Stockfish evidence must remain visible, qualified, and linked.
-  const stockfishEvidence = page.locator("#stockfish2-evidence");
-  if (await stockfishEvidence.count() !== 1) {
-    throw new Error("The historical Stockfish 2.0 evidence section is missing.");
-  }
-  const stockfishEvidenceCopy = await stockfishEvidence.innerText();
-  for (const expected of [
-    "62–2–0", "98.44%", "100,000 nodes per move", "128 MB hash",
-    "Stockfish 19-derived", "not the independently implemented native C++20 Prunex engine"
-  ]) {
-    if (!stockfishEvidenceCopy.includes(expected)) {
-      throw new Error("Stockfish evidence disclosure is missing: " + expected);
-    }
-  }
-  for (const href of [
-    "https://github.com/Mohamed-Mostafa-AE/Prunex/blob/feature/prunex-evaluation-intelligence/docs/stockfish-2-comparison.md",
-    "https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143",
-    "https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/41253517143/artifacts/13061744082"
-  ]) {
-    if (await stockfishEvidence.locator('a[href="' + href + '"]').count() !== 1) {
-      throw new Error("A primary benchmark evidence link is missing: " + href);
-    }
-  }
-  await stockfishEvidence.scrollIntoViewIfNeeded();
-  await page.waitForFunction(() =>
-    document.querySelector("#stockfish2-evidence .benchmark-card")?.classList.contains("is-visible") &&
-    document.querySelector("#stockfish2-evidence .benchmark-copy")?.classList.contains("is-visible")
-  , undefined, { timeout: 10000 });
-  // The section reveal lasts 1.05s; capture only after the actual fade has settled.
-  await page.waitForTimeout(1500);
-  await stockfishEvidence.screenshot({ path: "artifacts/stockfish2-evidence-desktop.png" });
-
-  // Capture the same real page section at a narrow phone viewport for review.
-  const evidenceMobileContext = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    deviceScaleFactor: 2,
-    isMobile: true,
-    hasTouch: true
-  });
-  try {
-    const evidenceMobilePage = await evidenceMobileContext.newPage();
-    await evidenceMobilePage.goto(baseUrl, { waitUntil: "networkidle" });
-    await evidenceMobilePage.waitForFunction(() => {
-      const heading = document.querySelector("#home .hero-copy h1");
-      if (!heading || heading.classList.contains("reveal-on-scroll")) return false;
-      const style = getComputedStyle(heading);
-      const rect = heading.getBoundingClientRect();
-      return style.visibility !== "hidden" && Number(style.opacity) > 0.95 &&
-        rect.height > 0 && rect.width > 0;
-    }, undefined, { timeout: 15000 });
-    const mobileEvidence = evidenceMobilePage.locator("#stockfish2-evidence");
-    const mobileEvidenceCard = mobileEvidence.locator(".benchmark-card");
-    const mobileEvidenceCopyBlock = mobileEvidence.locator(".benchmark-copy");
-    await mobileEvidenceCard.scrollIntoViewIfNeeded();
-    await mobileEvidenceCopyBlock.scrollIntoViewIfNeeded();
-    await evidenceMobilePage.waitForFunction(() =>
-      document.querySelector("#stockfish2-evidence .benchmark-card")?.classList.contains("is-visible") &&
-      document.querySelector("#stockfish2-evidence .benchmark-copy")?.classList.contains("is-visible")
-    , undefined, { timeout: 15000 });
-    await evidenceMobilePage.waitForTimeout(1500);
-    const mobileEvidenceCopy = await mobileEvidence.innerText();
-    if (!mobileEvidenceCopy.includes("62–2–0") || !mobileEvidenceCopy.includes("Stockfish 19-derived")) {
-      throw new Error("Mobile benchmark evidence lost its score or provenance disclosure.");
-    }
-    // Locator screenshots crop to the section while sticky headers remain viewport-fixed.
-    // Temporarily hide the header only for this evidence image; restore it immediately after.
-    const mobileTopbar = evidenceMobilePage.locator(".topbar");
-    await mobileTopbar.evaluate(element => { element.dataset.screenshotVisibility = element.style.visibility; element.style.visibility = "hidden"; });
-    try {
-      await mobileEvidence.screenshot({ path: "artifacts/stockfish2-evidence-phone.png" });
-    } finally {
-      await mobileTopbar.evaluate(element => { element.style.visibility = element.dataset.screenshotVisibility || ""; delete element.dataset.screenshotVisibility; });
-    }
-  } finally {
-    await evidenceMobileContext.close();
-  }
-
   if (failures.length) throw new Error(failures.join("\\n"));
-  console.log("PASS: engine/game interactions, responsive layout, account dialog, password reveal, no per-game deletion, visible hero headline, and qualified Stockfish 2.0 evidence.");
+  console.log("PASS: engine/game interactions, responsive layout, account dialog, password reveal, no per-game deletion, visible hero headline, and verified project-name note.");
 } finally {
   await browser.close();
 }
