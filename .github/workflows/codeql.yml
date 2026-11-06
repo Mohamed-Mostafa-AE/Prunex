@@ -46,7 +46,7 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
-          upload: never
+          post-processed-sarif-path: results
       - name: Summarize high-severity findings
         if: always()
         shell: bash
@@ -54,11 +54,10 @@ jobs:
           python3 - <<'PY'
           import glob
           import json
-          import os
 
           sarif_files = sorted(glob.glob("results/*.sarif"))
           if not sarif_files:
-              print("No SARIF files remain after upload; inspect the CodeQL security tab for findings.")
+              print("CodeQL did not save a processed SARIF file for this language.")
               raise SystemExit(0)
 
           count = 0
@@ -99,9 +98,3 @@ jobs:
                           print(f"HIGH {rule_id}: {uri}:{line}")
           print(f"High-severity SARIF findings: {count}")
           PY
-      - name: Upload CodeQL results
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: results
-          category: /language:${{ matrix.language }}
