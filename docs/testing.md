@@ -2,14 +2,15 @@
 
 ## Native engine regression tests
 
-The current Prunex 0.8.0 CTest suite contains 46 cases, including the native benchmark smoke test. The Linux figures below are historical runs of the earlier 44-case suite; the latest Windows x64 workflow on 6 November 2026 passed all 46 current cases.
+The current Prunex 0.8.0 CTest suite contains 46 cases, including the native benchmark smoke test. On 6 November 2026, CI passed all 46 cases in GCC 14.2 Release, Clang 17 Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 builds.
 
 | Build | Recorded result |
 |---|---:|
-| GCC 14.2.0 Release | 44/44 passed |
-| Clang 17 Release | 44/44 passed |
-| GCC Debug with AddressSanitizer and UndefinedBehaviorSanitizer | 44/44 passed |
-| GCC static analysis | Completed without diagnostics |
+| GCC 14.2 Release | 46/46 passed |
+| Clang 17 Release | 46/46 passed |
+| GCC Debug with AddressSanitizer and UndefinedBehaviorSanitizer | 46/46 passed |
+| Windows x64 | 46/46 passed |
+| GCC static analysis | Earlier 44-case run completed without diagnostics |
 
 The sanitizer run used leak detection. These results cover the native C++ engine; they do not replace a manual run of the Windows desktop application.
 
