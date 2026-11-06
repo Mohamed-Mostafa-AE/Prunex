@@ -34,7 +34,7 @@ The website entry module is a large controller covering game interaction, review
 
 The desktop smoke test's four depth-increase clicks were outside the plus button's client-coordinate hit area. The test therefore left the engine at its default depth, allowing the search to finish before the temporary thinking state could be observed.
 
-**Correction:** the clicks now target the centre of the visible plus button. The updated Windows x64 workflow passed on pull-request head `6fe61051538f2122191cba67e79921a8ba67ee06`, including the GUI startup, legal move, engine reply, undo, search cancellation, board flip, and clean shutdown path.
+**Correction:** the clicks now target the centre of the visible plus button. The updated Windows x64 workflow passed again on source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`, including the GUI startup, legal move, engine reply, undo, search cancellation, board flip, and clean shutdown path.
 
 ### Merge protection
 
