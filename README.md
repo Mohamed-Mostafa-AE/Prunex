@@ -16,7 +16,7 @@ Prunex is an independently developed chess-engine project. Its native engine is 
 | `src/gui.cpp` | Windows desktop interface |
 | `tests/` | Native engine regression tests |
 | `website/` | Vite website and browser chess demo |
-| `docs/` | Development notes, recorded test results, and Windows test checklist |
+| `docs/` | Architecture, test methodology, operations, and release records |
 | `.github/workflows/` | Automated build and website checks |
 
 ## Native engine
@@ -57,9 +57,16 @@ ctest --test-dir build --output-on-failure
 
 ## Tests
 
-The CTest suite contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. The Windows runner also completed the desktop interaction smoke test. These are recorded results, not a claim that every platform or Windows 10/11 client-device behaviour has been fully tested.
+The CTest suite contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. The Windows runner also completed the desktop interaction smoke test. These are recorded CI results, not a claim that every platform or Windows 10/11 client-device behaviour has been tested.
 
-Latest validation for commit `4591190f6eea8ab01470ced2913986277dbb78d5`: [website and Playwright](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005146), [native compiler and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005141), [Windows x64 and desktop interaction smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005114), [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005158), [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005205), and [backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005120).
+Latest validation for commit `20973e346c8d78e852f65aca256ecc6f17dc1a1b`:
+
+- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559692)
+- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559531)
+- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559544)
+- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559596)
+- [CodeQL C/C++ and JavaScript/TypeScript analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559539)
+- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559677)
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 
@@ -82,14 +89,14 @@ Game Review uses a 15-second search budget per non-terminal position. This is a 
 - [Development notes](docs/development-notes.md)
 - [Project-name origin](docs/project-name.md)
 - [Engineering review](docs/engineering-review.md)
-- [LinkedIn announcement and project images](docs/linkedin-announcement.md)
+- [LinkedIn announcement](docs/linkedin-announcement.md)
 - [Test results and benchmark methodology](docs/testing.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Windows desktop checklist](docs/windows-desktop-checklist.md)
 - [Training-data sourcing and ingestion policy](docs/training-data-ingestion.md)
 - [Website implementation notes](website/README.md)
-- [Production readiness and release checklist](docs/production-readiness.md)
+- [Production readiness and release status](docs/production-readiness.md)
 
 ## Licensing
 
