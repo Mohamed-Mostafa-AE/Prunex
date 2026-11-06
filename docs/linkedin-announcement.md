@@ -16,4 +16,4 @@ The 46-case native regression suite passes on GCC, Clang, AddressSanitizer/Undef
 
 ## Image guidance
 
-Attach the two supplied 1200 × 675 product captures to the post: the website overview and the native-engine architecture section. They were captured by the website review workflow for commit `20973e346c8d78e852f65aca256ecc6f17dc1a1b`. They illustrate the project; they are not benchmark results or screenshots of the native Windows application.
+Use the two 1200 × 675 product captures prepared with the announcement: the website overview and the native-engine architecture section. They show the interface and documented architecture; they are not benchmark results or screenshots of the native Windows application.
