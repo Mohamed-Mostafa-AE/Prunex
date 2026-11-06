@@ -61,12 +61,18 @@ int squareAt(int x, int y) {
 void setStatus() {
     if (thinking) {
         status = L"Prunex is thinking...";
-        return;
+    } else {
+        const auto moves = legalMoves(position);
+        if (moves.empty()) status = inCheck(position, position.side) ? L"Checkmate" : L"Draw by stalemate";
+        else if (inCheck(position, position.side)) status = position.side == WHITE ? L"White is in check" : L"Black is in check";
+        else status = position.side == WHITE ? L"White to move" : L"Black to move";
     }
-    auto moves = legalMoves(position);
-    if (moves.empty()) status = inCheck(position, position.side) ? L"Checkmate" : L"Draw by stalemate";
-    else if (inCheck(position, position.side)) status = position.side == WHITE ? L"White is in check" : L"Black is in check";
-    else status = position.side == WHITE ? L"White to move" : L"Black to move";
+
+    if (windowHandle) {
+        const std::wstring title = L"Prunex Chess | " + status +
+            L" | " + std::to_wstring(history.size()) + L" plies";
+        SetWindowTextW(windowHandle, title.c_str());
+    }
 }
 void text(HDC dc, int x, int y, const std::wstring& value, COLORREF color, HFONT font = nullptr) {
     SetTextColor(dc, color);
