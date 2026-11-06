@@ -2,7 +2,7 @@
 
 ## Project name
 
-**Prunex** is the project's name; the available source history does not record a verified acronym expansion. The engine implements alpha–beta pruning, but that alone does not establish that `PRUN` is an expansion of the name, and no documented meaning for `EX` was found. The project therefore uses **Prunex** as a proper name rather than publishing an unverified expansion.
+The name **Prunex** brings together two ideas from the project's naming origin: **PRUN**, referring to alpha–beta pruning, and **EX**, referring to competitive execution. This records the intended inspiration behind the name; it is not a formal acronym or a separate technical specification.
 
 Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
 
@@ -69,7 +69,7 @@ The browser demo is a separate web experience. It uses Stockfish.js 19 Full (mul
 
 ## Browser engine and evaluation
 
-The browser experience is branded **Prunex Play** and uses **Stockfish.js 19 Full (multi-threaded)** as its underlying UCI engine. The Prunex-owned layer handles browser integration, review orchestration, expected-points interpretation, move classifications, and the Prunex Apex criteria. It does not claim the upstream engine or NNUE network as original Prunex code. GPLv3 attribution, license, and corresponding-source information are retained in the website build. The full browser build is approximately 94 MB and uses cross-origin isolation to enable shared-memory multithreading.
+The browser experience is branded **Prunex Play**. It is a separate web application with its own browser-side opponent and review pipeline; it does not execute the native C++ engine. Third-party browser components retain their own license notices and corresponding-source links in the website build. The full browser build uses cross-origin isolation for shared-memory multithreading.
 
 Game Review defaults to a 15-second search budget per non-terminal position. This is a time budget, not a guaranteed depth. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for calibration training, validation, benchmarking, and the separate upstream NNUE-training path.
 
@@ -78,11 +78,12 @@ Game Review defaults to a 15-second search budget per non-terminal position. Thi
 - The Windows desktop application still needs a complete manual run-through on Windows 10 or 11. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
 - The Windows desktop application runs engine searches on a background thread and applies completed results on the UI thread. Search cancellation and shutdown paths are implemented; interactive Windows 10/11 acceptance is still required for rendering, input, resizing and lifecycle behavior.
 - No independent Elo rating has been established for the native C++ engine.
-- The archived historical Stockfish 2.0 match belongs to a separately identified Stockfish 19-derived Prunex 0.8.0 test executable, not the independent native C++20 engine: 62 wins, 2 draws and 0 losses in 64 games (98.44%) at 100,000 nodes per move. The raw PGN and run artifact are linked in [the evidence record](docs/stockfish-2-comparison.md). The separate 1M-node 63–1–0 result is owner-reported and not independently audited from raw games. No native C++ Prunex Elo rating is claimed.
+- No independently measured Elo rating has been established for the native C++20 engine. Strength claims require a separate, reproducible match series with balanced colours, fixed conditions, retained game records and independently checked results.
 
 ## Project documentation
 
 - [Development notes](docs/development-notes.md)
+- [Project-name origin](docs/project-name.md)
 - [Test results and benchmark methodology](docs/testing.md)
 - [Windows desktop checklist](docs/windows-desktop-checklist.md)
 - [Training-data sourcing and ingestion policy](docs/training-data-ingestion.md)
