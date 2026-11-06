@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
@@ -45,7 +45,7 @@ jobs:
           cmake -S . -B build/native -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
           cmake --build build/native --target prunex_parity_reference --parallel 2
       - name: Set up pinned Emscripten SDK
-        uses: emscripten-core/setup-emsdk@v16
+        uses: emscripten-core/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
         with:
           version: '6.0.13'
       - name: Verify toolchain
@@ -61,7 +61,7 @@ jobs:
           test -s build/wasm/prunex-wasm.js
           test -s build/wasm/prunex-wasm.wasm
       - name: Upload native WebAssembly build
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: Prunex-0.8.0-WebAssembly
           path: |

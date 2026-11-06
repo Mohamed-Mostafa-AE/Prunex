@@ -88,7 +88,7 @@ jobs:
           echo "Backup encrypted successfully. Plaintext dump removed."
 
       - name: Upload encrypted backup (90-day retention)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: prunex-neon-backup-${{ github.run_id }}
           path: ${{ runner.temp }}/prunex-backup/*
