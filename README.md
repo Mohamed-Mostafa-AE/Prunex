@@ -204,6 +204,7 @@ This is the intended naming inspiration, not a formally standardized acronym. Se
 - [Training-data ingestion](docs/training-data-ingestion.md)
 - [Windows desktop acceptance checklist](docs/windows-desktop-checklist.md)
 - [Production readiness and release status](docs/production-readiness.md)
+- [Finalization and release gates](docs/finalization-gates.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
