@@ -21,10 +21,10 @@ All six workflow runs validate commit `20973e346c8d78e852f65aca256ecc6f17dc1a1b`
 
 Every listed workflow completed successfully. The native CTest suite passed 46/46 across its four configurations; both CodeQL language jobs reported zero SARIF findings.
 
-## Recommended rules
+## Recommended policy
 
 Require the current website/browser, CodeQL C/C++ and JavaScript/TypeScript, native compiler/sanitizer, WebAssembly, Windows x64, and backup-tool checks before merging to `main`. Keep the pull-request requirement. Enable strict status checks so the pull request is up to date with `main`. Require an independent approval only when a reviewer other than the author is available.
 
 GitHub documents status checks as a merge gate in [Available rules for rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets) and [Creating rulesets for a repository](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository).
 
-**Current status:** the required-check and review rules have not been configured. The connected GitHub integration used for this review supports reading repository/ruleset data and managing files and pull requests, but does not expose the repository-ruleset write operation. This settings change remains unverified and must not be represented as complete.
+**Current state:** the required-check and review rules remain unconfigured. Passing workflow results are not enforced as merge requirements.
