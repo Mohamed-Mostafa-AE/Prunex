@@ -196,6 +196,7 @@ This is the intended naming inspiration, not a formally standardized acronym. Se
 
 ## Documentation
 
+- [System architecture](docs/architecture.md)
 - [Evaluation architecture](docs/evaluation-intelligence.md)
 - [Testing and benchmark methodology](docs/testing.md)
 - [Engineering review](docs/engineering-review.md)
