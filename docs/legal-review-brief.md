@@ -34,7 +34,7 @@ Both web documents are explicitly marked **Draft for review** and dated 4 Novemb
 7. Validate access, correction, export, deletion and account-recovery processes, including local data on other devices, backups, and post-deletion backup expiry.
 8. Review cookies/local storage/IndexedDB disclosures, tracking/analytics (if any), security incident and breach notification commitments, and contact/complaint handling.
 9. Review Terms clauses for acceptable use, third-party tournament rules, user-submitted games/PGNs, dataset licensing, attribution, warranty disclaimers, liability limits, suspension, governing law, disputes and consumer rights.
-10. Confirm the legal relationship between the native engine licence, browser dependencies, Stockfish-based components and artwork notices so the Terms do not overstate a single licence scope.
+10. Confirm the legal relationship between the native engine licence, browser dependencies, the third-party browser-engine dependency and artwork notices so the Terms do not overstate a single licence scope.
 
 ## Current Egyptian-law findings — 6 November 2026
 
