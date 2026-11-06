@@ -5,9 +5,16 @@ const vercelConfig = JSON.parse(readFileSync("vercel.json", "utf8"));
 const contentSecurityPolicy = vercelConfig.headers
   ?.flatMap(rule => rule.headers || [])
   .find(header => header.key.toLowerCase() === "content-security-policy")?.value || "";
-if (!contentSecurityPolicy.includes("https://ttcejatqtvphzenjkkbh.supabase.co") ||
-    !contentSecurityPolicy.includes("wss://ttcejatqtvphzenjkkbh.supabase.co")) {
-  throw new Error("Production CSP must allow this project's Supabase API and WebSocket endpoints.");
+const cspDirectives = new Map(
+  contentSecurityPolicy.split(";").map(part => part.trim()).filter(Boolean).map(part => {
+    const [name, ...values] = part.split(/\\s+/);
+    return [name, values];
+  })
+);
+const connectSources = new Set(cspDirectives.get("connect-src") || []);
+if (!connectSources.has("https://ttcejatqtvphzenjkkbh.supabase.co") ||
+    !connectSources.has("wss://ttcejatqtvphzenjkkbh.supabase.co")) {
+  throw new Error("Production CSP must allow this project's exact Supabase API and WebSocket origins.");
 }
 
 const browserLaunchOptions = { headless: true };
