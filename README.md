@@ -57,9 +57,9 @@ ctest --test-dir build --output-on-failure
 
 ## Tests
 
-The CTest suite currently contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. An earlier GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
+The CTest suite contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. The Windows runner also completed the desktop interaction smoke test. These are recorded results, not a claim that every platform or Windows 10/11 client-device behaviour has been fully tested.
 
-Current run records: [website and Playwright](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465639), [native compiler and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465750), [Windows x64 and desktop interaction smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465916), [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465587), and [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465806).
+Latest validation for commit `4591190f6eea8ab01470ced2913986277dbb78d5`: [website and Playwright](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005146), [native compiler and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005141), [Windows x64 and desktop interaction smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005114), [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005158), [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005205), and [backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005120).
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 
