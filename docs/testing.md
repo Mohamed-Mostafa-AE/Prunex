@@ -2,7 +2,7 @@
 
 ## Native engine regression tests
 
-The current Prunex 0.8.0 CTest suite contains 45 cases, including the native benchmark smoke test. The following results are recorded Linux runs:
+The current Prunex 0.8.0 CTest suite contains 46 cases, including the native benchmark smoke test. The Linux figures below are historical runs of the earlier 44-case suite; the latest Windows x64 workflow on 6 November 2026 passed all 46 current cases.
 
 | Build | Recorded result |
 |---|---:|
