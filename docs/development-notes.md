@@ -20,7 +20,7 @@ The website is a separate browser chess experience. Its existing browser opponen
 
 ## Remaining engineering work
 
-1. Complete manual Windows 10/11 desktop interaction checks, including search cancellation, new game, undo, promotion, and closing while the engine is thinking.
+1. Complete visual Windows 10/11 desktop acceptance for 100%/150% DPI scaling, promotion choices, physical pointing-device input, and sustained-search responsiveness. CI now covers a legal move, engine reply, paired undo, depth-8 cancellation with New Game, board flip, and clean shutdown.
 2. Wire the native WebAssembly module into the browser worker and decide whether it will replace the current browser opponent/review backend. The standalone WASM artifact and parity gate exist, but the web UI is not yet using them.
 3. Run native evaluation calibration against a sufficiently large licensed corpus; inspect held-out log-loss/Brier metrics before considering evaluation changes.
 4. Validate candidate search/evaluation changes through tactical tests and controlled paired-color matches before making strength claims.
