@@ -21,7 +21,7 @@ These are the minimum conditions for a professional, reviewable public repositor
 | No unsupported playing-strength or training claims | No native Elo claim; no claim that offline corpus tools train engine weights | Pass |
 | Release PR reviewed and merged | PR #10 is the final documentation/release-readiness change set | Pending review |
 
-The latest 13 commits after source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9` are documentation-only. The latest PR head is `6defec6b744fb02bef172e447e45e38a928c6118`. CodeQL passed on that head. Native/browser source validation remains tied to the source-bearing commit because no application source changed afterward.
+Subsequent commits after source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9` are documentation-only. CodeQL also passed on a later documentation-only PR head. Native/browser source validation remains tied to the source-bearing commit because no application source changed afterward.
 
 ## B. Required before publishing a native desktop release
 
