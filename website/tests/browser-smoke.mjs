@@ -7,7 +7,7 @@ const contentSecurityPolicy = vercelConfig.headers
   .find(header => header.key.toLowerCase() === "content-security-policy")?.value || "";
 const cspDirectives = new Map(
   contentSecurityPolicy.split(";").map(part => part.trim()).filter(Boolean).map(part => {
-    const [name, ...values] = part.split(/\\s+/);
+    const [name, ...values] = part.split(/\s+/);
     return [name, values];
   })
 );
