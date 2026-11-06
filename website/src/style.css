@@ -1114,6 +1114,7 @@ img, svg, video, canvas { max-width: 100%; }
   border-radius:3px;
   background:#041326;
   color:#f1f7ff;
+  color-scheme:dark;
   font:11px/1.45 var(--mono);
   letter-spacing:normal;
   font-variant-ligatures:none;
@@ -1132,7 +1133,6 @@ img, svg, video, canvas { max-width: 100%; }
   -webkit-appearance:none;
   appearance:none;
   -webkit-text-fill-color:#f1f7ff !important;
-  color:#f1f7ff !important;
   caret-color:#f1f7ff;
   font-family:var(--mono) !important;
   font-size:11px !important;
