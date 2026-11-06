@@ -2,7 +2,7 @@
 
 ## Project name
 
-The name **Prunex** brings together two ideas from the project's naming origin: **PRUN**, referring to alpha–beta pruning, and **EX**, referring to competitive execution. This records the intended inspiration behind the name; it is not a formal acronym or a separate technical specification.
+The name **Prunex** combines two ideas: **PRUN**, from alpha–beta **PRUNing**, and **EX**, representing the **execution of adversarial search**—searching candidate moves while anticipating an opponent's replies. It is a coined project name rather than a formally established acronym.
 
 Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
 
@@ -28,7 +28,7 @@ The native engine includes:
 - Zobrist hashing and a transposition table
 - Iterative deepening, negamax alpha-beta search, and principal-variation search
 - Aspiration windows, move ordering, late-move reductions, and quiescence search
-- Tapered positional evaluation
+- Handcrafted tapered middlegame/endgame evaluation (not NNUE)
 - UCI command handling and time controls
 
 The current native engine release is **Prunex 0.8.0**. The CMake project version, UCI identification string, and Windows validation manifest are aligned to this release.
@@ -59,14 +59,14 @@ ctest --test-dir build --output-on-failure
 
 The CTest suite contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. The Windows runner also completed the desktop interaction smoke test. These are recorded CI results, not a claim that every platform or Windows 10/11 client-device behaviour has been tested.
 
-Latest full validation for commit `2c3b3834a2ce354470533f4dea1faea61bd01983`:
+Latest full validation for PR head `cec15fa8b6c58f2e7c3a587cb142a9faddd3cfb4` (the pull-request workflows tested its merge result against `main`):
 
-- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408962)
-- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408910)
-- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409049)
-- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408989)
-- [CodeQL C/C++ and JavaScript/TypeScript analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409011)
-- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408992)
+- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303284)
+- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303337)
+- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303249)
+- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303254)
+- [CodeQL C/C++ and JavaScript/TypeScript analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303299)
+- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303405)
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 
@@ -74,7 +74,7 @@ Run `./build/prunex --bench` for the fixed five-position native search benchmark
 
 **Website:** https://prunex-play.vercel.app/
 
-**Prunex Play** is a separate browser application; it does not execute the native C++ engine. Its opponent and review pipeline use the Stockfish.js 19 Full multi-threaded browser build. The site uses `chess.js` for browser game rules. Third-party browser components retain their own licenses and corresponding-source notices in `website/public/`. Cross-origin isolation enables shared-memory multithreading.
+**Prunex Play** is a separate browser application; it does not execute the native C++ engine. Its opponent and review pipeline use the Stockfish.js 19 Full multi-threaded browser build, which uses Stockfish's upstream NNUE evaluation network. Prunex owns the browser application, UCI-worker orchestration, review pipeline, expected-points calibration, move-quality grading, archive integration, and presentation—not the upstream NNUE network. The native C++ engine currently uses handcrafted tapered evaluation, not NNUE. The site uses `chess.js` for browser game rules. Third-party browser components retain their own licenses and corresponding-source notices in `website/public/`. Cross-origin isolation enables shared-memory multithreading. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for the distinction.
 
 Game Review uses a 15-second search budget per non-terminal position. This is a time budget, not a guaranteed search depth. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for calibration, validation and benchmarking details.
 
