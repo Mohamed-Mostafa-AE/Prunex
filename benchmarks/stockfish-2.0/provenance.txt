@@ -1,3 +1,0 @@
-edb0d9db6731067ec50ce619ff372b463bc4dd5d
-sf_19
-Prunex 0.8.0 is derived from official Stockfish 19 (tag sf_19); the sole source edit changes UCI engine name.

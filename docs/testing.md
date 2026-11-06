@@ -1,62 +1,51 @@
 # Test results
 
-## Native engine regression tests
+## Native engine
 
-The current Prunex 0.8.0 CTest suite contains 46 cases, including the native benchmark smoke test. On 6 November 2026, CI passed all 46 cases in GCC 14.2 Release, Clang 17 Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 builds.
+Prunex 0.8.0 has a 46-case CTest suite covering move generation, position state, search, evaluation, UCI behavior, and fixed-position benchmark smoke tests.
 
-| Build | Recorded result |
+The 6 November 2026 CI matrix recorded 46/46 passing tests in each of the following configurations:
+
+| Configuration | Result |
 |---|---:|
-| GCC 14.2 Release | 46/46 passed |
-| Clang 17 Release | 46/46 passed |
-| GCC Debug with AddressSanitizer and UndefinedBehaviorSanitizer | 46/46 passed |
-| Windows x64 | 46/46 passed |
-| GCC static analysis | Earlier 44-case run completed without diagnostics |
+| GCC 14.2 Release | 46/46 |
+| Clang 17 Release | 46/46 |
+| GCC AddressSanitizer + UndefinedBehaviorSanitizer | 46/46 |
+| Windows x64 | 46/46 |
 
-The sanitizer run used leak detection. These results cover the native C++ engine; they do not replace a manual run of the Windows desktop application.
+The sanitizer build ran with leak detection enabled. These results validate the native test suite; they do not constitute interactive acceptance of the Windows desktop application.
 
-## Test coverage
+## Browser and account tests
 
-- Start-position perft and standard reference positions, including Kiwipete and endgame cases.
-- Checkmate, stalemate, quiet check evasions, and search regression positions.
-- Legal en-passant captures and rejection of pinned en-passant captures for both sides.
-- UCI startup, `isready`, ordinary search, `go movetime`, and clock-based time allocation.
-- Rejection of malformed FEN input, invalid counters, invalid en-passant states, and invalid perft arguments.
-- Website Playwright checks for desktop/mobile layout, account recovery placement, password visibility, and Chromium's actual address-autofill state through the DevTools Autofill protocol.
+The website build runs unit tests for account messages, Supabase email templates, archive authorization, review metrics, calibration data, and security configuration. Playwright covers:
 
-## Historical native-engine match records
+- Desktop and mobile layout, including narrow 390 px viewports.
+- Account modal keyboard handling and password visibility.
+- Email-field autofill through Chromium's DevTools Autofill protocol.
+- Archive interactions and the absence of individual game-record deletion controls.
+- Browser game interactions and review navigation.
 
-The supplied fixed-move-time records for the native **Prunex 0.5.1** engine show these results at 100 ms per move:
-
-| Opponent | Wins | Draws | Losses |
-|---|---:|---:|---:|
-| Stockfish 4 | 0 | 0 | 64 |
-| Stockfish 6 | 0 | 0 | 64 |
-
-These were small match runs, not an Elo test or a controlled SPRT. They should not be used as a general rating estimate.
-
-## Archived benchmark records
-
-A historical match artifact is retained for source provenance, reproducibility and audit. It is not evidence of the native C++20 engine's playing strength and is not used to support a native-engine rating claim. The original records, configuration, checksums and limitations are kept in the [archived benchmark evidence report](stockfish-2-comparison.md).
-
-No independently measured Elo rating has been established for the native C++ Prunex engine.
-
-## Still to test
-
-- Run the Windows desktop application on Windows 10/11 and complete the [desktop checklist](windows-desktop-checklist.md).
-- Check responsiveness during longer searches.
-- Add an explicit UCI `stop`-command cancellation regression case; the command is implemented, but the current timed-search tests do not exercise an interrupted search.
-- Run a larger, controlled match before making any strength or rating claims.
-
-No independent Elo rating has been established for the native C++ Prunex engine.
-
+The production build also runs an npm dependency audit.
 
 ## Native search benchmark
 
-Run the fixed five-position native benchmark from a Release build:
+Run the fixed five-position benchmark from a Release build:
 
 ```bash
 ./build/prunex --bench
 ./build/prunex --bench 6
 ```
 
-The default depth is 5; accepted depths are 1–10. The suite clears the transposition table and search-ordering state before each position, then reports each best move and node count plus aggregate elapsed time and nodes per second. Use the same compiler, build mode, hardware, and depth when comparing revisions. This is a repeatable search-throughput/regression instrument, not an Elo estimate or proof of playing-strength improvement. It intentionally reports raw measurements rather than claiming a rating.
+The default depth is 5; accepted depths are 1–10. The suite clears transposition-table and search-ordering state before each position, then reports the best move, node count, elapsed time, and aggregate nodes per second.
+
+Use the same compiler, build mode, hardware, and depth when comparing revisions. This is a repeatable search-throughput measurement, not an Elo estimate.
+
+## Strength reporting
+
+No independently measured Elo rating or controlled public match result is currently claimed for the native C++20 engine. A strength claim requires a reproducible tournament using the current native executable, fixed conditions, balanced colours, retained PGNs, and independently checked results.
+
+## Manual acceptance still required
+
+The Windows desktop checklist remains a separate manual test because CI compilation and UCI smoke tests do not exercise all GUI input, scaling, rendering, and window-lifecycle behavior.
+
+See [Windows desktop checklist](windows-desktop-checklist.md).

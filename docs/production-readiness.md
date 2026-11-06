@@ -1,60 +1,73 @@
 # Prunex 0.8.0 — release readiness
 
 **Review snapshot:** 6 November 2026  
-**Scope:** native C++20 engine, Windows desktop application, browser demonstration and private game archive.
+**Scope:** native C++20 engine, Windows desktop application, browser demonstration, and private game archive.
 
-This page separates controls that can be verified from repository source/CI from provider configuration and operational work that still requires an external check.
+This document distinguishes repository-verified controls from service configuration and operational checks that require a separate validation.
 
-## Product architecture
+## Architecture
 
-- The native Prunex engine is an independently implemented C++20 chess engine with its own position representation, legal move generation, search, evaluation and UCI interface.
-- The Windows desktop application is a separate native interface to that engine.
-- The website browser demonstration is a separate application. It uses `chess.js` for browser game rules and the third-party Stockfish.js 19 Full build as its opponent and review engine. It does not run the native C++ engine.
-- The private game archive uses Neon through a same-origin server API. Supabase Auth supplies identity and retains legacy source/fallback records. Browser-local games are stored in IndexedDB.
-- Account access supports guest sessions, linking an email to the current guest identity, setting a password after email verification, password sign-in and password-reset email. The application enforces a 12-character minimum; the hosted Supabase password policy and leaked-password protection must also be checked.
-- Account closure is the only destructive archive action exposed in the UI. There is no individual game/record deletion control.
+- The native Prunex engine is a C++20 chess engine with its own board representation, legal move generation, search, evaluation, and UCI interface.
+- The Windows desktop application is a native interface to that engine.
+- The website is a separate browser application. It uses `chess.js` for game rules and the Stockfish.js 19 Full browser package for its opponent and review analysis. It does not execute the native C++ engine.
+- Private cloud games are stored in Neon PostgreSQL through a same-origin server API. Supabase Auth supplies identity and retains legacy source records. Browser-local games are stored in IndexedDB.
+- Account access supports guest sessions, linking an email to the current guest identity, password setup after email verification, password sign-in, and password recovery.
+- Account closure is the only destructive archive action exposed in the UI. Individual game-record deletion is not available.
 
 ## Repository-verified controls
 
-- Supabase game, review and position-memory tables use RLS. Private archive requests are owner-scoped on the server; user metadata is not used as an authorization source.
-- Account deletion is handled by a JWT-verified Supabase Edge Function. The server validates the caller, revokes sessions, deletes the Auth identity and relies on foreign-key cascades for cloud records.
-- Optional position-memory sharing is off by default and is gated by per-review consent. The server and database enforce owner/consent checks.
-- The website has a Vite production build, unit tests, dependency audit and Playwright desktop/mobile smoke coverage.
-- The browser response policy defines a restrictive CSP, HSTS, frame protections, referrer and permissions policies, and cross-origin isolation headers.
-- The native WebAssembly build compiles the same C++ implementation and has CI parity checks. The current website worker remains a separate Stockfish.js-based browser engine.
-- Email-change, password-reset and password-change-notification HTML templates are stored in `supabase/templates/`. Repository tests validate their provider variables and secret hygiene. A local `supabase/config.toml` entry does not configure the hosted Supabase dashboard.
+- Supabase game, review, and position-memory tables use row-level security.
+- Private archive requests are owner-scoped on the server using a verified Supabase identity and the server-only owner-email allowlist.
+- Account deletion is handled by a JWT-verified Edge Function.
+- Optional position-memory sharing is off by default and requires per-review consent.
+- The website build includes unit tests, dependency audit, and Playwright desktop/mobile smoke coverage.
+- Browser response headers include CSP, HSTS, frame protections, referrer and permissions policies, and cross-origin isolation.
+- The native WebAssembly target compiles the same C++ implementation and has parity checks. The website worker remains a separate browser implementation.
+- Email-change, password-reset, and password-change notification templates are versioned in the repository. The local Supabase configuration does not update the hosted dashboard.
 
-## Strength claims
+## Live provider observations — 6 November 2026
 
-No independently measured Elo rating has been established for the native C++20 engine. Node counts, a fixed-position benchmark, and results from the separate browser application are not substitutes for a controlled match series using the native executable. Archived historical match records remain in a separate evidence report and are not used as a native-engine performance claim.
+### Identity and archive ownership
 
-## Current provider observations — 6 November 2026
+The source Supabase project contains 35 legacy games and 3 reviews across five anonymous identities. A separate confirmed email identity currently owns no games or reviews. The intended guest identity has not been established, so no account migration or reassignment has been performed.
 
-- The Supabase source project contains 35 legacy games and 3 reviews across five anonymous identities. A separate verified email identity currently owns no games or reviews. The correct guest identity has not been established, so no account migration has been performed.
-- A recovery snapshot row is present in Neon with source counts of 35 games, 3 reviews and 0 position-memory rows, plus a SHA-256 payload checksum. The active Neon archive tables currently contain 0 imported games, 0 reviews and 0 position-memory rows.
-- The existing Neon manual snapshot predates that recovery row. A restored branch from the old snapshot does not contain the recovery table. The Neon organization is on the Free plan: its single manual-snapshot quota is already used, and the API rejects scheduled snapshot configuration on this plan.
-- Vercel's sensitive `PRUNEX_OWNER_EMAIL` variable was updated for Preview and Production to the verified Supabase email identity. Vercel redacts sensitive values on readback; the preview deployed after that update is ready, but the secret value itself cannot be independently read back through this connection.
-- Supabase Auth settings and SMTP secrets are not exposed by the connected project-inspection actions. Hosted manual linking, confirmation, password policy, redirect allowlist, custom SMTP and live mailbox delivery remain unverified.
-- Supabase Security Advisor reports leaked-password protection disabled. The Supabase organization is on the Free plan; the current Supabase documentation lists breached-password protection as Pro and above. The application requires 12-character passwords, but this is not equivalent to the provider's breached-password check.
-- Supabase Auth logs contain one informational `mail.send` event in the inspected 24-hour window with no recorded error. This confirms an Auth send attempt, not mailbox receipt, link validity, or end-to-end recovery. No controlled mailbox test has been completed.
-- Its anonymous-user policy warnings match the intended guest-account model: games and reviews are scoped to `auth.uid()`, while shared position-memory reads are intentionally available to authenticated sessions after consented contributions. Guest access should not be disabled without replacing it with an equivalent secure recovery path.
-- The active GitHub `Protect main` ruleset still has no required status checks. The available GitHub connection can inspect rulesets but cannot update them.
+A recovery record in Neon stores a source snapshot reporting 35 games, 3 reviews, and 0 position-memory rows, with a SHA-256 payload checksum. The active Neon archive currently has 0 imported games, 0 reviews, and 0 position-memory rows.
 
-## External release gates
+### Authentication and email
 
-The following items are not established by passing repository CI:
+The application enforces a 12-character password minimum. The hosted Supabase password policy and breached-password protection are separate controls.
 
-1. **Hosted Supabase Auth:** confirm manual identity linking is enabled, anonymous sign-in and email/password sign-in are enabled as intended, confirmation is required, and password rules/leaked-password protection match the application.
-2. **Email delivery:** install the email-change, recovery and password-change templates in the hosted project, set the production Site URL and redirect allowlist, configure authenticated custom SMTP, and test delivery and link expiry in controlled mailboxes.
-3. **Owner identity and migration:** link the intended existing guest session in its original browser, verify its email, set the password, confirm the games remain visible, then import only the verified user ID into Neon. Do not infer ownership or combine guest archives.
-4. **Backup and restore:** configure the encrypted off-provider backup workflow with owner-supplied GitHub Actions settings, merge it to the protected branch, run it, and complete a data-bearing restore drill. An empty-schema restore is not proof of user-data recovery.
-5. **Legal review:** Privacy Notice and Terms remain drafts pending qualified review of the actual operator, audience, jurisdictions, minors/consent, transfers, retention and deletion disclosures.
-6. **Windows desktop:** complete interactive Windows 10/11 testing. CI build/CTest/UCI smoke checks do not validate all GUI behavior.
-7. **Branch protection:** the active `Protect main` ruleset prevents deletion and force-pushes and requires pull requests, but currently has zero required approvals and no required CI status checks. Configure checks before merging a release candidate.
-8. **Production promotion:** the updated application has been validated on a preview deployment. No production promotion is approved by this document.
+Supabase Security Advisor currently reports breached-password protection disabled. The project is on the Free plan; the provider's stronger password-screening capability is not available in the current project tier.
 
-## Deployment and test records
+The available project connection does not expose hosted Auth identity-linking, email-provider, SMTP, or redirect-allowlist configuration. No controlled mailbox test has established delivery, link expiry, or password-reset completion.
 
-Record the exact Git commit, workflow run IDs, preview deployment ID, provider configuration date and unresolved release gates when this snapshot is refreshed. Do not leave older point-in-time account counts or CI states in this document as though they were current.
+### Database and backup
 
-Release approval requires both passing automated checks and completion of the applicable external gates above.
+The active Neon project is on the Free plan with six-hour point-in-time history. Its one manual snapshot quota is already used. The Neon API reports that scheduled backup configuration is not enabled for this project. An encrypted-backup table exists in Supabase, but it contains no backup records.
+
+The legacy source snapshot is not a data-bearing backup of the active Neon archive, and it has not passed a full encrypted export/decrypt/restore drill.
+
+### Database security findings
+
+Supabase Security Advisor reports anonymous-policy warnings on the guest game and review tables. These policies apply to authenticated-role guest users and restrict access by `auth.uid()`; disabling the guest model without a replacement would break the current archive workflow. Shared position-memory reads are intentional and remain subject to the feature's consent design.
+
+Supabase also reports breached-password protection disabled. Unused-index notices are informational and should be evaluated against query plans before any index is removed.
+
+### Branch protection
+
+The active GitHub `Protect main` ruleset still has no required status checks. The connected repository tools can inspect rulesets but do not provide repository-administration write access to change them.
+
+## Release decision
+
+The current branch has passing automated code checks, but it is not approved for production promotion until the following external controls have been verified:
+
+1. Hosted Supabase manual identity linking, email confirmation, password policy, Site URL, and redirect allowlist.
+2. Custom SMTP configuration and successful verification, recovery, and password-change messages to controlled mailboxes.
+3. Identification of the correct guest archive in its original browser session, followed by a verified, user-scoped migration and source/destination count reconciliation.
+4. A data-bearing backup and restore process. The current Neon plan and snapshot quota do not provide a completed off-provider recovery drill.
+5. Interactive Windows 10/11 desktop acceptance.
+6. Qualified legal review and written clearance of the Privacy Notice and Terms.
+7. Required GitHub status checks on `main`.
+8. A final production deployment and smoke test after the preceding checks are closed.
+
+No comparative rating or match result is claimed for the current native engine. The release record should be updated only when a gate has a verifiable result.
