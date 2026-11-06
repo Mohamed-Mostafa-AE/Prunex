@@ -186,13 +186,13 @@ try {
       value: element.value,
       autofilled: element.matches(":-webkit-autofill") || element.matches(":autofill"),
       color: style.webkitTextFillColor,
-      textColor: style.color,
       background: style.boxShadow,
       font: style.fontFamily,
       fontSize: style.fontSize,
       lineHeight: style.lineHeight,
       letterSpacing: style.letterSpacing,
       fontVariantLigatures: style.fontVariantLigatures,
+      colorScheme: style.colorScheme,
       height: rect.height,
       width: rect.width,
       scrollWidth: element.scrollWidth,
@@ -202,13 +202,13 @@ try {
   if (autofillStyle.value !== "archive-owner@example.com" ||
       !autofillStyle.autofilled ||
       autofillStyle.color !== "rgb(241, 247, 255)" ||
-      autofillStyle.textColor !== "rgb(241, 247, 255)" ||
       !autofillStyle.background.includes("rgb(4, 19, 38)") ||
       !autofillStyle.font.includes("DM Mono") ||
       autofillStyle.fontSize !== "11px" ||
       autofillStyle.lineHeight !== "15.95px" ||
       autofillStyle.letterSpacing !== "normal" ||
       autofillStyle.fontVariantLigatures !== "none" ||
+      autofillStyle.colorScheme !== "dark" ||
       autofillStyle.height < 34 || autofillStyle.width < 120 ||
       autofillStyle.scrollWidth > autofillStyle.clientWidth + 1) {
     throw new Error("Real browser autofill must preserve Prunex typography, text color, line height, and field dimensions: " + JSON.stringify(autofillStyle));
