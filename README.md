@@ -84,6 +84,8 @@ Game Review defaults to a 15-second search budget per non-terminal position. Thi
 - [Development notes](docs/development-notes.md)
 - [Project-name origin](docs/project-name.md)
 - [Test results and benchmark methodology](docs/testing.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 - [Windows desktop checklist](docs/windows-desktop-checklist.md)
 - [Training-data sourcing and ingestion policy](docs/training-data-ingestion.md)
 - [Website implementation notes](website/README.md)
