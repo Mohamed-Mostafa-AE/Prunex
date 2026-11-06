@@ -1129,54 +1129,13 @@ img, svg, video, canvas { max-width: 100%; }
   min-width:0;
 }
 .account-panel .account-form-row .button { width:100%; }
-.account-panel .account-form input:-webkit-autofill {
-  -webkit-appearance:none;
-  appearance:none;
-  -webkit-text-fill-color:#f1f7ff !important;
-  caret-color:#f1f7ff;
-  font-family:var(--mono) !important;
-  font-size:11px !important;
-  font-style:normal !important;
-  font-weight:400 !important;
-  line-height:1.45 !important;
-  letter-spacing:normal !important;
-  font-kerning:none;
-  font-variant-ligatures:none !important;
-  font-feature-settings:"liga" 0,"clig" 0,"calt" 0 !important;
-  font-synthesis:none;
-  text-transform:none !important;
-  text-shadow:none !important;
-  -webkit-box-shadow:0 0 0 1000px #041326 inset;
-  box-shadow:0 0 0 1000px #041326 inset;
-  border-color:#54789a;
-}
-.account-panel .account-form input:autofill {
-  -webkit-appearance:none;
-  appearance:none;
-  -webkit-text-fill-color:#f1f7ff !important;
-  color:#f1f7ff !important;
-  caret-color:#f1f7ff;
-  font-family:var(--mono) !important;
-  font-size:11px !important;
-  font-style:normal !important;
-  font-weight:400 !important;
-  line-height:1.45 !important;
-  letter-spacing:normal !important;
-  font-kerning:none;
-  font-variant-ligatures:none !important;
-  font-feature-settings:"liga" 0,"clig" 0,"calt" 0 !important;
-  font-synthesis:none;
-  text-transform:none !important;
-  text-shadow:none !important;
-  -webkit-box-shadow:0 0 0 1000px #041326 inset;
-  box-shadow:0 0 0 1000px #041326 inset;
-  border-color:#54789a;
-}
+.account-panel .account-form input:-webkit-autofill,
+.account-panel .account-form input:autofill,
 .account-panel .account-form input.is-autofilled {
   -webkit-appearance:none;
   appearance:none;
-  -webkit-text-fill-color:#f1f7ff !important;
   color:#f1f7ff !important;
+  -webkit-text-fill-color:#f1f7ff !important;
   caret-color:#f1f7ff;
   font-family:var(--mono) !important;
   font-size:11px !important;
