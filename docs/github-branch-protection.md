@@ -1,35 +1,24 @@
-# GitHub default-branch protection setup
+# Default-branch ruleset
 
-## Live check — 5 November 2026
+The active repository ruleset **Protect main** (ID `26650516`) applies to the default branch. Its current configuration prevents branch deletion and force-pushes and requires pull requests. It still has zero required status checks.
 
-The repository currently has an **Active** ruleset named **Protect main** (ID `26650516`) targeting the default branch. It enforces pull requests, prevents branch deletion, and blocks force-pushes. It currently requires **0 approvals** and has **no required status-check rule**. This means the ruleset is active, but a pull request can still be merged without the CI checks passing.
+The latest successful commit `2ff47018cd45f9fcfeafe9c492c55fd8e88855e4` reported these GitHub check-run names:
 
-The connected GitHub integration can inspect this ruleset but does not expose a ruleset-write action. The repository owner must add the status-check rule in GitHub Settings → Rules → Rulesets. The recommended checks below are the next configuration step. Do not treat the current Active badge alone as proof that CI is enforced.
+| Required status check | Latest result |
+|---|---|
+| `build-and-test` | success |
+| `test-training-data` | success |
+| `Analyze c-cpp` | success |
+| `Analyze javascript-typescript` | success |
+| `GCC AddressSanitizer and UndefinedBehaviorSanitizer` | success |
+| `clang++ regression suite` | success |
+| `g++ regression suite` | success |
+| `build` (Windows x64) | success |
+| `build-and-compare` (WebAssembly) | success |
+| `validate` (backup tooling) | success |
 
-Open [Settings → Rules → Rulesets](https://github.com/Mohamed-Mostafa-AE/Prunex/settings/rules).
+The checks above are the exact contexts reported by the current GitHub Actions run. Require these contexts on `main`, enable branch-up-to-date enforcement, and retain the existing pull-request, no-deletion, and no-force-push rules.
 
-Create an active branch ruleset with:
+The connected GitHub integration has read-only ruleset access; it cannot write repository-administration settings. Therefore the ruleset itself has not been changed from this workspace. GitHub's documented update endpoint requires repository Administration: write permission. See [GitHub's repository rulesets API](https://docs.github.com/en/rest/repos/rules#update-a-repository-ruleset).
 
-- **Name:** Protect main
-- **Enforcement:** Active
-- **Target:** Include the default branch (`main`)
-- **Restrict deletions:** On
-- **Block force pushes:** On
-- **Require a pull request before merging:** On
-- **Required approvals:** 0 (this avoids locking a single-owner repository; request an independent review when one is available)
-- **Require status checks:** On; require the checks listed below after the latest PR commit has reported them:
-  - `build-and-test`
-  - `test-training-data`
-  - `Analyze c-cpp`
-  - `Analyze javascript-typescript`
-  - `build-and-compare`
-  - `verify-archived-match`
-  - `GCC AddressSanitizer and UndefinedBehaviorSanitizer`
-  - `g++ regression suite`
-  - `clang++ regression suite`
-  - `build` (Windows x64)
-- **Require branches to be up to date:** On, if the UI offers it.
-
-Do not require the top-level `CodeQL` summary check until its check-run conclusion is confirmed; the successful individual CodeQL language analyses are the intended required checks.
-
-After saving, open the ruleset and verify it shows **Active**, applies to `main`, and lists the required checks. Then try to push directly to `main` only in a safe test branch—not by attempting an actual protected-branch push.
+After updating the ruleset, verify on the GitHub Settings → Rules page that every context appears under required status checks and that the ruleset remains Active.
