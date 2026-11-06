@@ -311,7 +311,7 @@ try {
   if (!benchmarkTeaser.includes("62–2–0") ||
       !benchmarkTeaser.includes("Stockfish 2.0") ||
       !benchmarkTeaser.includes("Stockfish 19-derived") ||
-      !benchmarkTeaser.includes("not the independent native C++20 engine")) {
+      !benchmarkTeaser.includes("This is not a result for the independent native C++20 engine.")) {
     throw new Error("The hero must disclose the historical Stockfish 2.0 result and its Stockfish-derived build lineage.");
   }
   const benchmarkEvidenceHref = await page.locator(".benchmark-teaser a").getAttribute("href");
