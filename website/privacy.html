@@ -19,7 +19,7 @@
 <main>
   <a href="/">← Back to Prunex Play</a>
   <h1>Privacy Notice</h1>
-  <p class="meta">Last updated: 4 November 2026</p>
+  <p class="meta">Last updated: 6 November 2026</p>
   <p class="draft"><strong>Draft for review.</strong> This notice describes the current implementation but has not been reviewed by a qualified privacy professional. Do not treat it as a completed legal assessment or launch approval.</p>
 
   <h2>1. Who operates Prunex Play</h2>
@@ -48,17 +48,21 @@
   <h2>6. Service providers</h2>
   <p>Prunex uses Vercel for website hosting and Supabase for authentication and database services. These providers process information as necessary to operate their services and are also subject to their published terms and privacy notices. This draft does not claim that no provider logs network information.</p>
 
-  <h2>7. Retention and deletion</h2>
+  <h2>7. International processing and age-related safeguards</h2>
+  <p>The currently configured Supabase database, Neon archive and Vercel deployment use European infrastructure, including Frankfurt. Providers may also process limited service, support, security and diagnostic information in other locations under their own terms and subprocessor arrangements. The legal basis and safeguards for cross-border processing are still under review.</p>
+  <p>Prunex Play does not currently have an age-verification or parent/guardian-consent workflow. The service's intended audience and applicable requirements for children and teenagers must be assessed before unrestricted public launch. This draft does not represent that any required age-assurance or guardian-consent controls are already in place.</p>
+
+  <h2>8. Retention and deletion</h2>
   <p>Cloud games, reviews and linked position samples are retained while the account exists, unless removed earlier for operational or legal reasons. Players can request account deletion using the Account &amp; Data controls. The server-side deletion flow removes the Supabase Auth user and account-linked Prunex rows. The current browser's IndexedDB archive is also cleared by that flow. Local archives on other devices or browsers are not remotely erased and must be cleared on those devices separately.</p>
   <p>Provider-generated security and diagnostic logs may have separate retention periods controlled by the providers. Those periods must be confirmed in the applicable provider plans and policies before a full public launch.</p>
 
-  <h2>8. Security</h2>
+  <h2>9. Security</h2>
   <p>Prunex uses Supabase Auth, row-level security, owner-scoped database policies and a server-side account-deletion function. No service-role key is intended to be shipped to the browser. No online service can guarantee absolute security; players should keep access to their email account secure and avoid sharing private game exports.</p>
 
-  <h2>9. Your choices</h2>
+  <h2>10. Your choices</h2>
   <p>You can keep games on the current device without opting into shared position memory, link an email to a guest account for recovery, disable future sharing, or request account deletion. To ask about access or deletion, contact <a href="mailto:mohamedhussam09@gmail.com">mohamedhussam09@gmail.com</a>.</p>
 
-  <h2>10. Changes and legal scope</h2>
+  <h2>11. Changes and legal scope</h2>
   <p>This notice may change as the service evolves. The applicable legal requirements depend on where players are located and the service's actual audience. Before unrestricted public launch, this draft should be reviewed for applicable data-protection, children's privacy, consent, international-transfer and consumer-protection requirements.</p>
   <footer>Prunex Play · <a href="/terms.html">Terms of Use</a> · <a href="mailto:mohamedhussam09@gmail.com">Contact</a></footer>
 </main>
