@@ -57,7 +57,7 @@ ctest --test-dir build --output-on-failure
 
 ## Tests
 
-The CTest suite currently contains 45 cases, including a native benchmark smoke test. Recorded Linux runs passed with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
+The CTest suite currently contains 46 cases, including a native benchmark smoke test. The latest Windows x64 run passed all 46 tests. Recorded Linux runs passed with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 
@@ -76,7 +76,7 @@ Game Review defaults to a 15-second search budget per non-terminal position. Thi
 ## Known limitations
 
 - The Windows desktop application still needs a complete manual run-through on Windows 10 or 11. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
-- The Windows desktop application still searches on the UI thread, so longer searches can temporarily make the window unresponsive. The UCI command-line interface runs searches in the background and supports responsive cancellation with `stop`.
+- The Windows desktop application runs engine searches on a background thread and applies completed results on the UI thread. Search cancellation and shutdown paths are implemented; interactive Windows 10/11 acceptance is still required for rendering, input, resizing and lifecycle behavior.
 - No independent Elo rating has been established for the native C++ engine.
 - The archived historical Stockfish 2.0 match belongs to a separately identified Stockfish 19-derived Prunex 0.8.0 test executable, not the independent native C++20 engine: 62 wins, 2 draws and 0 losses in 64 games (98.44%) at 100,000 nodes per move. The raw PGN and run artifact are linked in [the evidence record](docs/stockfish-2-comparison.md). The separate 1M-node 63–1–0 result is owner-reported and not independently audited from raw games. No native C++ Prunex Elo rating is claimed.
 
