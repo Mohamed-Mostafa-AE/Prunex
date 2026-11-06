@@ -7,28 +7,32 @@ Prunex 0.8.0 has a 46-case CTest suite covering move generation, position state,
 The 6 November 2026 CI matrix recorded 46/46 passing tests in each configuration:
 
 | Configuration | Result |
-|---|---:|
-| GCC 14.2 Release | 46/46 |
-| Clang 17 Release | 46/46 |
+| --- | ---: |
+| GCC Release | 46/46 |
+| Clang Release | 46/46 |
 | GCC AddressSanitizer + UndefinedBehaviorSanitizer | 46/46 |
 | Windows x64 | 46/46 |
 
-The sanitizer build ran with leak detection enabled. The Windows job also passed the desktop interaction smoke test. The results validate the tested CI configurations; they do not constitute interactive acceptance on Windows 10/11 client devices.
+The sanitizer build ran with leak detection enabled. The Windows job also passed the desktop interaction smoke test. These results validate the tested CI configurations; they do not constitute interactive acceptance on Windows 10/11 client devices.
 
-## Recorded CI runs
+## Latest release-candidate CI
 
-All links below refer to the same reviewed pull-request head, `6fe61051538f2122191cba67e79921a8ba67ee06`.
+The following workflows were run for pull-request head `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`:
 
-- [Website build, unit tests, and Playwright browser checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201)
-- [GCC, Clang, and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951)
-- [Windows x64 build, 46/46 CTest cases, and GUI smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986)
-- [WebAssembly build and native parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194)
-- [CodeQL C/C++ and JavaScript/TypeScript](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152)
-- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871943)
+| Workflow | Status | Evidence |
+| --- | --- | --- |
+| Website build, unit tests, Playwright, and training-data checks | Passed | [Run 42280861610](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610) |
+| GCC, Clang, and sanitizer matrix | Passed — 46/46 in all four configurations | [Run 42280861589](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) |
+| Windows x64 build, CTest, and desktop smoke test | Passed | [Run 42280861974](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) |
+| WebAssembly build and parity | Passed | [Run 42280861737](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) |
+| Backup-tool validation | Passed — tooling only | [Run 42280861766](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) |
+| CodeQL C/C++ and JavaScript/TypeScript analysis | Queued at the time of this update | [Run 42280861678](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) |
+
+The CodeQL run is not counted as passed. Backup-tool validation checks the workflow and tooling; it is not evidence of a successful data-bearing backup or restore.
 
 ## Browser and account tests
 
-The website build runs unit tests for account messages, Supabase email templates, archive authorization, review metrics, calibration data, and security configuration. Playwright covers:
+The website workflow runs unit tests for account messages, email templates, archive authorization, review metrics, calibration data, and security configuration. Playwright covers:
 
 - Desktop and mobile layout, including narrow 390 px viewports.
 - Account modal keyboard handling and password visibility.
@@ -57,6 +61,8 @@ No independently measured Elo rating or controlled public match result is curren
 
 ## Manual acceptance still required
 
-The Windows CI job runs on a Windows Server 2022 runner. Its GUI smoke test launches the desktop application, plays e2-e4, waits for the engine reply, verifies paired Undo, starts a new search, cancels it with New Game, flips the board, and checks normal shutdown. Manual client-device acceptance remains necessary for visual rendering at multiple DPI settings, screen fit, promotion choices, physical input, and sustained-search responsiveness.
+The Windows CI job runs on a Windows Server 2022 runner. Its GUI smoke test launches the desktop application, plays e2-e4, waits for the engine reply, verifies paired Undo, starts a new search, cancels it with New Game, flips the board, and checks normal shutdown.
+
+Manual client-device acceptance remains necessary for visual rendering at multiple DPI settings, screen fit, promotion choices, physical input, and sustained-search responsiveness.
 
 See [Windows desktop checklist](windows-desktop-checklist.md).
