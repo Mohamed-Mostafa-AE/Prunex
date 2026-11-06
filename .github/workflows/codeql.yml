@@ -46,3 +46,55 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
+      - name: Summarize high-severity findings
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob
+          import json
+          import os
+
+          sarif_files = sorted(glob.glob("results/*.sarif"))
+          if not sarif_files:
+              print("No SARIF files remain after upload; inspect the CodeQL security tab for findings.")
+              raise SystemExit(0)
+
+          count = 0
+          for path in sarif_files:
+              with open(path, encoding="utf-8") as handle:
+                  sarif = json.load(handle)
+              for run in sarif.get("runs", []):
+                  rules = {
+                      rule.get("id"): rule
+                      for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
+                  }
+                  for result in run.get("results", []):
+                      rule_id = result.get("ruleId", "unknown")
+                      rule = rules.get(rule_id, {})
+                      props = result.get("properties", {})
+                      severity = (
+                          props.get("security-severity")
+                          or rule.get("properties", {}).get("security-severity")
+                          or "0"
+                      )
+                      try:
+                          high = float(severity) >= 7.0
+                      except (TypeError, ValueError):
+                          high = False
+                      if not high:
+                          continue
+                      count += 1
+                      locations = result.get("locations", [])
+                      if not locations:
+                          print(f"HIGH {rule_id}: location unavailable")
+                          continue
+                      for location in locations[:5]:
+                          physical = location.get("physicalLocation", {})
+                          artifact = physical.get("artifactLocation", {})
+                          region = physical.get("region", {})
+                          uri = artifact.get("uri", "unknown")
+                          line = region.get("startLine", "?")
+                          print(f"HIGH {rule_id}: {uri}:{line}")
+          print(f"High-severity SARIF findings: {count}")
+          PY
