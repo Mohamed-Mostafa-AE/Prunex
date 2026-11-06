@@ -8,16 +8,16 @@ The active ruleset prevents branch deletion and force-pushes and requires pull r
 
 ## Latest successful checks
 
-All six workflow runs validate commit `20973e346c8d78e852f65aca256ecc6f17dc1a1b`.
+All six workflow runs validate commit `2c3b3834a2ce354470533f4dea1faea61bd01983`.
 
 | Workflow / job context | Result |
 |---|---|
-| `build-and-test` and `test-training-data` | [Website workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559692) |
-| `Analyze javascript-typescript`, `Analyze c-cpp` | [CodeQL workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559539) |
-| `g++ regression suite`, `clang++ regression suite`, `GCC AddressSanitizer and UndefinedBehaviorSanitizer` | [Native workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559531) |
-| `build` (Windows x64) | [Windows workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559544) |
-| `build-and-compare` (WebAssembly parity) | [WebAssembly workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559596) |
-| `validate` (backup tooling) | [Backup-tool workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559677) |
+| `build-and-test` and `test-training-data` | [Website workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408962) |
+| `Analyze javascript-typescript`, `Analyze c-cpp` | [CodeQL workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409011) |
+| `g++ regression suite`, `clang++ regression suite`, `GCC AddressSanitizer and UndefinedBehaviorSanitizer` | [Native workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408910) |
+| `build` (Windows x64) | [Windows workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409049) |
+| `build-and-compare` (WebAssembly parity) | [WebAssembly workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408989) |
+| `validate` (backup tooling) | [Backup-tool workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408992) |
 
 Every listed workflow completed successfully. The native CTest suite passed 46/46 across its four configurations; both CodeQL language jobs reported zero SARIF findings.
 

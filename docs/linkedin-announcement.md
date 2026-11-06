@@ -10,7 +10,7 @@ The 46-case native regression suite passes on GCC, Clang, AddressSanitizer/Undef
 
 **Project and source:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
-**Validation evidence:** [Native and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559531) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559544) · [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559692) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559596) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559539)
+**Validation evidence:** [Native and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408910) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409049) · [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408962) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408989) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409011)
 
 #Cplusplus #ChessProgramming #SoftwareEngineering
 

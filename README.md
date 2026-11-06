@@ -59,14 +59,14 @@ ctest --test-dir build --output-on-failure
 
 The CTest suite contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. The Windows runner also completed the desktop interaction smoke test. These are recorded CI results, not a claim that every platform or Windows 10/11 client-device behaviour has been tested.
 
-Latest validation for commit `20973e346c8d78e852f65aca256ecc6f17dc1a1b`:
+Latest full validation for commit `2c3b3834a2ce354470533f4dea1faea61bd01983`:
 
-- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559692)
-- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559531)
-- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559544)
-- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559596)
-- [CodeQL C/C++ and JavaScript/TypeScript analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559539)
-- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559677)
+- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408962)
+- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408910)
+- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409049)
+- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408989)
+- [CodeQL C/C++ and JavaScript/TypeScript analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409011)
+- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408992)
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 

@@ -1,7 +1,7 @@
 # Prunex 0.8.0 — release readiness
 
 **Review date:** 6 November 2026  
-**Reviewed code commit:** `20973e346c8d78e852f65aca256ecc6f17dc1a1b`  
+**Reviewed code commit:** `2c3b3834a2ce354470533f4dea1faea61bd01983`  
 **Scope:** native C++20 engine, Windows desktop application, browser application, identity, and private game archive.
 
 This record separates source-code validation from hosted-service configuration and operational acceptance.
@@ -21,16 +21,16 @@ All six GitHub Actions workflows passed for the reviewed commit:
 
 | Workflow | Result |
 |---|---|
-| Website and Playwright | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559692) |
-| Native GCC, Clang, ASan and UBSan | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559531) |
-| Windows x64 build and desktop smoke test | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559544) |
-| WebAssembly parity | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559596) |
-| CodeQL, C/C++ and JavaScript/TypeScript | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559539) |
-| Backup-tool validation | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42252559677) |
+| Website and Playwright | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408962) |
+| Native GCC, Clang, ASan and UBSan | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408910) |
+| Windows x64 build and desktop smoke test | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409049) |
+| WebAssembly parity | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408989) |
+| CodeQL, C/C++ and JavaScript/TypeScript | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273409011) |
+| Backup-tool validation | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42273408992) |
 
 The native CTest suite passed 46/46 on GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows runner exercises move input, engine reply, paired undo, search cancellation, board flip, and shutdown. Both CodeQL language jobs completed with zero SARIF findings. The website workflow covers the browser account interface, inline password recovery, actual Chromium autofill state, responsive desktop/mobile layouts, and user-facing error handling.
 
-The current Vercel preview is a separate deployment from production. Production promotion is not recorded in this release review.
+The current Vercel preview is [prunex-review.vercel.app](https://prunex-review.vercel.app/), assigned to the release-candidate branch. It is separate from production; production promotion is not recorded in this review.
 
 ## Live identity and archive state — 6 November 2026
 
