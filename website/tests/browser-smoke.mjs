@@ -225,6 +225,7 @@ try {
   }
 
   const desktopViewport = page.viewportSize();
+  await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator("#account-toggle").click();
   const mobileDialogBox = await page.locator("#account-dialog").boundingBox();
