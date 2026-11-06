@@ -20,6 +20,7 @@ The sanitizer run used leak detection. These results cover the native C++ engine
 - Legal en-passant captures and rejection of pinned en-passant captures for both sides.
 - UCI startup, `isready`, ordinary search, `go movetime`, and clock-based time allocation.
 - Rejection of malformed FEN input, invalid counters, invalid en-passant states, and invalid perft arguments.
+- Website Playwright checks for desktop/mobile layout, account recovery placement, password visibility, and Chromium's actual address-autofill state through the DevTools Autofill protocol.
 
 ## Historical native-engine match records
 
@@ -50,7 +51,7 @@ A separate owner-reported 1,000,000-nodes-per-move run is documented as 63 wins,
 
 - Run the Windows desktop application on Windows 10/11 and complete the [desktop checklist](windows-desktop-checklist.md).
 - Check responsiveness during longer searches.
-- Test native search cancellation after asynchronous UCI `stop` support is implemented.
+- Add an explicit UCI `stop`-command cancellation regression case; the command is implemented, but the current timed-search tests do not exercise an interrupted search.
 - Run a larger, controlled match before making any strength or rating claims.
 
 No independent Elo rating has been established for the native C++ Prunex engine.
