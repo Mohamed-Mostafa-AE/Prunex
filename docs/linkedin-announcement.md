@@ -17,11 +17,11 @@ I'm continuing to work on search quality, evaluation, and reproducible testing. 
 **Project and source:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
 **Validation evidence:**
-- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303337)
-- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303249)
-- [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303284)
-- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303254)
-- [CodeQL security analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42275303299)
+- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951)
+- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986)
+- [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201)
+- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194)
+- [CodeQL security analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152)
 
 #Cplusplus #ChessProgramming #SoftwareEngineering #ChessEngines
 
