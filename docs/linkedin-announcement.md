@@ -2,28 +2,21 @@
 
 ## Post
 
-I've been building **Prunex** for a while, and I'm excited to share version **0.8.0**.
+I'm excited to share **Prunex 0.8.0** — a chess-engine project I've been building and refining.
 
-The name brings together two ideas: **PRUN**, from alpha–beta *pruning*, and **EX**, representing the execution of adversarial search—exploring candidate moves while anticipating an opponent's replies.
+The native engine is independently implemented in **C++20**, with an alpha–beta/PVS search architecture, iterative deepening, transposition tables, aspiration windows, late-move reductions, and quiescence search. It also includes a UCI interface and a handcrafted, tapered evaluation function.
 
-The native engine is written in **C++20** and built from scratch. It includes a 0x88 board representation, legal move generation, Zobrist hashing and a transposition table, iterative-deepening negamax alpha–beta/PVS search, aspiration windows, late-move reductions, quiescence search, and a UCI interface. Its evaluation currently uses handcrafted, tapered middlegame/endgame terms.
+Alongside the engine, **Prunex Play** provides a browser-based experience for playing and reviewing chess games, with a custom application layer for engine integration, move analysis, and game-review workflows.
 
-There's also an important distinction between the two parts of the project: **the native C++ engine does not currently use NNUE**. The separate **Prunex Play** browser experience uses Stockfish.js 19 Full and Stockfish's upstream NNUE network for playing and analysis. I built the application layer around it—including worker orchestration, game-review flow, expected-points calibration, move-quality grading, and archive integration. The NNUE network itself is upstream; I'm not claiming a custom network trained by Prunex.
+I've also put significant work into testing and reliability. The latest validation includes native GCC and Clang builds, sanitizer checks, Windows x64 tests, browser tests, and WebAssembly parity checks.
 
-On the engineering side, the 46-case native regression suite passed on GCC, Clang, AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The browser/Playwright, WebAssembly parity, backup-tool validation, and both CodeQL analyses also passed in CI.
+There's still plenty to improve, especially in search and evaluation, and I'm looking forward to continuing that work.
 
-I'm continuing to work on search quality, evaluation, and reproducible testing. Feedback from people interested in chess programming, C++, and engine development is always welcome.
+I'd love to hear feedback from anyone interested in chess programming, C++, search algorithms, or engine development.
 
-**Project and source:** https://github.com/Mohamed-Mostafa-AE/Prunex
+**Explore Prunex:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
-**Validation evidence:**
-- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951)
-- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986)
-- [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201)
-- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194)
-- [CodeQL security analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152)
-
-#Cplusplus #ChessProgramming #SoftwareEngineering #ChessEngines
+#CPlusPlus #ChessProgramming #SoftwareEngineering #ChessEngines
 
 ## Image guidance
 
