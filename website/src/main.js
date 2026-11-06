@@ -389,12 +389,12 @@ async function refreshGameArchive() {
     const status = gameArchive.getStatus();
     archiveNote.textContent = status === "connected"
       ? (sharePositionMemory
-        ? "Your games and reviews are saved to your private Neon archive. Selected position samples are stored only for your own future games."
-        : "Your games and reviews are saved to your private Neon archive. Private position memory is currently off.")
+        ? "Your games and reviews are saved to your private cloud archive. Selected position samples are stored only for your own future games."
+        : "Your games and reviews are saved to your private cloud archive. Private position memory is currently off.")
       : status === "fallback"
-        ? "Neon is temporarily unavailable. Existing cloud history is being read from the Supabase fallback; new changes stay on this device until Neon reconnects."
+        ? "Cloud sync is temporarily unavailable. Your existing cloud games remain available, and new changes will stay on this device until sync resumes."
         : status === "owner-only"
-          ? "This browser is in local mode. Only the verified owner email can access the cloud archive; other visitors' games stay on this device."
+          ? "Games in this browser are saved on this device. Cloud archive access is limited to its verified owner."
           : status === "unavailable"
             ? "Your games remain saved on this device. Cloud sync is queued and will retry when the private archive is available."
             : "Local game saving is available. Link and verify the owner email to enable the private cloud archive.";
@@ -910,7 +910,7 @@ function analyzeCurrentGame() {
       from: move.from, to: move.to, promotion: move.promotion || undefined
     });
     if (!applied) {
-      reviewSummary.textContent = "Could not reconstruct this game's move history.";
+      reviewSummary.textContent = "This game's move history couldn't be loaded. Try reopening it from your archive.";
       return;
     }
     // Terminal positions are known from the game rules; do not search a
