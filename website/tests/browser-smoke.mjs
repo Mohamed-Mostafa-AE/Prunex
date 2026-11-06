@@ -131,30 +131,67 @@ try {
     throw new Error("Forgot password must remain an inline sign-in action.");
   }
 
-  // Simulate a browser-supplied autofill value using the same CSS state hook.
-  // A real saved-address/password selection is browser-profile data and is not
-  // available to a clean CI browser context.
+  // Trigger Chromium's actual address-autofill implementation through CDP.
+  // This exercises the browser's :-webkit-autofill state rather than a CSS-only
+  // class simulation, without relying on a developer's saved browser profile.
   const ownerEmail = page.locator("#account-recovery-email");
-  await ownerEmail.evaluate(element => {
-    element.disabled = false;
-    element.value = "archive-owner@example.com";
-    element.classList.add("is-autofilled");
+  const autofillAddress = {
+    fields: [{ name: "EMAIL_ADDRESS", value: "archive-owner@example.com" }]
+  };
+  const autofillCdp = await page.context().newCDPSession(page);
+  await autofillCdp.send("Autofill.enable");
+  await autofillCdp.send("Autofill.setAddresses", { addresses: [autofillAddress] });
+  const { root } = await autofillCdp.send("DOM.getDocument");
+  const { nodeId } = await autofillCdp.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector: "#account-recovery-email"
+  });
+  if (!nodeId) throw new Error("The guest archive email field was not found for browser autofill.");
+  const { node } = await autofillCdp.send("DOM.describeNode", { nodeId });
+  await autofillCdp.send("Autofill.trigger", {
+    fieldId: node.backendNodeId,
+    address: autofillAddress
+  });
+  await page.waitForFunction(() => {
+    const input = document.querySelector("#account-recovery-email");
+    return input?.value === "archive-owner@example.com" &&
+      (input.matches(":-webkit-autofill") || input.matches(":autofill"));
   });
   const autofillStyle = await ownerEmail.evaluate(element => {
     const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
     return {
+      value: element.value,
+      autofilled: element.matches(":-webkit-autofill") || element.matches(":autofill"),
       color: style.webkitTextFillColor,
+      textColor: style.color,
       background: style.boxShadow,
       font: style.fontFamily,
-      height: element.getBoundingClientRect().height,
-      width: element.getBoundingClientRect().width
+      fontSize: style.fontSize,
+      lineHeight: style.lineHeight,
+      letterSpacing: style.letterSpacing,
+      fontVariantLigatures: style.fontVariantLigatures,
+      height: rect.height,
+      width: rect.width,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth
     };
   });
-  if (autofillStyle.color !== "rgb(241, 247, 255)" ||
+  if (autofillStyle.value !== "archive-owner@example.com" ||
+      !autofillStyle.autofilled ||
+      autofillStyle.color !== "rgb(241, 247, 255)" ||
+      autofillStyle.textColor !== "rgb(241, 247, 255)" ||
       !autofillStyle.background.includes("rgb(4, 19, 38)") ||
-      autofillStyle.height < 34 || autofillStyle.width < 120) {
-    throw new Error("Autofilled archive email text must retain the dark-field color, font, and usable dimensions.");
+      !autofillStyle.font.includes("DM Mono") ||
+      autofillStyle.fontSize !== "11px" ||
+      autofillStyle.lineHeight !== "15.95px" ||
+      autofillStyle.letterSpacing !== "normal" ||
+      autofillStyle.fontVariantLigatures !== "none" ||
+      autofillStyle.height < 34 || autofillStyle.width < 120 ||
+      autofillStyle.scrollWidth > autofillStyle.clientWidth + 1) {
+    throw new Error("Real browser autofill must preserve Prunex typography, text color, line height, and field dimensions.");
   }
+  await autofillCdp.detach();
   const emailInputBox = await ownerEmail.boundingBox();
   const emailButtonBox = await page.locator("#link-account-form button[type='submit']").boundingBox();
   const emailPanelBox = await page.locator("#account-link-panel").boundingBox();
