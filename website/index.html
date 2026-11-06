@@ -2,11 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f7faff">
     <meta name="color-scheme" content="light dark">
     <meta property="og:title" content="Prunex — C++20 Chess Engine">
-    <meta property="og:description" content="An independently developed chess engine in C++20. Read the source, review the tests, and try the separate browser demonstration.">
+    <meta property="og:description" content="Prunex 0.8.0 is an independently developed C++20 chess engine with a native Windows interface, UCI support and a separate browser demonstration. Explore the source and regression tests.">
     <meta property="og:type" content="website">
     <meta name="description" content="Prunex is an independently developed C++20 chess engine with its own board representation, legal move generation, search, evaluation, and UCI interface.">
     <link rel="icon" type="image/png" sizes="any" href="/prunex-mark.png?v=4">
@@ -24,10 +24,79 @@
           <a href="#play">Play</a>
           <a href="#about">The engine</a>
           <a href="#testing">Testing</a>
-          <a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+          <a href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
-        <div class="top-actions"><button id="site-theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span id="theme-toggle-icon" aria-hidden="true">☾</span><span id="theme-toggle-label">Dark mode</span></button><a class="top-cta" href="#play">Try the demo <span aria-hidden="true">↗</span></a></div>
+        <div class="top-actions">
+          <button id="account-toggle" class="account-toggle" type="button" aria-haspopup="dialog" aria-controls="account-dialog">
+            <span class="account-toggle-full">Account &amp; password</span><span class="account-toggle-short">Account</span>
+          </button>
+          <button id="site-theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span id="theme-toggle-icon" aria-hidden="true">☾</span><span id="theme-toggle-label">Dark mode</span></button>
+          <a class="top-cta" href="#play">Try the demo <span aria-hidden="true">↗</span></a>
+        </div>
       </header>
+
+      <dialog id="account-dialog" class="account-dialog" aria-labelledby="account-dialog-title">
+        <div class="account-dialog-inner">
+          <div class="account-dialog-header">
+            <div><span class="panel-kicker">PRUNEX IDENTITY</span><h2 id="account-dialog-title">Account &amp; password</h2></div>
+            <button id="account-close" class="account-close" type="button" aria-label="Close account settings">×</button>
+          </div>
+          <div class="account-session-card">
+            <span class="account-panel-kicker">CURRENT SESSION</span>
+            <p id="account-session-status" role="status" aria-live="polite">Checking this browser's account…</p>
+          </div>
+          <div class="account-dialog-grid">
+            <section id="account-link-panel" class="account-panel">
+              <div class="account-panel-heading"><span>01</span><h3>Preserve this guest archive</h3></div>
+              <p class="account-panel-copy">Link the email approved for your private archive. Complete verification in this browser profile to keep these games with the same account.</p>
+              <form id="link-account-form" class="account-form" autocomplete="on">
+                <label for="account-recovery-email">Email for your private archive</label>
+                <div class="account-form-row">
+                  <input id="account-recovery-email" name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="you@example.com" required>
+                  <button class="button" type="submit">Send verification</button>
+                </div>
+                <p id="account-recovery-status" class="account-status" aria-live="polite">After the email arrives, open its confirmation link in this same browser profile. Then return here to set your password.</p>
+              </form>
+            </section>
+            <section class="account-panel">
+              <div class="account-panel-heading"><span>02</span><h3>Password</h3></div>
+              <form id="set-password-form" class="account-form">
+                <p id="account-password-guidance" class="account-panel-copy">Verify your guest email first. The password step becomes available after confirmation.</p>
+                <label for="account-password">New password</label>
+                <div class="password-input-row">
+                  <input id="account-password" type="password" autocomplete="new-password" minlength="12" placeholder="At least 12 characters" required disabled>
+                  <button class="password-visibility-toggle" type="button" data-password-toggle="account-password" aria-controls="account-password" aria-pressed="false">Show</button>
+                </div>
+                <label for="account-password-confirm">Confirm password</label>
+                <div class="password-input-row">
+                  <input id="account-password-confirm" type="password" autocomplete="new-password" minlength="12" placeholder="Re-enter your password" required disabled>
+                  <button class="password-visibility-toggle" type="button" data-password-toggle="account-password-confirm" aria-controls="account-password-confirm" aria-pressed="false">Show</button>
+                </div>
+                <button id="set-password-submit" class="button button-primary" type="submit" disabled>Save password</button>
+                <p id="account-password-status" class="account-status" aria-live="polite">Passwords are never stored in browser storage.</p>
+              </form>
+            </section>
+            <section class="account-panel account-panel-wide">
+              <div class="account-panel-heading"><span>03</span><h3>Sign in or recover access</h3></div>
+              <form id="restore-account-form" class="account-form">
+                <label for="restore-account-email">Email</label>
+                <input id="restore-account-email" type="email" autocomplete="username" placeholder="you@example.com" required>
+                <label for="restore-account-password">Password</label>
+                <div class="password-input-row">
+                  <input id="restore-account-password" type="password" autocomplete="current-password" placeholder="Your Prunex password" required>
+                  <button class="password-visibility-toggle" type="button" data-password-toggle="restore-account-password" aria-controls="restore-account-password" aria-pressed="false">Show</button>
+                </div>
+                <div class="account-signin-actions">
+                  <button class="button button-primary" type="submit">Sign in</button>
+                  <button id="forgot-password-link" class="account-inline-link" type="button">Forgot password?</button>
+                </div>
+                <p id="restore-account-status" class="account-status" aria-live="polite">Signing in here will not merge a different guest archive. Prunex will ask before switching away from a guest session.</p>
+              </form>
+            </section>
+          </div>
+          <p class="account-dialog-footnote">Account access is verified by Supabase. Private cloud archive access is additionally restricted to the configured owner email. Your password is sent only to the authentication provider over HTTPS.</p>
+        </div>
+      </dialog>
 
       <main>
         <section class="hero" id="home">
@@ -38,9 +107,10 @@
             <p class="hero-description">I built the engine around its own board representation, move generation, search, evaluation, and UCI interface. The project also includes a Windows desktop application and a browser demo.</p>
             <div class="hero-actions">
               <a class="button button-primary" href="#play">Try the browser demo <span aria-hidden="true">↗</span></a>
-              <a class="button button-quiet" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">View source <span aria-hidden="true">↗</span></a>
+              <a class="button button-quiet" href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">View source <span aria-hidden="true">↗</span></a>
             </div>
             <div class="hero-meta"><span><i class="pulse-dot"></i> Project repository</span><span>C++20</span><span>No account required</span></div>
+
           </div>
           <div class="hero-specimen" aria-label="A small chess position and UCI command example">
             <div class="specimen-head"><span>POSITION / 001</span><span>STARTPOS</span></div>
@@ -79,18 +149,57 @@
 
           <div class="workspace">
             <div class="board-column">
-              <div class="board-topline"><div class="opponent-label"><span class="engine-avatar"><img src="/prunex-mark.png?v=3" alt="Prunex logo"></span><div><strong>Prunex 0.8.0</strong><small id="engine-state">Starting engine</small></div></div><span class="turn-pill" id="turn-label">YOU · WHITE</span></div>
-              <div class="board-frame"><div id="board" class="board" role="group" aria-label="Chessboard"></div><button id="resize-board" class="resize-grip" type="button" aria-label="Drag to resize chessboard" title="Drag to resize"></button></div>
+              <div class="board-topline"><div class="opponent-label"><span class="engine-avatar"><img src="/prunex-mark.png?v=3" alt="Prunex logo"></span><div><strong>PRUNEX</strong><small id="engine-state">Prunex · initializing</small></div></div><span class="turn-pill" id="turn-label">YOU · WHITE</span></div>
+              <div class="board-stage">
+                <div class="evaluation-column" id="evaluation-column" aria-label="Engine evaluation">
+                  <div class="evaluation-track" aria-hidden="true">
+                    <div id="evaluation-fill" class="evaluation-fill" style="height:50%"></div>
+                    <span class="evaluation-midline"></span>
+                  </div>
+                  <output id="evaluation-label" class="evaluation-label" aria-live="polite" aria-label="White advantage">0.00</output>
+                </div>
+                <div class="board-frame">
+                <div id="board" class="board" role="group" aria-label="Chessboard" tabindex="-1"></div>
+                <button id="resize-board" class="resize-grip" type="button" aria-label="Drag to resize chessboard" title="Drag to resize" tabindex="-1"></button>
+                <div id="game-result-dialog" class="game-result-overlay" role="dialog" aria-modal="false" aria-labelledby="game-result-title" aria-describedby="game-result-subtitle game-result-copy" hidden>
+                  <div class="game-result-panel">
+                    <div class="game-result-topline">
+                      <span class="game-result-kicker">PRUNEX / GAME REPORT</span>
+                      <span id="game-result-tone" class="game-result-tone">VICTORY</span>
+                    </div>
+                    <button id="game-result-close" class="game-result-close" type="button" aria-label="Close game result">×</button>
+                    <span class="game-result-rule" aria-hidden="true"></span>
+                    <h2 id="game-result-title" class="game-result-title">Well, well, well.</h2>
+                    <p id="game-result-subtitle" class="game-result-subtitle">The engine has been humbled.</p>
+                    <p id="game-result-copy" class="game-result-copy">A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.</p>
+                    <div class="game-result-footer">
+                      <span class="game-result-footer-note">GAME COMPLETE</span>
+                      <div class="game-result-actions">
+                        <button id="game-result-review" class="button" type="button">Review moves</button>
+                        <button id="game-result-new-game" class="button button-primary" type="button">Play again</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+              <div class="move-navigation" role="group" aria-label="Game review navigation">
+                <div class="move-navigation-row">
+                  <button id="move-first" class="move-nav-button" type="button" aria-label="First position" title="First position" disabled>⇤</button>
+                  <button id="move-prev" class="move-nav-button" type="button" aria-label="Previous move" title="Previous move" disabled>←</button>
+                  <output id="move-position-label" class="move-position-label" aria-live="polite">0 / 0</output>
+                  <button id="move-next" class="move-nav-button" type="button" aria-label="Next move" title="Next move" disabled>→</button>
+                  <button id="move-last" class="move-nav-button" type="button" aria-label="Final position" title="Final position" disabled>⇥</button>
+                </div>
+                <input id="move-scrubber" class="move-scrubber" type="range" min="0" max="0" value="0" step="1" aria-label="Scrub through game moves" disabled>
+              </div>
               <div class="board-toolbar">
                 <button id="new-game" class="button button-primary">New game</button>
                 <button id="undo" class="button" disabled>↶ Undo</button>
                 <button id="flip" class="button">⇅ Flip board</button>
+                <button id="clear-marks" class="button" type="button">Clear marks</button>
+                <button id="toggle-analysis-panel" class="button" type="button" aria-controls="analysis-panel" aria-expanded="true">Hide side panel</button>
                 <label class="compact-select"><span>Play as</span><select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
-              </div>
-              <div class="board-size-control">
-                <label for="board-size"><span>BOARD SIZE</span><output id="board-size-value">520 px</output></label>
-                <input id="board-size" type="range" min="320" max="640" step="10" value="520" aria-label="Preferred chessboard size">
-                <span class="board-size-note">Adjust with the slider or drag the board corner.</span>
               </div>
               <div id="promotion-picker" class="promotion-picker" hidden role="dialog" aria-modal="true" aria-label="Choose promotion piece">
                 <span>Promote pawn to</span>
@@ -105,17 +214,106 @@
               <div class="status-row"><span class="status-indicator"></span><span id="status" aria-live="polite">Loading engine…</span><span class="status-hint" id="analysis-status">Local analysis</span></div>
             </div>
 
-            <aside class="analysis-panel">
+            <aside id="analysis-panel" class="analysis-panel">
               <div class="panel-heading"><div><span class="panel-kicker">GAME SESSION</span><h3>Move history</h3></div><span id="move-count">0 plies</span></div>
               <div id="move-list" class="move-list"><div class="empty">Moves will appear here.</div></div>
+              <button id="resize-move-history" class="history-resize-handle" type="button" aria-label="Drag to resize move history" title="Drag to resize move history" tabindex="-1"></button>
+              <section class="game-review-panel" id="game-review-panel" hidden aria-live="polite">
+                <div class="review-heading">
+                  <div><span class="panel-kicker">POST-GAME ANALYSIS</span><h4>Game review</h4></div>
+                  <span id="review-depth" class="review-depth">ENGINE DEPTH 10</span>
+                </div>
+                <div class="review-progress" id="review-progress" hidden>
+                  <div class="review-progress-track"><span id="review-progress-fill"></span></div>
+                  <span id="review-progress-label">Preparing analysis…</span>
+                </div>
+                <div id="review-summary" class="review-summary"></div>
+                <p id="review-method-note" class="review-method-note">Game review evaluates each position independently.</p>
+                <div id="review-key-moments" class="review-key-moments"></div>
+              </section>
+              <section class="game-archive" id="game-archive">
+                <div class="archive-heading">
+                  <div><span class="panel-kicker">LOCAL EXPERIENCE</span><h4>Game archive</h4></div>
+                  <span id="game-archive-count" class="archive-count">0 games</span>
+                </div>
+                <p id="game-archive-note" class="archive-note">Games stay on this device unless linked to the verified owner email. The cloud archive and any position memory are private to that account.</p>
+                <div id="turnstile-widget-container" class="turnstile-widget" hidden aria-live="polite"></div>
+                <div id="game-archive-list" class="game-archive-list"><div class="empty">No games saved yet.</div></div>
+                <details class="account-management">
+                  <summary>ACCOUNT &amp; DATA</summary>
+                  <div class="account-management-body">
+                    <form id="delete-account-form" class="account-form account-delete-form">
+                      <label for="delete-account-confirmation">Delete your Prunex account</label>
+                      <div class="account-form-row">
+                        <input id="delete-account-confirmation" type="text" autocomplete="off" placeholder="Type DELETE" required>
+                        <button class="button account-delete-button" type="submit">Delete account</button>
+                      </div>
+                      <p id="delete-account-status" class="account-status" aria-live="polite">Permanent account closure removes the account and its associated cloud archive, reviews, private position memory, and this browser's local archive. Individual game-record deletion is not available.</p>
+                    </form>
+                  </div>
+                </details>
+              </section>
               <div class="engine-controls">
-                <div class="control-title"><span>GAME SETTINGS</span><span class="control-live">ADJUSTABLE</span></div>
-                <label class="setting-row"><span>Opponent strength</span><select id="nodes"><option value="10000">Quick · 10k nodes</option><option value="25000" selected>Balanced · 25k nodes</option><option value="50000">Strong · 50k nodes</option><option value="100000">Deep · 100k nodes</option><option value="250000">Maximum · 250k nodes</option></select></label>
-                <label class="setting-row"><span>Board theme</span><select id="theme"><option value="blue">Blue & white</option><option value="ice">Ice blue</option></select></label>
-                <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="cburnett">Staunton · Classic</option><option value="unicode">Unicode pieces</option><option value="letters">Letter notation</option></select></label>
-                <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Show coordinates</span></label>
-                <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Show legal-move hints</span></label>
-                <div class="engine-note"><span class="local-dot"></span><span>Prunex 0.8.0 browser build, powered by Stockfish 19 Lite. The strength setting controls its search budget, not an Elo rating.</span></div>
+                <div class="control-title"><span>GAME SETTINGS</span><span class="control-live">CUSTOMIZE</span></div>
+
+                <details class="settings-group" open>
+                  <summary><span>PLAY</span><small>Strength · input · premoves</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row"><span>Opponent strength</span><select id="nodes"><option value="10000">Quick · 150ms / position</option><option value="25000" selected>Balanced · 350ms / position</option><option value="50000">Strong · 600ms / position</option><option value="100000">Deep · 1s / position</option><option value="250000">Maximum · 1.8s / position</option></select></label>
+                    <label class="setting-row"><span>Move input</span><select id="move-method"><option value="both">Drag or click</option><option value="drag">Drag only</option><option value="click">Click squares</option></select></label>
+                    <label class="setting-toggle"><input id="enable-premoves" type="checkbox" checked><span>Enable premoves</span></label>
+                  </div>
+                </details>
+
+                <details class="settings-group">
+                  <summary><span>BOARD</span><small>Theme · highlights · animation</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row"><span>Board theme</span><select id="theme"><option value="blue">Blue & white</option><option value="ice">Ice blue</option></select></label>
+                    <label class="setting-row"><span>Piece style</span><select id="piece-style"><option value="cburnett">Staunton · Classic</option><option value="letters">Letter notation</option></select></label>
+                    <div class="settings-toggle-grid">
+                      <label class="setting-toggle"><input id="coordinates" type="checkbox" checked><span>Coordinates</span></label>
+                      <label class="setting-toggle"><input id="legal-moves" type="checkbox" checked><span>Legal moves</span></label>
+                      <label class="setting-toggle"><input id="highlight-last-move" type="checkbox" checked><span>Last-move squares</span></label>
+                      <label class="setting-toggle"><input id="piece-animation" type="checkbox" checked><span>Move animation</span></label>
+                    </div>
+                  </div>
+                </details>
+
+                <details class="settings-group">
+                  <summary><span>ANALYSIS</span><small>Best move · evaluation · marks</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row"><span>Game review budget</span><select id="review-budget"><option value="3000">Quick · 3 seconds / position</option><option value="10000">Balanced · 10 seconds / position</option><option value="15000" selected>Recommended · 15 seconds / position</option><option value="20000">Deep · 20 seconds / position</option><option value="30000">Maximum · 30 seconds / position</option></select></label>
+                    <label class="setting-row"><span>Best-move marker</span><select id="best-move-display"><option value="off">Off</option><option value="piece" selected>Marker on moving piece</option><option value="highlight">Square highlights</option><option value="arrow">Arrow + highlights</option></select></label>
+                    <div class="settings-toggle-grid">
+                      <label class="setting-toggle"><input id="show-evaluation" type="checkbox" checked><span>Evaluation bar</span></label>
+                      <label class="setting-toggle"><input id="board-annotations" type="checkbox"><span>Board annotations</span></label>
+                    </div>
+                    <label class="setting-toggle"><input id="share-position-memory" type="checkbox"><span>Include reviewed positions in my private memory</span></label>
+                    <p class="annotation-help">Mouse: right-click and drag between squares to draw an arrow; right-click one square to mark it. Touch: enable annotations, tap a starting square, then a destination. Tap the same square twice to mark it. Use Clear marks to remove annotations.</p>
+                    <p class="sound-note">When enabled, eligible positions, moves, results and evaluation quality are stored only in your private archive and can inform your own future position lookups. They are never shared with other Prunex users, and they do not retrain or change the native C++ engine.</p>
+                  </div>
+                </details>
+
+                <details class="settings-group">
+                  <summary><span>SOUND</span><small>8 sound profiles · preview</small></summary>
+                  <div class="settings-group-body">
+                    <label class="setting-row sound-setting-row"><span>Move sound</span>
+                      <div class="sound-picker">
+                        <select id="sound-style">
+                          <option value="classic" selected>Classic wooden tap</option>
+                          <option value="soft">Soft felt tap</option>
+                          <option value="muted">Quiet click</option>
+                        </select>
+                        <button id="preview-move-sound" class="button sound-preview" type="button">Preview</button>
+                      </div>
+                    </label>
+                    <label class="setting-toggle"><input id="defeat-sound" type="checkbox" checked><span>Play board sounds</span></label>
+                    <p class="sound-note">Choose a profile, then preview before playing.</p>
+                  </div>
+                </details>
+
+                <p class="engine-review-note">Each non-terminal position receives the selected search budget. The recommended setting is 15 seconds per position; longer games therefore take longer to review. A deeper search can change the leading line, but no fixed time guarantees a stronger move.</p>
+                <div class="engine-note"><span class="local-dot"></span><span>PRUNEX · EVALUATION INTELLIGENCE</span></div>
               </div>
             </aside>
           </div>
@@ -144,7 +342,8 @@
             <p>Prunex 0.8.0 is a chess engine written from the ground up in C++20. Its source includes the position model, legal move generation, search, evaluation, and Universal Chess Interface (UCI) support.</p>
             <p>The search uses Zobrist hashing, a transposition table, iterative deepening, aspiration windows, principal-variation search, move ordering, late-move reductions, and quiescence search. The evaluation uses a tapered positional model.</p>
             <p>The native project is built with CMake. Its Windows GUI uses the Win32 API, while the engine can also be driven through its UCI interface.</p>
-            <a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">Explore source code and build instructions <span aria-hidden="true">↗</span></a>
+            <p class="name-origin-note"><strong>About the name:</strong> The name draws on two ideas: “PRUN” refers to alpha–beta pruning, and “EX” refers to competitive execution. This is the project's naming inspiration, not a formal technical acronym.</p>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">Explore source code and build instructions <span aria-hidden="true">↗</span></a>
           </div>
         </section>
 
@@ -152,77 +351,56 @@
           <div class="benchmark-copy">
             <div class="eyebrow"><span class="eyebrow-line"></span> TESTING</div>
             <h2>Checked as it grows.</h2>
-            <p>The native engine has 44 regression tests covering move generation, special moves, search positions, and UCI commands.</p>
-            <p>Recorded Linux builds passed with GCC Release, Clang Release, and AddressSanitizer/UndefinedBehaviorSanitizer. The GCC static-analysis build completed without diagnostics.</p>
+            <p>The current native CTest suite has 46 cases covering move generation, special moves, search positions, and UCI commands. GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46.</p>
+            <p>A separate GCC static-analysis run also completed without diagnostics.</p>
             <p>The Windows desktop application still needs a full manual test on Windows 10 or 11. The current limitations and test coverage are listed in the project notes.</p>
-            <a class="text-link" href="https://github.com/Mohamed-Mostafa-GT/Prunex/tree/main/docs" target="_blank" rel="noreferrer">Read the test results and project notes <span aria-hidden="true">↗</span></a>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/tree/main/docs" target="_blank" rel="noreferrer">Read the test results and project notes <span aria-hidden="true">↗</span></a>
           </div>
           <div class="benchmark-card">
-            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">LINUX TESTS</span></div>
-            <div class="score-number">44<span>/44</span></div>
-            <p class="score-label">Regression tests passed in each recorded configuration</p>
+            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">CURRENT CI RUNS</span></div>
+            <div class="score-number"><span class="score-primary">46</span><span class="score-secondary">/46</span></div>
+            <p class="score-label">46-case suite passed in every current CI configuration</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
-              <div><dt>GCC 14.2 Release</dt><dd>44 / 44 passed</dd></div>
-              <div><dt>Clang 17 Release</dt><dd>44 / 44 passed</dd></div>
-              <div><dt>ASan + UBSan</dt><dd>44 / 44 passed</dd></div>
-              <div><dt>GCC static analysis</dt><dd>No diagnostics</dd></div>
+              <div><dt>GCC 14.2 Release</dt><dd>46 / 46 passed</dd></div>
+              <div><dt>Clang 17 Release</dt><dd>46 / 46 passed</dd></div>
+              <div><dt>ASan + UBSan</dt><dd>46 / 46 passed</dd></div>
+              <div><dt>Windows x64</dt><dd>46 / 46 passed</dd></div>
             </dl>
-            <p class="benchmark-caveat">These results cover the native engine's recorded Linux test runs. They do not establish an Elo rating, and they do not replace a manual test of the Windows desktop application.</p>
+            <p class="benchmark-caveat">The current 46-case suite passed in GCC, Clang, sanitizer, and Windows x64 CI. These checks do not establish an Elo rating or replace manual Windows desktop acceptance.</p>
           </div>
         </section>
 
-        <section class="match-section section-wrap" id="match-results">
+        <section class="match-section section-wrap" id="analysis-standards">
           <div class="benchmark-copy">
-            <div class="eyebrow"><span class="eyebrow-line"></span> ENGINE MATCH</div>
-            <h2>Prunex 0.8.0 vs Stockfish 2.0.</h2>
-            <p>In a 64-game match, the Prunex 0.8.0 benchmark build scored 63 wins, 1 draw, and 0 losses against Stockfish 2.0 64-bit.</p>
-            <p>The match used 1,000,000 nodes per move, a 256 MB hash, and one thread. Sixteen openings were each played twice with colors reversed.</p>
-            <p>The score converts to 99.22% and an Elo-model gap of approximately +842 points. Using CCRL's 3,062 rating for Stockfish 2.0.1 64-bit as a proxy baseline gives a formula-derived estimate of approximately 3,904 Elo.</p>
-            <a class="text-link" href="https://www.computerchess.org/cgi/engine_details.cgi?engine=Stockfish+2.0.1+64-bit" target="_blank" rel="noreferrer">View the CCRL Stockfish 2.0.1 rating reference <span aria-hidden="true">↗</span></a>
+            <div class="eyebrow"><span class="eyebrow-line"></span> PERFORMANCE STANDARD</div>
+            <h2>Strength is earned in testing.</h2>
+            <p>Engine strength is established through repeatable games, fixed time controls, balanced colors, diverse opening positions, and enough samples to report a meaningful rating range.</p>
+            <p>Prunex publishes measured results only when the test configuration, game count, and uncertainty can be inspected. A single match score or a longer search setting is not, by itself, proof of a rating advantage.</p>
+            <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/tree/feature/prunex-evaluation-intelligence/docs" target="_blank" rel="noreferrer">Explore the engineering notes <span aria-hidden="true">↗</span></a>
           </div>
           <div class="benchmark-card match-card">
-            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">64-GAME MATCH</span></div>
-            <div class="match-score">63–1–0</div>
-            <p class="score-label">Wins · Draws · Losses against Stockfish 2.0</p>
+            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">VALIDATION</span></div>
+            <div class="score-number"><span class="score-primary">46</span><span class="score-secondary">cases</span></div>
+            <p class="score-label">Current native CTest suite</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
-              <div><dt>Match score</dt><dd>99.22%</dd></div>
-              <div><dt>Elo-model gap</dt><dd>+842</dd></div>
-              <div><dt>Opponent reference</dt><dd>3,062 Elo</dd></div>
-              <div><dt>Score-derived estimate</dt><dd>≈3,904 Elo</dd></div>
+              <div><dt>Position correctness</dt><dd>Perft & move rules</dd></div>
+              <div><dt>Search behavior</dt><dd>Regression tests</dd></div>
+              <div><dt>Interface</dt><dd>UCI validation</dd></div>
+              <div><dt>Performance</dt><dd>Fixed benchmark suite</dd></div>
             </dl>
-            <p class="benchmark-caveat">This is an experimental score-derived estimate, not an official or independently established rating. The baseline is CCRL's Stockfish 2.0.1 64-bit rating (used as a proxy for Stockfish 2.0); CCRL uses 40/15 testing, unlike this 1M-nodes-per-move match. The benchmarked Prunex 0.8.0 build is based on Stockfish 19, which is important context when interpreting this result.</p>
+            <p class="benchmark-caveat">Correctness tests and node-throughput benchmarks do not establish an Elo rating. A competitive rating requires a separately controlled match series.</p>
           </div>
         </section>
       </main>
 
       <footer class="footer">
-        <div class="footer-main"><a class="brand footer-brand" href="#home"><span>PRUNEX</span></a><p>An independently developed chess engine in C++20.</p><div class="footer-social"><a href="https://github.com/Mohamed-Mostafa-GT/Prunex" target="_blank" rel="noreferrer">GitHub ↗</a><a href="mailto:mohamedhussam09@gmail.com">Email ↗</a></div></div>
+        <div class="footer-main"><a class="brand footer-brand" href="#home"><span>PRUNEX</span></a><p>An independently developed chess engine in C++20.</p><div class="footer-social"><a href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">GitHub ↗</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="mailto:mohamedhussam09@gmail.com">Email ↗</a></div></div>
         <div class="footer-meta"><span>BUILT TO EXPLORE THE GAME.</span><span>© <span id="year"></span> PRUNEX · C++20</span></div>
-        <p class="license-note">The Prunex 0.8.0 browser build uses Stockfish.js 19 Lite, distributed under GPLv3. Its license and corresponding source code are included with the browser build. <a href="/COPYING.txt" target="_blank" rel="noreferrer">License ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
+        <p class="license-note">Prunex is the branded browser experience and review layer. Its browser analysis uses the Stockfish.js 19 Full multi-threaded build, distributed under GPLv3; the upstream engine and browser port remain credited here. The GPLv3 license is included with this build; corresponding source is available from <a href="https://github.com/nmrugg/stockfish.js" target="_blank" rel="noreferrer">Stockfish.js source ↗</a> and <a href="https://github.com/official-stockfish/Stockfish" target="_blank" rel="noreferrer">Stockfish source ↗</a>. <a href="/COPYING.txt" target="_blank" rel="noreferrer">License ↗</a> · Cburnett chess-piece artwork by Colin M. L. Burnett, sourced from Lichess and licensed under GPL-2.0-or-later. <a href="/pieces/NOTICE.txt" target="_blank" rel="noreferrer">Piece attribution ↗</a> · <a href="/pieces/GPL-2.0.txt" target="_blank" rel="noreferrer">Piece license ↗</a></p>
       </footer>
 
-      <dialog id="game-result-dialog" class="game-result-dialog" aria-labelledby="game-result-title" aria-describedby="game-result-subtitle game-result-copy">
-        <div class="game-result-panel">
-          <div class="game-result-topline">
-            <span class="game-result-kicker">PRUNEX / GAME REPORT</span>
-            <span id="game-result-tone" class="game-result-tone">VICTORY</span>
-          </div>
-          <button id="game-result-close" class="game-result-close" type="button" aria-label="Close game result">×</button>
-          <span class="game-result-rule" aria-hidden="true"></span>
-          <h2 id="game-result-title" class="game-result-title">Well, well, well.</h2>
-          <p id="game-result-subtitle" class="game-result-subtitle">The engine has been humbled.</p>
-          <p id="game-result-copy" class="game-result-copy">A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.</p>
-          <div class="game-result-footer">
-            <span class="game-result-footer-note">GAME COMPLETE</span>
-            <div class="game-result-actions">
-              <button id="game-result-review" class="button" type="button">Review moves</button>
-              <button id="game-result-new-game" class="button button-primary" type="button">Play again</button>
-            </div>
-          </div>
-        </div>
-      </dialog>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

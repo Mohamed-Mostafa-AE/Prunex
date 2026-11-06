@@ -1,0 +1,119 @@
+-- Use invoker rights so PostgreSQL RLS enforces shared-memory writes.
+grant insert (
+  id, game_id, user_id, position_key, side_to_move, move_uci, san,
+  result_for_mover, eval_loss_cp, grade, created_at
+) on public.prunex_position_memory to authenticated;
+grant delete on table public.prunex_position_memory to authenticated;
+
+drop policy if exists "users can add their own Prunex position memory" on public.prunex_position_memory;
+create policy "users can add their own Prunex position memory"
+  on public.prunex_position_memory for insert to authenticated
+  with check (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+    and exists (
+      select 1 from public.prunex_game_reviews as reviews
+      where reviews.game_id = prunex_position_memory.game_id
+        and reviews.user_id = (select auth.uid())
+        and reviews.share_position_memory is true
+    )
+  );
+
+drop policy if exists "users can delete their own Prunex position memory" on public.prunex_position_memory;
+create policy "users can delete their own Prunex position memory"
+  on public.prunex_position_memory for delete to authenticated
+  using (
+    user_id = (select auth.uid())
+    and exists (
+      select 1 from public.prunex_games as games
+      where games.id = prunex_position_memory.game_id
+        and games.user_id = (select auth.uid())
+    )
+  );
+
+create or replace function public.replace_my_position_memory_for_game(
+  target_game_id uuid,
+  position_samples jsonb
+)
+returns integer
+language plpgsql
+security invoker
+set search_path = ''
+as $function$
+declare
+  caller_id uuid := auth.uid();
+  sharing_enabled boolean;
+  sample_count integer;
+  inserted_rows integer := 0;
+begin
+  if caller_id is null then
+    raise exception using errcode = '28000', message = 'Authentication is required.';
+  end if;
+  if position_samples is null or pg_catalog.jsonb_typeof(position_samples) is distinct from 'array' then
+    raise exception using errcode = '22023', message = 'Position samples must be a JSON array.';
+  end if;
+
+  sample_count := pg_catalog.jsonb_array_length(position_samples);
+  if sample_count > 2048 then
+    raise exception using errcode = '22023', message = 'A game cannot contribute more than 2048 position samples.';
+  end if;
+
+  select reviews.share_position_memory
+    into sharing_enabled
+    from public.prunex_game_reviews as reviews
+    join public.prunex_games as games on games.id = reviews.game_id
+   where reviews.game_id = target_game_id
+     and reviews.user_id = caller_id
+     and games.user_id = caller_id;
+
+  if not found then
+    raise exception using errcode = '42501', message = 'The requested game review is not owned by this account.';
+  end if;
+  if sharing_enabled is not true and sample_count > 0 then
+    raise exception using errcode = '42501', message = 'This game review has not opted in to shared position memory.';
+  end if;
+
+  delete from public.prunex_position_memory as memory
+   where memory.game_id = target_game_id
+     and memory.user_id = caller_id;
+
+  if sharing_enabled is true and sample_count > 0 then
+    insert into public.prunex_position_memory (
+      id, game_id, user_id, position_key, side_to_move, move_uci,
+      san, result_for_mover, eval_loss_cp, grade
+    )
+    select
+      pg_catalog.gen_random_uuid()::text,
+      target_game_id,
+      caller_id,
+      sample.position_key,
+      sample.side_to_move,
+      sample.move_uci,
+      sample.san,
+      sample.result_for_mover,
+      sample.eval_loss_cp,
+      sample.grade
+    from pg_catalog.jsonb_to_recordset(position_samples) as sample(
+      position_key text,
+      side_to_move character(1),
+      move_uci text,
+      san text,
+      result_for_mover smallint,
+      eval_loss_cp integer,
+      grade text
+    );
+    get diagnostics inserted_rows = row_count;
+  end if;
+
+  return inserted_rows;
+end;
+$function$;
+
+revoke all on function public.replace_my_position_memory_for_game(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.replace_my_position_memory_for_game(uuid, jsonb) to authenticated;
+comment on function public.replace_my_position_memory_for_game(uuid, jsonb) is
+  'Atomically replace or revoke shared position-memory samples for a game owned by auth.uid(); RLS enforces ownership and consent.';

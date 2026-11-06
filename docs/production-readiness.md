@@ -1,0 +1,102 @@
+# Prunex 0.8.0 — release readiness
+
+**Review date:** 6 November 2026  
+**Reviewed code commit:** `6fe61051538f2122191cba67e79921a8ba67ee06`  
+**Scope:** native C++20 engine, Windows desktop application, browser application, identity, and private game archive.
+
+This record separates source-code validation from hosted-service configuration and operational acceptance.
+
+## Architecture
+
+- The native Prunex engine is an independently implemented C++20 chess engine with its own 0x88 board representation, legal move generation, Zobrist hashing, transposition table, iterative-deepening negamax alpha–beta/PVS search, move ordering, and UCI interface. Its current evaluator is handcrafted and tapered across middlegame/endgame phases; it is not NNUE-based.
+- The Windows desktop application is a native interface to the engine.
+- The website is a separate browser application. It uses `chess.js` for game rules and Stockfish.js 19 Full for its opponent and review analysis; it does not execute the native C++ engine. Stockfish 19 supplies the upstream NNUE evaluation network. Prunex owns the browser application and analysis layer, not the upstream network.
+- Private cloud games are stored in Neon PostgreSQL through a same-origin server API. Supabase Auth supplies identity and retains legacy source records. Browser-local games are stored in IndexedDB.
+- Account access supports guest sessions, linking an email to the current guest identity, password setup after email verification, password sign-in, and password recovery.
+- Account closure is the only destructive archive action exposed in the interface. Individual game-record deletion is not available.
+
+## Current source validation
+
+All six GitHub Actions workflows passed for the reviewed commit:
+
+| Workflow | Result |
+|---|---|
+| Website and Playwright | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201) |
+| Native GCC, Clang, ASan and UBSan | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951) |
+| Windows x64 build and desktop smoke test | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986) |
+| WebAssembly parity | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194) |
+| CodeQL, C/C++ and JavaScript/TypeScript | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152) |
+| Backup-tool validation | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871943) |
+
+The native CTest suite passed 46/46 on GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows runner exercises move input, engine reply, paired undo, search cancellation, board flip, and shutdown. Both CodeQL language jobs completed with zero SARIF findings. The website workflow covers the browser account interface, inline password recovery, actual Chromium autofill state, responsive desktop/mobile layouts, and user-facing error handling.
+
+The current candidate preview is [prunex-review.vercel.app](https://prunex-review.vercel.app/), assigned to the release-candidate head `6fe61051538f2122191cba67e79921a8ba67ee06`. It is a `READY` preview deployment. The production alias [prunex-play.vercel.app](https://prunex-play.vercel.app/) still points to production deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The release candidate is 214 commits ahead of that deployed commit. Do not promote the preview until the owner-archive, backup, legal, and manual device gates are satisfied.
+
+## Live identity and archive state — 6 November 2026
+
+### Supabase source
+
+The live project has 17 Auth identities: 16 anonymous identities and one confirmed email identity. The public archive tables contain 35 games, 3 reviews, and 0 position-memory rows. Games belong to five distinct user IDs and reviews to three; the confirmed email identity owns zero games and zero reviews.
+
+The original guest identity that owns the intended personal archive has not been established. No records have been reassigned, imported, or deleted. Import authorization must remain tied to the exact guest identity after email confirmation; row counts and email similarity are not sufficient evidence of ownership.
+
+### Neon archive
+
+The active Neon archive contains:
+
+| Table | Rows |
+|---|---:|
+| `prunex_archive.games` | 0 |
+| `prunex_archive.game_reviews` | 0 |
+| `prunex_archive.position_memory` | 0 |
+| `prunex_archive.migration_state` | 0 |
+
+A checksummed recovery record stores the legacy source counts (35 games, 3 reviews, 0 position-memory rows) and its payload hash. It is not an imported active archive or a verified full database backup. The only Neon manual snapshot is named `prunex-empty-schema-before-owner-migration`; a restore-check branch also contains an empty schema. The Neon snapshot schedule is empty and the current primary branch exposes six hours of point-in-time history. Neither is a data-bearing backup.
+
+### Authentication and email
+
+The application enforces a 12-character password minimum and does not store password values in browser storage or game records. Supabase Security Advisor reports breached-password protection disabled. Supabase's current documentation states that leaked-password protection is available on the Pro plan and above, so confirm plan eligibility before treating this control as an available toggle. Hosted identity-linking settings, confirmation settings, Site URL, redirect allowlist, custom SMTP, and the three email templates have not been verified in the live dashboard. No controlled mailbox test confirms email-linking, recovery, or password-change notification delivery.
+
+### Security advisor observations
+
+Supabase health advisor returned no findings. Security advisor reports anonymous-access policy warnings for the game, review, and position-memory tables because anonymous Supabase sessions use the `authenticated` Postgres role. The inspected game and review policies restrict rows using `auth.uid()`; position-memory reads are shared only for the optional position-memory feature, with writes tied to a user's own game and an opted-in review. These policies must be evaluated against the guest/consent model rather than removed to silence the warning.
+
+The advisor also reports breached-password protection disabled. Four unused-index notices are informational; no index was dropped without query-plan evidence.
+
+## Repository and release controls
+
+- The top-bar account control opens account and password settings. Password sign-in and password recovery are available; recovery remains inline in the sign-in interface.
+- The account interface exposes account closure, not individual game or record deletion.
+- The autofill regression test invokes Chromium autofill through CDP and checks the browser autofill state and computed field appearance.
+- The repository retains the native engine, browser application, and third-party licensing boundaries separately.
+- The project-name explanation is recorded in `README.md` and `docs/project-name.md`: PRUN comes from alpha–beta PRUNing; EX represents the execution of adversarial search while anticipating the opponent's replies.
+- The native C++ evaluator is handcrafted/tapered; the browser Stockfish.js 19 Full integration uses the upstream Stockfish NNUE network. No project-trained NNUE network is claimed.
+- The deployed Supabase `delete-account` Edge Function is active with JWT verification enabled. Its live logic verifies the caller token, restricts allowed origins, requires explicit confirmation, revokes refresh sessions, and deletes only the authenticated account.
+- The active GitHub `Protect main` ruleset still has no required status-check rule and requires zero approvals. Green workflows therefore are not currently enforced as merge requirements.
+- The website's `main.js` remains a large application controller; `src/gui.cpp` also retains a build-time dependency on the CLI translation unit. These are known refactoring opportunities. They should be addressed incrementally with full regression coverage, not through a broad pre-release rewrite.
+
+## Required operator actions before production promotion
+
+These are dashboard/device tasks; repository CI cannot complete them.
+
+1. **Resolve the original guest identity.** Open the candidate preview in the exact browser profile containing the legacy archive. Confirm that the games are visible before changing identity. Use **Account & password** to link and verify an email on that existing guest session, then set its password in the same profile. Do not sign in to an unrelated account or reassign records by guessing. Verify the confirmed identity and the server-side `PRUNEX_OWNER_EMAIL` allowlist match before allowing the owner-scoped import. Reconcile the selected owner's games, reviews, foreign keys, and migration state in Supabase and Neon.
+2. **Complete Supabase Auth setup.** In Authentication settings, enable manual identity linking, confirm email/password sign-in and email confirmations, set the production Site URL, and allow only the approved production/preview redirects. Apply the three repository email templates (email change, password recovery, password changed). Configure custom SMTP and verified sender-domain DNS (SPF, DKIM, DMARC), then test confirmation, recovery, and password-change notifications using controlled mailboxes. The leaked-password protection setting is currently off; Supabase currently documents it as Pro-plan-and-above, so check the project's plan before deciding whether to upgrade.
+3. **Activate and prove encrypted backups.** In GitHub → Settings → Secrets and variables → Actions, add variable `PRUNEX_BACKUP_AGE_RECIPIENT` and secret `NEON_BACKUP_DATABASE_URL`. Use a database-owner connection able to read all archive rows (the restricted `prunex_app` connection is not suitable). Keep the age private identity offline. After the backup workflow is on `main`, run it manually, download an encrypted artifact, verify its checksum, decrypt and restore to an isolated PostgreSQL 18 instance, and reconcile row counts. A successful tooling test or empty-schema restore is not sufficient.
+4. **Enforce merge protection.** Edit [Protect main](https://github.com/Mohamed-Mostafa-AE/Prunex/rules/26650516) to require the website/browser, native compiler/sanitizer, Windows x64, WebAssembly parity, both CodeQL language analyses, and backup-tool checks. Keep the pull-request rule. Require an independent approval if a second reviewer is available. Re-read the saved ruleset to confirm enforcement.
+5. **Complete Windows client acceptance.** Run the checklist in `docs/windows-desktop-checklist.md` on actual Windows 10/11 devices, including 100%/150% DPI, 1366×768 and 1920×1080 layouts, all promotions, physical input, end states, sustained search, and repeated shutdown.
+6. **Obtain qualified legal sign-off.** The Privacy Notice and Terms remain drafts. Counsel should review operator identity, audience/age and consent, Egyptian and other applicable privacy rules, cross-border transfers, retention, deletion, backups, and the separate native/browser licensing boundaries.
+7. **Release the tested commit, not the preview by accident.** After the preceding gates close, merge the reviewed PR to `main`, build a production-target deployment from the merged commit with production environment settings, test the staged production deployment, and only then assign/promote the production alias. Do not promote the current preview deployment as a substitute for a production build.
+
+## Release decision
+
+**Source-code validation is green. Production release is not cleared.** The following controls still require evidence outside repository CI:
+
+1. Hosted Supabase identity-linking and password settings, approved redirect URLs, email templates, custom SMTP, sender-domain verification, and successful real-mailbox tests.
+2. Verification of the exact original guest identity that owns the intended archive. The confirmed email account owns no legacy games or reviews; no records may be reassigned by inference.
+3. A complete encrypted database export, checksum verification, decryption, and data-bearing restore into an isolated target. The empty-schema snapshot and source-count record do not satisfy this requirement.
+4. Manual Windows 10/11 client-device acceptance for visual rendering, display scaling, promotion, physical input, and sustained search. The automated runner is Windows Server 2022.
+5. Qualified legal review and approval of the Privacy Notice and Terms of Use, which remain labelled drafts.
+6. Required status checks on `main`; a human approval rule should be enabled only if an independent reviewer is available.
+7. Production-domain smoke testing after the other release controls are closed.
+
+No independently measured Elo rating or comparative match result is claimed for the native engine.
