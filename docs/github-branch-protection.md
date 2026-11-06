@@ -1,24 +1,28 @@
-# Default-branch ruleset
+# Default-branch protection
 
-The active repository ruleset **Protect main** (ID `26650516`) applies to the default branch. Its current configuration prevents branch deletion and force-pushes and requires pull requests. It still has zero required status checks.
+**Observed:** 6 November 2026  
+**Ruleset:** `Protect main` (ID `26650516`)  
+**Target:** default branch `main`
 
-The latest successful commit `2ff47018cd45f9fcfeafe9c492c55fd8e88855e4` reported these GitHub check-run names:
+The active ruleset prevents branch deletion and force-pushes and requires pull requests. It currently has **no required status-check rule**. The workflows listed below pass on commit `1739fc8356c72886796841012f22267e8dd2efdb`, but GitHub does not yet enforce them as merge requirements.
 
-| Required status check | Latest result |
+## Latest successful checks
+
+| Check context | Result |
 |---|---|
-| `build-and-test` | success |
-| `test-training-data` | success |
-| `Analyze c-cpp` | success |
-| `Analyze javascript-typescript` | success |
-| `GCC AddressSanitizer and UndefinedBehaviorSanitizer` | success |
-| `clang++ regression suite` | success |
-| `g++ regression suite` | success |
-| `build` (Windows x64) | success |
-| `build-and-compare` (WebAssembly) | success |
-| `validate` (backup tooling) | success |
+| `build-and-test` | Success |
+| `test-training-data` | Success |
+| `Analyze c-cpp` | Success |
+| `Analyze javascript-typescript` | Success |
+| `build-and-compare` | Success |
+| `g++ regression suite` | Success |
+| `GCC AddressSanitizer and UndefinedBehaviorSanitizer` | Success |
+| `clang++ regression suite` | Success |
+| `build` (Windows x64) | Success |
+| `validate` (backup tooling) | Success |
 
-The checks above are the exact contexts reported by the current GitHub Actions run. Require these contexts on `main`, enable branch-up-to-date enforcement, and retain the existing pull-request, no-deletion, and no-force-push rules.
+The CodeQL language analyses are separate check runs. The top-level CodeQL summary is not needed as an additional requirement when both language analyses are required.
 
-The connected GitHub integration has read-only ruleset access; it cannot write repository-administration settings. Therefore the ruleset itself has not been changed from this workspace. GitHub's documented update endpoint requires repository Administration: write permission. See [GitHub's repository rulesets API](https://docs.github.com/en/rest/repos/rules#update-a-repository-ruleset).
+## Administration status
 
-After updating the ruleset, verify on the GitHub Settings → Rules page that every context appears under required status checks and that the ruleset remains Active.
+The connected GitHub integration exposes read access to repository rulesets but does not have repository-administration write access. The ruleset therefore remains unchanged. GitHub documents required status checks as a merge gate: [available rules for rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets) and [creating rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository).
