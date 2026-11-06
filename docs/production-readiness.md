@@ -24,16 +24,18 @@ This page separates controls that can be verified from repository source/CI from
 - The native WebAssembly build compiles the same C++ implementation and has CI parity checks. The current website worker remains a separate Stockfish.js-based browser engine.
 - Email-change, password-reset and password-change-notification HTML templates are stored in `supabase/templates/`. Repository tests validate their provider variables and secret hygiene. A local `supabase/config.toml` entry does not configure the hosted Supabase dashboard.
 
-## Historical Stockfish 2.0 experiment
+## Strength claims
 
-The archived 64-game experiment is verifiable as a historical benchmark, but **it is not a result for the independently implemented native C++20 engine**.
+No independently measured Elo rating has been established for the native C++20 engine. Node counts, a fixed-position benchmark, and results from the separate browser application are not substitutes for a controlled match series using the native executable. Archived historical match records remain in a separate evidence report and are not used as a native-engine performance claim.
 
-- The retained match record reports 62 wins, 2 draws and 0 losses (63/64 points; 98.44%) against Stockfish 2.0 at 100,000 nodes per move and 128 MB hash per engine.
-- The executable labelled “Prunex 0.8.0” was built from official Stockfish 19 source tag `sf_19`; its recorded source modification changed the UCI engine name. It was Stockfish 19-derived, not the native Prunex engine.
-- The original GitHub Actions run retains the PGN, summary, build output and provenance. The independent audit recounted the PGN headers against the summary and checked the retained checksums.
-- The record does not establish a native Prunex Elo rating. The separate 1,000,000-node 63–1–0 result has no supplied raw PGN/JSONL in the audited artifact and remains unverified.
+## Current provider observations — 6 November 2026
 
-Evidence and limitations are documented in [the benchmark report](stockfish-2-comparison.md) and [the machine-readable evidence directory](../benchmarks/stockfish-2.0/README.md).
+- The Supabase source project contains 35 legacy games and 3 reviews across five anonymous identities. A separate verified email identity currently owns no games or reviews. The correct guest identity has not been established, so no account migration has been performed.
+- A recovery snapshot row is present in Neon with source counts of 35 games, 3 reviews and 0 position-memory rows, plus a SHA-256 payload checksum. The active Neon archive tables currently contain 0 imported games, 0 reviews and 0 position-memory rows.
+- The existing Neon manual snapshot predates that recovery row. A restored branch from the old snapshot does not contain the recovery table. A new manual snapshot is blocked by the project's one-snapshot limit; scheduled snapshots are unavailable on the current plan.
+- Vercel has a sensitive `PRUNEX_OWNER_EMAIL` variable in Preview and Production. Its value is redacted by the available connection, so correspondence with the verified Supabase identity has not been attested.
+- Supabase Auth settings and SMTP secrets are not exposed by the connected project-inspection actions. Hosted manual linking, confirmation, password policy, redirect allowlist, custom SMTP and live mailbox delivery remain unverified.
+- The active GitHub `Protect main` ruleset still has no required status checks. The available GitHub connection can inspect rulesets but cannot update them.
 
 ## External release gates
 
