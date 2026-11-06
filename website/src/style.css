@@ -1134,12 +1134,31 @@ img, svg, video, canvas { max-width: 100%; }
 .account-panel .account-form input:-webkit-autofill:active,
 .account-panel .account-form input:autofill,
 .account-panel .account-form input.is-autofilled {
-  -webkit-text-fill-color:#f1f7ff;
+  -webkit-appearance:none;
+  appearance:none;
+  -webkit-text-fill-color:#f1f7ff !important;
+  color:#f1f7ff !important;
   caret-color:#f1f7ff;
+  font-family:var(--mono) !important;
+  font-size:11px !important;
+  font-style:normal !important;
+  font-weight:400 !important;
+  line-height:1.45 !important;
+  letter-spacing:normal !important;
+  font-kerning:none;
+  font-variant-ligatures:none !important;
+  font-feature-settings:"liga" 0,"clig" 0,"calt" 0 !important;
+  font-synthesis:none;
+  text-transform:none !important;
+  text-shadow:none !important;
   -webkit-box-shadow:0 0 0 1000px #041326 inset;
   box-shadow:0 0 0 1000px #041326 inset;
   border-color:#54789a;
-  transition:background-color 9999s ease-out 0s;
+}
+.account-panel .account-form input:-webkit-autofill:focus-visible,
+.account-panel .account-form input:autofill:focus-visible {
+  outline:2px solid #55a7e8;
+  outline-offset:2px;
 }
 .password-input-row { display:flex; align-items:stretch; gap:6px; min-width:0; }
 .password-input-row input { flex:1 1 auto; width:100%; min-width:0; }
