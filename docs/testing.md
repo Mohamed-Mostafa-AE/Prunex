@@ -17,7 +17,7 @@ The sanitizer build ran with leak detection enabled. The Windows job also passed
 
 ## Latest release-candidate CI
 
-The following workflows were run for pull-request head `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`:
+All six source-validation workflows passed for pull-request head `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`:
 
 | Workflow | Status | Evidence |
 | --- | --- | --- |
@@ -26,9 +26,11 @@ The following workflows were run for pull-request head `4bb43dbacb7a8c567c4a0aa0
 | Windows x64 build, CTest, and desktop smoke test | Passed | [Run 42280861974](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) |
 | WebAssembly build and parity | Passed | [Run 42280861737](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) |
 | Backup-tool validation | Passed — tooling only | [Run 42280861766](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) |
-| CodeQL C/C++ and JavaScript/TypeScript analysis | Queued at the time of this update | [Run 42280861678](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) |
+| CodeQL C/C++ and JavaScript/TypeScript analysis | Passed | [Run 42280861678](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) |
 
-The CodeQL run is not counted as passed. Backup-tool validation checks the workflow and tooling; it is not evidence of a successful data-bearing backup or restore.
+The website workflow also passed after the documentation update to the browser project: [Run 42285430091](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42285430091).
+
+The five commits after `4bb43db`, through documentation head `cd28e5edcece91587516be3d4ffacc0509375681`, change documentation only. A fresh CodeQL run for that documentation-only head is queued and is not counted as a new pass. Backup-tool validation checks the workflow and tooling; it is not evidence of a successful data-bearing backup or restore.
 
 ## Browser and account tests
 
