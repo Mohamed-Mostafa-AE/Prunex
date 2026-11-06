@@ -211,7 +211,7 @@ try {
       autofillStyle.fontVariantLigatures !== "none" ||
       autofillStyle.height < 34 || autofillStyle.width < 120 ||
       autofillStyle.scrollWidth > autofillStyle.clientWidth + 1) {
-    throw new Error("Real browser autofill must preserve Prunex typography, text color, line height, and field dimensions.");
+    throw new Error("Real browser autofill must preserve Prunex typography, text color, line height, and field dimensions: " + JSON.stringify(autofillStyle));
   }
   await autofillCdp.detach();
   const emailInputBox = await ownerEmail.boundingBox();
