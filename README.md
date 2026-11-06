@@ -59,7 +59,7 @@ ctest --test-dir build --output-on-failure
 
 The CTest suite currently contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. An earlier GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
 
-Current run records: [website and Playwright](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642555), [native compiler and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642487), [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642503), [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642485), and [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642553).
+Current run records: [website and Playwright](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465639), [native compiler and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465750), [Windows x64 and desktop interaction smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465916), [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465587), and [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232465806).
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 
@@ -73,14 +73,16 @@ Game Review uses a 15-second search budget per non-terminal position. This is a 
 
 ## Known limitations
 
-- The Windows desktop interaction smoke test runs in CI. Manual Windows 10/11 acceptance remains for DPI/rendering, screen fit, promotion, physical input, and sustained-search responsiveness. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
-- The Windows desktop application runs engine searches on a background thread and applies completed results on the UI thread. Search cancellation and shutdown paths are implemented; manual Windows 10/11 acceptance is still required for DPI/rendering, physical input, screen fit, promotion, and sustained-search responsiveness.
+- The Windows workflow exercises desktop startup, a legal move, an engine reply, paired undo, search cancellation, board flip, and normal shutdown on a Windows Server 2022 runner. Manual acceptance on Windows 10/11 client devices remains necessary for DPI scaling, visual rendering, screen fit, promotion, and physical input. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
+- Engine searches run on a background thread; completed results are applied on the UI thread. Search cancellation and shutdown paths are covered by the Windows smoke test.
 - No independently measured Elo rating has been established for the native C++20 engine. Strength claims require a separate, reproducible match series with balanced colours, fixed conditions, retained game records and independently checked results.
 
 ## Project documentation
 
 - [Development notes](docs/development-notes.md)
 - [Project-name origin](docs/project-name.md)
+- [Engineering review](docs/engineering-review.md)
+- [Launch announcement and visual assets](docs/linkedin-launch.md)
 - [Test results and benchmark methodology](docs/testing.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
