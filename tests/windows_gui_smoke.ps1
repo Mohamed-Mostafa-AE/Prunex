@@ -74,9 +74,10 @@ try {
   $undoTitle = Wait-ForTitle $process "White to move \| 0 plies" 10
   Write-Host "Undo restored the starting position: $undoTitle"
 
-  # Use the deepest supported search so New Game exercises cancellation.
+  # The depth + control occupies client x=746..788; click inside its hit area.
+  # New Game then exercises the search-cancellation path.
   for ($i = 0; $i -lt 4; $i++) {
-    [PrunexSmokeInput]::Click($window, 819, 361)
+    [PrunexSmokeInput]::Click($window, 760, 361)
   }
   [PrunexSmokeInput]::Click($window, 376, 588)
   [PrunexSmokeInput]::Click($window, 376, 436)

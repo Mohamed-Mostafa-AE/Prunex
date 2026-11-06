@@ -8,8 +8,7 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/windows-build.yml'
       - '.clang-format'
-      - '.github/workflows/windows-build.yml'
-      - 'WINDOWS_GUI_CHECKLIST.md'
+      - 'docs/windows-desktop-checklist.md'
   pull_request:
     paths:
       - 'src/**'
@@ -17,7 +16,7 @@ on:
       - 'CMakeLists.txt'
       - '.clang-format'
       - '.github/workflows/windows-build.yml'
-      - 'WINDOWS_GUI_CHECKLIST.md'
+      - 'docs/windows-desktop-checklist.md'
   workflow_dispatch:
 
 permissions:

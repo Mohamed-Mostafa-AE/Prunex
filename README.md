@@ -82,7 +82,7 @@ Game Review uses a 15-second search budget per non-terminal position. This is a 
 - [Development notes](docs/development-notes.md)
 - [Project-name origin](docs/project-name.md)
 - [Engineering review](docs/engineering-review.md)
-- [Launch announcement and visual assets](docs/linkedin-launch.md)
+- [LinkedIn announcement and project images](docs/linkedin-announcement.md)
 - [Test results and benchmark methodology](docs/testing.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)

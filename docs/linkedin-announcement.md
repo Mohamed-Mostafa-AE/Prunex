@@ -2,20 +2,20 @@
 
 ## Post copy
 
-I’m sharing **Prunex 0.8.0**, an independently developed chess engine written in C++20.
+I’m sharing **Prunex 0.8.0**, a C++20 chess-engine project I’ve been building.
 
-The native engine has its own board representation, legal move generation, iterative-deepening alpha–beta search, position evaluation, and UCI interface. The project also includes a Windows desktop application, a regression suite, and a separate browser experience for playing and reviewing games.
+The native engine implements its own board representation, legal move generation, iterative-deepening alpha–beta search, position evaluation, and UCI interface. The project also includes a Windows desktop application, a 46-case regression suite, and a separate browser experience for playing and reviewing games.
 
-The current native regression suite passes **46/46 tests** across GCC, Clang, AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI. The Windows runner also exercises a legal move, engine reply, paired undo, search cancellation, and clean shutdown.
+The current validation covers GCC and Clang builds, sanitizers, Windows x64, WebAssembly parity, browser tests, and CodeQL analysis.
 
-There’s more work ahead on evaluation and measured playing strength, but I’m pleased with the progress from the engine core to a tested, usable project.
+I’m continuing to improve search and evaluation, with an emphasis on reproducible testing and measurable progress.
 
-**Source code:** https://github.com/Mohamed-Mostafa-AE/Prunex
+**Project and source:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
-**Validation:** [Native test matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232100427) · [Windows desktop and 46-test run](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232100449) · [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232100315) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42232100376)
+**Validation:** [Native compiler and sanitizer checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/native-ci.yml) · [Windows x64 validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/windows-build.yml) · [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/website-ci.yml) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/codeql.yml) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/wasm-ci.yml)
 
 #Cplusplus #ChessProgramming #SoftwareEngineering #SystemsProgramming
 
-## Photo notes
+## Project images
 
-The two supplied screenshots are captures from the live Prunex website. The board shown is the browser experience, not the native Windows desktop application. Use them as product images, not as benchmark or desktop-test evidence.
+The accompanying images are captures of the Prunex website and browser chess experience. They are product photos, not benchmark results or screenshots of the native Windows application.
