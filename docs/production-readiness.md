@@ -1,7 +1,8 @@
 # Prunex 0.8.0 — release readiness
 
 **Review date:** 6 November 2026  
-**Reviewed code commit:** `6fe61051538f2122191cba67e79921a8ba67ee06`  
+**Reviewed source-validation commit:** `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`  
+**Current documentation branch head:** `6defec6b744fb02bef172e447e45e38a928c6118`  
 **Scope:** native C++20 engine, Windows desktop application, browser application, identity, and private game archive.
 
 This record separates source-code validation from hosted-service configuration and operational acceptance.
@@ -10,14 +11,14 @@ This record separates source-code validation from hosted-service configuration a
 
 - The native Prunex engine is an independently implemented C++20 chess engine with its own 0x88 board representation, legal move generation, Zobrist hashing, transposition table, iterative-deepening negamax alpha–beta/PVS search, move ordering, and UCI interface. Its current evaluator is handcrafted and tapered across middlegame/endgame phases; it is not NNUE-based.
 - The Windows desktop application is a native interface to the engine.
-- The website is a separate browser application. It uses `chess.js` for game rules and Stockfish.js 19 Full for its opponent and review analysis; it does not execute the native C++ engine. Stockfish 19 supplies the upstream NNUE evaluation network. Prunex owns the browser application and analysis layer, not the upstream network.
+- The website is a separate browser application. It uses `chess.js` for game rules and a separately integrated third-party browser chess engine for opponent and review analysis; it does not execute the native C++ engine. The browser integration provides NNUE-based position evaluation. Prunex owns the browser application, review pipeline, calibration, archive integration, and presentation; the bundled engine component retains its own upstream licensing and attribution.
 - Private cloud games are stored in Neon PostgreSQL through a same-origin server API. Supabase Auth supplies identity and retains legacy source records. Browser-local games are stored in IndexedDB.
 - Account access supports guest sessions, linking an email to the current guest identity, password setup after email verification, password sign-in, and password recovery.
 - Account closure is the only destructive archive action exposed in the interface. Individual game-record deletion is not available.
 
 ## Current source validation
 
-All six GitHub Actions workflows passed for the reviewed commit:
+All six source-validation GitHub Actions workflows passed for source commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`: 
 
 | Workflow | Result |
 |---|---|
@@ -30,7 +31,7 @@ All six GitHub Actions workflows passed for the reviewed commit:
 
 The native CTest suite passed 46/46 on GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows runner exercises move input, engine reply, paired undo, search cancellation, board flip, and shutdown. Both CodeQL language jobs completed with zero SARIF findings. The website workflow covers the browser account interface, inline password recovery, actual Chromium autofill state, responsive desktop/mobile layouts, and user-facing error handling.
 
-The current candidate preview is [prunex-review.vercel.app](https://prunex-review.vercel.app/), assigned to the release-candidate head `6fe61051538f2122191cba67e79921a8ba67ee06`. It is a `READY` preview deployment. The production alias [prunex-play.vercel.app](https://prunex-play.vercel.app/) still points to production deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The release candidate is 214 commits ahead of that deployed commit. Do not promote the preview until the owner-archive, backup, legal, and manual device gates are satisfied.
+The current candidate preview is [prunex-review.vercel.app](https://prunex-review.vercel.app/), assigned to the release-candidate branch. The latest branch head `6defec6b744fb02bef172e447e45e38a928c6118` contains documentation-only changes after source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`. It is a `READY` preview deployment. The production alias [prunex-play.vercel.app](https://prunex-play.vercel.app/) still points to production deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The release candidate is 214 commits ahead of that deployed commit. Do not promote the preview until the owner-archive, backup, legal, and manual device gates are satisfied.
 
 ## Live identity and archive state — 6 November 2026
 
@@ -70,7 +71,7 @@ The advisor also reports breached-password protection disabled. Four unused-inde
 - The autofill regression test invokes Chromium autofill through CDP and checks the browser autofill state and computed field appearance.
 - The repository retains the native engine, browser application, and third-party licensing boundaries separately.
 - The project-name explanation is recorded in `README.md` and `docs/project-name.md`: PRUN comes from alpha–beta PRUNing; EX represents the execution of adversarial search while anticipating the opponent's replies.
-- The native C++ evaluator is handcrafted/tapered; the browser Stockfish.js 19 Full integration uses the upstream Stockfish NNUE network. No project-trained NNUE network is claimed.
+- The native C++ evaluator is handcrafted and tapered. NNUE-based evaluation belongs only to the separate browser application; it is not the native engine evaluator. No independently trained Prunex evaluation network is claimed.
 - The deployed Supabase `delete-account` Edge Function is active with JWT verification enabled. Its live logic verifies the caller token, restricts allowed origins, requires explicit confirmation, revokes refresh sessions, and deletes only the authenticated account.
 - The active GitHub `Protect main` ruleset still has no required status-check rule and requires zero approvals. Green workflows therefore are not currently enforced as merge requirements.
 - The website's `main.js` remains a large application controller; `src/gui.cpp` also retains a build-time dependency on the CLI translation unit. These are known refactoring opportunities. They should be addressed incrementally with full regression coverage, not through a broad pre-release rewrite.
