@@ -17,14 +17,14 @@ The sanitizer build ran with leak detection enabled. The Windows job also passed
 
 ## Recorded CI runs
 
-All links below refer to the same reviewed source commit, `4591190f6eea8ab01470ced2913986277dbb78d5`.
+All links below refer to the same reviewed pull-request head, `6fe61051538f2122191cba67e79921a8ba67ee06`.
 
-- [Website build, unit tests, and Playwright browser checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005146)
-- [GCC, Clang, and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005141)
-- [Windows x64 build, 46/46 CTest cases, and GUI smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005114)
-- [WebAssembly build and native parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005158)
-- [CodeQL C/C++ and JavaScript/TypeScript](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005205)
-- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42251005120)
+- [Website build, unit tests, and Playwright browser checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201)
+- [GCC, Clang, and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951)
+- [Windows x64 build, 46/46 CTest cases, and GUI smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986)
+- [WebAssembly build and native parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194)
+- [CodeQL C/C++ and JavaScript/TypeScript](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152)
+- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871943)
 
 ## Browser and account tests
 
