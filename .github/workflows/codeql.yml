@@ -47,7 +47,7 @@ jobs:
         with:
           category: /language:${{ matrix.language }}
           post-processed-sarif-path: results
-      - name: Summarize high-severity findings
+      - name: Summarize CodeQL findings
         if: always()
         shell: bash
         run: |
@@ -60,7 +60,7 @@ jobs:
               print("CodeQL did not save a processed SARIF file for this language.")
               raise SystemExit(0)
 
-          count = 0
+          total = 0
           for path in sarif_files:
               with open(path, encoding="utf-8") as handle:
                   sarif = json.load(handle)
@@ -70,24 +70,22 @@ jobs:
                       for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
                   }
                   for result in run.get("results", []):
+                      total += 1
                       rule_id = result.get("ruleId", "unknown")
                       rule = rules.get(rule_id, {})
                       props = result.get("properties", {})
+                      rule_props = rule.get("properties", {})
+                      tags = rule_props.get("tags", [])
                       severity = (
                           props.get("security-severity")
-                          or rule.get("properties", {}).get("security-severity")
-                          or "0"
+                          or rule_props.get("security-severity")
+                          or next((tag.split(":", 1)[1].strip() for tag in tags
+                                   if isinstance(tag, str) and tag.startswith("security-severity:")), "")
                       )
-                      try:
-                          high = float(severity) >= 7.0
-                      except (TypeError, ValueError):
-                          high = False
-                      if not high:
-                          continue
-                      count += 1
+                      level = result.get("level", "unspecified")
                       locations = result.get("locations", [])
                       if not locations:
-                          print(f"HIGH {rule_id}: location unavailable")
+                          print(f"{level} {rule_id} security-severity={severity or 'unspecified'} location=unknown")
                           continue
                       for location in locations[:5]:
                           physical = location.get("physicalLocation", {})
@@ -95,6 +93,6 @@ jobs:
                           region = physical.get("region", {})
                           uri = artifact.get("uri", "unknown")
                           line = region.get("startLine", "?")
-                          print(f"HIGH {rule_id}: {uri}:{line}")
-          print(f"High-severity SARIF findings: {count}")
+                          print(f"{level} {rule_id} security-severity={severity or 'unspecified'} {uri}:{line}")
+          print(f"CodeQL SARIF findings: {total}")
           PY
