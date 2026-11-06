@@ -13,7 +13,7 @@ The browser build is distributed under GPL-3.0. Keep the upstream license, sourc
 
 ## Maximum review budget
 
-Game Review has a separate analysis budget from opponent playing strength. The default is **30 seconds per non-terminal position**, with 3, 10, 15, 20, and 30 second choices. The UCI worker sends `go movetime` for each position and requests MultiPV so the review layer can compare the best and second-best candidates. A game with 60 analyzed positions can therefore take up to approximately 30 minutes, plus startup and rendering overhead. The actual completed depth depends on device speed, browser scheduling, and position complexity; 30 seconds is a time budget, not a guaranteed depth or accuracy level.
+Game Review has a separate analysis budget from opponent playing strength. The default is **15 seconds per non-terminal position**, with 3, 10, 15, 20, and 30 second choices. The UCI worker sends `go movetime` for each position and requests MultiPV so the review layer can compare the best and second-best candidates. A game with 60 analyzed positions can take about 15 minutes at the recommended default or up to approximately 30 minutes at the maximum setting, plus startup and rendering overhead. The actual completed depth depends on device speed, browser scheduling, and position complexity; the selected time is a budget, not a guaranteed depth or accuracy level.
 
 ## Prunex-owned evaluation layer
 
