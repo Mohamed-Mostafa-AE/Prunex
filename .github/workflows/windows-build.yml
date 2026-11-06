@@ -6,6 +6,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'CMakeLists.txt'
+      - '.github/workflows/windows-build.yml'
       - '.clang-format'
       - '.github/workflows/windows-build.yml'
       - 'WINDOWS_GUI_CHECKLIST.md'
@@ -91,6 +92,10 @@ jobs:
             }
           }
           Write-Host $uciOutput
+
+      - name: Exercise Windows desktop startup and shutdown
+        shell: pwsh
+        run: ./tests/windows_gui_smoke.ps1
 
       - name: Create Windows build manifest
         if: always()
