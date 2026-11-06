@@ -77,7 +77,6 @@ Game Review defaults to a 15-second search budget per non-terminal position. Thi
 
 - The Windows desktop application still needs a complete manual run-through on Windows 10 or 11. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
 - The Windows desktop application runs engine searches on a background thread and applies completed results on the UI thread. Search cancellation and shutdown paths are implemented; interactive Windows 10/11 acceptance is still required for rendering, input, resizing and lifecycle behavior.
-- No independent Elo rating has been established for the native C++ engine.
 - No independently measured Elo rating has been established for the native C++20 engine. Strength claims require a separate, reproducible match series with balanced colours, fixed conditions, retained game records and independently checked results.
 
 ## Project documentation
