@@ -1,29 +1,28 @@
-# Windows desktop verification
+# Windows desktop visual acceptance
 
-The Windows CI workflow builds the native GUI and CLI, runs the CTest suite, checks the executable architecture and UCI startup, and launches the desktop window in a Windows runner. The automated GUI smoke test checks window creation, title, responsiveness and clean shutdown. It does not replace a hands-on Windows 10/11 session.
+The latest Windows x64 workflow builds the GUI and CLI, runs all 46 native CTest cases, verifies x64 executable headers and UCI startup, and exercises a GUI interaction path: e2-e4, engine reply, paired undo, depth-8 search cancellation through New Game, board flip, and clean shutdown.
 
-## Build and launch
+This checklist is for the remaining human visual and input acceptance on a Windows 10/11 desktop.
 
-- [ ] Build the Release configuration with Visual Studio 2022 x64 and CMake.
-- [ ] Launch `Prunex.exe`; confirm the board, coordinates, controls and status text render.
-- [ ] Confirm the fixed-size window fits the available display without being hidden by the taskbar.
-- [ ] Launch `prunex-cli.exe` and verify `uci` and `isready`.
+## Display and input
 
-## Playing a game
+- [ ] Record Windows edition/build, display resolution, and scaling.
+- [ ] At 100% and 150% scaling, verify the board, coordinates, status, and controls render without overlap or clipping.
+- [ ] Check the fixed-size window on 1366×768 and 1920×1080 displays.
+- [ ] Use a physical mouse or touchpad to select pieces and squares.
+- [ ] Confirm selected-square and legal-destination highlights are clear and correctly positioned.
+- [ ] Check board flip and square selection with both orientations.
 
-- [ ] Select a white piece and confirm legal destinations are highlighted.
-- [ ] Make a legal move and confirm the side to move changes.
-- [ ] Try an illegal move and confirm the position is unchanged.
-- [ ] Play a human/engine turn and check that Undo restores both half-moves.
-- [ ] Undo after a human-only move.
-- [ ] Flip the board and confirm square selection still works.
-- [ ] Start a new game after several moves.
-- [ ] Check check, checkmate and stalemate positions.
-- [ ] Check pawn promotion and the selected promotion piece.
-- [ ] Try search depths 1, 4 and 8; confirm the window remains responsive.
-- [ ] Start a search, start a new game, and confirm the old search cannot alter the new position.
-- [ ] Close the window during an active search and confirm the process exits without an orphaned engine thread.
+## Game states and promotion
 
-## Environment and results
+- [ ] Test all four promotion choices (queen, rook, bishop, and knight).
+- [ ] Check check, checkmate, stalemate, and draw presentations.
+- [ ] Play several moves and verify Undo/redo behavior where available.
 
-Record the Windows edition/build, display resolution and scaling, CPU/GPU, compiler version, tested commit, and any issues. Keep screenshots and logs with the test record. Leave checks unchecked until they have been observed on a Windows desktop.
+## Search and lifecycle
+
+- [ ] Observe responsiveness during sustained searches at depths 1, 4, and 8.
+- [ ] Close during an active search and confirm the process exits without an orphaned engine thread.
+- [ ] Repeat launch/close cycles and check for stale processes or damaged settings.
+
+Record screenshots and any issues in [the acceptance record](windows-acceptance-record.md).
