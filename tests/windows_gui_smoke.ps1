@@ -66,12 +66,12 @@ try {
   # e2-e4: board coordinates are client-relative and fixed by the current GUI layout.
   [PrunexSmokeInput]::Click($window, 376, 588)
   [PrunexSmokeInput]::Click($window, 376, 436)
-  $replyTitle = Wait-ForTitle $process "White to move \\| 2 plies" 30
+  $replyTitle = Wait-ForTitle $process "White to move \| 2 plies" 30
   Write-Host "Legal human move and engine reply completed: $replyTitle"
 
   # Undo must restore both half-moves from the human/engine pair.
   [PrunexSmokeInput]::Click($window, 789, 473)
-  $undoTitle = Wait-ForTitle $process "White to move \\| 0 plies" 10
+  $undoTitle = Wait-ForTitle $process "White to move \| 0 plies" 10
   Write-Host "Undo restored the starting position: $undoTitle"
 
   # Use the deepest supported search so New Game exercises cancellation.
@@ -83,7 +83,7 @@ try {
   $thinkingTitle = Wait-ForTitle $process "Prunex is thinking" 5
   Write-Host "Deep search started: $thinkingTitle"
   [PrunexSmokeInput]::Click($window, 789, 425)
-  $newGameTitle = Wait-ForTitle $process "White to move \\| 0 plies" 10
+  $newGameTitle = Wait-ForTitle $process "White to move \| 0 plies" 10
   Write-Host "New Game cancelled the pending search: $newGameTitle"
 
   # Verify board orientation control remains responsive.
