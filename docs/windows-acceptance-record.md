@@ -4,15 +4,14 @@ The automated Windows x64 workflow verifies compilation, CTest, executable archi
 
 ## Tested Windows x64 build available now
 
-The latest passing Windows workflow is [run #42075433290](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433290). Download its artifact [`Prunex-Windows-x64`](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42075433290/artifacts/13437603709). It contains:
+The latest passing Windows workflow is [run #42229642503](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642503). Download its artifact [`Prunex-Windows-x64`](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642503/artifacts/13506873704). It contains:
 
-- `Release/Prunex.exe` — GUI executable, 93,696 bytes, SHA-256 `693DE11F75209AB6F7BDA3EE14C53EBDEE9CBB1322A949011158597D94894393`
-- `Release/prunex-cli.exe` — CLI engine, 94,208 bytes, SHA-256 `B2AB5349269592F7841C00B302029B1F1D3649CA46AD0317CB9D2A3C650F06C6`
-- `windows-build-manifest.json` — identifies commit `e41f24cc10448b2e2deac4f7ae956266d8910173`, MSVC/Visual Studio 2022, Release, x64.
-- `Testing/Temporary/LastTest.log` — CTest output.
+- `Release/Prunex.exe` — GUI executable, 93,696 bytes, SHA-256 `9115CBBBE8F8957C4448277C1659904450F5C560B8B3C3A902754DB7000307D4`
+- `Release/prunex-cli.exe` — CLI engine, 94,208 bytes, SHA-256 `44188A25C93B7070CCE1EBE632A51E8C2C42F2D98E806A65B8FE68F1A2E9A721`
+- `windows-build-manifest.json` — commit `2ff47018cd45f9fcfeafe9c492c55fd8e88855e4`, Visual Studio 2022, Release, x64.
+- `Testing/Temporary/LastTest.log` — CTest output (46/46 passed).
 
-The artifact is currently scheduled to expire on **5 December 2026**. Download it before then. The CI run verifies the build, CTest, AMD64 PE machine type and UCI startup; your manual acceptance record below is still required for desktop interaction.
-
+The artifact expires on **6 December 2026 at 13:57 UTC**. CI verifies x64 PE executables, all native tests, UCI startup, and a basic GUI launch/responsiveness/clean-shutdown smoke test. Manual move input, promotion, DPI, and sustained-search acceptance remains separate.
 ## Environment
 
 - Date/time:
