@@ -329,7 +329,7 @@ try {
   if (await page.locator("#match-results").count()) {
     throw new Error("The unsupported historical rating comparison should not be presented as a current Prunex rating.");
   }
-  if (!testingCopy.includes("46/46") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
+  if (!/46\s*\/\s*46/.test(testingCopy) || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
   if (favicon !== "/prunex-mark.png?v=4") throw new Error("Transparent Prunex mark is not configured as the favicon.");
   const markResponse = await page.request.get(new URL("/prunex-mark.png?v=4", baseUrl).toString());
