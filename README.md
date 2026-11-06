@@ -1,43 +1,39 @@
 # Prunex
 
-## Project name
+**An independently developed chess-engine project, built around a native C++20 engine and a separate browser chess experience.**
 
-The name **Prunex** combines two ideas: **PRUN**, from alpha–beta **PRUNing**, and **EX**, representing the **execution of adversarial search**—searching candidate moves while anticipating an opponent's replies. It is a coined project name rather than a formally established acronym.
+Prunex focuses on search, evaluation, and the engineering required to make a chess engine testable and usable across different environments.
 
-Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
+## Architecture
 
-> **Important distinction:** The browser demo is not the native C++ engine. It uses `chess.js` for game rules and the Stockfish.js 19 Full multi-threaded browser build for its opponent and analysis. The native engine is a separate C++ implementation.
-
-## Project components
-
-| Path | Description |
+| Component | Description |
 | --- | --- |
-| `src/main.cpp` | Native C++20 engine and UCI command-line interface |
-| `src/gui.cpp` | Windows desktop interface |
-| `tests/` | Native engine regression tests |
-| `website/` | Vite website and browser chess demo |
-| `docs/` | Architecture, test methodology, operations, and release records |
-| `.github/workflows/` | Automated build and website checks |
+| **Native engine** | Independent C++20 implementation with its own board representation, legal move generation, search, evaluation, and UCI interface. |
+| **Prunex Play** | Separate browser application for playing and reviewing chess games, with NNUE-based position evaluation. |
+| **Desktop interface** | Windows GUI for the native engine. |
+| **Engineering infrastructure** | CMake builds, regression tests, GitHub Actions, WebAssembly parity checks, and release documentation. |
+
+The two engine paths are distinct. The native C++ engine currently uses handcrafted tapered evaluation; NNUE is used by the separate browser experience. The browser application adds the Prunex-specific worker orchestration, review pipeline, expected-points calibration, move-quality grading, archive integration, and presentation.
 
 ## Native engine
 
-The native engine includes:
+The C++20 engine includes:
 
 - 0x88 board representation and FEN position loading
 - Legal move generation, including castling, en passant, and promotion
 - Zobrist hashing and a transposition table
-- Iterative deepening, negamax alpha-beta search, and principal-variation search
+- Iterative-deepening negamax alpha–beta search and principal-variation search
 - Aspiration windows, move ordering, late-move reductions, and quiescence search
-- Handcrafted tapered middlegame/endgame evaluation (not NNUE)
+- Handcrafted tapered middlegame/endgame evaluation
 - UCI command handling and time controls
 
-The current native engine release is **Prunex 0.8.0**. The CMake project version, UCI identification string, and Windows validation manifest are aligned to this release.
+The current native engine release is **Prunex 0.8.0**.
 
-## Build the native engine
+## Build
 
 ### Windows
 
-Install Visual Studio 2022 with **Desktop development with C++**, and CMake 3.20 or newer.
+Requirements: Visual Studio 2022 with **Desktop development with C++**, and CMake 3.20 or newer.
 
 ```powershell
 cmake -S . -B build -A x64
@@ -47,7 +43,7 @@ ctest --test-dir build -C Release --output-on-failure
 
 ### Linux
 
-Install a C++20 compiler and CMake 3.20 or newer.
+Requirements: a C++20 compiler and CMake 3.20 or newer.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -55,53 +51,47 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-## Tests
+## Validation
 
-The CTest suite contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. The Windows runner also completed the desktop interaction smoke test. These are recorded CI results, not a claim that every platform or Windows 10/11 client-device behaviour has been tested.
+The 46-case native regression suite passed in each of four CI configurations: GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows workflow also passed its desktop interaction smoke test.
 
-Latest full validation for PR head `6fe61051538f2122191cba67e79921a8ba67ee06` (the pull-request workflows tested its merge result against `main`):
+The following results were recorded for release-candidate commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`:
 
-- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201)
-- [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951)
-- [Windows x64 build and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986)
-- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194)
-- [CodeQL C/C++ and JavaScript/TypeScript analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152)
-- [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871943)
+| Workflow | Result |
+| --- | --- |
+| [Website, Playwright, and training-data checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610) | Passed |
+| [Native GCC/Clang and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) | Passed — 46/46 in all four configurations |
+| [Windows x64 and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) | Passed |
+| [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) | Passed |
+| [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) | Passed — tooling validation only |
+| [CodeQL analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) | Queued at the time of this update |
 
-Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
+These are CI results for the release-candidate branch, not a claim of production certification. In particular, backup-tool validation is not a data-bearing backup-and-restore test, and manual acceptance on Windows 10/11 client devices remains outstanding.
 
-## Try the website
+Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5; supported depths 1–10). See [Testing](docs/testing.md) for methodology and limitations.
 
-**Website:** https://prunex-play.vercel.app/
+## Try Prunex Play
 
-**Prunex Play** is a separate browser application; it does not execute the native C++ engine. Its opponent and review pipeline use the Stockfish.js 19 Full multi-threaded browser build, which uses Stockfish's upstream NNUE evaluation network. Prunex owns the browser application, UCI-worker orchestration, review pipeline, expected-points calibration, move-quality grading, archive integration, and presentation—not the upstream NNUE network. The native C++ engine currently uses handcrafted tapered evaluation, not NNUE. The site uses `chess.js` for browser game rules. Third-party browser components retain their own licenses and corresponding-source notices in `website/public/`. Cross-origin isolation enables shared-memory multithreading. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for the distinction.
+- **Public website:** https://prunex-play.vercel.app/
+- **Release-candidate preview:** https://prunex-review.vercel.app/
 
-Game Review uses a 15-second search budget per non-terminal position. This is a time budget, not a guaranteed search depth. See [Evaluation Intelligence](docs/evaluation-intelligence.md) for calibration, validation and benchmarking details.
+Prunex Play is a separate browser application; it does not execute the native C++ engine. Game Review uses a configurable search-time budget of 3, 10, 15, 20, or 30 seconds per non-terminal position, with 15 seconds as the default. A time budget does not guarantee a fixed search depth or accuracy level.
 
-## Known limitations
+## Documentation
 
-- The Windows workflow exercises desktop startup, a legal move, an engine reply, paired undo, search cancellation, board flip, and normal shutdown on a Windows Server 2022 runner. Manual acceptance on Windows 10/11 client devices remains necessary for DPI scaling, visual rendering, screen fit, promotion, and physical input. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
-- Engine searches run on a background thread; completed results are applied on the UI thread. Search cancellation and shutdown paths are covered by the Windows smoke test.
-- No independently measured Elo rating has been established for the native C++20 engine. Strength claims require a separate, reproducible match series with balanced colours, fixed conditions, retained game records and independently checked results.
-
-## Project documentation
-
-- [Development notes](docs/development-notes.md)
 - [Project-name origin](docs/project-name.md)
+- [Evaluation architecture and calibration](docs/evaluation-intelligence.md)
 - [Engineering review](docs/engineering-review.md)
-- [LinkedIn announcement](docs/linkedin-announcement.md)
 - [Test results and benchmark methodology](docs/testing.md)
+- [Production readiness and release status](docs/production-readiness.md)
+- [Windows desktop acceptance checklist](docs/windows-desktop-checklist.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
-- [Windows desktop checklist](docs/windows-desktop-checklist.md)
-- [Training-data sourcing and ingestion policy](docs/training-data-ingestion.md)
-- [Website implementation notes](website/README.md)
-- [Production readiness and release status](docs/production-readiness.md)
+- [Website implementation and third-party notices](website/README.md)
 
 ## Licensing
 
-The original Prunex native C++ implementation and its native regression tests are released under the **Apache License 2.0**, with scope defined in [LICENSE](LICENSE) and [LICENSE-SCOPE.md](LICENSE-SCOPE.md). The license does not relicense third-party dependencies, bundled browser-engine code, or artwork.
+The original native C++ implementation and native regression tests are released under the **Apache License 2.0**, with scope defined in [LICENSE](LICENSE) and [LICENSE-SCOPE.md](LICENSE-SCOPE.md).
 
-The browser demonstration contains separately licensed third-party components. Its browser engine distribution remains under GPLv3, and the Cburnett piece artwork remains under the license identified in `website/public/pieces/`. Their corresponding source links, notices, and license texts must remain with every distributed browser build. See [website/README.md](website/README.md) and the license notice in the site footer.
+The browser application contains separately licensed third-party components and artwork. Their licenses, attribution, and corresponding-source notices remain applicable; see [website/README.md](website/README.md) and the notices distributed with the site. The root Apache-2.0 license does not relicense those components.
 
-Other repository materials not listed in the Apache-2.0 scope remain reserved unless an applicable license or notice says otherwise.
