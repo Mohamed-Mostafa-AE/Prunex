@@ -136,11 +136,20 @@ try {
   // class simulation, without relying on a developer's saved browser profile.
   const ownerEmail = page.locator("#account-recovery-email");
   const autofillAddress = {
-    fields: [{ name: "EMAIL_ADDRESS", value: "archive-owner@example.com" }]
+    fields: [
+      { name: "NAME_FULL", value: "Archive Owner" },
+      { name: "EMAIL_ADDRESS", value: "archive-owner@example.com" },
+      { name: "ADDRESS_HOME_LINE1", value: "1 Test Street" },
+      { name: "ADDRESS_HOME_CITY", value: "Cairo" },
+      { name: "ADDRESS_HOME_STATE", value: "Cairo" },
+      { name: "ADDRESS_HOME_ZIP", value: "11511" },
+      { name: "ADDRESS_HOME_COUNTRY", value: "EG" }
+    ]
   };
   const autofillCdp = await page.context().newCDPSession(page);
   await autofillCdp.send("Autofill.enable");
   await autofillCdp.send("Autofill.setAddresses", { addresses: [autofillAddress] });
+  await ownerEmail.click();
   const { root } = await autofillCdp.send("DOM.getDocument");
   const { nodeId } = await autofillCdp.send("DOM.querySelector", {
     nodeId: root.nodeId,
@@ -156,6 +165,16 @@ try {
     const input = document.querySelector("#account-recovery-email");
     return input?.value === "archive-owner@example.com" &&
       (input.matches(":-webkit-autofill") || input.matches(":autofill"));
+  }, undefined, { timeout: 10000 }).catch(async error => {
+    const state = await ownerEmail.evaluate(element => ({
+      value: element.value,
+      disabled: element.disabled,
+      autocomplete: element.autocomplete,
+      name: element.name,
+      formAutocomplete: element.form?.autocomplete,
+      autofilled: element.matches(":-webkit-autofill") || element.matches(":autofill")
+    }));
+    throw new Error("Chromium address autofill did not populate the guest email field: " + JSON.stringify(state) + " (" + error.message + ")");
   });
   const autofillStyle = await ownerEmail.evaluate(element => {
     const style = getComputedStyle(element);
