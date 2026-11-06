@@ -59,6 +59,8 @@ ctest --test-dir build --output-on-failure
 
 The CTest suite currently contains 46 cases, including a native benchmark smoke test. On 6 November 2026, GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46 tests. An earlier GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
 
+Current run records: [website and Playwright](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642555), [native compiler and sanitizer matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642487), [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642503), [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642485), and [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642553).
+
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5), or pass a depth from 1–10. See [docs/testing.md](docs/testing.md) for benchmark methodology and limitations.
 
 ## Try the website
