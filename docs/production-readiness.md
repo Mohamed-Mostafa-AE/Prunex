@@ -22,16 +22,16 @@ All six source-validation GitHub Actions workflows passed for source commit `4bb
 
 | Workflow | Result |
 |---|---|
-| Website and Playwright | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201) |
-| Native GCC, Clang, ASan and UBSan | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951) |
-| Windows x64 build and desktop smoke test | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986) |
-| WebAssembly parity | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194) |
-| CodeQL, C/C++ and JavaScript/TypeScript | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152) |
-| Backup-tool validation | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871943) |
+| Website and Playwright | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610) |
+| Native GCC, Clang, ASan and UBSan | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) |
+| Windows x64 build and desktop smoke test | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) |
+| WebAssembly parity | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) |
+| CodeQL, C/C++ and JavaScript/TypeScript | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) |
+| Backup-tool validation (tooling only) | [Success](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) |
 
-The native CTest suite passed 46/46 on GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows runner exercises move input, engine reply, paired undo, search cancellation, board flip, and shutdown. Both CodeQL language jobs completed with zero SARIF findings. The website workflow covers the browser account interface, inline password recovery, actual Chromium autofill state, responsive desktop/mobile layouts, and user-facing error handling.
+The native CTest suite passed 46/46 on GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. CodeQL also passed on a subsequent documentation-only PR head, with no new alerts in changed files: [CodeQL run 42291135246](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42291135246). The Windows runner exercises move input, engine reply, paired undo, search cancellation, board flip, and shutdown. Both CodeQL language jobs completed with zero SARIF findings. The website workflow covers the browser account interface, inline password recovery, actual Chromium autofill state, responsive desktop/mobile layouts, and user-facing error handling.
 
-The current candidate preview is [prunex-review.vercel.app](https://prunex-review.vercel.app/), assigned to the release-candidate branch. The latest branch head `6defec6b744fb02bef172e447e45e38a928c6118` contains documentation-only changes after source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`. It is a `READY` preview deployment. The production alias [prunex-play.vercel.app](https://prunex-play.vercel.app/) still points to production deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The release candidate is 214 commits ahead of that deployed commit. Do not promote the preview until the owner-archive, backup, legal, and manual device gates are satisfied.
+The current candidate preview is [prunex-review.vercel.app](https://prunex-review.vercel.app/), a `READY` preview deployment built from source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`. Subsequent PR commits are documentation-only and do not change the deployed application source. The production alias [prunex-play.vercel.app](https://prunex-play.vercel.app/) still points to production deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The release candidate is 214 commits ahead of that deployed commit. Do not promote the preview until the owner-archive, backup, legal, and manual device gates are satisfied.
 
 ## Live identity and archive state — 6 November 2026
 
