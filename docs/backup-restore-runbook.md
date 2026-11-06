@@ -1,5 +1,11 @@
 # Prunex database backup and restore runbook
 
+## Current activation status — 6 November 2026
+
+The backup workflow is committed, but no successful production run on `main` or encrypted backup artifact is recorded. The Neon Free project does not permit scheduled snapshot configuration through the available API, and its manual snapshot quota is already occupied by an earlier empty-schema checkpoint. The existing source-data recovery record is not a tested database export/restore archive.
+
+Do not describe backups as active or recovery as verified until an encrypted artifact has been produced, downloaded and decrypted in a controlled environment, and restored with row counts reconciled against the source.
+
 ## Design
 
 The Neon project is PostgreSQL 18. Its Free plan currently has a six-hour point-in-time history window and does not allow scheduled Neon snapshots. This repository therefore includes a second, off-provider backup path using GitHub Actions:
