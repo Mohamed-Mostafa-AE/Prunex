@@ -257,7 +257,7 @@ function startEngine() {
 }
 
 self.addEventListener("message", (event) => {
-  if (event.origin !== self.origin) return;
+  if (event.origin && event.origin !== self.origin) return;
   const data = event.data || {};
   if (data.type === "init") {
     try {
