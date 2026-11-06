@@ -323,7 +323,7 @@ try {
   }
   const testingCopy = await page.locator("#testing").innerText();
   const standardsCopy = await page.locator("#analysis-standards").innerText();
-  if (!standardsCopy.includes("Strength is earned in testing") || !standardsCopy.includes("45")) {
+  if (!standardsCopy.includes("Strength is earned in testing") || !standardsCopy.includes("46")) {
     throw new Error("The site should explain the current validation standard without claiming an unverified rating.");
   }
   if (await page.locator("#match-results").count()) {
