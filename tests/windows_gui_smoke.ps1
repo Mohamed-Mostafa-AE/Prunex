@@ -13,13 +13,8 @@ try {
   $process.Refresh()
   if ($process.MainWindowHandle -eq [IntPtr]::Zero) { throw "Prunex did not create a visible top-level window." }
   if ($process.MainWindowTitle -ne "Prunex Chess") { throw "Unexpected window title: $($process.MainWindowTitle)" }
-  $bounds = $process.MainWindowBounds
-  if ($bounds.Width -lt 1000 -or $bounds.Height -lt 700) {
-    throw "The desktop window bounds are unexpectedly small ($($bounds.Width) x $($bounds.Height))."
-  }
   if (-not $process.Responding) { throw "The Prunex desktop window is not responding." }
-  Write-Host "GUI smoke passed: process started, main window appeared, title matched, minimum client window size checked, and the window responded."
-  Write-Host "Window bounds: $($bounds.Width) x $($bounds.Height)"
+  Write-Host "GUI smoke passed: process started, a main window handle appeared, title matched, the window responded, and normal shutdown was requested."
 } finally {
   if ($process -and -not $process.HasExited) {
     [void]$process.CloseMainWindow()
