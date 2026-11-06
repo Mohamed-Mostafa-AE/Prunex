@@ -10,19 +10,12 @@ The current native regression suite passes **46/46 tests** across GCC, Clang, Ad
 
 There’s more work ahead on evaluation and measured playing strength, but I’m pleased with the progress from the engine core to a tested, usable project.
 
-**Source code and build details:**  
-https://github.com/Mohamed-Mostafa-AE/Prunex
+**Source code:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
-**Native test workflow:**  
-https://github.com/Mohamed-Mostafa-AE/Prunex/actions
+**Validation:** [Native test matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642487) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642503) · [Website and browser tests](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42229642555)
 
 #Cplusplus #ChessProgramming #SoftwareEngineering #SystemsProgramming
 
-## Images
+## Photo notes
 
-Use the checked-in images under `website/public/social/`:
-
-- `prunex-project-overview.webp` — website and project overview. The visible board belongs to the browser application, not the native desktop engine.
-- `prunex-browser-demo.webp` — browser chess interface.
-
-The images are product screenshots. They are not presented as evidence of a tournament score or a native Windows desktop capture.
+The accompanying screenshots are captures from the Prunex website. The visible chessboard is the separate browser experience; it should not be captioned as a screenshot of the native Windows desktop application.
