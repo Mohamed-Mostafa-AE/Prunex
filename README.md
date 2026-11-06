@@ -55,7 +55,7 @@ ctest --test-dir build --output-on-failure
 
 The 46-case native regression suite passed in each of four CI configurations: GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. The Windows workflow also passed its desktop interaction smoke test.
 
-The following results were recorded for release-candidate commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`:
+All six source-validation workflows passed on release-candidate commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`, including both CodeQL language analyses:
 
 | Workflow | Result |
 | --- | --- |
@@ -64,9 +64,11 @@ The following results were recorded for release-candidate commit `4bb43dbacb7a8c
 | [Windows x64 and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) | Passed |
 | [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) | Passed |
 | [Backup-tool validation](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) | Passed — tooling validation only |
-| [CodeQL analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) | Queued at the time of this update |
+| [CodeQL C/C++ and JavaScript/TypeScript](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) | Passed |
 
-These are CI results for the release-candidate branch, not a claim of production certification. In particular, backup-tool validation is not a data-bearing backup-and-restore test, and manual acceptance on Windows 10/11 client devices remains outstanding.
+The website workflow also passed after the documentation update to the browser project: [Run 42285430091](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42285430091).
+
+The five commits after `4bb43db`, through documentation head `cd28e5edcece91587516be3d4ffacc0509375681`, change documentation only. A new CodeQL run for that latest documentation-only head is queued; it is not counted as a new pass. These results are CI validation, not production certification. Backup-tool validation is not a data-bearing backup-and-restore test, and manual acceptance on Windows 10/11 client devices remains outstanding.
 
 Run `./build/prunex --bench` for the fixed five-position native search benchmark (default depth 5; supported depths 1–10). See [Testing](docs/testing.md) for methodology and limitations.
 
@@ -94,4 +96,3 @@ Prunex Play is a separate browser application; it does not execute the native C+
 The original native C++ implementation and native regression tests are released under the **Apache License 2.0**, with scope defined in [LICENSE](LICENSE) and [LICENSE-SCOPE.md](LICENSE-SCOPE.md).
 
 The browser application contains separately licensed third-party components and artwork. Their licenses, attribution, and corresponding-source notices remain applicable; see [website/README.md](website/README.md) and the notices distributed with the site. The root Apache-2.0 license does not relicense those components.
-
