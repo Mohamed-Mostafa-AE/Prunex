@@ -46,6 +46,6 @@ No independently measured Elo rating or controlled public match result is curren
 
 ## Manual acceptance still required
 
-The Windows desktop checklist remains a separate manual test because CI compilation and UCI smoke tests do not exercise all GUI input, scaling, rendering, and window-lifecycle behavior.
+The Windows CI job now exercises a GUI interaction path, including a legal move, engine reply, paired undo, search cancellation, board flip, and clean shutdown. The separate desktop checklist covers visual DPI, screen fit, promotion, physical input, and sustained-search acceptance.
 
 See [Windows desktop checklist](windows-desktop-checklist.md).
