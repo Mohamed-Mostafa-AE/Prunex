@@ -312,8 +312,8 @@ try {
   }
   const nameOrigin = await page.locator("#about .name-origin-note").innerText();
   if (!nameOrigin.includes("PRUN") || !nameOrigin.includes("alpha–beta pruning") ||
-      !nameOrigin.includes("competitive execution") || !nameOrigin.includes("not documented")) {
-    throw new Error("The project-name note must distinguish the founder's recollection from an unverified expansion.");
+      !nameOrigin.includes("competitive execution") || !nameOrigin.includes("not a formal technical acronym")) {
+    throw new Error("The project-name origin must be stated consistently without presenting it as a technical acronym.");
   }
   const testingCopy = await page.locator("#testing").innerText();
   const standardsCopy = await page.locator("#analysis-standards").innerText();
