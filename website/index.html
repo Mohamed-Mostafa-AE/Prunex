@@ -110,9 +110,8 @@
               <a class="button button-quiet" href="https://github.com/Mohamed-Mostafa-AE/Prunex" target="_blank" rel="noreferrer">View source <span aria-hidden="true">↗</span></a>
             </div>
             <div class="hero-meta"><span><i class="pulse-dot"></i> Project repository</span><span>C++20</span><span>No account required</span></div>
-            <p class="benchmark-teaser"><strong>Historical match:</strong> 62–2–0 in 64 games against Stockfish 2.0.
+            <p class="benchmark-teaser"><strong>Separate historical test:</strong> a Stockfish 19-derived executable labelled Prunex 0.8.0 recorded 62–2–0 in 64 games against Stockfish 2.0. This is not a result for the independent native C++20 engine.
               <a href="https://github.com/Mohamed-Mostafa-AE/Prunex/blob/feature/prunex-evaluation-intelligence/docs/stockfish-2-comparison.md" target="_blank" rel="noreferrer">Inspect the PGN, build lineage and checksums ↗</a>
-              <span>Stockfish 19-derived test executable; not the independent native C++20 engine.</span>
             </p>
           </div>
           <div class="hero-specimen" aria-label="A small chess position and UCI command example">
@@ -354,15 +353,15 @@
           <div class="benchmark-copy">
             <div class="eyebrow"><span class="eyebrow-line"></span> TESTING</div>
             <h2>Checked as it grows.</h2>
-            <p>The native engine has 44 regression tests covering move generation, special moves, search positions, and UCI commands.</p>
-            <p>Recorded Linux builds passed with GCC Release, Clang Release, and AddressSanitizer/UndefinedBehaviorSanitizer. The GCC static-analysis build completed without diagnostics.</p>
+            <p>The current native CTest suite has 46 cases covering move generation, special moves, search positions, and UCI commands. The latest Windows x64 CI run passed all 46.</p>
+            <p>Earlier recorded Linux runs passed 44/44 tests with GCC Release, Clang Release, and AddressSanitizer/UndefinedBehaviorSanitizer. GCC static analysis completed without diagnostics on that earlier suite.</p>
             <p>The Windows desktop application still needs a full manual test on Windows 10 or 11. The current limitations and test coverage are listed in the project notes.</p>
             <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/tree/main/docs" target="_blank" rel="noreferrer">Read the test results and project notes <span aria-hidden="true">↗</span></a>
           </div>
           <div class="benchmark-card">
-            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">LINUX TESTS</span></div>
+            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">EARLIER LINUX RUNS</span></div>
             <div class="score-number"><span class="score-primary">44</span><span class="score-secondary">/44</span></div>
-            <p class="score-label">Regression tests passed in each recorded configuration</p>
+            <p class="score-label">44-case suite in the recorded Linux configurations</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
               <div><dt>GCC 14.2 Release</dt><dd>44 / 44 passed</dd></div>
@@ -370,7 +369,7 @@
               <div><dt>ASan + UBSan</dt><dd>44 / 44 passed</dd></div>
               <div><dt>GCC static analysis</dt><dd>No diagnostics</dd></div>
             </dl>
-            <p class="benchmark-caveat">These results cover the native engine's recorded Linux test runs. They do not establish an Elo rating, and they do not replace a manual test of the Windows desktop application.</p>
+            <p class="benchmark-caveat">These are historical 44-case Linux results. The current 46-case suite passed on Windows x64 CI. Neither result establishes an Elo rating or replaces manual Windows desktop acceptance.</p>
           </div>
         </section>
 
