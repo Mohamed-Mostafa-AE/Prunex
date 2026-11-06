@@ -2,8 +2,6 @@
 
 Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
 
-> **Important distinction:** The browser demo is not the native C++ engine. It uses `chess.js` for game rules and Stockfish.js Lite as its opponent. The native engine is a separate C++ implementation.
-
 ## Project components
 
 | Path | Description |
