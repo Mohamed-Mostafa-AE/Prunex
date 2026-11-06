@@ -2,9 +2,14 @@
 
 ## Engine identity and scope
 
-The browser product is branded **Prunex Play**. Its browser analysis build is **Stockfish.js 19 Full (multi-threaded)**. The Prunex-owned code is the application, UCI worker orchestration, analysis scheduling, expected-points interpretation, move-quality grading, Apex checks, archive integration, and presentation. The interface must not imply that the upstream engine binary or its NNUE network was independently authored by Prunex.
+The project has two distinct engine paths:
 
-The browser build is distributed under GPL-3.0. Keep the upstream license, source/corresponding-source access, and attribution intact for every distributed build. Any modifications to the upstream engine itself must be published under GPL-3.0 with the corresponding source. See the upstream [Stockfish repository and terms](https://github.com/official-stockfish/Stockfish) and the [Stockfish.js browser port](https://github.com/nmrugg/stockfish.js).
+- **Native Prunex 0.8.0:** an independently implemented C++20 engine. Its current `evaluate()` implementation uses handcrafted piece-square and positional terms with tapered middlegame/endgame blending. It does **not** load an NNUE network.
+- **Prunex Play:** a separate browser application using **Stockfish.js 19 Full (multi-threaded)** for its opponent and game analysis. Stockfish 19 uses the upstream NNUE evaluation architecture and network. The Prunex-owned code is the browser application, UCI worker orchestration, analysis scheduling, expected-points interpretation, move-quality grading, Apex checks, archive integration, and presentation. The upstream engine binary and NNUE network were not independently authored or trained by Prunex.
+
+This separation must remain explicit in product copy and technical documentation: NNUE describes the browser Stockfish integration, not the native C++ Prunex engine.
+
+The browser build is distributed under GPL-3.0. Keep the upstream license, source/corresponding-source access, and attribution intact for every distributed build. Any modifications to the upstream engine itself must be published under GPL-3.0 with the corresponding source. See the upstream [Stockfish repository and terms](https://github.com/official-stockfish/Stockfish), [Stockfish's NNUE documentation](https://official-stockfish.github.io/docs/stockfish-wiki/Advanced-topics.html), and the [Stockfish.js browser port](https://github.com/nmrugg/stockfish.js).
 
 ## Maximum review budget
 
@@ -39,7 +44,7 @@ node scripts/calibrate-evaluation.mjs ./data/evaluation-positions.jsonl
 npm run build
 ```
 
-The script fits a logistic expected-points calibration using a deterministic 80/20 game-level split when `gameId` is present (otherwise a row-level fallback) and writes `src/evaluation-calibration.js`. The validation log loss must be compared against the default calibration and a held-out game-level test set before accepting generated parameters. The script calibrates score interpretation; it does **not** change Stockfish's search or NNUE weights.
+The script fits a logistic expected-points calibration using a deterministic 80/20 game-level split when `gameId` is present (otherwise a row-level fallback) and writes `src/evaluation-calibration.js`. The validation log loss must be compared against the default calibration and a held-out game-level test set before accepting generated parameters. The script calibrates score interpretation; it does **not** change Stockfish's search or NNUE weights, and it does not add NNUE to the native C++ engine.
 
 ## Actual Stockfish NNUE training
 
