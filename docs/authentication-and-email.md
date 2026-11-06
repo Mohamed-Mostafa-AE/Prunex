@@ -44,7 +44,7 @@ The connected Supabase actions in this workspace expose project and documentatio
 ## Security properties covered in code
 
 - Passwords have a 12-character minimum in the UI and client service. The hosted Supabase password policy must be checked separately so server-side rules are consistent.
-- Password setup refuses anonymous or unconfirmed identities.
+- Password setup requires an authenticated session and a confirmed email. Supabase may still report `is_anonymous: true` between email confirmation and password creation; that verified guest session is eligible to set the password and retain its existing user ID.
 - The UI never stores passwords in browser storage.
 - Password sign-in does not create a user and warns before leaving a guest session.
 - Password reset redirects to the current HTTPS origin.
