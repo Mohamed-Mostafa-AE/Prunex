@@ -36,6 +36,23 @@ Both web documents are explicitly marked **Draft for review** and dated 4 Novemb
 9. Review Terms clauses for acceptable use, third-party tournament rules, user-submitted games/PGNs, dataset licensing, attribution, warranty disclaimers, liability limits, suspension, governing law, disputes and consumer rights.
 10. Confirm the legal relationship between the native engine licence, browser dependencies, Stockfish-based components and artwork notices so the Terms do not overstate a single licence scope.
 
+## Current Egyptian-law findings — 6 November 2026
+
+The following points were added after reviewing Law No. 151 of 2020, Ministerial Decree No. 816 of 2025, the Personal Data Protection Centre's consent guidance, and current legal commentary. They are issues for counsel to apply to the actual operator and audience, not a conclusion that the project is compliant or non-compliant.
+
+- **Law and regulations:** Law No. 151 of 2020 is supplemented by Executive Regulations issued under MCIT Decree No. 816 of 2025. The Decree was published on 1 November 2025 and entered into force on 2 November 2025. The one-year status-regularisation period has therefore elapsed by the date of this review.
+- **Children's data:** Article 1 treats children's data as sensitive personal data. Article 12 restricts sensitive-data processing and requires parent/legal-guardian consent for operations concerning children's data, except where law provides otherwise. Regulation 15 specifies explicit written guardian consent before collecting data from children under 15; for children aged 15–18, the child or guardian must provide consent as applicable under the mechanisms determined by the Centre. The product currently has no verified age/guardian-consent workflow. Counsel must determine the service's audience, legal age treatment, and necessary product controls before publication.
+- **Games and participation:** Article 12 also states that a child's participation in a game, competition or other activity must not be conditioned on providing more personal data than necessary. Review account creation, cloud-save defaults, game PGNs, optional position-memory sharing, and any third-party analytics against necessity and consent requirements.
+- **Cross-border data:** The live Supabase project is in `eu-central-1`; the Neon archive is in AWS `eu-central-1`; the inspected Vercel deployment uses `fra1`. These services process or store account and game data outside Egypt. Article 14 and Regulation 16 address cross-border transfers and licensing/permits. Counsel must confirm the appropriate PDPC authorisations, destination-country requirements, processor arrangements, and transfer consent before relying on these providers for Egyptian users.
+- **Lawful basis and consent records:** The PDPC consent guidance requires a clear affirmative action for consent and records of its purpose, management, withdrawal and evidence. The current optional position-memory control records per-review consent in the application; counsel should review whether this meets the applicable standard and what further notices or consent records are required.
+- **Regulatory roles:** Counsel should determine whether the actual operator must obtain a licence/permit, appoint a data protection officer or representative, maintain processing/consent records, or meet breach-notification requirements under the law and regulations. Do not infer exemptions from the service's current size or student-led status.
+
+Primary/reference materials:
+- [Egypt Personal Data Protection Law No. 151 of 2020 — English reference translation](https://eg.andersen.com/wp-content/uploads/2026/02/Law-No.-151-of-2020-1.pdf) (the official Arabic text controls).
+- [Executive Regulations, MCIT Decree No. 816 of 2025 — legal reference and official-gazette details](https://legalin.law/en/our-knowledge/guide/personal-data-protection-law/).
+- [Shehata & Partners English translation of Executive Regulations](https://shehatalaw.com/wp-content/uploads/2026/01/Shehata-Partners-Publications-Data-Protection-Executive-Regulations-English.pdf).
+- [Personal Data Protection Centre — consent guidance](https://pdpc.gov.eg/assets/pdf-data/Guidelines/DSConsent.pdf).
+
 ## Requested counsel deliverable
 
 Please provide:
