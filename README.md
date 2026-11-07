@@ -53,7 +53,11 @@ ctest --test-dir build --output-on-failure
 
 ## Tests
 
-The CTest suite currently contains 44 cases. Recorded Linux runs passed with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A GCC static-analysis run completed without diagnostics. These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
+The CTest suite currently contains 44 cases. Recorded Linux runs passed with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A GCC static-analysis run completed without diagnostics.
+
+Prunex also underwent a historical competitive test against **Stockfish 2.0**, recording a result of **63.5–1–0** in Prunex's favour. This result is retained as a historical benchmark and should not be interpreted as an independently established Elo rating for the current native C++ engine.
+
+These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
 
 See [docs/testing.md](docs/testing.md) for the test coverage, benchmark provenance, and limitations.
 
