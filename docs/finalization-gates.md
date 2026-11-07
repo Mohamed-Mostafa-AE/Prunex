@@ -2,6 +2,21 @@
 
 **Purpose:** separate the work required to publish a credible source release from the additional controls required to operate the hosted browser product. This prevents routine engineering improvements from keeping a release open indefinitely.
 
+## 0.8.0 feature freeze — effective 7 November 2026
+
+**The feature scope for Prunex 0.8.0 is frozen.** From this point until the 0.8.0 release decision, work is limited to:
+
+- Fixing reproducible defects in functionality already included in 0.8.0.
+- Closing the release gates documented below.
+- Completing code, security, licensing, documentation, and release-readiness review.
+- Making the smallest necessary change when a concrete defect or release blocker is found, with a regression test where practical.
+
+The following are not 0.8.0 work: new features, new product capabilities, broad refactors, architecture redesigns, speculative optimization, evaluation/search enhancements, and visual polish. Record worthwhile ideas for the next development cycle instead of adding them to this release.
+
+A change may enter the frozen scope only when it is necessary to correct a demonstrated defect, address a security or data-integrity issue, or close an explicit release gate. Keep such changes narrowly scoped; do not use them as an opening for adjacent improvements.
+
+**Completion rule:** once the required gates are closed and the final review is complete, stop changing 0.8.0. Any later feature or architectural work starts in the next development cycle.
+
 ## Release decision in one sentence
 
 The native source and documentation are a validated release candidate; the repository changes can be reviewed and merged independently, but the hosted Prunex Play service must not be promoted to production until the identity, archive recovery, authentication/email, legal, and manual device gates below are closed.
