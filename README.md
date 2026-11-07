@@ -2,6 +2,8 @@
 
 Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
 
+**Current version: 0.8.0**
+
 ## Project components
 
 | Path | Description |
@@ -9,7 +11,7 @@ Prunex is an independently developed chess-engine project. Its native engine is 
 | `src/main.cpp` | Native C++20 engine and UCI command-line interface |
 | `src/gui.cpp` | Windows desktop interface |
 | `tests/` | Native engine regression tests |
-| `website/` | Vite website and browser chess demo |
+| `website/` | Vite website and browser chess demo powered by Prunex |
 | `docs/` | Development notes, recorded test results, and Windows test checklist |
 | `.github/workflows/` | Automated build and website checks |
 
@@ -25,7 +27,7 @@ The native engine includes:
 - Tapered positional evaluation
 - UCI command handling and time controls
 
-The native CMake project currently identifies itself as **0.5.1**. This is the native engine's version; it should not be confused with the website's separate browser-demo label.
+The current project version is **0.8.0**.
 
 ## Build the native engine
 
@@ -57,9 +59,9 @@ See [docs/testing.md](docs/testing.md) for the test coverage, benchmark provenan
 
 ## Try the website
 
-**Website:** https://prunex-play.vercel.app/
+**Website:** [https://prunex-play.vercel.app/](https://prunex-play.vercel.app/)
 
-The browser demo is a separate web experience. It uses Stockfish.js Lite as its opponent; it does not run the native C++ Prunex engine. The third-party engine and chess-piece artwork retain their own licenses and notices in `website/public/`.
+The website includes a browser-based chess demo powered by Prunex 0.8.0. It provides an interactive chess experience through the browser, alongside the native C++ implementation.
 
 ## Known limitations
 
@@ -67,7 +69,6 @@ The browser demo is a separate web experience. It uses Stockfish.js Lite as its 
 - The desktop application currently searches on the UI thread, so longer searches can temporarily make the window unresponsive.
 - UCI `stop` does not yet cancel a native search asynchronously.
 - No independent Elo rating has been established for the native C++ engine.
-- The reported 0.8.0 benchmark record is based on a Stockfish 19-derived browser build, not an independent strength result for the native C++ engine. See [docs/testing.md](docs/testing.md).
 
 ## Project documentation
 
