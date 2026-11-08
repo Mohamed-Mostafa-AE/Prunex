@@ -1,4 +1,4 @@
-name: Windows x64 validation (Prunex 0.5.1)
+name: Windows x64 validation (Prunex 0.8.0)
 
 on:
   push:
@@ -6,9 +6,9 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'CMakeLists.txt'
-      - '.clang-format'
       - '.github/workflows/windows-build.yml'
-      - 'WINDOWS_GUI_CHECKLIST.md'
+      - '.clang-format'
+      - 'docs/windows-desktop-checklist.md'
   pull_request:
     paths:
       - 'src/**'
@@ -16,7 +16,7 @@ on:
       - 'CMakeLists.txt'
       - '.clang-format'
       - '.github/workflows/windows-build.yml'
-      - 'WINDOWS_GUI_CHECKLIST.md'
+      - 'docs/windows-desktop-checklist.md'
   workflow_dispatch:
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
@@ -92,6 +92,10 @@ jobs:
           }
           Write-Host $uciOutput
 
+      - name: Exercise Windows desktop startup and shutdown
+        shell: pwsh
+        run: ./tests/windows_gui_smoke.ps1
+
       - name: Create Windows build manifest
         if: always()
         shell: pwsh
@@ -106,7 +110,7 @@ jobs:
           }
 
           $manifest = [ordered]@{
-            project = 'Prunex 0.5.1'
+            project = 'Prunex 0.8.0'
             commit = $env:GITHUB_SHA
             runner = 'windows-2022'
             generator = 'Visual Studio 17 2022'
@@ -130,7 +134,7 @@ jobs:
 
       - name: Upload Windows build and test evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: Prunex-Windows-x64
           path: |

@@ -1,39 +1,81 @@
 # Prunex
 
-Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and includes its own board representation, position handling, legal move generation, search, evaluation, and UCI interface. The repository also contains a Windows desktop interface, regression tests, and a separate website with a browser chess demo.
+<div align="center">
+  <img src="website/public/prunex-mark.png" alt="Prunex mark" width="116" />
+  <h2>Independent Chess-Engine Engineering</h2>
+  <p><strong>Native C++20 engine · UCI · Windows desktop · Browser chess experience</strong></p>
+  <p>
+    <a href="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/native-ci.yml"><img src="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/native-ci.yml/badge.svg" alt="Native CI" /></a>
+    <a href="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/windows-build.yml"><img src="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/windows-build.yml/badge.svg" alt="Windows CI" /></a>
+    <a href="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/wasm-ci.yml"><img src="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/wasm-ci.yml/badge.svg" alt="WebAssembly CI" /></a>
+    <a href="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/codeql.yml"><img src="https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" /></a>
+  </p>
+</div>
 
-**Current version: 0.8.0**
+---
+
+Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and implements its own board representation, legal move generation, search, static evaluation, and Universal Chess Interface (UCI). The repository also includes a Windows desktop interface, a separately built WebAssembly target, regression tests, and a browser chess application.
+
+**Current native engine version: 0.8.0.**
 
 ## Project components
 
-| Path | Description |
-| --- | --- |
-| `src/main.cpp` | Native C++20 engine and UCI command-line interface |
-| `src/gui.cpp` | Windows desktop interface |
-| `tests/` | Native engine regression tests |
-| `website/` | Vite website and browser chess demo powered by Prunex |
-| `docs/` | Development notes, recorded test results, and Windows test checklist |
-| `.github/workflows/` | Automated build and website checks |
+| Component | Scope |
+|---|---|
+| **Native engine** | Independent C++20 implementation; 0x88 board, move generation, search, handcrafted tapered evaluation, and UCI |
+| **Windows desktop** | Native GUI linked to the engine implementation |
+| **WebAssembly target** | C++ engine compiled with Emscripten; exported position evaluation and fixed-depth search functions |
+| **Prunex Play** | Separate browser application for playing and reviewing games; it does not currently execute the native C++/WebAssembly engine |
+| **Offline data tools** | Licensed PGN ingestion, deterministic corpus splitting, provenance manifests, static-evaluation annotation, and calibration diagnostics |
 
-## Native engine
+## Native engine architecture
 
-The native engine includes:
+### Board and position representation
 
-- 0x88 board representation and FEN position loading
-- Legal move generation, including castling, en passant, and promotion
-- Zobrist hashing and a transposition table
-- Iterative deepening, negamax alpha-beta search, and principal-variation search
-- Aspiration windows, move ordering, late-move reductions, and quiescence search
-- Tapered positional evaluation
-- UCI command handling and time controls
+- 0x88 mailbox board representation with FEN loading
+- Legal move generation with castling, en passant, and all four promotion choices
+- Make/undo position transitions and king-safety validation
+- Deterministic Zobrist position hashing
 
-The current project version is **0.8.0**.
+### Search
 
-## Build the native engine
+The native engine uses iterative-deepening negamax with alpha–beta pruning and principal-variation search.
 
-### Windows
+Implemented search components include:
 
-Install Visual Studio 2022 with **Desktop development with C++**, and CMake 3.20 or newer.
+- Transposition-table lookup and bound storage
+- Hash-move, capture, promotion, killer-move, and history-based ordering
+- Aspiration windows with widening on fail-low/fail-high
+- Late-move reductions with re-search when required
+- Quiescence search
+- Check extensions and mate-distance score normalization
+- Time-managed search and UCI cancellation
+
+The implementation is deliberately documented as it exists today; no unsupported claims about a full modern engine feature set or measured playing strength are made.
+
+### Static evaluation
+
+The native evaluator is **handcrafted and tapered**, not NNUE-based. It combines material values and piece-square/positional terms with middlegame/endgame phase blending. Current terms include:
+
+- Piece activity and centralization
+- Pawn advancement, doubled and isolated pawn penalties
+- Passed-pawn and connected-pawn bonuses
+- Bishop-pair bonus
+- King shelter
+- Rook-file bonuses
+
+The separate Prunex Play browser experience uses NNUE-based position evaluation. This is a separate browser engine path, not the native C++ evaluator. The Prunex application layer provides worker orchestration, game-review scheduling, expected-points calibration, move-quality grading, archive integration, and presentation.
+
+## Building the native engine
+
+### Requirements
+
+- CMake 3.20 or newer
+- A C++20 compiler
+- Windows: Visual Studio 2022 with **Desktop development with C++**
+- Linux: GCC or Clang with C++20 support
+
+### Windows — Visual Studio
 
 ```powershell
 cmake -S . -B build -A x64
@@ -41,9 +83,7 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-### Linux
-
-Install a C++20 compiler and CMake 3.20 or newer.
+### Linux — GCC
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -51,38 +91,131 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-## Tests
+### Linux — Clang
 
-The CTest suite currently contains 44 cases. Recorded Linux runs passed with GCC Release, Clang Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A GCC static-analysis run completed without diagnostics.
+```bash
+cmake -S . -B build-clang -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++
+cmake --build build-clang --parallel
+ctest --test-dir build-clang --output-on-failure
+```
 
-Prunex also underwent a historical competitive test against **Stockfish 2.0**, recording a result of **63.5–1–0** in Prunex's favour. This result is retained as a historical benchmark and should not be interpreted as an independently established Elo rating for the current native C++ engine.
+## Using the engine
 
-These are recorded results, not a claim that every platform or the Windows desktop interface has been fully tested.
+Prunex speaks UCI and can be loaded by a UCI-compatible chess GUI.
 
-See [docs/testing.md](docs/testing.md) for the test coverage, benchmark provenance, and limitations.
+Start the engine from a terminal:
 
-## Try the website
+```bash
+./build/prunex
+```
 
-**Website:** [https://prunex-play.vercel.app/](https://prunex-play.vercel.app/)
+Example UCI session:
 
-The website includes a browser-based chess demo powered by Prunex 0.8.0. It provides an interactive chess experience through the browser, alongside the native C++ implementation.
+```text
+uci
+isready
+ucinewgame
+position startpos moves e2e4 e7e5
+go depth 8
+stop
+quit
+```
 
-## Known limitations
+The engine also exposes diagnostic commands:
 
-- The Windows desktop application still needs a complete manual run-through on Windows 10 or 11. See [docs/windows-desktop-checklist.md](docs/windows-desktop-checklist.md).
-- The desktop application currently searches on the UI thread, so longer searches can temporarily make the window unresponsive.
-- UCI `stop` does not yet cancel a native search asynchronously.
-- No independent Elo rating has been established for the native C++ engine.
+```bash
+./build/prunex --perft 4
+./build/prunex --perft-fen "<FEN>" 4
+./build/prunex --bench
+./build/prunex --bench 6
+```
 
-## Project documentation
+The fixed benchmark contains five positions (starting position, Kiwipete, a rook endgame, a closed-center position, and an open position). It clears the transposition table and search-ordering state before each position, then reports the best move, node count, elapsed time, and aggregate nodes per second. The default depth is 5; supported depths are 1–10.
 
+Benchmark NPS is a repeatable search-throughput measurement, not a playing-strength rating.
+
+## Validation
+
+The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test.
+
+The release-candidate source-validation runs on 6 November 2026 recorded:
+
+| Configuration | Result |
+|---|---:|
+| GCC Release | 46/46 |
+| Clang Release | 46/46 |
+| GCC AddressSanitizer + UndefinedBehaviorSanitizer | 46/46 |
+| Windows x64 | 46/46 |
+
+The Windows workflow also completed its desktop interaction smoke test. Separate workflows validate the website and browser tests, WebAssembly parity, backup tooling, and CodeQL analysis.
+
+- [Native compiler matrix and sanitizers](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589)
+- [Windows x64 build and desktop smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974)
+- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737)
+- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610)
+- [CodeQL C/C++ and JavaScript/TypeScript](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678)
+
+These are automated CI results for release-candidate source commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`; later changes in the release branch have been documentation-only. They are not a production certification or an independently measured Elo result. Manual acceptance on Windows 10/11 client devices remains outstanding.
+
+See [Testing](docs/testing.md) for coverage and methodology.
+
+## WebAssembly
+
+The repository includes a standalone Emscripten target built from the native C++ implementation. It exposes a small C API for FEN evaluation, fixed-depth position search, and node counts. The WebAssembly workflow compares its results with a native reference implementation.
+
+**Current scope:** the WASM artifact and parity checks exist, but Prunex Play has not yet been connected to this native WebAssembly module. The browser application remains a separate engine integration.
+
+## Offline data and evaluation diagnostics
+
+The offline tools under `tools/training/` can:
+
+1. Ingest a licensed PGN corpus and verify its source archive checksum.
+2. Filter invalid, unfinished, duplicate, and unsupported-variant games.
+3. Split data deterministically by complete game.
+4. Write train, validation, and test JSONL files with a provenance manifest.
+5. Annotate positions using the native Prunex static evaluator.
+6. Fit and report held-out expected-points calibration diagnostics.
+
+These tools do **not** train an NNUE network, create native engine weights, or automatically modify the evaluator. A lower calibration loss is not evidence of stronger play. See [Training-data ingestion](docs/training-data-ingestion.md) and [the tool guide](tools/training/README.md).
+
+## Try Prunex Play
+
+- **Public website:** https://prunex-play.vercel.app/
+- **Release-candidate preview:** https://prunex-review.vercel.app/
+
+Prunex Play is a browser application for playing and reviewing chess games. It is separate from the native C++ engine. Game Review uses a configurable analysis-time budget of 3, 10, 15, 20, or 30 seconds per non-terminal position, with 15 seconds as the default. A time budget does not guarantee a fixed search depth or a specific move-quality outcome.
+
+## Project name
+
+The name **Prunex** combines two ideas:
+
+- **PRUN** comes from alpha–beta **PRUNing**.
+- **EX** represents the **execution of adversarial search**: searching candidate moves while accounting for the opponent's possible replies.
+
+This is the intended naming inspiration, not a formally standardized acronym. See [Project-name origin](docs/project-name.md).
+
+## Documentation
+
+- [System architecture](docs/architecture.md)
+- [Evaluation architecture](docs/evaluation-intelligence.md)
+- [Testing and benchmark methodology](docs/testing.md)
+- [Engineering review](docs/engineering-review.md)
 - [Development notes](docs/development-notes.md)
-- [Test results and benchmark methodology](docs/testing.md)
-- [Windows desktop checklist](docs/windows-desktop-checklist.md)
-- [Website implementation notes](website/README.md)
+- [Training-data ingestion](docs/training-data-ingestion.md)
+- [Windows desktop acceptance checklist](docs/windows-desktop-checklist.md)
+- [Production readiness and release status](docs/production-readiness.md)
+- [Finalization and release gates](docs/finalization-gates.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
-## Source and permissions
+## Licensing and third-party notices
 
-This repository is published for **inspection and review**. No open-source license has been granted for the original Prunex native-engine source or project materials. Unless a separate license is added, all rights to those original materials are reserved; making the repository publicly visible does not grant permission to copy, modify, redistribute, or use them in another project.
+Original Prunex contributions in this repository are released under the **MIT License**. The license scope and separately licensed components are documented in [LICENSE-SCOPE.md](LICENSE-SCOPE.md).
 
-Third-party components and assets are governed by their own licenses and notices. See the relevant files under `website/public/` and the website dependency metadata.
+The Python training tools are separately licensed under GPL-3.0-or-later. The browser engine, chess-piece artwork, dependencies, and datasets also retain their own applicable licenses, attribution, and corresponding-source notices. See [website/README.md](website/README.md), [tools/training/LICENSE](tools/training/LICENSE), and the notices distributed with the site. The root MIT license does not relicense separately licensed material.
+
+---
+
+<div align="center">
+  <sub>Build carefully. Measure honestly. Improve continuously.</sub>
+</div>

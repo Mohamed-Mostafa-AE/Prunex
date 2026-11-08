@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7faff">
+  <meta name="description" content="Draft privacy notice for Prunex Play.">
+  <title>Privacy Notice — Prunex Play</title>
+  <link rel="icon" href="/prunex-mark.png">
+  <style>
+    :root{font-family:Arial,sans-serif;color:#14263b;background:#f7faff}body{margin:0;padding:44px 20px;line-height:1.7}
+    main{max-width:850px;margin:0 auto;background:#fff;padding:clamp(22px,5vw,54px);border:1px solid #d7e3f0}
+    h1,h2{font-family:Arial,sans-serif;line-height:1.2}h1{font-size:clamp(32px,5vw,48px);letter-spacing:-.04em}
+    h2{margin-top:32px;font-size:21px}p,li{color:#42566f}a{color:#10538e}.draft{padding:12px 14px;background:#fff7e4;border-left:3px solid #ba8732;color:#624915;font-size:13px}
+    .meta{color:#7187a0;font-size:13px}footer{margin-top:36px;padding-top:18px;border-top:1px solid #d7e3f0;font-size:13px}
+  </style>
+</head>
+<body>
+<main>
+  <a href="/">← Back to Prunex Play</a>
+  <h1>Privacy Notice</h1>
+  <p class="meta">Last updated: 6 November 2026</p>
+  <p class="draft"><strong>Draft for review.</strong> This notice describes the current implementation but has not been reviewed by a qualified privacy professional. Do not treat it as a completed legal assessment or launch approval.</p>
+
+  <h2>1. Who operates Prunex Play</h2>
+  <p>Prunex Play is a chess website operated as part of the Prunex project. For privacy questions or account-support requests, contact <a href="mailto:mohamedhussam09@gmail.com">mohamedhussam09@gmail.com</a>.</p>
+
+  <h2>2. Information stored</h2>
+  <ul>
+    <li><strong>Browser-local archive:</strong> completed and in-progress games, moves, FEN positions, PGNs, game results and reviews can be stored in IndexedDB on the device.</li>
+    <li><strong>Cloud account:</strong> when cloud saving is configured, Supabase Auth creates a guest account. The account UUID is used to keep cloud games and reviews private to that account.</li>
+    <li><strong>Cloud games and reviews:</strong> game IDs, timestamps, player colour, result, initial/final positions, move lists, PGN, review analysis and accuracy summaries.</li>
+    <li><strong>Email identity:</strong> only when a player chooses to link an email to a guest account. Supabase processes the email verification and account-recovery messages.</li>
+    <li><strong>Password credentials:</strong> if a player chooses password access, the password is transmitted over HTTPS to Supabase Auth for credential management and verification. Prunex's game archive does not store password values, and the website does not place them in local storage, IndexedDB, or game records. Password-reset requests are handled by Supabase Auth.</li>
+    <li><strong>Optional shared position samples:</strong> only after explicit opt-in, a review may contribute a position key, side to move, played move, result for the mover, evaluation loss and move grade. The database retains an internal account association so that a player's submitted records can be removed with the account. Shared lookups do not return account IDs, player names or full PGNs.</li>
+    <li><strong>Technical data:</strong> the hosting, authentication and database providers may process network and diagnostic metadata, which can include IP addresses, request headers, timestamps and error logs, to deliver, secure and operate their services.</li>
+  </ul>
+
+  <h2>3. IP addresses and player identity</h2>
+  <p>Prunex uses a Supabase account UUID—not an IP address—as the owner identifier for saved games. The Prunex application schema does not use a raw IP address as a player ID. Infrastructure providers may nevertheless process IP addresses and other connection metadata as part of normal hosting, authentication, security and abuse-prevention operations; their own privacy terms also apply.</p>
+
+  <h2>4. Why information is used</h2>
+  <p>Information is used to provide gameplay, save and restore games, produce requested reviews, synchronize a player's own archive, verify sign-in identities and handle password recovery, protect the service, troubleshoot faults and—only when separately enabled—provide limited position-memory lookups. The shared position-memory feature is retrieval from previously reviewed positions; it does not automatically retrain or modify the native C++ engine.</p>
+
+  <h2>5. Private games and optional sharing</h2>
+  <p>Cloud games and reviews are protected by row-level security and are intended to be visible only to the owning account. The shared position-memory option is off by default. If enabled, future eligible reviewed-position samples may be queried by the shared experience lookup. Names and full PGNs are not included in that shared lookup response, but position data can still be distinctive and should be treated as pseudonymized rather than guaranteed anonymous.</p>
+
+  <h2>6. Service providers</h2>
+  <p>Prunex uses Vercel for website hosting and Supabase for authentication and database services. These providers process information as necessary to operate their services and are also subject to their published terms and privacy notices. This draft does not claim that no provider logs network information.</p>
+
+  <h2>7. International processing and age-related safeguards</h2>
+  <p>The currently configured Supabase database, Neon archive and Vercel deployment use European infrastructure, including Frankfurt. Providers may also process limited service, support, security and diagnostic information in other locations under their own terms and subprocessor arrangements. The legal basis and safeguards for cross-border processing are still under review.</p>
+  <p>Prunex Play does not currently have an age-verification or parent/guardian-consent workflow. The service's intended audience and applicable requirements for children and teenagers must be assessed before unrestricted public launch. This draft does not represent that any required age-assurance or guardian-consent controls are already in place.</p>
+
+  <h2>8. Retention and deletion</h2>
+  <p>Cloud games, reviews and linked position samples are retained while the account exists, unless removed earlier for operational or legal reasons. Players can request account deletion using the Account &amp; Data controls. The server-side deletion flow removes the Supabase Auth user and account-linked Prunex rows. The current browser's IndexedDB archive is also cleared by that flow. Local archives on other devices or browsers are not remotely erased and must be cleared on those devices separately.</p>
+  <p>Provider-generated security and diagnostic logs may have separate retention periods controlled by the providers. Those periods must be confirmed in the applicable provider plans and policies before a full public launch.</p>
+
+  <h2>9. Security</h2>
+  <p>Prunex uses Supabase Auth, row-level security, owner-scoped database policies and a server-side account-deletion function. No service-role key is intended to be shipped to the browser. No online service can guarantee absolute security; players should keep access to their email account secure and avoid sharing private game exports.</p>
+
+  <h2>10. Your choices</h2>
+  <p>You can keep games on the current device without opting into shared position memory, link an email to a guest account for recovery, disable future sharing, or request account deletion. To ask about access or deletion, contact <a href="mailto:mohamedhussam09@gmail.com">mohamedhussam09@gmail.com</a>.</p>
+
+  <h2>11. Changes and legal scope</h2>
+  <p>This notice may change as the service evolves. The applicable legal requirements depend on where players are located and the service's actual audience. Before unrestricted public launch, this draft should be reviewed for applicable data-protection, children's privacy, consent, international-transfer and consumer-protection requirements.</p>
+  <footer>Prunex Play · <a href="/terms.html">Terms of Use</a> · <a href="mailto:mohamedhussam09@gmail.com">Contact</a></footer>
+</main>
+</body>
+</html>

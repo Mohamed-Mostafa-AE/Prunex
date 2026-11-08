@@ -88,3 +88,10 @@ Testing/
 *.key
 *.p12
 *.pfx
+
+# Prunex offline corpus data (keep large archives out of Git)
+.venv/
+data/training-corpus/
+*.pgn
+*.pgn.zst
+*.jsonl

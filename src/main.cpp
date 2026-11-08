@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <cctype>
 #include <chrono>
@@ -8,9 +9,11 @@
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace prunex {
@@ -189,14 +192,37 @@ std::uint64_t nodes=0;
 std::uint64_t ttHits=0;
 std::uint8_t ttGeneration=0;
 bool searchTimeLimited=false;
-bool searchAborted=false;
+std::atomic<bool> searchAborted{false};
+bool suppressEngineOutput=false;
+#ifndef __EMSCRIPTEN__
+std::mutex outputMutex;
+#endif
+
+void emitLine(const std::string& line) {
+    if(suppressEngineOutput) return;
+#ifndef __EMSCRIPTEN__
+    std::lock_guard<std::mutex> lock(outputMutex);
+#endif
+    std::cout << line << '\n' << std::flush;
+}
+
+void resetSearchState() {
+    transpositionTable.fill(TTEntry{});
+    historyScores={};
+    for(auto& pair:killerMoves) pair={Move{},Move{}};
+    nodes=0;
+    ttHits=0;
+    ttGeneration=0;
+    searchTimeLimited=false;
+    searchAborted.store(false,std::memory_order_relaxed);
+}
 std::chrono::steady_clock::time_point searchDeadline{};
 
 bool searchShouldStop() {
-    if(searchAborted) return true;
+    if(searchAborted.load(std::memory_order_relaxed)) return true;
     if(!searchTimeLimited||(nodes&127ULL)!=0) return false;
-    if(std::chrono::steady_clock::now()>=searchDeadline) searchAborted=true;
-    return searchAborted;
+    if(std::chrono::steady_clock::now()>=searchDeadline) searchAborted.store(true,std::memory_order_relaxed);
+    return searchAborted.load(std::memory_order_relaxed);
 }
 
 int hashFullPermille() {
@@ -357,6 +383,44 @@ int evaluate(const Position& p) {
                 ending[color]+=bonus[relativeRank]*2;
             }
         }
+        // Reward connected pawn chains without counting a pair twice.
+        for(int square=0;square<128;++square) {
+            if(!onBoard(square)||p.board[square]!=makePiece(1,color)) continue;
+            const int file=fileOf(square);
+            const int rank=rankOf(square);
+            bool connected=false;
+            for(int adjacentFile:{file-1,file+1}) {
+                if(adjacentFile<0||adjacentFile>7) continue;
+                for(int adjacentRank:{rank-1,rank,rank+1}) {
+                    if(adjacentRank<0||adjacentRank>7) continue;
+                    if(p.board[adjacentRank*16+adjacentFile]==makePiece(1,color)) connected=true;
+                }
+            }
+            if(connected) {
+                middle[color]+=5;
+                ending[color]+=7;
+            }
+        }
+
+        // King shelter matters most while heavy attacking pieces remain.
+        int king=kingSquare(p,color);
+        if(king>=0&&(color==WHITE?rankOf(king)<=2:rankOf(king)>=5)) {
+            const int enemy=1-color;
+            // The board has 128 slots, so this count safely fits in int.
+            const int enemyHeavy=static_cast<int>(
+                std::count(p.board.begin(),p.board.end(),makePiece(4,enemy))
+                +std::count(p.board.begin(),p.board.end(),makePiece(5,enemy)));
+            if(enemyHeavy>0) {
+                const int shieldRank=rankOf(king)+(color==WHITE?1:-1);
+                for(int shieldFile=std::max(0,fileOf(king)-1);shieldFile<=std::min(7,fileOf(king)+1);++shieldFile) {
+                    const bool shielded=shieldRank>=0&&shieldRank<8
+                        &&p.board[shieldRank*16+shieldFile]==makePiece(1,color);
+                    if(shielded) middle[color]+=8;
+                    else middle[color]-=6;
+                }
+            }
+        }
+
         for(int square=0;square<128;++square) {
             if(!onBoard(square)||p.board[square]!=makePiece(4,color)) continue;
             int file=fileOf(square);
@@ -505,7 +569,6 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode) {
 Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
     auto moves=legalMoves(p);
     if(moves.empty()) return {};
-    searchAborted=false;
     searchTimeLimited=timeLimitMs>0;
     if(searchTimeLimited) searchDeadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(timeLimitMs);
     ++ttGeneration;
@@ -525,7 +588,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
         int score=0;
         while(true) {
             score=negamax(p,currentDepth,alpha,beta,0,true);
-            if(searchAborted) break;
+            if(searchAborted.load(std::memory_order_relaxed)) break;
             TTEntry& rootEntry=transpositionTable[positionKey(p)&(TT_SIZE-1)];
             if(rootEntry.key==positionKey(p)&&rootEntry.best.from>=0) best=rootEntry.best;
             if(score<=alpha&&alpha>-INF) {
@@ -540,14 +603,48 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
             }
             break;
         }
-        if(searchAborted) break;
+        if(searchAborted.load(std::memory_order_relaxed)) break;
         previousScore=score;
         auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count();
-        std::cout<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best)<<"\n"<<std::flush;
+        std::ostringstream info;
+        info<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best);
+        emitLine(info.str());
     }
     searchTimeLimited=false;
-    searchAborted=false;
     return best;
+}
+
+void runBenchmark(int depth) {
+    struct Case { const char* name; const char* fen; };
+    constexpr std::array<Case, 5> suite{{
+        {"starting-position", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"},
+        {"kiwipete", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"},
+        {"rook-endgame", "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"},
+        {"closed-center", "r1bq1rk1/pp1n1ppp/2pbpn2/3p4/3P4/2NBPN2/PPQ1BPPP/R1R3K1 w - - 0 1"},
+        {"open-position", "r2q1rk1/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w - - 0 1"}
+    }};
+    std::uint64_t totalNodes=0;
+    const auto suiteStart=std::chrono::steady_clock::now();
+    std::cout<<"Prunex benchmark depth "<<depth<<" positions "<<suite.size()<<"\n";
+    for(const Case& item:suite) {
+        Position position;
+        if(!loadFen(position,item.fen)) {
+            std::cerr<<"Invalid built-in benchmark position: "<<item.name<<"\n";
+            continue;
+        }
+        transpositionTable.fill(TTEntry{});
+        historyScores={};
+        for(auto& pair:killerMoves) pair={Move{},Move{}};
+        searchAborted.store(false,std::memory_order_relaxed);
+        Move best=findBestMove(position,depth);
+        totalNodes+=nodes;
+        std::cout<<"bench "<<item.name<<" bestmove "<<(best.from>=0?moveUci(best):"none")
+                 <<" nodes "<<nodes<<"\n";
+    }
+    const auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now()-suiteStart).count();
+    const auto nps=elapsed>0?totalNodes*1000/static_cast<std::uint64_t>(elapsed):0;
+    std::cout<<"bench-total nodes "<<totalNodes<<" time_ms "<<elapsed<<" nps "<<nps<<"\n";
 }
 
 std::uint64_t perft(Position& p,int depth){if(depth==0)return 1;auto moves=legalMoves(p);std::uint64_t n=0;for(const Move&m:moves){Position q=p;makeMove(q,m);n+=perft(q,depth-1);}return n;}
@@ -557,7 +654,24 @@ void setPosition(Position& p,const std::string& command){std::istringstream in(c
 }
 }
 
+#ifndef PRUNEX_NO_MAIN
 int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,START_FEN);
+    std::thread searchThread;
+    auto stopAndJoin=[&]() {
+        if(searchThread.joinable()) {
+            searchAborted.store(true,std::memory_order_relaxed);
+            searchThread.join();
+        }
+    };
+    if((argc==2||argc==3)&&std::string_view(argv[1])=="--bench") {
+        int depth=5;
+        if(argc==3&&!parseIntegerToken(argv[2],1,10,depth)) {
+            std::cerr<<"Invalid benchmark depth (expected 1-10)\n";
+            return 2;
+        }
+        runBenchmark(depth);
+        return 0;
+    }
     if(argc==3&&std::string_view(argv[1])=="--perft"){
         int d=0;
         if(!parseIntegerToken(argv[2],0,7,d)){std::cerr<<"Invalid depth (expected 0-7)\n";return 2;}
@@ -580,12 +694,26 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         std::cout<<"Total: "<<total<<"\n";
         return 0;
     }
-    std::string line;while(std::getline(std::cin,line)){std::istringstream in(line);std::string cmd;in>>cmd;
-        if(cmd=="uci"){std::cout<<"id name Prunex 0.5.1\nid author Prunex Project\nuciok\n"<<std::flush;}
-        else if(cmd=="isready"){std::cout<<"readyok\n"<<std::flush;}
-        else if(cmd=="ucinewgame"){loadFen(pos,START_FEN);transpositionTable.fill(TTEntry{});historyScores={};for(auto& pair:killerMoves)pair={Move{},Move{}};}
-        else if(cmd=="position"){setPosition(pos,line);}
-        else if(cmd=="go"){
+    std::string line;
+    while(std::getline(std::cin,line)){
+        std::istringstream in(line);
+        std::string cmd;
+        in>>cmd;
+        if(cmd=="uci"){
+            emitLine("id name Prunex 0.8.0\nid author Prunex Project\nuciok");
+        } else if(cmd=="isready"){
+            emitLine("readyok");
+        } else if(cmd=="ucinewgame"){
+            stopAndJoin();
+            loadFen(pos,START_FEN);
+            transpositionTable.fill(TTEntry{});
+            historyScores={};
+            for(auto& pair:killerMoves)pair={Move{},Move{}};
+        } else if(cmd=="position"){
+            stopAndJoin();
+            setPosition(pos,line);
+        } else if(cmd=="go"){
+            stopAndJoin();
             int depth=5;
             bool depthSet=false;
             int movesToGo=30;
@@ -620,11 +748,31 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             }
             if(moveTime==0) moveTime=1;
             if(!depthSet&&moveTime>=0) depth=12;
-            Move best=findBestMove(pos,std::clamp(depth,1,12),moveTime);
-            std::cout<<"bestmove "<<(best.from>=0?moveUci(best):"0000")<<"\n"<<std::flush;
+            const int searchDepth=std::clamp(depth,1,12);
+            const Position searchPosition=pos;
+            searchAborted.store(false,std::memory_order_relaxed);
+            searchThread=std::thread([searchPosition,searchDepth,moveTime]() mutable {
+                Move best=findBestMove(searchPosition,searchDepth,moveTime);
+                emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
+            });
+        } else if(cmd=="eval"){
+            stopAndJoin();
+            emitLine("info string static evaluation cp "+std::to_string(evaluate(pos)));
+        } else if(cmd=="stop"){
+            stopAndJoin();
+        } else if(cmd=="quit"){
+            stopAndJoin();
+            break;
+        } else if(cmd=="d"){
+            std::lock_guard<std::mutex> lock(outputMutex);
+            for(int r=7;r>=0;--r){
+                for(int f=0;f<8;++f)std::cout<<pieceChar(pos.board[r*16+f])<<' ';
+                std::cout<<'\n';
+            }
+            std::cout<<std::flush;
         }
-        else if(cmd=="stop"){}
-        else if(cmd=="quit")break;
-        else if(cmd=="d"){for(int r=7;r>=0;--r){for(int f=0;f<8;++f)std::cout<<pieceChar(pos.board[r*16+f])<<' ';std::cout<<'\n';}}
-    }return 0;
+    }
+    stopAndJoin();
+    return 0;
 }
+#endif // PRUNEX_NO_MAIN

@@ -8,6 +8,8 @@
 #include <windowsx.h>
 #include <string>
 #include <vector>
+#include <mutex>
+#include <thread>
 
 namespace {
 using namespace prunex;
@@ -35,6 +37,14 @@ HWND windowHandle = nullptr;
 HFONT pieceFont = nullptr;
 HFONT uiFont = nullptr;
 HFONT titleFont = nullptr;
+constexpr UINT WM_SEARCH_COMPLETE = WM_APP + 1;
+std::thread computerSearchThread;
+std::mutex completedSearchMutex;
+Move completedComputerMove{};
+std::uint64_t completedPositionGeneration = 0;
+std::uint64_t positionGeneration = 0;
+bool hasCompletedComputerMove = false;
+bool thinking = false;
 
 std::wstring pieceGlyph(int piece) {
     static const wchar_t* glyphs[] = {L"",L"♙",L"♘",L"♗",L"♖",L"♕",L"♔",L"♟",L"♞",L"♝",L"♜",L"♛",L"♚"};
@@ -49,10 +59,20 @@ int squareAt(int x, int y) {
     return r * 16 + f;
 }
 void setStatus() {
-    auto moves = legalMoves(position);
-    if (moves.empty()) status = inCheck(position, position.side) ? L"Checkmate" : L"Draw by stalemate";
-    else if (inCheck(position, position.side)) status = position.side == WHITE ? L"White is in check" : L"Black is in check";
-    else status = position.side == WHITE ? L"White to move" : L"Black to move";
+    if (thinking) {
+        status = L"Prunex is thinking...";
+    } else {
+        const auto moves = legalMoves(position);
+        if (moves.empty()) status = inCheck(position, position.side) ? L"Checkmate" : L"Draw by stalemate";
+        else if (inCheck(position, position.side)) status = position.side == WHITE ? L"White is in check" : L"Black is in check";
+        else status = position.side == WHITE ? L"White to move" : L"Black to move";
+    }
+
+    if (windowHandle) {
+        const std::wstring title = L"Prunex Chess | " + status +
+            L" | " + std::to_wstring(history.size()) + L" plies";
+        SetWindowTextW(windowHandle, title.c_str());
+    }
 }
 void text(HDC dc, int x, int y, const std::wstring& value, COLORREF color, HFONT font = nullptr) {
     SetTextColor(dc, color);
@@ -117,15 +137,88 @@ void paintBoard(HDC dc) {
     text(dc, 34, 720, L"BUILT BY PASSION. DRIVEN BY CHESS.", MUTED);
 }
 void redraw() { InvalidateRect(windowHandle,nullptr,FALSE); }
+
+void cancelComputerSearch() {
+    if (computerSearchThread.joinable()) {
+        searchAborted.store(true, std::memory_order_relaxed);
+        computerSearchThread.join();
+    }
+    thinking = false;
+    std::lock_guard<std::mutex> lock(completedSearchMutex);
+    hasCompletedComputerMove = false;
+}
+
+void applyCompletedComputerMove() {
+    if (computerSearchThread.joinable()) computerSearchThread.join();
+
+    Move best{};
+    std::uint64_t resultGeneration = 0;
+    bool hasResult = false;
+    {
+        std::lock_guard<std::mutex> lock(completedSearchMutex);
+        hasResult = hasCompletedComputerMove;
+        if (hasResult) {
+            best = completedComputerMove;
+            resultGeneration = completedPositionGeneration;
+        }
+        hasCompletedComputerMove = false;
+    }
+
+    if (!hasResult || !thinking || resultGeneration != positionGeneration) return;
+    thinking = false;
+
+    bool legalResult = false;
+    for (const Move& legal : legalMoves(position)) {
+        if (sameMove(legal, best)) {
+            legalResult = true;
+            break;
+        }
+    }
+    if (legalResult) {
+        undoStack.push_back({position, history});
+        makeMove(position, best);
+        history.push_back(best);
+    }
+
+    setStatus();
+    redraw();
+}
+
 void computerMove() {
-    auto moves=legalMoves(position);
-    if (moves.empty()) { setStatus(); redraw(); return; }
-    Move best=findBestMove(position,depth);
-    if (best.from>=0) { undoStack.push_back({position,history}); makeMove(position,best); history.push_back(best); }
-    setStatus(); redraw();
+    if (thinking || !windowHandle) return;
+    auto moves = legalMoves(position);
+    if (moves.empty()) {
+        setStatus();
+        redraw();
+        return;
+    }
+
+    searchAborted.store(false, std::memory_order_relaxed);
+    const Position searchPosition = position;
+    const std::uint64_t searchGeneration = positionGeneration;
+    const int searchDepth = depth;
+    thinking = true;
+    setStatus();
+    redraw();
+
+    computerSearchThread = std::thread([searchPosition, searchGeneration, searchDepth, hwnd = windowHandle]() mutable {
+        Move best = findBestMove(searchPosition, searchDepth);
+        {
+            std::lock_guard<std::mutex> lock(completedSearchMutex);
+            completedComputerMove = best;
+            completedPositionGeneration = searchGeneration;
+            hasCompletedComputerMove = true;
+        }
+        if (!PostMessageW(hwnd, WM_SEARCH_COMPLETE, 0, 0)) {
+            std::lock_guard<std::mutex> lock(completedSearchMutex);
+            if (completedPositionGeneration == searchGeneration) {
+                hasCompletedComputerMove = false;
+            }
+        }
+    });
 }
 void onSquare(int sq) {
-    if (sq<0 || position.side!=WHITE) return;
+    if (sq < 0 || position.side != WHITE || thinking) return;
     if (selected<0) {
         if (colorOf(position.board[sq])==WHITE) selected=sq;
     } else {
@@ -138,7 +231,13 @@ void onSquare(int sq) {
         }
         if (!moved && colorOf(position.board[sq])==WHITE) selected=sq;
         else selected=-1;
-        if (moved) { setStatus(); redraw(); computerMove(); return; }
+        if (moved) {
+            ++positionGeneration;
+            setStatus();
+            redraw();
+            computerMove();
+            return;
+        }
     }
     redraw();
 }
@@ -152,13 +251,39 @@ LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         int panelX=BOARD_X+8*CELL+52;
         if (x>=panelX&&x<panelX+50&&y>=342&&y<382) depth=std::max(1,depth-1);
         else if (x>=panelX+52&&x<panelX+100&&y>=342&&y<382) depth=std::min(8,depth+1);
-        else if (x>=panelX&&x<panelX+210&&y>=406&&y<444) { loadFen(position,START_FEN); history.clear(); undoStack.clear(); selected=-1; setStatus(); }
-        else if (x>=panelX&&x<panelX+210&&y>=454&&y<492) { if(!undoStack.empty()){auto s=undoStack.back();undoStack.pop_back();position=s.position;history=s.moves;if(position.side==BLACK&&!undoStack.empty()){auto prev=undoStack.back();undoStack.pop_back();position=prev.position;history=prev.moves;}selected=-1;setStatus();} }
+        else if (x>=panelX&&x<panelX+210&&y>=406&&y<444) {
+            cancelComputerSearch();
+            ++positionGeneration;
+            loadFen(position,START_FEN);
+            history.clear();
+            undoStack.clear();
+            selected=-1;
+            setStatus();
+        }
+        else if (x>=panelX&&x<panelX+210&&y>=454&&y<492) {
+            cancelComputerSearch();
+            ++positionGeneration;
+            if(!undoStack.empty()){
+                auto s=undoStack.back();undoStack.pop_back();
+                position=s.position;history=s.moves;
+                if(position.side==BLACK&&!undoStack.empty()){
+                    auto prev=undoStack.back();undoStack.pop_back();
+                    position=prev.position;history=prev.moves;
+                }
+                selected=-1;setStatus();
+            }
+        }
         else if (x>=panelX&&x<panelX+210&&y>=502&&y<540) flipped=!flipped;
         redraw(); return 0;
     }
+    case WM_SEARCH_COMPLETE:
+        applyCompletedComputerMove();
+        return 0;
     case WM_ERASEBKGND: return 1;
-    case WM_DESTROY: PostQuitMessage(0); return 0;
+    case WM_DESTROY:
+        cancelComputerSearch();
+        PostQuitMessage(0);
+        return 0;
     }
     return DefWindowProcW(hwnd,msg,wp,lp);
 }

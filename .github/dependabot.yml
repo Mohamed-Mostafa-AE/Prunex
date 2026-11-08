@@ -11,6 +11,17 @@ updates:
       - dependencies
       - security
 
+  - package-ecosystem: pip
+    directory: /tools/training
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(python)"
+    labels:
+      - dependencies
+      - security
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
