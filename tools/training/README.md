@@ -4,7 +4,7 @@ This directory contains an offline corpus importer. It is **not** bundled into
 the native engine or the browser client. The importer uses python-chess
 (GPL-3.0-or-later) and python-zstandard (BSD-3-Clause). To keep licensing
 boundaries clear, tools in this directory are distributed under GPL-3.0-or-later;
-the native C++ engine remains under the root Apache-2.0 license.
+the original native C++ engine remains under the root MIT License.
 
 ## Install
 
@@ -73,7 +73,7 @@ manifest and source license obligations.
 
 The importer is GPL-3.0-or-later because it uses python-chess, which is
 GPL-3.0-or-later. The zstandard Python package is BSD-3-Clause. Their licenses
-remain distinct from the Apache-2.0 license covering the native C++ engine.
+remain distinct from the root MIT License covering original Prunex contributions.
 
 ## Annotate positions with the native Prunex evaluator
 
