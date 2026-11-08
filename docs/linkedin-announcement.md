@@ -12,6 +12,8 @@ Correctness has been a major focus: the 46-case native regression suite passed u
 
 **Explore Prunex:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
+**Validation records:** [Native 46-case test matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) · [Windows x64 build and GUI smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737)
+
 I'd welcome feedback from people interested in C++, chess programming, search algorithms, and engine development.
 
 #CPlusPlus #ChessProgramming #SoftwareEngineering #ChessEngines
