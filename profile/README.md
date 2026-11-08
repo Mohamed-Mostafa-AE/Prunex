@@ -1,10 +1,10 @@
 <!--
 Prunex profile project presentation.
-Keep this README factual: the native engine is handcrafted HCE; NNUE evaluation belongs to the separate browser experience.
+Keep this README focused on the native engine and link to the repository for implementation details.
 -->
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Mohamed-Mostafa-AE/Prunex/feature/prunex-evaluation-intelligence/website/public/prunex-mark.png" alt="Prunex mark" width="112" />
+  <img src="https://raw.githubusercontent.com/Mohamed-Mostafa-AE/Prunex/main/website/public/prunex-mark.png" alt="Prunex mark" width="112" />
   <h1>Mohamed Mostafa</h1>
   <p><strong>Student Developer · C++ · Chess-Engine Engineering · Aerospace Engineering</strong></p>
   <p>
