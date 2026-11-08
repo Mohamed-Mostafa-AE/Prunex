@@ -55,7 +55,7 @@ Do not claim a measured Elo, tournament result, or comparative strength until a 
 
 These are operational blockers for the hosted browser service. They are not required to merge the native engine documentation PR, but they are mandatory before promoting the current preview to the production alias.
 
-0. **Replace the browser engine before claiming the project is free of the separate neural-network engine**
+0. **Replace the browser engine before claiming the project is free of the separate third-party browser engine**
    - The current browser worker launches a separately licensed engine bundle. Do not remove its name, attribution, source links, or license files while the bundle is still shipped.
    - The existing `src/wasm_api.cpp` exports synchronous FEN evaluation and fixed-depth search (depth 1–12). It does not currently provide the browser application's time-budgeted search, progress reporting, MultiPV alternatives, or in-search cancellation.
    - Extend the native WebAssembly API/worker to provide the browser features that are retained, or explicitly remove and retest any browser features that will no longer be supported. Do not silently degrade game review or opponent play.
@@ -125,7 +125,7 @@ These are worthwhile follow-on engineering tasks. Track them as separate issues 
 ## Final status — reviewed 9 November 2026
 
 - **Native C++ source:** the source-validation matrix passed on the latest source-bearing validation commit; the current `main` head is documentation-only and its applicable checks are green.
-- **Browser engine restriction:** not satisfied. The browser application still ships the separate neural-network engine. Replacing it with the native WebAssembly engine and removing the associated bundle/licensing footprint is a required code change, not a cosmetic documentation task.
+- **Browser engine restriction:** not satisfied. The browser application still ships the separate third-party browser engine. Replacing it with the native WebAssembly engine and removing the associated bundle/licensing footprint is a required code change, not a cosmetic documentation task.
 - **Repository licensing:** MIT applies to original Prunex contributions; third-party materials retain their own terms. The training guide's stale Apache-2.0 statements are corrected in this review branch.
 - **Archive:** Supabase still holds 35 games and 3 reviews across anonymous guest identities. The sole confirmed email account owns none of them. Neon active archive tables contain zero imported rows; a checksummed legacy-source snapshot exists but has not been restored or imported.
 - **Authentication/security:** the Vercel server-side environment-variable keys are present, but live email delivery is unverified. Supabase Security Advisor reports leaked-password protection disabled.
