@@ -2,17 +2,17 @@
 
 ## Post
 
-I'm excited to share **Prunex 0.8.0** — a chess-engine project I've been building and refining.
+I've been building **Prunex**, an independently implemented chess-engine project written in **C++20**.
 
-The native engine is independently implemented in **C++20**, with an alpha–beta/PVS search architecture, iterative deepening, transposition tables, aspiration windows, late-move reductions, and quiescence search. It also includes a UCI interface and a handcrafted, tapered evaluation function.
+The native engine has its own 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta pruning and principal-variation search, move ordering, late-move reductions, and quiescence search. It also includes a UCI interface and a handcrafted tapered evaluation function.
 
-Alongside the engine, **Prunex Play** provides a browser-based experience for playing and reviewing chess games, with a custom application layer for engine integration, move analysis, and game-review workflows.
+The project includes a native command-line engine, a Windows desktop interface, and a standalone WebAssembly build with native parity checks.
 
-I've also put significant work into testing and reliability. The latest validation includes native GCC and Clang builds, sanitizer checks, Windows x64 tests, browser tests, and WebAssembly parity checks.
+**Prunex Play** is a separate browser application for playing and reviewing chess. Its browser opponent and analysis path use the third-party Stockfish.js 19 engine; the native C++ engine is not currently running inside the browser application.
 
-There's still plenty to improve, especially in search and evaluation, and I'm looking forward to continuing that work.
+I have put a strong emphasis on correctness and repeatable validation. The 46-case native regression suite passed in GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI. The website build and Playwright checks, WebAssembly parity checks, and CodeQL analysis also passed.
 
-I'd love to hear feedback from anyone interested in chess programming, C++, search algorithms, or engine development.
+I am continuing to work on engine strength, desktop acceptance, and the hosted-service release process. I would welcome feedback from people interested in chess programming, C++, search algorithms, or engine development.
 
 **Explore Prunex:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
@@ -20,4 +20,12 @@ I'd love to hear feedback from anyone interested in chess programming, C++, sear
 
 ## Image guidance
 
-Use the two 1200 × 675 product captures prepared with the announcement: the website overview and the engine architecture section. They illustrate the product and technical scope; they are not benchmark results or screenshots of the native Windows application.
+Attach the two 1200 × 675 screenshots prepared for this post:
+1. Website overview — use as the first image.
+2. Native engine architecture section — use as the second image.
+
+These are authentic website captures illustrating the project and technical architecture. They are not screenshots of the native Windows desktop application, benchmark results, or Elo evidence.
+
+## Publication gate
+
+This copy is suitable for publication only after the final manual Windows 10/11 desktop acceptance and the remaining hosted-service/legal gates documented in `docs/finalization-gates.md` are closed. Do not describe Prunex as having an independently measured Elo rating or a native NNUE evaluator.
