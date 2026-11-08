@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "1.2.0",
-    "@supabase/supabase-js": "2.118.0",
+    "@supabase/supabase-js": "2.119.0",
     "chess.js": "1.4.0"
   },
   "devDependencies": {
