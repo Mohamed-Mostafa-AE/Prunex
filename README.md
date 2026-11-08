@@ -24,8 +24,8 @@ Prunex is an independently developed chess-engine project. Its native engine is 
 |---|---|
 | **Native engine** | Independent C++20 implementation; 0x88 board, move generation, search, handcrafted tapered evaluation, and UCI |
 | **Windows desktop** | Native GUI linked to the engine implementation |
-| **WebAssembly target** | C++ engine compiled with Emscripten; exported position evaluation and fixed-depth search functions |
-| **Prunex Play** | Separate browser application for playing and reviewing games; it does not currently execute the native C++/WebAssembly engine |
+| **WebAssembly target** | The same C++20 engine compiled with Emscripten; versioned evaluation and time-bounded iterative-deepening search API |
+| **Prunex Play** | Browser application for playing and reviewing games; runs the native Prunex 0.8.0 engine compiled to WebAssembly |
 | **Offline data tools** | Licensed PGN ingestion, deterministic corpus splitting, provenance manifests, static-evaluation annotation, and calibration diagnostics |
 
 ## Native engine architecture
@@ -55,7 +55,7 @@ The implementation is deliberately documented as it exists today; no unsupported
 
 ### Static evaluation
 
-The native evaluator is **handcrafted and tapered**, not NNUE-based. It combines material values and piece-square/positional terms with middlegame/endgame phase blending. Current terms include:
+The native evaluator is **handcrafted and tapered**. It combines material values and piece-square/positional terms with middlegame/endgame phase blending. Current terms include:
 
 - Piece activity and centralization
 - Pawn advancement, doubled and isolated pawn penalties
@@ -64,7 +64,7 @@ The native evaluator is **handcrafted and tapered**, not NNUE-based. It combines
 - King shelter
 - Rook-file bonuses
 
-The separate Prunex Play browser experience uses NNUE-based position evaluation. This is a separate browser engine path, not the native C++ evaluator. The Prunex application layer provides worker orchestration, game-review scheduling, expected-points calibration, move-quality grading, archive integration, and presentation.
+Prunex Play runs the same native C++20 engine through its WebAssembly build. The browser application adds worker orchestration, game-review scheduling, expected-points calibration, move-quality grading, archive integration, and presentation.
 
 ## Building the native engine
 
@@ -161,9 +161,7 @@ See [Testing](docs/testing.md) for coverage and methodology.
 
 ## WebAssembly
 
-The repository includes a standalone Emscripten target built from the native C++ implementation. It exposes a small C API for FEN evaluation, fixed-depth position search, and node counts. The WebAssembly workflow compares its results with a native reference implementation.
-
-**Current scope:** the WASM artifact and parity checks exist, but Prunex Play has not yet been connected to this native WebAssembly module. The browser application remains a separate engine integration.
+The repository includes an Emscripten build of the native C++ implementation. Its versioned C API exposes FEN evaluation, fixed-depth parity search, time-bounded iterative-deepening search, completed-depth reporting, and node counts. The WebAssembly workflow compares its output with a native reference implementation. Prunex Play loads the generated WebAssembly module in a dedicated worker, so opponent play and game review use the same Prunex 0.8.0 engine implementation as the native application.
 
 ## Offline data and evaluation diagnostics
 
@@ -176,7 +174,7 @@ The offline tools under `tools/training/` can:
 5. Annotate positions using the native Prunex static evaluator.
 6. Fit and report held-out expected-points calibration diagnostics.
 
-These tools do **not** train an NNUE network, create native engine weights, or automatically modify the evaluator. A lower calibration loss is not evidence of stronger play. See [Training-data ingestion](docs/training-data-ingestion.md) and [the tool guide](tools/training/README.md).
+These tools do **not** train or create engine weights, or automatically modify the evaluator. A lower calibration loss is not evidence of stronger play. See [Training-data ingestion](docs/training-data-ingestion.md) and [the tool guide](tools/training/README.md).
 
 ## Try Prunex Play
 
