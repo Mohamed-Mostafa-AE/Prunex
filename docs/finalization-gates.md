@@ -19,7 +19,7 @@ A change may enter the frozen scope only when it is necessary to correct a demon
 
 ## Release decision in one sentence
 
-The browser integration has been changed on this branch to run Prunex 0.8.0 through the native C++ WebAssembly build. The generated browser binaries and new browser/WASM CI results still need verification. Archive ownership, recovery, hosted authentication/email, branch protection, legal review, and final manual acceptance remain separate release gates.
+The browser integration now runs Prunex 0.8.0 through the native C++ WebAssembly build. The browser assets were generated from source and the full branch validation matrix passed. Archive ownership, recovery, hosted authentication/email, branch protection, legal review, and final manual acceptance remain separate release gates.
 
 ## A. Basic repository finalization
 
@@ -32,11 +32,11 @@ These are the minimum conditions for a professional, reviewable public repositor
 | Native build and UCI instructions | Documented | Keep |
 | License scope and third-party notices | Documented; final legal review remains separate | Keep |
 | Reproducible native regression suite | 46/46 across GCC, Clang, sanitizers, and Windows x64 | Pass |
-| Browser, Windows, WebAssembly and CodeQL CI | Previous source-validation runs passed before this browser integration; fresh browser/WASM validation for the current branch is pending | Pending |
+| Browser, Windows, WebAssembly and CodeQL CI | Website/browser, npm audit, native GCC/Clang, ASan/UBSan, Windows x64, WebAssembly parity, and both CodeQL analyses passed on `056385c5db7fd9c794e23e69dd405d618c72d0c5` | Pass |
 | No unsupported playing-strength or training claims | No native Elo claim; no claim that offline corpus tools train engine weights | Pass |
 | Release integration | PR #10 and its follow-up documentation changes are integrated into `main`; current head is `bf9e8d4a9828da1bb1f824b678043d16706107aa` | Complete |
 
-The prior source-validation records apply to the earlier source-bearing commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`. This branch now changes the browser worker, WebAssembly API, dependency graph, and website tests; those changes require fresh CI validation before merge.
+The source-bearing browser and native integration on this branch was freshly validated. The complete workflow matrix passed on `056385c5db7fd9c794e23e69dd405d618c72d0c5`.
 
 ## B. Required before publishing a native desktop release
 
@@ -125,7 +125,7 @@ These are worthwhile follow-on engineering tasks. Track them as separate issues 
 ## Final status — reviewed 9 November 2026
 
 - **Native C++ source:** the source-validation matrix passed on the latest source-bearing validation commit; the current `main` head is documentation-only and its applicable checks are green.
-- **Browser runtime:** the branch now routes browser play and review through the Prunex 0.8.0 WebAssembly API. Generated assets and fresh website/WASM CI results remain pending verification; the branch must not be merged until both are confirmed.
+- **Browser runtime:** the branch routes browser play and review through the Prunex 0.8.0 WebAssembly API. Generated assets are committed, parity tests and browser smoke tests pass, and the full compiler/Windows/security matrix is green.
 - **Repository licensing:** MIT applies to original Prunex contributions; third-party materials retain their own terms. The training guide's stale Apache-2.0 statements are corrected in this review branch.
 - **Archive:** Supabase still holds 35 games and 3 reviews across anonymous guest identities. The sole confirmed email account owns none of them. Neon active archive tables contain zero imported rows; a checksummed legacy-source snapshot exists but has not been restored or imported.
 - **Authentication/security:** the Vercel server-side environment-variable keys are present, but live email delivery is unverified. Supabase Security Advisor reports leaked-password protection disabled.
