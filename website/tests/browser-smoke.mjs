@@ -455,7 +455,7 @@ try {
   await page.locator("#preview-move-sound").click();
   await page.locator("#move-method").selectOption("both");
   await page.locator("#board").scrollIntoViewIfNeeded();
-  await page.locator('[data-square="g1"]').scrollIntoViewIfNeeded();
+  // The board itself is already in view; avoid a second scroll on a square being re-rendered.
   const knightStart = await page.locator('[data-square="g1"]').boundingBox();
   const knightEnd = await page.locator('[data-square="f3"]').boundingBox();
   await page.mouse.move(knightStart.x + knightStart.width / 2, knightStart.y + knightStart.height / 2);
