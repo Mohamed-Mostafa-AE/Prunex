@@ -20,7 +20,13 @@ export function centipawnsToExpectedPoints(scoreCp) {
 }
 
 export function expectedPointsFromEvaluation(result) {
-  return result ? centipawnsToExpectedPoints(scoreToCentipawns(result)) : null;
+  if (!result) return null;
+  const wdl = result.wdl;
+  if (wdl && Number.isFinite(wdl.win) && Number.isFinite(wdl.draw) && Number.isFinite(wdl.loss)) {
+    const total = wdl.win + wdl.draw + wdl.loss;
+    if (total > 0) return Math.max(0, Math.min(1, (wdl.win + 0.5 * wdl.draw) / total));
+  }
+  return centipawnsToExpectedPoints(scoreToCentipawns(result));
 }
 
 export function expectedPointLoss(beforeExpectedPoints, afterMoverExpectedPoints) {
