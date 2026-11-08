@@ -2,7 +2,7 @@ name: Native WebAssembly build and parity
 
 on:
   push:
-    branches: [main, 'feature/**']
+    branches: [main, 'feature/**', 'docs/**']
     paths:
       - 'src/**'
       - 'tests/wasm_parity_reference.cpp'
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-compare:
@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
@@ -60,6 +60,23 @@ jobs:
         run: |
           test -s build/wasm/prunex-wasm.js
           test -s build/wasm/prunex-wasm.wasm
+
+      - name: Publish browser WebAssembly assets to this branch
+        if: github.event_name == 'push' && github.ref_name != 'main'
+        run: |
+          mkdir -p website/public/engine
+          cp build/wasm/prunex-wasm.js website/public/engine/prunex-wasm.js
+          cp build/wasm/prunex-wasm.wasm website/public/engine/prunex-wasm.wasm
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website/public/engine/prunex-wasm.js website/public/engine/prunex-wasm.wasm
+          if git diff --cached --quiet; then
+            echo "Browser WebAssembly assets are already current."
+          else
+            git commit -m "build: publish Prunex 0.8.0 browser WebAssembly"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
       - name: Upload native WebAssembly build
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
