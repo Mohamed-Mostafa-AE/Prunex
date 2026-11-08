@@ -1558,7 +1558,8 @@ async function handleWorkerMessage(event) {
       return;
     }
     render();
-    search();
+    if (reviewMovesSnapshot && !game.isGameOver()) evaluatePosition();
+    else search();
     return;
   }
   if (data.type === "error" && data.requestId === undefined) {
