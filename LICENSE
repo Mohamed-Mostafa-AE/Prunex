@@ -9,27 +9,32 @@ replace, restrict, or change the separate licenses for third-party materials.
 
 1. NO GENERAL LICENSE GRANTED
 
-Except for the limited permission in Section 2, no permission or license is granted
-to any person to use, reproduce, copy, modify, adapt, translate, create derivative
-works from, distribute, publish, sublicense, sell, commercially exploit, or otherwise
-make use of any Covered Materials, in whole or in part, without prior written
-permission from the copyright holder.
+Except for rights that apply because the repository is publicly hosted on GitHub
+(see Section 2), no permission or license is granted to any person to use,
+reproduce, copy, modify, adapt, translate, create derivative works from, distribute,
+publish, sublicense, sell, commercially exploit, or otherwise make use of any
+Covered Materials, in whole or in part, without prior written permission from the
+copyright holder. This restriction applies to use outside the rights necessarily
+provided by GitHub's Terms of Service and applicable law.
 
-2. LIMITED INSPECTION PERMISSION
+2. PUBLIC GITHUB REPOSITORY RIGHTS
 
-A person may view and read the publicly accessible Prunex repository through
-GitHub's ordinary website interface solely for personal, non-commercial inspection
-and evaluation. This limited permission does not authorize reuse of the Covered
-Materials in another project, publication, product, service, or repository. It
-does not authorize modification, redistribution, or the creation of derivative
-works.
+The Prunex repository is currently public on GitHub. Under GitHub's Terms of
+Service, public repository visibility permits other GitHub users to view and fork
+the repository within GitHub's service. A fork is a copy held in another user's
+GitHub account. This license does not attempt to revoke, narrow, or override those
+platform permissions. Any rights to view or fork the repository that arise from
+GitHub's Terms are rights provided through that platform, not a general license
+to reuse the Covered Materials outside GitHub. Any use beyond the rights provided
+by GitHub's Terms of Service and applicable law requires prior written permission.
 
 3. WRITTEN PERMISSION
 
-Any permission beyond Section 2 must be obtained in advance in writing from
-Mohamed Mostafa. Permission may be limited to specific files, purposes, platforms,
-or periods. Silence, public visibility, an issue report, a pull request, or access
-to a hosted demonstration does not constitute permission.
+Any permission beyond the rights described in Section 2 must be obtained in
+advance in writing from Mohamed Mostafa. Permission may be limited to specific
+files, purposes, platforms, or periods. Silence, public visibility, an issue
+report, a pull request, or access to a hosted demonstration does not constitute
+permission.
 
 4. THIRD-PARTY MATERIALS ARE EXCLUDED
 
@@ -53,9 +58,9 @@ maximum extent permitted by applicable law.
 
 7. RESERVATION OF RIGHTS
 
-All rights in the Covered Materials not expressly granted in Section 2 are
-reserved. This license does not override rights that cannot lawfully be waived
-or restricted under applicable law.
+All rights in the Covered Materials not expressly available under Section 2 or
+applicable law are reserved. This license does not override rights that cannot
+lawfully be waived or restricted under applicable law.
 
 For permission requests, contact the copyright holder through the contact
 information published on the official Prunex repository.
