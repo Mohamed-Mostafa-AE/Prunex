@@ -59,7 +59,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: prunex-game-result-visual-review
+          name: prunex-responsive-device-review
           path: website/artifacts/*.png
           if-no-files-found: warn
           retention-days: 3
