@@ -189,6 +189,8 @@ std::array<TTEntry, TT_SIZE> transpositionTable{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
 std::uint64_t nodes=0;
+int lastSearchScore=0;
+int completedSearchDepth=0;
 std::uint64_t ttHits=0;
 std::uint8_t ttGeneration=0;
 bool searchTimeLimited=false;
@@ -211,6 +213,8 @@ void resetSearchState() {
     historyScores={};
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
+    lastSearchScore=0;
+    completedSearchDepth=0;
     ttHits=0;
     ttGeneration=0;
     searchTimeLimited=false;
@@ -577,6 +581,8 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
     for(auto& side:historyScores) for(auto& from:side) for(int& value:from) value/=2;
     nodes=0;
     ttHits=0;
+    completedSearchDepth=0;
+    lastSearchScore=evaluate(p);
     Move best=moves.front();
     int previousScore=0;
     const auto start=std::chrono::steady_clock::now();
@@ -605,6 +611,8 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
         }
         if(searchAborted.load(std::memory_order_relaxed)) break;
         previousScore=score;
+        lastSearchScore=score;
+        completedSearchDepth=currentDepth;
         auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count();
         std::ostringstream info;
         info<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best);
