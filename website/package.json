@@ -15,7 +15,7 @@
     "chess.js": "1.4.0"
   },
   "devDependencies": {
-    "vite": "8.3.5",
+    "vite": "8.3.6",
     "playwright": "1.64.1"
   },
   "packageManager": "npm@10.9.2"
