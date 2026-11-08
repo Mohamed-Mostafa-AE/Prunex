@@ -3,6 +3,7 @@ let api = null;
 let initializing = false;
 
 const API_ERROR = -2147483648;
+// The exported Prunex 0.8.0 WebAssembly search API is capped at depth 12.
 const MAX_DEPTH = 12;
 
 function clamp(value, min, max) {
@@ -37,7 +38,6 @@ async function initialize() {
     });
     api = {
       version: wasm.cwrap("prunex_wasm_api_version", "number", []),
-      evaluate: wasm.cwrap("prunex_wasm_evaluate_fen", "number", ["number"]),
       search: wasm.cwrap("prunex_wasm_search_fen_timed", "number",
         ["number", "number", "number", "number", "number"]),
       depth: wasm.cwrap("prunex_wasm_search_depth", "number", []),
@@ -100,7 +100,7 @@ function searchPosition(fen, timeLimitMs) {
 }
 
 function handleJob(job) {
-  const fen = job.type === "analyze-game" ? job.positions?.[job.index || 0] : job.fen;
+  const fen = job.fen;
   if (typeof fen !== "string" || !fen.trim()) {
     throw new Error("A valid FEN position is required.");
   }
