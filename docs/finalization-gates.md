@@ -19,7 +19,7 @@ A change may enter the frozen scope only when it is necessary to correct a demon
 
 ## Release decision in one sentence
 
-The native C++ source has passed its documented automated validation, but the project is not ready for a public launch under the requested engine-content restrictions. The browser application still runs a separately licensed neural-network engine. Replacing that runtime with the native Prunex WebAssembly engine is now an explicit release blocker, alongside archive ownership, recovery, hosted authentication/email, branch protection, legal review, and final manual acceptance.
+The browser integration has been changed on this branch to run Prunex 0.8.0 through the native C++ WebAssembly build. The generated browser binaries and new browser/WASM CI results still need verification. Archive ownership, recovery, hosted authentication/email, branch protection, legal review, and final manual acceptance remain separate release gates.
 
 ## A. Basic repository finalization
 
@@ -32,11 +32,11 @@ These are the minimum conditions for a professional, reviewable public repositor
 | Native build and UCI instructions | Documented | Keep |
 | License scope and third-party notices | Documented; final legal review remains separate | Keep |
 | Reproducible native regression suite | 46/46 across GCC, Clang, sanitizers, and Windows x64 | Pass |
-| Browser, Windows, WebAssembly and CodeQL CI | All six source-validation workflows passed on the source-validation commit; latest documentation-tip CodeQL also passed | Pass |
+| Browser, Windows, WebAssembly and CodeQL CI | Previous source-validation runs passed before this browser integration; fresh browser/WASM validation for the current branch is pending | Pending |
 | No unsupported playing-strength or training claims | No native Elo claim; no claim that offline corpus tools train engine weights | Pass |
 | Release integration | PR #10 and its follow-up documentation changes are integrated into `main`; current head is `bf9e8d4a9828da1bb1f824b678043d16706107aa` | Complete |
 
-Subsequent commits after source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9` are documentation-only. CodeQL also passed on a later documentation-only PR head. Native/browser source validation remains tied to the source-bearing commit because no application source changed afterward.
+The prior source-validation records apply to the earlier source-bearing commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`. This branch now changes the browser worker, WebAssembly API, dependency graph, and website tests; those changes require fresh CI validation before merge.
 
 ## B. Required before publishing a native desktop release
 
@@ -55,13 +55,13 @@ Do not claim a measured Elo, tournament result, or comparative strength until a 
 
 These are operational blockers for the hosted browser service. They are not required to merge the native engine documentation PR, but they are mandatory before promoting the current preview to the production alias.
 
-0. **Replace the browser engine before claiming the project is free of the separate third-party browser engine**
-   - The current browser worker launches a separately licensed engine bundle. Do not remove its name, attribution, source links, or license files while the bundle is still shipped.
-   - The existing `src/wasm_api.cpp` exports synchronous FEN evaluation and fixed-depth search (depth 1–12). It does not currently provide the browser application's time-budgeted search, progress reporting, MultiPV alternatives, or in-search cancellation.
-   - Extend the native WebAssembly API/worker to provide the browser features that are retained, or explicitly remove and retest any browser features that will no longer be supported. Do not silently degrade game review or opponent play.
-   - Only after the native replacement is working, remove the third-party engine package, copied binaries, worker path, dedicated license/source notices, engine-specific code paths, tests, CI artifact checks, and stale documentation.
+0. **Validate the Prunex 0.8.0 browser runtime integration**
+   - The browser worker now loads the Emscripten build of the native C++20 engine and verifies API version 800.
+   - The timed-search API uses the native iterative-deepening search, reports the last completed depth and node count, and returns a side-to-move centipawn score.
+   - The WebAssembly workflow must compile and parity-test the API, then publish the generated JavaScript and binary assets to this branch for Vercel's static build.
+   - Verify that the website build, dependency audit, browser smoke test, and WASM parity test all pass on this exact branch. The new integration is not considered validated until those checks complete.
    - Keep unrelated third-party notices, including chess-piece artwork and other dependencies, under their own licenses.
-   - Run the full website build, dependency audit, browser tests, WebAssembly parity tests, and a current-tree source/artifact scan before merging.
+   - Do not publish comparative playing-strength claims without reproducible match-testing evidence.
 
 1. **Original guest archive ownership**
    - Live recheck on 9 November 2026: Supabase has 35 games across five anonymous identities and 3 reviews across three identities. The sole confirmed email identity owns zero games and zero reviews. The active Neon archive has zero imported games, reviews, and position-memory rows. A retained checksummed source snapshot records 35 games and 3 reviews; it has not been restored into the active archive.
@@ -117,7 +117,7 @@ These are worthwhile follow-on engineering tasks. Track them as separate issues 
 
 - Do not rewrite the engine architecture just to make the codebase look more like a larger engine.
 - Do not invent an Elo rating, tournament result, performance claim, or trained network.
-- Do not combine the native C++ engine and the browser engine into one description.
+- Describe the native and browser builds accurately as the same C++20 engine implementation, with WebAssembly as the browser delivery format.
 - Do not treat a passing backup workflow as proof of successful recovery.
 - Do not promote production while archive ownership or restore capability is unresolved.
 - Do not reopen the release checklist for ordinary feature ideas once the required gates are satisfied.
@@ -125,7 +125,7 @@ These are worthwhile follow-on engineering tasks. Track them as separate issues 
 ## Final status — reviewed 9 November 2026
 
 - **Native C++ source:** the source-validation matrix passed on the latest source-bearing validation commit; the current `main` head is documentation-only and its applicable checks are green.
-- **Browser engine restriction:** not satisfied. The browser application still ships the separate third-party browser engine. Replacing it with the native WebAssembly engine and removing the associated bundle/licensing footprint is a required code change, not a cosmetic documentation task.
+- **Browser runtime:** the branch now routes browser play and review through the Prunex 0.8.0 WebAssembly API. Generated assets and fresh website/WASM CI results remain pending verification; the branch must not be merged until both are confirmed.
 - **Repository licensing:** MIT applies to original Prunex contributions; third-party materials retain their own terms. The training guide's stale Apache-2.0 statements are corrected in this review branch.
 - **Archive:** Supabase still holds 35 games and 3 reviews across anonymous guest identities. The sole confirmed email account owns none of them. Neon active archive tables contain zero imported rows; a checksummed legacy-source snapshot exists but has not been restored or imported.
 - **Authentication/security:** the Vercel server-side environment-variable keys are present, but live email delivery is unverified. Supabase Security Advisor reports leaked-password protection disabled.
