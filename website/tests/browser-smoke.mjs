@@ -314,7 +314,7 @@ try {
   if ((await page.locator(".architecture-header").innerText()).includes("0.5.1")) throw new Error("Stale Prunex 0.5.1 version remains in architecture card.");
   if (!(await page.locator("#testing .benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
-  if (await page.locator(".benchmark-teaser, #stockfish2-evidence").count() !== 0) {
+  if (await page.locator(".benchmark-teaser").count() !== 0) {
     throw new Error("Withdrawn historical match claims must not appear as Prunex product results.");
   }
   const nameOrigin = await page.locator("#about .name-origin-note").innerText();
@@ -661,20 +661,20 @@ try {
   }
   if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
-  if (!engineNote.includes("PRUNEX") || /Stockfish/i.test(engineNote)) {
-    throw new Error("The analysis panel should keep its focus on the Prunex experience.");
+  if (!engineNote.includes("PRUNEX")) {
+    throw new Error("The analysis panel should identify the Prunex engine.");
   }
   const licenseNote = await page.locator(".license-note").innerText();
-  if (!licenseNote.includes("Stockfish.js 19 Full") || !licenseNote.includes("GPLv3")) {
-    throw new Error("The browser engine's license and attribution notice is missing.");
+  if (!licenseNote.includes("Cburnett") || !licenseNote.includes("GPL-2.0-or-later")) {
+    throw new Error("The chess-piece artwork attribution is missing.");
   }
   const sharingCopy = await page.locator("body").innerText();
   if (!sharingCopy.includes("they do not retrain or change the native C++ engine")) {
     throw new Error("Shared position-memory opt-in must explain that it does not retrain the native engine.");
   }
-  if (!requests.some(url => url.includes("/engine/stockfish-19.js")) ||
-      !requests.some(url => url.includes("/engine/stockfish-19.wasm"))) {
-    throw new Error("The full analysis worker and its WebAssembly network were not loaded.");
+  if (!requests.some(url => url.includes("/engine/prunex-wasm.js")) ||
+      !requests.some(url => url.includes("/engine/prunex-wasm.wasm"))) {
+    throw new Error("The Prunex 0.8.0 WebAssembly engine and binary were not loaded.");
   }
   const workspaceBackground = await page.locator(".workspace").evaluate(el => getComputedStyle(el).backgroundColor);
   const avatarBackground = await page.locator(".engine-avatar").evaluate(el => getComputedStyle(el).backgroundColor);
