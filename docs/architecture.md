@@ -24,7 +24,7 @@ flowchart TB
 
     GUI --> Native
 
-    subgraph Wasm["Standalone WebAssembly target"]
+    subgraph Wasm["Prunex C++20 compiled to WebAssembly"]
         API["Emscripten C API"]
     end
     Native -. "same C++ implementation" .-> API
@@ -32,19 +32,20 @@ flowchart TB
     subgraph Browser["Prunex Play — separate browser application"]
         UI["Browser UI"]
         Rules["Browser chess rules"]
-        Worker["Browser engine worker"]
+        Worker["Prunex WebAssembly worker"]
         Review["Review pipeline"]
         Calibration["Expected-points calibration"]
         Archive["Game archive integration"]
         UI --> Rules
         UI --> Worker
+        Worker --> API
         Worker --> Review
         Review --> Calibration
         UI --> Archive
     end
 ```
 
-The standalone WebAssembly build is parity-tested against a native reference, but the current Prunex Play browser worker is not yet connected to that WebAssembly module. Do not represent the native and browser engine paths as one runtime.
+Prunex Play loads the same C++20 engine implementation through the versioned WebAssembly API. The browser worker calls the time-bounded search and evaluation exports; the native command-line and Windows applications use the same underlying engine source.
 
 ## Native engine data flow
 
@@ -71,13 +72,11 @@ The Windows desktop currently includes the engine implementation translation uni
 
 The native search stores position keys and bounds in a fixed-size transposition table. Move ordering uses the hash move, promotions, captures, killer moves, and history scores. Late-move reductions are applied to later quiet moves when the node is not in check and the move does not give check. Fail-low and fail-high aspiration windows widen and repeat the root search.
 
-The evaluator is handcrafted and tapered. It is not an NNUE evaluator. Its terms include material, piece activity, pawn structure, passed/connected pawns, bishop pair, king shelter, and rook-file activity.
+The evaluator is handcrafted and tapered. Its terms include material, piece activity, pawn structure, passed/connected pawns, bishop pair, king shelter, and rook-file activity.
 
 ## Browser application boundary
 
-The browser application has separate modules for the engine worker, review metrics, evaluation calibration, game database access, account feedback, and UI presentation. It supplies application-level expected-points interpretation and move grading around its own browser engine integration.
-
-NNUE-based evaluation is used in the browser path only. It is not the native C++ evaluator, and the project does not claim a newly trained Prunex NNUE network.
+The browser application has separate modules for the engine worker, review metrics, evaluation calibration, game database access, account feedback, and UI presentation. Its worker loads the Prunex 0.8.0 WebAssembly build, which is compiled from the same native C++20 engine source. The browser interface adds scheduling, expected-points interpretation, move grading, archive access, and presentation; it does not implement a second chess engine.
 
 ## Offline data workflow
 
