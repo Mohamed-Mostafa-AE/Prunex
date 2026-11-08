@@ -43,5 +43,57 @@ int main() {
     std::uint64_t secondNodes=nodes;
     if(!sameMove(first,second)||secondNodes>=firstNodes) return 14;
 
+    if(!loadFen(position,"r3k2r/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w kq - 2 10")) return 15;
+    Position reflected=position;
+    reflected.board.fill(EMPTY);
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)||position.board[square]==EMPTY) continue;
+        int target=square^112;
+        int piece=position.board[square];
+        reflected.board[target]=makePiece(typeOf(piece),1-colorOf(piece));
+    }
+    reflected.side=1-position.side;
+    reflected.castling=0;
+    reflected.ep=-1;
+    if(evaluate(position)!=evaluate(reflected)) return 16;
+
+    if(!loadFen(position,"4k3/8/2p5/3p4/3P4/2P5/8/4K3 w - - 0 1")) return 17;
+    int whiteView=evaluate(position);
+    position.side=BLACK;
+    int blackView=evaluate(position);
+    if(whiteView!=-blackView) return 18;
+
+    if(!loadFen(position,"r6k/8/8/8/3PP3/8/8/4K3 w - - 0 1")) return 19;
+    int connectedPawns=evaluate(position);
+    if(!loadFen(position,"r6k/8/8/8/3P3P/8/8/4K3 w - - 0 1")) return 20;
+    int separatedPawns=evaluate(position);
+    if(connectedPawns<=separatedPawns) return 21;
+
+    if(!loadFen(position,"r6k/8/8/8/8/8/3PPP2/4K3 w - - 0 1")) return 22;
+    int shelteredKing=evaluate(position);
+    if(!loadFen(position,"r6k/8/8/8/8/8/PPP5/4K3 w - - 0 1")) return 23;
+    int exposedKing=evaluate(position);
+    if(shelteredKing<=exposedKing) return 24;
+
+    if(!loadFen(position,START_FEN)) return 25;
+    searchAborted.store(false,std::memory_order_relaxed);
+    std::atomic<bool> started{false};
+    std::atomic<bool> completed{false};
+    Move interruptedBest{};
+    std::thread interruptedSearch([&] {
+        started.store(true,std::memory_order_release);
+        interruptedBest=findBestMove(position,12);
+        completed.store(true,std::memory_order_release);
+    });
+    while(!started.load(std::memory_order_acquire)) std::this_thread::yield();
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    searchAborted.store(true,std::memory_order_relaxed);
+    interruptedSearch.join();
+    if(!completed.load(std::memory_order_acquire)) return 26;
+    if(interruptedBest.from<0||interruptedBest.to<0) return 27;
+    bool returnedLegalMove=false;
+    for(const Move& move:legalMoves(position)) returnedLegalMove|=sameMove(move,interruptedBest);
+    if(!returnedLegalMove) return 28;
+
     return 0;
 }

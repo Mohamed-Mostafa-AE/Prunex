@@ -1,26 +1,28 @@
-# Windows desktop checklist
+# Windows desktop visual acceptance
 
-The Windows CI workflow checks the native x64 build, regression tests, and UCI startup. Please complete this checklist on Windows 10 or 11 before describing the desktop application as fully tested.
+The latest Windows x64 workflow builds the GUI and CLI, runs all 46 native CTest cases, verifies x64 executable headers and UCI startup, and exercises a GUI interaction path: e2-e4, engine reply, paired undo, depth-8 search cancellation through New Game, board flip, and clean shutdown.
 
-## Build and launch
+This checklist is for the remaining human visual and input acceptance on a Windows 10/11 desktop.
 
-- [ ] Configure a Visual Studio 2022 x64 build with CMake.
-- [ ] Build the Release configuration.
-- [ ] Launch `Prunex.exe` and check that the board and controls appear.
-- [ ] Launch `prunex-cli.exe` and try `uci` and `isready`.
+## Display and input
 
-## Playing a game
+- [ ] Record Windows edition/build, display resolution, and scaling.
+- [ ] At 100% and 150% scaling, verify the board, coordinates, status, and controls render without overlap or clipping.
+- [ ] Check the fixed-size window on 1366×768 and 1920×1080 displays.
+- [ ] Use a physical mouse or touchpad to select pieces and squares.
+- [ ] Confirm selected-square and legal-destination highlights are clear and correctly positioned.
+- [ ] Check board flip and square selection with both orientations.
 
-- [ ] Select a white piece and check that legal destinations are highlighted.
-- [ ] Make a legal move and check that the side to move changes.
-- [ ] Try an illegal move and check that the position stays unchanged.
-- [ ] Play a human/engine turn, press Undo, and check that both half-moves are restored.
-- [ ] Undo after making only a human move.
-- [ ] Flip the board and check that square selection still works.
-- [ ] Start a new game after several moves.
-- [ ] Check check, checkmate, and stalemate positions.
-- [ ] Check pawn promotion.
-- [ ] Try search depths 1 and 8 and note how responsive the window remains.
-- [ ] Resize, minimize, restore, and close the window.
+## Game states and promotion
 
-Record the Windows version, compiler version, test output, and any problems found. Leave items unchecked until they have been tested on a Windows machine.
+- [ ] Test all four promotion choices (queen, rook, bishop, and knight).
+- [ ] Check check, checkmate, stalemate, and draw presentations.
+- [ ] Play several moves and verify Undo/redo behavior where available.
+
+## Search and lifecycle
+
+- [ ] Observe responsiveness during sustained searches at depths 1, 4, and 8.
+- [ ] Close during an active search and confirm the process exits without an orphaned engine thread.
+- [ ] Repeat launch/close cycles and check for stale processes or damaged settings.
+
+Record screenshots and any issues in [the acceptance record](windows-acceptance-record.md).

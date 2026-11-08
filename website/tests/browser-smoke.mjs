@@ -1,11 +1,42 @@
 import { chromium } from "playwright";
+import { readFileSync } from "node:fs";
 
-const browser = await chromium.launch({ headless: true });
+const vercelConfig = JSON.parse(readFileSync("vercel.json", "utf8"));
+const contentSecurityPolicy = vercelConfig.headers
+  ?.flatMap(rule => rule.headers || [])
+  .find(header => header.key.toLowerCase() === "content-security-policy")?.value || "";
+const cspDirectives = new Map(
+  contentSecurityPolicy.split(";").map(part => part.trim()).filter(Boolean).map(part => {
+    const [name, ...values] = part.split(/\s+/);
+    return [name, values];
+  })
+);
+const connectSources = new Set(cspDirectives.get("connect-src") || []);
+if (!connectSources.has("https://ttcejatqtvphzenjkkbh.supabase.co") ||
+    !connectSources.has("wss://ttcejatqtvphzenjkkbh.supabase.co")) {
+  throw new Error("Production CSP must allow this project's exact Supabase API and WebSocket origins.");
+}
+
+const browserLaunchOptions = { headless: true };
+if (process.env.PRUNEX_CHROMIUM_EXECUTABLE_PATH) {
+  browserLaunchOptions.executablePath = process.env.PRUNEX_CHROMIUM_EXECUTABLE_PATH;
+}
+const browser = await chromium.launch(browserLaunchOptions);
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const failures = [];
 const workers = [];
+const requests = [];
 const baseUrl = process.env.PRUNEX_BASE_URL || "http://127.0.0.1:4173/";
 
+page.on("request", request => requests.push(request.url()));
+page.on("requestfailed", request => failures.push(
+  "requestfailed: " + request.method() + " " + request.url() + " — " + (request.failure()?.errorText || "unknown")
+));
+page.on("response", response => {
+  if (response.status() >= 400) {
+    failures.push("http " + response.status() + ": " + response.request().method() + " " + response.url());
+  }
+});
 page.on("pageerror", error => failures.push("pageerror: " + error.message));
 page.on("worker", worker => {
   workers.push(worker.url());
@@ -13,12 +44,258 @@ page.on("worker", worker => {
   worker.on("pageerror", error => failures.push("worker pageerror: " + error.message));
 });
 page.on("console", message => {
-  if (message.type() === "error") failures.push("console: " + message.text());
+  if (message.type() === "error") {
+    const location = message.location();
+    failures.push("console: " + message.text() + (location.url ? " @ " + location.url : ""));
+  }
 });
 
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
+  // The primary hero headline must render immediately; it is not gated by scroll animation.
+  await page.waitForFunction(() => {
+    const heading = document.querySelector("#home .hero-copy h1");
+    if (!heading || heading.classList.contains("reveal-on-scroll")) return false;
+    const style = getComputedStyle(heading);
+    const rect = heading.getBoundingClientRect();
+    return style.visibility !== "hidden" && Number(style.opacity) > 0.95 &&
+      rect.height > 0 && rect.width > 0;
+  }, undefined, { timeout: 10000 });
+  for (const [path, expectedHeading] of [
+    ["privacy.html", "Privacy Notice"],
+    ["terms.html", "Terms of Use"]
+  ]) {
+    const response = await page.request.get(new URL(path, baseUrl).toString());
+    if (!response.ok()) {
+      throw new Error(path + " must be included in the production build (HTTP " + response.status() + ").");
+    }
+    const markup = await response.text();
+    if (!markup.includes("<h1>" + expectedHeading + "</h1>")) {
+      throw new Error(path + " did not return the expected legal document.");
+    }
+  }
   await page.waitForTimeout(10000);
+  const requireCloudArchive = process.env.PRUNEX_REQUIRE_CLOUD === "true";
+  const cloudEnvironmentConfigured = Boolean(
+    process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  );
+  if (requireCloudArchive && !cloudEnvironmentConfigured) {
+    throw new Error("PRUNEX_REQUIRE_CLOUD is true, but a dedicated staging Supabase URL and publishable key were not supplied.");
+  }
+  const expectedArchiveStatus = requireCloudArchive
+    ? "saved privately to your guest profile"
+    : "Local game saving is available.";
+  await page.waitForFunction(expected =>
+    document.querySelector("#game-archive-note")?.textContent.includes(expected),
+    expectedArchiveStatus,
+    { timeout: 30000 }
+  );
+  const archiveStatus = await page.locator("#game-archive-note").innerText();
+  if (!archiveStatus.includes(expectedArchiveStatus)) {
+    throw new Error("The game archive did not reach its expected mode: " + archiveStatus);
+  }
+  for (const selector of ["#account-toggle", "#account-dialog", "#link-account-form", "#restore-account-form", "#set-password-form", "#delete-account-form", "#account-recovery-email", "#restore-account-email", "#restore-account-password", "#account-password", "#account-password-confirm", "#forgot-password-link", "#delete-account-confirmation"]) {
+    if (await page.locator(selector).count() !== 1) {
+      throw new Error("Account recovery/deletion control missing: " + selector);
+    }
+  }
+  if (await page.locator("#account-dialog").isVisible()) {
+    throw new Error("The account dialog must remain closed until the user opens it.");
+  }
+  await page.locator("#account-toggle").click();
+  if (!(await page.locator("#account-dialog").isVisible())) {
+    throw new Error("The top-bar account control must open account and password settings.");
+  }
+  for (const selector of ["#account-recovery-email", "#account-password", "#account-password-confirm", "#restore-account-password"]) {
+    if (await page.locator(selector).count() !== 1) throw new Error("Missing account/password field: " + selector);
+  }
+  for (const selector of ["#account-password", "#account-password-confirm", "#restore-account-password"]) {
+    if ((await page.locator(selector).getAttribute("type")) !== "password") {
+      throw new Error("Password inputs must default to masked text.");
+    }
+  }
+  // CI has no live Supabase credentials. Enable the disabled password field
+  // only to exercise the show/hide interaction without calling the provider.
+  await page.locator("#restore-account-password").evaluate(element => { element.disabled = false; });
+  await page.locator('[data-password-toggle="restore-account-password"]').evaluate(element => { element.disabled = false; });
+  await page.locator('[data-password-toggle="restore-account-password"]').click();
+  if ((await page.locator("#restore-account-password").getAttribute("type")) !== "text") {
+    throw new Error("The password visibility control must reveal the password on request.");
+  }
+  await page.keyboard.press("Escape");
+  if (await page.locator("#account-dialog").isVisible()) {
+    throw new Error("Escape must close the account dialog.");
+  }
+  await page.locator("#account-toggle").click();
+  if (!(await page.locator("#account-dialog").isVisible())) {
+    throw new Error("The account dialog must reopen before account recovery checks.");
+  }
+  if (await page.locator("#reset-password-form, #reset-password-email").count()) {
+    throw new Error("Password recovery must not create a separate form or section.");
+  }
+  if (await page.locator("#forgot-password-link").count() !== 1 ||
+      !(await page.locator("#restore-account-form #forgot-password-link").isVisible())) {
+    throw new Error("Forgot password must remain an inline sign-in action.");
+  }
+
+  // Trigger Chromium's actual address-autofill implementation through CDP.
+  // This exercises the browser's :-webkit-autofill state rather than a CSS-only
+  // class simulation, without relying on a developer's saved browser profile.
+  const ownerEmail = page.locator("#account-recovery-email");
+  const autofillAddress = {
+    fields: [
+      { name: "NAME_FULL", value: "Archive Owner" },
+      { name: "EMAIL_ADDRESS", value: "archive-owner@example.com" },
+      { name: "ADDRESS_HOME_LINE1", value: "1 Test Street" },
+      { name: "ADDRESS_HOME_CITY", value: "Cairo" },
+      { name: "ADDRESS_HOME_STATE", value: "Cairo" },
+      { name: "ADDRESS_HOME_ZIP", value: "11511" },
+      { name: "ADDRESS_HOME_COUNTRY", value: "EG" }
+    ]
+  };
+  // The CI build intentionally has no live account provider, so enable the
+  // form control as a configured-session fixture before asking Chromium to fill it.
+  await ownerEmail.evaluate(element => { element.disabled = false; });
+  const autofillCdp = await page.context().newCDPSession(page);
+  await autofillCdp.send("Autofill.enable");
+  await autofillCdp.send("Autofill.setAddresses", { addresses: [autofillAddress] });
+  await ownerEmail.click();
+  const { root } = await autofillCdp.send("DOM.getDocument");
+  const { nodeId } = await autofillCdp.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector: "#account-recovery-email"
+  });
+  if (!nodeId) throw new Error("The guest archive email field was not found for browser autofill.");
+  const { node } = await autofillCdp.send("DOM.describeNode", { nodeId });
+  await autofillCdp.send("Autofill.trigger", {
+    fieldId: node.backendNodeId,
+    address: autofillAddress
+  });
+  await page.waitForFunction(() => {
+    const input = document.querySelector("#account-recovery-email");
+    return input?.value === "archive-owner@example.com" &&
+      (input.matches(":-webkit-autofill") || input.matches(":autofill"));
+  }, undefined, { timeout: 10000 }).catch(async error => {
+    const state = await ownerEmail.evaluate(element => ({
+      value: element.value,
+      disabled: element.disabled,
+      autocomplete: element.autocomplete,
+      name: element.name,
+      formAutocomplete: element.form?.autocomplete,
+      autofilled: element.matches(":-webkit-autofill") || element.matches(":autofill")
+    }));
+    throw new Error("Chromium address autofill did not populate the guest email field: " + JSON.stringify(state) + " (" + error.message + ")");
+  });
+  const autofillStyle = await ownerEmail.evaluate(element => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      value: element.value,
+      autofilled: element.matches(":-webkit-autofill") || element.matches(":autofill"),
+      color: style.webkitTextFillColor,
+      background: style.boxShadow,
+      font: style.fontFamily,
+      fontSize: style.fontSize,
+      lineHeight: style.lineHeight,
+      letterSpacing: style.letterSpacing,
+      fontVariantLigatures: style.fontVariantLigatures,
+      colorScheme: style.colorScheme,
+      height: rect.height,
+      width: rect.width,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth
+    };
+  });
+  if (autofillStyle.value !== "archive-owner@example.com" ||
+      !autofillStyle.autofilled ||
+      autofillStyle.color !== "rgb(241, 247, 255)" ||
+      !autofillStyle.background.includes("rgb(4, 19, 38)") ||
+      !autofillStyle.font.includes("DM Mono") ||
+      autofillStyle.fontSize !== "11px" ||
+      autofillStyle.lineHeight !== "15.95px" ||
+      autofillStyle.letterSpacing !== "normal" ||
+      autofillStyle.fontVariantLigatures !== "none" ||
+      autofillStyle.colorScheme !== "dark" ||
+      autofillStyle.height < 34 || autofillStyle.width < 120 ||
+      autofillStyle.scrollWidth > autofillStyle.clientWidth + 1) {
+    throw new Error("Real browser autofill must preserve Prunex typography, text color, line height, and field dimensions: " + JSON.stringify(autofillStyle));
+  }
+  await autofillCdp.detach();
+  const emailInputBox = await ownerEmail.boundingBox();
+  const emailButtonBox = await page.locator("#link-account-form button[type='submit']").boundingBox();
+  const emailPanelBox = await page.locator("#account-link-panel").boundingBox();
+  if (!emailInputBox || !emailButtonBox || !emailPanelBox ||
+      emailInputBox.x < emailPanelBox.x || emailInputBox.x + emailInputBox.width > emailPanelBox.x + emailPanelBox.width + 1 ||
+      emailButtonBox.x < emailPanelBox.x || emailButtonBox.x + emailButtonBox.width > emailPanelBox.x + emailPanelBox.width + 1 ||
+      emailButtonBox.y < emailInputBox.y + emailInputBox.height - 1) {
+    throw new Error("The archive email and verification button must stack without clipping or overlap.");
+  }
+
+  const desktopViewport = page.viewportSize();
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#account-toggle").click();
+  const mobileDialogBox = await page.locator("#account-dialog").boundingBox();
+  if (!mobileDialogBox || mobileDialogBox.x < 0 || mobileDialogBox.x + mobileDialogBox.width > 391) {
+    throw new Error("The account dialog must fit within a 390px mobile viewport.");
+  }
+  const mobilePasswordBox = await page.locator("#account-password").boundingBox();
+  if (!mobilePasswordBox || mobilePasswordBox.x < mobileDialogBox.x ||
+      mobilePasswordBox.x + mobilePasswordBox.width > mobileDialogBox.x + mobileDialogBox.width) {
+    throw new Error("Password inputs must remain inside the mobile account dialog.");
+  }
+  if (await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) {
+    throw new Error("The account dialog must not introduce horizontal overflow on mobile.");
+  }
+  const scoreLayout = await page.locator(".score-number").evaluateAll(elements => elements.map(element => {
+    const primary = element.querySelector(".score-primary")?.getBoundingClientRect();
+    const secondary = element.querySelector(".score-secondary")?.getBoundingClientRect();
+    const parent = element.getBoundingClientRect();
+    return {
+      display: getComputedStyle(element).display,
+      primary: primary && { x: primary.x, y: primary.y, right: primary.right, bottom: primary.bottom },
+      secondary: secondary && { x: secondary.x, y: secondary.y, right: secondary.right, bottom: secondary.bottom },
+      parent: { x: parent.x, y: parent.y, right: parent.right, bottom: parent.bottom }
+    };
+  }));
+  if (!scoreLayout.length || scoreLayout.some(item =>
+      item.display !== "flex" ||
+      !item.primary ||
+      (item.secondary && item.secondary.x < item.primary.right - 1 && item.secondary.y < item.primary.bottom - 1) ||
+      item.primary.x < item.parent.x - 1 || item.primary.right > item.parent.right + 1 ||
+      (item.secondary && item.secondary.right > item.parent.right + 1))) {
+    throw new Error("Benchmark score figures must remain separated and inside their cards on mobile.");
+  }
+  await page.keyboard.press("Escape");
+  await page.setViewportSize(desktopViewport);
+  if (await page.locator("#game-archive-list .game-delete-button, #game-archive-list [aria-label*='Delete game'], #game-archive-list [aria-label*='Delete record']").count()) {
+    throw new Error("Individual game-record deletion controls must not be exposed.");
+  }
+  if (await page.locator("#turnstile-widget-container").isVisible()) {
+    throw new Error("Turnstile should stay hidden until guest registration actually requires verification.");
+  }
+  if (!(await page.locator("#defeat-sound").isChecked())) {
+    throw new Error("The approved defeat sound should be enabled by default.");
+  }
+  await page.locator(".settings-group").nth(1).locator("summary").click();
+  await page.locator(".settings-group").nth(2).locator("summary").click();
+  if (!(await page.locator("#show-evaluation").isChecked())) {
+    throw new Error("The evaluation bar should be visible by default.");
+  }
+  await page.locator("#show-evaluation").uncheck();
+  if (await page.locator("#evaluation-column").isVisible()) {
+    throw new Error("The evaluation bar should be fully removable from the board layout.");
+  }
+  await page.locator("#show-evaluation").check();
+  if (!(await page.locator("#evaluation-column").isVisible())) {
+    throw new Error("The evaluation bar should return when re-enabled.");
+  }
+  if (!(await page.evaluate(() => Boolean(window.AudioContext || window.webkitAudioContext)))) {
+    throw new Error("The browser should support synthesized board sounds.");
+  }
+  if ((await page.locator("#nodes option").allTextContents()).some(label => /nodes/i.test(label))) {
+    throw new Error("Opponent strength labels should not expose internal node counts.");
+  }
 
   const launchLayout = await page.evaluate(() => ({
     heroSpecimen: document.querySelector(".hero-specimen"),
@@ -37,13 +314,23 @@ try {
   if ((await page.locator(".architecture-header").innerText()).includes("0.5.1")) throw new Error("Stale Prunex 0.5.1 version remains in architecture card.");
   if (!(await page.locator("#testing .benchmark-card-top").innerText()).includes("PRUNEX 0.8.0")) throw new Error("Benchmark card should show the current Prunex version.");
   if (!(await page.locator("#testing").count())) throw new Error("The testing section is missing.");
-  const testingCopy = await page.locator("#testing").innerText();
-  const matchCopy = await page.locator("#match-results").innerText();
-  if (!matchCopy.includes("63–1–0") || !matchCopy.includes("99.22%") || !matchCopy.includes("≈3,904 Elo")) {
-    throw new Error("The Stockfish 2.0 match result and estimate are missing.");
+  if (await page.locator(".benchmark-teaser, #stockfish2-evidence").count() !== 0) {
+    throw new Error("Withdrawn historical match claims must not appear as Prunex product results.");
   }
-  if (!matchCopy.includes("Stockfish 19")) throw new Error("The benchmark engine provenance is missing.");
-  if (!testingCopy.includes("44/44") || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
+  const nameOrigin = await page.locator("#about .name-origin-note").innerText();
+  if (!nameOrigin.includes("PRUN") || !nameOrigin.includes("alpha–beta pruning") ||
+      !nameOrigin.includes("competitive execution") || !nameOrigin.includes("not a formal technical acronym")) {
+    throw new Error("The project-name origin must be stated consistently without presenting it as a technical acronym.");
+  }
+  const testingCopy = await page.locator("#testing").innerText();
+  const standardsCopy = await page.locator("#analysis-standards").innerText();
+  if (!standardsCopy.includes("Strength is earned in testing") || !standardsCopy.includes("46")) {
+    throw new Error("The site should explain the current validation standard without claiming an unverified rating.");
+  }
+  if (await page.locator("#match-results").count()) {
+    throw new Error("The unsupported historical rating comparison should not be presented as a current Prunex rating.");
+  }
+  if (!/46\s*\/\s*46/.test(testingCopy) || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
   if (favicon !== "/prunex-mark.png?v=4") throw new Error("Transparent Prunex mark is not configured as the favicon.");
   const markResponse = await page.request.get(new URL("/prunex-mark.png?v=4", baseUrl).toString());
@@ -51,6 +338,7 @@ try {
   await page.locator("#site-theme-toggle").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme did not activate.");
   await page.reload({ waitUntil: "networkidle" });
+  await page.locator(".settings-group").nth(1).locator("summary").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "dark") throw new Error("Dark theme preference was not persisted.");
   await page.locator("#site-theme-toggle").click();
   if (await page.locator("html").getAttribute("data-site-theme") !== "light") throw new Error("Light theme did not restore.");
@@ -60,6 +348,11 @@ try {
   }
   if (launchLayout.pieceImages !== 32) throw new Error("Cburnett SVG pieces did not render: " + JSON.stringify(launchLayout));
 
+  const visiblePageText = await page.locator("body").innerText();
+  if (/\b\d+(?:\.\d+)?k\s+nodes\b/i.test(visiblePageText)) {
+    throw new Error("Internal node-count shorthand must not be shown in the interface.");
+  }
+
   const startup = await page.evaluate(() => ({
     engine: document.querySelector("#engine-state")?.textContent,
     status: document.querySelector("#status")?.textContent
@@ -68,15 +361,170 @@ try {
     throw new Error("Engine startup failed: " + JSON.stringify(startup) +
       "\nWorkers: " + JSON.stringify(workers) + "\nErrors: " + failures.join("\n"));
   }
-
+  if (await page.locator("#board-size-disclosure, #board-size").count()) {
+    throw new Error("The redundant board-size disclosure and range slider should not be present.");
+  }
+  if (!(await page.locator("#resize-board").isVisible())) {
+    throw new Error("The unobtrusive board-corner resize grip should remain available.");
+  }
+  const panelToggle = page.locator("#toggle-analysis-panel");
+  await panelToggle.click();
+  if (await page.locator("#analysis-panel").isVisible()) throw new Error("The game side panel should close.");
+  if (await panelToggle.getAttribute("aria-expanded") !== "false") throw new Error("Side-panel toggle aria state should update.");
+  await panelToggle.click();
+  if (!(await page.locator("#analysis-panel").isVisible())) throw new Error("The game side panel should reopen.");
+  if (await page.locator("#share-position-memory").isChecked()) throw new Error("Shared position-memory contribution should require opt-in.");
+  if (await page.locator("#best-move-display").inputValue() !== "piece") {
+    throw new Error("The best-move marker should default to the moving piece.");
+  }
+  if (await page.locator(".piece-quality-marker").count() !== 0) {
+    throw new Error("Live play must not display game-review move-quality markers.");
+  }
+  if (await page.locator("#review-budget").inputValue() !== "15000") {
+    throw new Error("Game review should default to the recommended 15-second per-position budget.");
+  }
+  const historyList = page.locator("#move-list");
+  const historyBefore = await historyList.evaluate(el => el.getBoundingClientRect().height);
+  const historyGrip = page.locator("#resize-move-history");
+  const gripBox = await historyGrip.boundingBox();
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(gripBox.x + gripBox.width / 2, gripBox.y + gripBox.height / 2 + 120, { steps: 8 });
+  await page.mouse.up();
+  const historyAfter = await historyList.evaluate(el => el.getBoundingClientRect().height);
+  if (historyAfter < historyBefore + 70) {
+    throw new Error("Move history should resize when its bottom handle is dragged: " + historyBefore + " → " + historyAfter);
+  }
+  const savedHistoryHeight = await page.evaluate(() => localStorage.getItem("prunex-move-history-height"));
+  if (Number(savedHistoryHeight) !== Math.round(historyAfter)) {
+    throw new Error("Move history height should persist after resizing.");
+  }
+  await page.locator("#best-move-display").evaluate(el => {
+    for (let group = el.closest("details"); group; group = group.parentElement?.closest("details")) {
+      group.open = true;
+    }
+  });
+  await page.locator("#best-move-display").selectOption("arrow");
+  await page.locator("#best-move-display").selectOption("off");
+  if (await page.locator("#board .best-move-arrow").count()) {
+    throw new Error("The arrow overlay must disappear when arrows are disabled.");
+  }
+  await page.locator("#best-move-display").selectOption("piece");
+  if (await page.locator("#move-method").inputValue() !== "both") {
+    throw new Error("Drag-or-click should be the default move method.");
+  }
+  await page.evaluate(() => { window.__prunexPieceBefore = document.querySelector('[data-square="e2"] .piece'); });
   await page.locator('[data-square="e2"]').click();
+  const selectionStable = await page.evaluate(() =>
+    window.__prunexPieceBefore === document.querySelector('[data-square="e2"] .piece')
+  );
+  if (!selectionStable) throw new Error("Selecting a piece must not rebuild or jerk the board pieces.");
   await page.locator('[data-square="e4"]').click();
   await page.waitForFunction(() =>
-    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")) &&
+    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")),
+    undefined,
+    { timeout: 60000 }
+  );
+  await page.waitForFunction(() =>
     document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
     undefined,
     { timeout: 60000 }
   );
+  const latestMoveHighlights = await page.evaluate(() => {
+    const destination = document.querySelector("#board .last-move-to");
+    return {
+      from: document.querySelectorAll("#board .last-move-from").length,
+      to: document.querySelectorAll("#board .last-move-to").length,
+      color: destination ? getComputedStyle(destination, "::after").backgroundColor : ""
+    };
+  });
+  const highlightRgb = latestMoveHighlights.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (latestMoveHighlights.from !== 1 || latestMoveHighlights.to !== 1 ||
+      !highlightRgb || Number(highlightRgb[3]) <= Number(highlightRgb[1]) * 1.2) {
+    throw new Error("The most recent move should have one origin and destination with a blue highlight: " + JSON.stringify(latestMoveHighlights));
+  }
+  await page.locator(".settings-group").nth(3).locator("summary").click();
+  if (await page.locator("#sound-style option").count() !== 3) {
+    throw new Error("The three refined Prunex move-sound profiles should be available.");
+  }
+  await page.locator("#sound-style").selectOption("soft");
+  await page.locator("#preview-move-sound").click();
+  await page.locator("#sound-style").selectOption("muted");
+  await page.locator("#preview-move-sound").click();
+  await page.locator("#sound-style").selectOption("classic");
+  await page.locator("#preview-move-sound").click();
+  await page.locator("#move-method").selectOption("both");
+  await page.locator("#board").scrollIntoViewIfNeeded();
+  await page.locator('[data-square="g1"]').scrollIntoViewIfNeeded();
+  const knightStart = await page.locator('[data-square="g1"]').boundingBox();
+  const knightEnd = await page.locator('[data-square="f3"]').boundingBox();
+  await page.mouse.move(knightStart.x + knightStart.width / 2, knightStart.y + knightStart.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(knightEnd.x + knightEnd.width / 2, knightEnd.y + knightEnd.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("Nf3")) &&
+    document.querySelector("#turn-label")?.textContent.includes("YOUR TURN"),
+    undefined,
+    { timeout: 60000 }
+  );
+
+  await page.locator('#move-list .move-notation[data-ply="1"]').click();
+  if (!(await page.locator("#turn-label").textContent()).includes("REVIEW · BLACK TO MOVE") ||
+      !(await page.locator("#fen-input").inputValue()).includes(" b ")) {
+    throw new Error("Clicking a move notation should navigate to the position immediately after that move.");
+  }
+  if (!(await page.locator('[data-square="e2"]').getAttribute("class")).includes("last-move-from") ||
+      !(await page.locator('[data-square="e4"]').getAttribute("class")).includes("last-move-to")) {
+    throw new Error("Move-history navigation should highlight both squares of the selected move.");
+  }
+  if (await page.locator("#return-live").count() !== 0) {
+    throw new Error("The separate Back to live control should not be rendered.");
+  }
+  if (!(await page.locator("#move-prev").isEnabled()) || !(await page.locator("#move-next").isEnabled())) {
+    throw new Error("Previous and next move arrows should be available while reviewing an interior position.");
+  }
+  await page.locator("#move-prev").click();
+  if (!(await page.locator("#fen-input").inputValue()).includes(" w ") ||
+      !/^0 \/ \d+$/.test(await page.locator("#move-position-label").textContent())) {
+    throw new Error("Previous-move arrow should step back to the starting position.");
+  }
+  await page.locator("#move-next").click();
+  if (!(await page.locator("#fen-input").inputValue()).includes(" b ")) {
+    throw new Error("Next-move arrow should restore the next reviewed position.");
+  }
+  await page.keyboard.press("ArrowLeft");
+  if (!(await page.locator("#fen-input").inputValue()).includes(" w ")) {
+    throw new Error("Left arrow key should step back one move during review.");
+  }
+  await page.keyboard.press("ArrowRight");
+  if (!(await page.locator("#fen-input").inputValue()).includes(" b ")) {
+    throw new Error("Right arrow key should step forward one move during review.");
+  }
+  await page.locator("#move-next").click();
+  if (!(await page.locator("#fen-input").inputValue()).includes(" w ")) {
+    throw new Error("The selected review position should be ready for White to move.");
+  }
+  await page.locator('[data-square="b1"]').click();
+  await page.locator('[data-square="c3"]').click();
+  await page.waitForFunction(() =>
+    document.querySelector('#move-list .move-notation[data-ply="3"]')?.textContent === "Nc3",
+    undefined,
+    { timeout: 60000 }
+  );
+  const branchedMoves = await page.locator("#move-list .move-notation").allTextContents();
+  if (branchedMoves.includes("Nf3")) {
+    throw new Error("Playing from a reviewed position should replace the old future line.");
+  }
+  await page.waitForFunction(() =>
+    document.querySelector("#evaluation-label")?.textContent !== "…" &&
+    document.querySelector("#analysis-status")?.textContent.startsWith("DEPTH"),
+    undefined,
+    { timeout: 60000 }
+  );
+  if (!(await page.locator("#evaluation-label").textContent()).trim()) {
+    throw new Error("The engine evaluation readout should contain a score.");
+  }
 
   await page.locator("#theme").selectOption("ice");
   if (await page.locator("#board").getAttribute("data-theme") !== "ice") {
@@ -99,7 +547,39 @@ try {
   if (await page.locator("#game-result-copy").textContent() !== "A hard-fought game, and a mutually agreed refusal to lose.") {
     throw new Error("Draw result copy is incorrect.");
   }
-  await page.screenshot({ path: "artifacts/game-result-draw-desktop.png" });
+  const resultScope = await page.locator("#game-result-dialog").evaluate(element => {
+    const frame = element.closest(".board-frame");
+    const board = document.querySelector("#board");
+    const overlayRect = element.getBoundingClientRect();
+    const boardRect = board.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return {
+      parentIsBoardFrame: element.parentElement === frame,
+      ariaModal: element.getAttribute("aria-modal"),
+      overlayMatchesBoard: Math.abs(overlayRect.left - boardRect.left) < 2 &&
+        Math.abs(overlayRect.top - boardRect.top) < 2 &&
+        Math.abs(overlayRect.width - boardRect.width) < 2 &&
+        Math.abs(overlayRect.height - boardRect.height) < 2,
+      overlayInsideFrame: overlayRect.left >= frameRect.left &&
+        overlayRect.right <= frameRect.right &&
+        overlayRect.top >= frameRect.top &&
+        overlayRect.bottom <= frameRect.bottom,
+      openNativeDialogs: document.querySelectorAll("dialog[open]").length
+    };
+  });
+  if (!resultScope.parentIsBoardFrame || resultScope.ariaModal !== "false" ||
+      !resultScope.overlayMatchesBoard || !resultScope.overlayInsideFrame ||
+      resultScope.openNativeDialogs !== 0) {
+    throw new Error("Game-result popup must be confined to the chessboard: " + JSON.stringify(resultScope));
+  }
+
+  await page.locator("#site-theme-toggle").click();
+  if (await page.locator("html").getAttribute("data-site-theme") !== "dark" ||
+      !(await page.locator("#game-result-dialog").isVisible())) {
+    throw new Error("The page outside the chessboard should remain interactive while the result popup is open.");
+  }
+  await page.locator("#site-theme-toggle").click();
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-draw-desktop.png" });
   await page.locator("#game-result-review").click();
   if (await page.locator("#game-result-dialog").isVisible()) {
     throw new Error("Review moves should dismiss the result dialog.");
@@ -123,17 +603,79 @@ try {
 
 
   await page.setViewportSize({ width: 1440, height: 768 });
-  await page.locator("#board-size").evaluate(el => { el.value = "590"; el.dispatchEvent(new Event("input", { bubbles: true })); });
-  const boardAt590 = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
-  if (boardAt590 < 580 || boardAt590 > 600) throw new Error("Board should reach 590px at a 768px viewport height: " + boardAt590);
-  await page.locator("#board-size").evaluate(el => { el.value = "640"; el.dispatchEvent(new Event("input", { bubbles: true })); });
+  const resizeGripLocator = page.locator("#resize-board");
+  await resizeGripLocator.scrollIntoViewIfNeeded();
+  const boardBeforeGrip = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
+  const gripBeforeScreenshot = await resizeGripLocator.boundingBox();
+  if (!gripBeforeScreenshot) throw new Error("Board resize grip is unavailable.");
+  await page.locator(".board-frame").screenshot({ path: "artifacts/board-resize-debug.png" });
+
+  // A locator screenshot may scroll the page to bring its target into view.
+  // Re-read the viewport-relative coordinates afterwards so the pointer drag
+  // starts on the grip, not at coordinates captured before that scroll.
+  const resizeGrip = await resizeGripLocator.boundingBox();
+  if (!resizeGrip) throw new Error("Board resize grip left the viewport after its screenshot.");
+  const gripHitTest = await resizeGripLocator.evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    el.dataset.resizePointerDownSeen = "false";
+    el.addEventListener("pointerdown", event => {
+      el.dataset.resizePointerDownSeen = "true";
+      el.dataset.resizePointerDownButton = String(event.button);
+      el.dataset.resizePointerDownType = event.pointerType;
+    }, { once: true });
+    return {
+      hitIsGrip: hit === el,
+      hit: hit ? { tag: hit.tagName, id: hit.id, className: String(hit.className).slice(0, 100) } : null,
+      display: getComputedStyle(el).display,
+      pointerEvents: getComputedStyle(el).pointerEvents,
+      disabled: el.disabled,
+      mediaMatches: matchMedia("(max-width: 700px), (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (orientation: landscape) and (max-height: 520px) and (max-width: 900px)").matches
+    };
+  });
+  await page.mouse.move(resizeGrip.x + resizeGrip.width / 2, resizeGrip.y + resizeGrip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(resizeGrip.x + resizeGrip.width / 2 + 90, resizeGrip.y + resizeGrip.height / 2 + 90, { steps: 8 });
+  const resizeProgress = await page.locator(".board-frame").evaluate(el => ({
+    active: el.classList.contains("is-resizing-board"),
+    requestedSize: Number.parseFloat(el.style.getPropertyValue("--board-size")),
+    renderedSize: Math.round(el.getBoundingClientRect().width)
+  }));
+  await page.mouse.up();
   const enlargedBoard = await page.locator(".board-frame").evaluate(el => Math.round(el.getBoundingClientRect().width));
-  if (enlargedBoard < 630 || enlargedBoard > 650 || enlargedBoard <= boardAt590 + 35) {
-    throw new Error("Board size slider must distinguish 590px from 640px: " + boardAt590 + " -> " + enlargedBoard);
+  if (!resizeProgress.active || resizeProgress.requestedSize <= boardBeforeGrip + 35 ||
+      enlargedBoard <= boardBeforeGrip + 35) {
+    const pointerDownSeen = await page.locator("#resize-board").evaluate(el => ({
+      seen: el.dataset.resizePointerDownSeen,
+      button: el.dataset.resizePointerDownButton,
+      pointerType: el.dataset.resizePointerDownType
+    }));
+    throw new Error("Dragging the board grip must capture the pointer and resize the rendered board: " +
+      JSON.stringify({ before: boardBeforeGrip, hitTest: gripHitTest, pointerDownSeen, during: resizeProgress, after: enlargedBoard }));
   }
-  if (await page.locator(".opponent-label strong").textContent() !== "Prunex 0.8.0") throw new Error("Engine badge should identify the browser build as Prunex 0.8.0.");
+  const savedBoardSize = await page.evaluate(() => Number(localStorage.getItem("prunex-board-size")));
+  if (!Number.isFinite(savedBoardSize) || savedBoardSize <= boardBeforeGrip + 35) {
+    throw new Error("Board size should persist after a successful resize: " + savedBoardSize);
+  }
+  if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
-  if (!engineNote.includes("Stockfish 19 Lite")) throw new Error("Browser engine attribution should identify Stockfish 19 Lite.");
+  if (!engineNote.includes("PRUNEX") || /Stockfish/i.test(engineNote)) {
+    throw new Error("The analysis panel should keep its focus on the Prunex experience.");
+  }
+  const licenseNote = await page.locator(".license-note").innerText();
+  if (!licenseNote.includes("Stockfish.js 19 Full") || !licenseNote.includes("GPLv3")) {
+    throw new Error("The browser engine's license and attribution notice is missing.");
+  }
+  const sharingCopy = await page.locator("body").innerText();
+  if (!sharingCopy.includes("they do not retrain or change the native C++ engine")) {
+    throw new Error("Shared position-memory opt-in must explain that it does not retrain the native engine.");
+  }
+  if (!requests.some(url => url.includes("/engine/stockfish-19.js")) ||
+      !requests.some(url => url.includes("/engine/stockfish-19.wasm"))) {
+    throw new Error("The full analysis worker and its WebAssembly network were not loaded.");
+  }
   const workspaceBackground = await page.locator(".workspace").evaluate(el => getComputedStyle(el).backgroundColor);
   const avatarBackground = await page.locator(".engine-avatar").evaluate(el => getComputedStyle(el).backgroundColor);
   if (workspaceBackground !== avatarBackground) throw new Error("Transparent Prunex mark background should match the dark board section.");
@@ -141,9 +683,21 @@ try {
   if (await page.locator("#board").getAttribute("data-pieces") !== "letters" || !(await page.locator("#board .piece-letters").count())) {
     throw new Error("Letter piece set did not render.");
   }
-  await page.locator("#piece-style").selectOption("unicode");
-  if (!(await page.locator("#board .piece-unicode").count())) throw new Error("Unicode piece set did not render.");
+  if (await page.locator('#piece-style option[value="unicode"]').count()) {
+    throw new Error("Unicode pieces should be removed; the SVG Staunton set is the default.");
+  }
+  await page.locator("#piece-style").selectOption("letters");
+  const letterStyle = await page.locator("#board .piece-letters").first().evaluate(el => ({
+    stroke: getComputedStyle(el).webkitTextStroke,
+    shadow: getComputedStyle(el).textShadow
+  }));
+  if (letterStyle.shadow !== "none") {
+    throw new Error("The Unicode contrast treatment must not affect letter pieces.");
+  }
   await page.locator("#piece-style").selectOption("cburnett");
+  if (await page.locator("#board .piece-svg use").count() !== 32) {
+    throw new Error("The Staunton SVG set must remain unchanged.");
+  }
   if (await page.locator("#board .piece-svg use").count() !== 32) throw new Error("Cburnett SVG piece set did not restore.");
   await page.locator("#coordinates").uncheck();
   if (!(await page.locator("#board").evaluate(el => el.classList.contains("no-coordinates")))) throw new Error("Coordinate toggle did not update.");
@@ -164,6 +718,24 @@ try {
   }
   await page.locator("#game-result-review").click();
 
+  const screenshotCheckmateFen = "r1b1kbn1/pp1p1pp1/8/2p1n3/3pP3/3K1pq1/PPPB4/RN1Q1B2 w - - 0 1";
+  await page.locator("#fen-input").fill(screenshotCheckmateFen);
+  await page.locator("#load-fen").click();
+  await page.waitForTimeout(100);
+  const screenshotPositionState = await page.evaluate(() => ({
+    feedback: document.querySelector("#fen-feedback")?.textContent,
+    status: document.querySelector("#status")?.textContent,
+    turn: document.querySelector("#turn-label")?.textContent,
+    fen: document.querySelector("#fen-input")?.value,
+    overlayHidden: document.querySelector("#game-result-dialog")?.hidden
+  }));
+  if (screenshotPositionState.overlayHidden ||
+      screenshotPositionState.turn !== "CHECKMATE · YOU LOST" ||
+      !screenshotPositionState.status?.includes("Checkmate")) {
+    throw new Error("Screenshot position did not load as checkmate: " + JSON.stringify(screenshotPositionState));
+  }
+  await page.locator("#game-result-review").click();
+
   const checkmateFen = "7k/6Q1/5K2/8/8/8/8/8 b - - 0 1";
   await page.locator("#fen-input").fill(checkmateFen);
   await page.locator("#load-fen").click();
@@ -173,7 +745,7 @@ try {
       await page.locator("#game-result-copy").textContent() !== "A strong move, a stronger finish. Prunex will be reviewing this game in its next performance evaluation.") {
     throw new Error("Win result copy is incorrect.");
   }
-  await page.screenshot({ path: "artifacts/game-result-win-desktop.png" });
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-win-desktop.png" });
   await page.locator("#game-result-review").click();
 
   await page.locator("#side").selectOption("b");
@@ -190,9 +762,9 @@ try {
       await page.locator("#game-result-copy").textContent() !== "Looks like the engine had the better day. Bad news: Prunex is still improving, so this might not be your last defeat.") {
     throw new Error("Loss result copy is incorrect.");
   }
-  await page.screenshot({ path: "artifacts/game-result-loss-desktop.png" });
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-loss-desktop.png" });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: "artifacts/game-result-loss-mobile.png" });
+  await page.locator(".board-frame").screenshot({ path: "artifacts/game-result-loss-mobile.png" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator("#game-result-new-game").click();
   await page.waitForFunction(
@@ -207,14 +779,378 @@ try {
   const mobile = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     content: document.documentElement.scrollWidth,
-    board: document.querySelector("#board")?.getBoundingClientRect().width
+    board: document.querySelector("#board")?.getBoundingClientRect().width,
+    reviewNavUnderBoard: document.querySelector(".board-stage")?.nextElementSibling?.classList.contains("move-navigation"),
+    reviewControls: [...document.querySelectorAll(".move-nav-button")].map(button => Math.round(button.getBoundingClientRect().height))
   }));
   if (mobile.content > mobile.viewport + 1 || !mobile.board || mobile.board > mobile.viewport) {
     throw new Error("Mobile layout overflows: " + JSON.stringify(mobile));
   }
+  if (!mobile.reviewNavUnderBoard || mobile.reviewControls.some(height => height < 42)) {
+    throw new Error("Mobile review controls must sit directly under the board with finger-sized buttons: " + JSON.stringify(mobile));
+  }
 
-  if (failures.length) throw new Error(failures.join("\n"));
-  console.log("PASS: startup, human move and engine reply, compact board, resizing, three piece sets, themes, FEN import and validation, reset, black-side play, and mobile layout.");
+  const deviceViewports = [
+    { width: 280, height: 653, name: "foldable-compact" },
+    { width: 320, height: 568, name: "phone-small" },
+    { width: 360, height: 800, name: "phone-compact" },
+    { width: 390, height: 844, name: "phone-tall" },
+    { width: 540, height: 720, name: "split-screen-phone" },
+    { width: 600, height: 800, name: "compact-tablet" },
+    { width: 673, height: 841, name: "foldable-unfolded" },
+    { width: 768, height: 1024, name: "tablet-portrait" },
+    { width: 800, height: 800, name: "square-display" },
+    { width: 844, height: 390, name: "phone-landscape" },
+    { width: 1024, height: 768, name: "tablet-landscape" },
+    { width: 1024, height: 1024, name: "square-tablet" },
+    { width: 1080, height: 1920, name: "kiosk-portrait" },
+    { width: 1280, height: 800, name: "laptop" },
+    { width: 1920, height: 1080, name: "desktop" },
+    { width: 2560, height: 1440, name: "wide-desktop" }
+  ];
+  const screenshotViewports = new Set([
+    "phone-small", "split-screen-phone", "foldable-unfolded",
+    "tablet-portrait", "square-tablet", "phone-landscape",
+    "desktop", "wide-desktop"
+  ]);
+
+  for (const device of deviceViewports) {
+    await page.setViewportSize({ width: device.width, height: device.height });
+    const layout = await page.evaluate(() => {
+      const root = document.documentElement;
+      const app = document.querySelector("#app")?.getBoundingClientRect();
+      const workspace = document.querySelector(".workspace")?.getBoundingClientRect();
+      const board = document.querySelector(".board-frame")?.getBoundingClientRect();
+      const sections = [
+        ".topbar", ".nav-links", ".top-actions", ".hero", ".principles",
+        ".workspace", ".board-frame", ".editor-panel", ".about-section",
+        ".benchmark-section", ".match-section", ".footer"
+      ];
+      const outside = sections.flatMap(selector => {
+        const element = document.querySelector(selector);
+        if (!element) return [];
+        const rect = element.getBoundingClientRect();
+        return rect.left < -1 || rect.right > root.clientWidth + 1
+          ? [{ selector, left: Math.round(rect.left), right: Math.round(rect.right) }]
+          : [];
+      });
+      return {
+        viewport: root.clientWidth,
+        documentWidth: Math.max(root.scrollWidth, document.body.scrollWidth),
+        app: app ? { left: Math.round(app.left), right: Math.round(app.right) } : null,
+        workspaceWidth: workspace ? Math.round(workspace.width) : null,
+        board: board ? { width: Math.round(board.width), height: Math.round(board.height) } : null,
+        outside
+      };
+    });
+
+    if (layout.documentWidth > device.width + 1 || layout.app?.left < -1 ||
+        layout.app?.right > device.width + 1 || layout.outside.length) {
+      throw new Error("Responsive overflow at " + device.name + " (" +
+        device.width + "x" + device.height + "): " + JSON.stringify(layout));
+    }
+    if (!layout.board || Math.abs(layout.board.width - layout.board.height) > 1 ||
+        layout.board.width > layout.workspaceWidth + 1) {
+      throw new Error("Chessboard sizing failed at " + device.name + ": " + JSON.stringify(layout));
+    }
+    const resizeDisplay = await page.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    const expectsResize = device.width > 700;
+    if (expectsResize && (resizeDisplay.board === "none" || resizeDisplay.history === "none")) {
+      throw new Error("Tablet/laptop should retain resize affordances at " + device.name + ": " + JSON.stringify(resizeDisplay));
+    }
+    if (!expectsResize && (resizeDisplay.board !== "none" || resizeDisplay.history !== "none")) {
+      throw new Error("Phone layouts must not show resize affordances at " + device.name + ": " + JSON.stringify(resizeDisplay));
+    }
+    if (screenshotViewports.has(device.name)) {
+      await page.screenshot({
+        path: "artifacts/responsive-" + device.name + ".png",
+        fullPage: ["phone-small", "tablet-portrait", "square-tablet", "desktop"].includes(device.name)
+      });
+    }
+  }
+
+  await page.locator("#side").selectOption("w");
+  await page.locator("#fen-input").fill("7k/6Q1/5K2/8/8/8/8/8 b - - 0 1");
+  await page.locator("#load-fen").click();
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  for (const device of [
+    { width: 280, height: 560, name: "modal-compact" },
+    { width: 320, height: 568, name: "modal-phone" },
+    { width: 844, height: 390, name: "modal-landscape" }
+  ]) {
+    await page.setViewportSize({ width: device.width, height: device.height });
+    const dialog = await page.locator("#game-result-dialog").evaluate(element => {
+      const board = document.querySelector("#board");
+      const boardFrame = element.closest(".board-frame");
+      const overlay = element.getBoundingClientRect();
+      const boardRect = board.getBoundingClientRect();
+      const frame = boardFrame.getBoundingClientRect();
+      const panel = element.querySelector(".game-result-panel").getBoundingClientRect();
+      return {
+        overlay: { left: overlay.left, top: overlay.top, width: overlay.width, height: overlay.height },
+        board: { left: boardRect.left, top: boardRect.top, width: boardRect.width, height: boardRect.height },
+        frame: { left: frame.left, top: frame.top, width: frame.width, height: frame.height },
+        overlayMatchesBoard: Math.abs(overlay.left - boardRect.left) < 2 &&
+          Math.abs(overlay.top - boardRect.top) < 2 &&
+          Math.abs(overlay.width - boardRect.width) < 2 &&
+          Math.abs(overlay.height - boardRect.height) < 2,
+        overlayInsideFrame: overlay.left >= frame.left &&
+          overlay.right <= frame.right &&
+          overlay.top >= frame.top &&
+          overlay.bottom <= frame.bottom,
+        panelInsideOverlay: panel.left >= overlay.left &&
+          panel.right <= overlay.right &&
+          panel.top >= overlay.top &&
+          panel.bottom <= overlay.bottom,
+        panelScrollsWhenNeeded: getComputedStyle(element.querySelector(".game-result-panel")).overflowY === "auto"
+      };
+    });
+    if (!dialog.overlayMatchesBoard || !dialog.overlayInsideFrame ||
+        !dialog.panelInsideOverlay || !dialog.panelScrollsWhenNeeded) {
+      throw new Error("Result popup escaped its board at " + device.name + ": " + JSON.stringify(dialog));
+    }
+    if (device.name !== "modal-landscape") {
+      await page.screenshot({ path: "artifacts/responsive-" + device.name + ".png" });
+    }
+  }
+  await page.keyboard.press("Escape");
+  if (await page.locator("#game-result-dialog").isVisible()) {
+    throw new Error("Escape should dismiss the board-scoped result popup.");
+  }
+
+  await page.waitForFunction(() =>
+    Number.parseInt(document.querySelector("#game-archive-count")?.textContent || "0", 10) >= 1,
+    undefined,
+    { timeout: 15000 }
+  );
+  if (!(await page.locator("#game-archive-list .archive-game").count())) {
+    throw new Error("Completed games should be saved in the local game archive.");
+  }
+
+  await page.locator("#side").selectOption("w");
+  await page.locator("#fen-input").fill("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1");
+  await page.locator("#load-fen").click();
+  await page.locator('[data-square="f7"]').click();
+  await page.locator('[data-square="g7"]').click();
+  await page.locator("#game-result-dialog").waitFor({ state: "visible" });
+  if (await page.locator("#turn-label").textContent() !== "CHECKMATE · YOU WON") {
+    throw new Error("A one-move checkmate should update the turn indicator to a win.");
+  }
+  if (!(await page.locator("#review-budget").isVisible())) {
+    await page.locator(".settings-group").nth(2).locator("summary").click();
+  }
+  await page.locator("#review-budget").evaluate(el => {
+    for (let group = el.closest("details"); group; group = group.parentElement?.closest("details")) {
+      group.open = true;
+    }
+  });
+  await page.locator("#review-budget").selectOption("3000");
+  await page.locator("#game-result-review").click();
+  try {
+    await page.waitForFunction(() => {
+      const label = document.querySelector("#review-progress-label")?.textContent || "";
+      return label.includes("Analysis complete") || label.includes("Game analysis failed");
+    }, undefined, { timeout: 30000 });
+  } catch (error) {
+    const reviewState = await page.evaluate(() => ({
+      progress: document.querySelector("#review-progress-label")?.textContent,
+      summary: document.querySelector("#review-summary")?.textContent,
+      engine: document.querySelector("#engine-state")?.textContent,
+      status: document.querySelector("#status")?.textContent,
+      busy: document.querySelector("#engine-state")?.dataset.busy,
+      reviewVisible: !document.querySelector("#game-review-panel")?.hidden
+    }));
+    await page.screenshot({ path: "artifacts/game-review-debug.png" });
+    throw new Error("Post-game analysis did not complete: " + JSON.stringify(reviewState) +
+      "; browser errors: " + failures.join(" | ") + "; " + error.message);
+  }
+  if ((await page.locator("#review-progress-label").textContent()).includes("Game analysis failed")) {
+    throw new Error("Post-game analysis failed: " + await page.locator("#review-progress-label").textContent());
+  }
+  if (!(await page.locator("#move-list .move-grade").count()) ||
+      !(await page.locator("#review-summary").innerText()).includes("%")) {
+    throw new Error("Post-game review should grade the played move and calculate player accuracy.");
+  }
+  if (!(await page.locator("#review-method-note").textContent()).includes("expected points")) {
+    throw new Error("The review should disclose its expected-points evaluation method.");
+  }
+  const pointLossData = await page.locator("#move-list .move-grade").evaluateAll(nodes =>
+    nodes.map(node => Number(node.dataset.expectedPointLoss)).filter(Number.isFinite)
+  );
+  if (!pointLossData.length || pointLossData.some(value => value < 0 || value > 1)) {
+    throw new Error("Move grades should store valid expected-point losses between 0 and 1.");
+  }
+  if (await page.locator(".piece-quality-marker").count() < 1) {
+    throw new Error("Game Review should render move-quality markers on the reviewed board position.");
+  }
+  const moveGrades = await page.locator("#move-list .move-grade").allTextContents();
+  if (!moveGrades.some(grade => ["BEST","BRILLIANT","EXCELLENT","GOOD","INACCURACY","MISTAKE","BLUNDER","MISS"].includes(grade))) {
+    throw new Error("Game Review should use the expanded move-quality classification vocabulary.");
+  }
+  const accuracyValues = await page.locator(".review-player strong").allTextContents();
+  if (accuracyValues.some(value => Number.parseFloat(value) > 100 || Number.parseFloat(value) < 0)) {
+    throw new Error("Review accuracy must remain between 0% and 100%.");
+  }
+  if (!(await page.locator("#review-progress-label").textContent()).includes("deepest depth") ||
+      !(await page.locator("#review-depth").textContent()).includes("AVG DEPTH")) {
+    throw new Error("Game review should expose the deepest and average completed engine depth.");
+  }
+
+  const archivedCountBeforeReload = await page.locator("#game-archive-list .archive-game").count();
+  if (archivedCountBeforeReload < 1) throw new Error("At least one completed game should be archived before reload.");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(expectedCount =>
+    document.querySelector("#game-archive-note")?.textContent.includes("Local game saving is available.") &&
+    document.querySelectorAll("#game-archive-list .archive-game").length >= expectedCount,
+    archivedCountBeforeReload,
+    { timeout: 30000 }
+  );
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const analysisSettingsDesktop = page.locator(".settings-group").nth(2);
+  if (!(await page.locator("#board-annotations").isVisible())) {
+    await analysisSettingsDesktop.locator("summary").click();
+  }
+  await page.locator("#board-annotations").check();
+  const annotationStartSquare = page.locator('[data-square="a1"]');
+  const annotationEndSquare = page.locator('[data-square="a3"]');
+  await annotationStartSquare.scrollIntoViewIfNeeded();
+  await annotationEndSquare.scrollIntoViewIfNeeded();
+  const arrowStart = await annotationStartSquare.boundingBox();
+  const arrowEnd = await annotationEndSquare.boundingBox();
+  if (!arrowStart || !arrowEnd) throw new Error("Annotation test squares are not visible.");
+  await page.mouse.move(arrowStart.x + arrowStart.width / 2, arrowStart.y + arrowStart.height / 2);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(arrowEnd.x + arrowEnd.width / 2, arrowEnd.y + arrowEnd.height / 2, { steps: 8 });
+  await page.mouse.up({ button: "right" });
+  if (!(await page.locator(".annotation-layer .annotation-arrow").count())) {
+    throw new Error("Right-click drag should draw an annotation arrow.");
+  }
+  await page.locator("#clear-marks").click();
+
+  const touchContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true
+  });
+  const touchPage = await touchContext.newPage();
+  try {
+    await touchPage.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    const mobileResizeDisplay = await touchPage.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    if (mobileResizeDisplay.board !== "none" || mobileResizeDisplay.history !== "none") {
+      throw new Error("Phone portrait must not expose resize controls: " + JSON.stringify(mobileResizeDisplay));
+    }
+    await touchPage.setViewportSize({ width: 844, height: 390 });
+    const landscapeResizeDisplay = await touchPage.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    if (landscapeResizeDisplay.board !== "none" || landscapeResizeDisplay.history !== "none") {
+      throw new Error("Phone landscape must not expose resize controls: " + JSON.stringify(landscapeResizeDisplay));
+    }
+    await touchPage.setViewportSize({ width: 768, height: 1024 });
+    const tabletResizeDisplay = await touchPage.evaluate(() => ({
+      board: getComputedStyle(document.querySelector("#resize-board")).display,
+      history: getComputedStyle(document.querySelector("#resize-move-history")).display
+    }));
+    if (tabletResizeDisplay.board === "none" || tabletResizeDisplay.history === "none") {
+      throw new Error("Tablet portrait should retain resize controls: " + JSON.stringify(tabletResizeDisplay));
+    }
+    await touchPage.setViewportSize({ width: 390, height: 844 });
+    const touchTargets = await touchPage.evaluate(() => ({
+      coarsePointer: matchMedia("(pointer: coarse)").matches,
+      themeToggle: parseFloat(getComputedStyle(document.querySelector(".theme-toggle")).minHeight),
+      topCta: parseFloat(getComputedStyle(document.querySelector(".top-cta")).minHeight),
+      boardButton: parseFloat(getComputedStyle(document.querySelector(".board-toolbar .button")).minHeight),
+      promotionButton: parseFloat(getComputedStyle(document.querySelector(".promotion-options button")).minHeight),
+      navLink: parseFloat(getComputedStyle(document.querySelector(".nav-links a")).minHeight)
+    }));
+    if (!touchTargets.coarsePointer || touchTargets.themeToggle < 44 ||
+        touchTargets.topCta < 44 || touchTargets.boardButton < 42 ||
+        touchTargets.promotionButton < 44 || touchTargets.navLink < 40) {
+      throw new Error("Touch target sizing failed: " + JSON.stringify(touchTargets));
+    }
+    await touchPage.waitForFunction(
+      () => document.querySelector("#engine-state")?.textContent === "Engine ready",
+      undefined,
+      { timeout: 60000 }
+    );
+    const panelToggle = touchPage.locator("#toggle-analysis-panel");
+    if (await panelToggle.getAttribute("aria-expanded") !== "true") await panelToggle.tap();
+    await touchPage.locator(".board-frame").scrollIntoViewIfNeeded();
+    const scrollBeforeMove = await touchPage.evaluate(() => window.scrollY);
+    await touchPage.locator('[data-square="e2"]').click();
+    await touchPage.locator('[data-square="e4"]').click();
+    await touchPage.waitForFunction(
+      () => [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4")),
+      undefined,
+      { timeout: 60000 }
+    );
+    const scrollAfterMove = await touchPage.evaluate(() => window.scrollY);
+    if (Math.abs(scrollAfterMove - scrollBeforeMove) > 3) {
+      throw new Error("Making a move with the side panel open must not scroll the page to move history: " +
+        scrollBeforeMove + " -> " + scrollAfterMove);
+    }
+    await touchPage.waitForFunction(
+      () => [...document.querySelectorAll("#game-archive-list .archive-game")]
+        .some(row => row.textContent.includes("IN PROGRESS")),
+      undefined,
+      { timeout: 30000 }
+    );
+    const activeGameRows = await touchPage.locator("#game-archive-list .archive-game").count();
+    await touchPage.reload({ waitUntil: "networkidle" });
+    await touchPage.waitForFunction(
+      count => document.querySelectorAll("#game-archive-list .archive-game").length >= count &&
+        [...document.querySelectorAll("#game-archive-list .archive-game")]
+          .some(row => row.textContent.includes("IN PROGRESS")),
+      activeGameRows,
+      { timeout: 30000 }
+    );
+    const analysisSettings = touchPage.locator(".settings-group").nth(2);
+    if (!(await touchPage.locator("#board-annotations").isVisible())) {
+      await analysisSettings.locator("summary").tap();
+    }
+    await touchPage.locator("#board-annotations").check();
+    await touchPage.locator('[data-square="a1"]').tap();
+    await touchPage.locator('[data-square="a3"]').tap();
+    if (!(await touchPage.locator(".annotation-layer .annotation-arrow").count())) {
+      throw new Error("Touch annotations should draw an arrow after tapping an origin and destination.");
+    }
+    await touchPage.locator("#clear-marks").tap();
+    // Annotation mode intentionally owns taps; turn it off before testing chess moves.
+    await touchPage.locator("#board-annotations").uncheck();
+
+    // Enter a review position from move history, then play directly on the board.
+    // The board move itself must branch from the selected FEN with no resume button.
+    await touchPage.locator('[data-square="e2"]').tap();
+    await touchPage.locator('[data-square="e4"]').tap();
+    await touchPage.waitForFunction(() =>
+      [...document.querySelectorAll(".move-row")].some(row => row.textContent.includes("e4"))
+    );
+    const firstAvailableMove = touchPage.locator("#move-list .move-notation").first();
+    if (await firstAvailableMove.count()) await firstAvailableMove.tap();
+    const reviewState = await touchPage.evaluate(() => ({
+      reviewing: !!document.querySelector("#move-position-label")?.textContent?.trim(),
+      boardSquares: document.querySelectorAll("#board .square").length,
+      buttons: [...document.querySelectorAll("button")].map(button => button.textContent.trim().toLowerCase())
+    }));
+    if (reviewState.boardSquares !== 64) throw new Error("Board should stay interactive during review.");
+    if (reviewState.buttons.some(label => label.includes("back to live"))) {
+      throw new Error("A separate Back to live action must not be present.");
+    }
+  } finally {
+    await touchContext.close();
+  }
+
+  if (failures.length) throw new Error(failures.join("\\n"));
+  console.log("PASS: engine/game interactions, responsive layout, account dialog, password reveal, no per-game deletion, visible hero headline, and verified project-name note.");
 } finally {
   await browser.close();
 }

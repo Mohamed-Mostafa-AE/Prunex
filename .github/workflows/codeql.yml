@@ -2,7 +2,7 @@ name: CodeQL security analysis
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
   schedule:
@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: codeql-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   analyze:
@@ -33,16 +33,66 @@ jobs:
             build-mode: none
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended
       - name: Analyze
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           category: /language:${{ matrix.language }}
+          post-processed-sarif-path: results
+      - name: Summarize CodeQL findings
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob
+          import json
+
+          sarif_files = sorted(glob.glob("results/*.sarif"))
+          if not sarif_files:
+              print("CodeQL did not save a processed SARIF file for this language.")
+              raise SystemExit(0)
+
+          total = 0
+          for path in sarif_files:
+              with open(path, encoding="utf-8") as handle:
+                  sarif = json.load(handle)
+              for run in sarif.get("runs", []):
+                  rules = {
+                      rule.get("id"): rule
+                      for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
+                  }
+                  for result in run.get("results", []):
+                      total += 1
+                      rule_id = result.get("ruleId", "unknown")
+                      rule = rules.get(rule_id, {})
+                      props = result.get("properties", {})
+                      rule_props = rule.get("properties", {})
+                      tags = rule_props.get("tags", [])
+                      severity = (
+                          props.get("security-severity")
+                          or rule_props.get("security-severity")
+                          or next((tag.split(":", 1)[1].strip() for tag in tags
+                                   if isinstance(tag, str) and tag.startswith("security-severity:")), "")
+                      )
+                      level = result.get("level", "unspecified")
+                      locations = result.get("locations", [])
+                      if not locations:
+                          print(f"{level} {rule_id} security-severity={severity or 'unspecified'} location=unknown")
+                          continue
+                      for location in locations[:5]:
+                          physical = location.get("physicalLocation", {})
+                          artifact = physical.get("artifactLocation", {})
+                          region = physical.get("region", {})
+                          uri = artifact.get("uri", "unknown")
+                          line = region.get("startLine", "?")
+                          print(f"{level} {rule_id} security-severity={severity or 'unspecified'} {uri}:{line}")
+          print(f"CodeQL SARIF findings: {total}")
+          PY

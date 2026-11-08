@@ -1,5 +1,29 @@
 cmake_minimum_required(VERSION 3.20)
-project(Prunex VERSION 0.5.1 LANGUAGES CXX)
+project(Prunex VERSION 0.8.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(EMSCRIPTEN)
+    add_executable(prunex-wasm src/wasm_api.cpp)
+    target_compile_features(prunex-wasm PRIVATE cxx_std_20)
+    target_compile_options(prunex-wasm PRIVATE -O3 -DNDEBUG)
+    target_link_options(prunex-wasm PRIVATE
+        "-sMODULARIZE=1"
+        "-sEXPORT_NAME=createPrunexModule"
+        "-sENVIRONMENT=web,worker,node"
+        "-sALLOW_MEMORY_GROWTH=1"
+        "-sNO_EXIT_RUNTIME=1"
+        "--no-entry"
+        "-sEXPORTED_FUNCTIONS=['_prunex_wasm_api_version','_prunex_wasm_evaluate_fen','_prunex_wasm_search_fen','_prunex_wasm_nodes','_malloc','_free']"
+        "-sEXPORTED_RUNTIME_METHODS=['cwrap','UTF8ToString','stringToUTF8','lengthBytesUTF8']"
+    )
+    set_target_properties(prunex-wasm PROPERTIES OUTPUT_NAME "prunex-wasm" SUFFIX ".js")
+    return()
+endif()
+
+find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -7,6 +31,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(prunex src/main.cpp)
 target_compile_features(prunex PRIVATE cxx_std_20)
+target_link_libraries(prunex PRIVATE Threads::Threads)
 
 if(WIN32)
     add_executable(PrunexGUI WIN32 src/gui.cpp)
@@ -31,6 +56,9 @@ include(CTest)
 
 if(BUILD_TESTING)
     add_test(NAME start_position_perft_1 COMMAND prunex --perft 1)
+
+    add_test(NAME native_benchmark_smoke COMMAND prunex --bench 2)
+    set_tests_properties(native_benchmark_smoke PROPERTIES PASS_REGULAR_EXPRESSION "bench-total nodes")
     set_tests_properties(start_position_perft_1 PROPERTIES PASS_REGULAR_EXPRESSION "Perft depth 1: 20")
 
     add_test(NAME start_position_perft_2 COMMAND prunex --perft 2)
@@ -84,6 +112,13 @@ if(BUILD_TESTING)
 
     add_executable(prunex_search_tests tests/search_regression.cpp)
     target_compile_features(prunex_search_tests PRIVATE cxx_std_20)
+    target_link_libraries(prunex_search_tests PRIVATE Threads::Threads)
+
+    add_executable(prunex_parity_reference tests/wasm_parity_reference.cpp)
+    target_compile_features(prunex_parity_reference PRIVATE cxx_std_20)
+    target_link_libraries(prunex_parity_reference PRIVATE Threads::Threads)
+    add_test(NAME wasm_parity_reference_smoke COMMAND prunex_parity_reference)
+    set_tests_properties(wasm_parity_reference_smoke PROPERTIES PASS_REGULAR_EXPRESSION "mate-in-one")
     if(MSVC)
         target_compile_options(prunex_search_tests PRIVATE /W4 /permissive-)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
