@@ -32,6 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           persist-credentials: true
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -62,7 +63,7 @@ jobs:
           test -s build/wasm/prunex-wasm.wasm
 
       - name: Publish browser WebAssembly assets to this branch
-        if: github.event_name == 'push' && github.ref_name != 'main'
+        if: (github.event_name == 'push' && github.ref_name != 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
         run: |
           mkdir -p website/public/engine
           cp build/wasm/prunex-wasm.js website/public/engine/prunex-wasm.js
@@ -74,7 +75,7 @@ jobs:
             echo "Browser WebAssembly assets are already current."
           else
             git commit -m "build: publish Prunex 0.8.0 browser WebAssembly"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            git push origin "HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}"
           fi
 
       - name: Upload native WebAssembly build
