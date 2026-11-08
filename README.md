@@ -86,3 +86,7 @@ The website includes a browser-based chess demo powered by Prunex 0.8.0. It prov
 This repository is published for **inspection and review**. No open-source license has been granted for the original Prunex native-engine source or project materials. Unless a separate license is added, all rights to those original materials are reserved; making the repository publicly visible does not grant permission to copy, modify, redistribute, or use them in another project.
 
 Third-party components and assets are governed by their own licenses and notices. See the relevant files under `website/public/` and the website dependency metadata.
+
+### Development Status
+
+Prunex is currently in an active development and improvement phase. Its implementation, testing, and documentation are still evolving. Public availability for modification, contribution, or redistribution is not currently authorized. Licensing and contribution arrangements may be revised when the project reaches a more mature stage.
