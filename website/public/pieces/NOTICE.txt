@@ -4,4 +4,4 @@ Source mirror: Lichess, https://github.com/lichess-org/lila/tree/master/public/p
 Original filenames: wK.svg, wQ.svg, wR.svg, wB.svg, wN.svg, wP.svg, bK.svg, bQ.svg, bR.svg, bB.svg, bN.svg, bP.svg
 License: GNU General Public License version 2 or (at your option) any later version (GPL-2.0-or-later).
 The artwork is redistributed as a local SVG sprite in this website. The complete license text is provided in GPL-2.0.txt.
-The chess-piece artwork is separate from the independently developed Prunex C++20 engine and from the Stockfish.js browser opponent.
+The artwork is a separate presentation asset and is independent of the Prunex C++20 engine.

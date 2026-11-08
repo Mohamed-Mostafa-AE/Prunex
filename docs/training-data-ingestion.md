@@ -13,7 +13,7 @@ That mechanism is **experience retrieval**, not automatic engine training.
 It can reuse a move in a position seen before; it does not update the native
 C++ engine's evaluation parameters, search code, or weights. The evaluation
 calibration script adjusts expected-points interpretation for review scores;
-it is not NNUE or search training.
+it does not train or modify the chess engine.
 
 The native C++ Prunex engine does not currently have an automated PGN ingestion
 or self-training pipeline. Do not describe the native engine as learning from
@@ -83,10 +83,9 @@ training infrastructure.
 A PGN supplies moves and usually a game result; it does not automatically
 supply a trusted evaluation for every position. For evaluation calibration,
 position scores and eventual results must be paired consistently from the
-same side-to-move perspective. For NNUE training, use a documented teacher
-evaluation/target-generation procedure and a compatible trainer. Keep the
-teacher, trainer version, network format, hardware, data manifest, and
-resulting artifact hashes recorded.
+same side-to-move perspective. Position-score calibration requires scores and eventual game results paired
+consistently from the same side-to-move perspective. It changes the review
+interpretation layer only; it does not update engine parameters.
 
 A successful data import or lower training loss is not evidence of a stronger
 engine. Every candidate native-engine change must pass:

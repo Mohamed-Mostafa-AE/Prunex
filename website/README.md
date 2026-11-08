@@ -1,9 +1,9 @@
 # Website
 
-This is the Vite project for the Prunex website. Vercel builds it from this folder using `npm run build` and publishes the contents of `dist/`.
+This is the Vite project for Prunex Play. Vercel builds it from this folder using `npm run build` and publishes the contents of `dist/`.
 
-The site includes a browser chessboard. The browser experience uses `chess.js` for game rules and a separate multi-threaded browser chess-engine component with NNUE-based position evaluation. This browser path is distinct from the independently implemented native C++20 engine.
+The browser board uses `chess.js` for game rules and the Prunex 0.8.0 C++20 engine compiled to WebAssembly for opponent play, position evaluation, and game review. The browser worker loads the generated `prunex-wasm.js` module and its `prunex-wasm.wasm` binary from `public/engine/`. Both are built from the repository's native engine source and checked by the native/WebAssembly parity workflow.
 
-The browser-engine bundle is a third-party component distributed under GPLv3. Its license, attribution, and corresponding-source references are retained with the shipped site. The Cburnett chess-piece artwork has its own license and attribution. Keep all of these notices with every distributed browser build.
+The WebAssembly build is versioned through its C API. Browser searches use the native engine's time-bounded iterative-deepening search; the UI's opponent settings and review budgets are expressed as time limits, up to 30 seconds per position. The worker is dedicated to the browser session so a search can be interrupted by terminating and recreating the worker.
 
-The root MIT license applies to original Prunex contributions, including the website application's own code, except material identified with a separate license or notice. The Python training tools are separately licensed under GPL-3.0-or-later. The browser engine bundle remains under GPLv3, and Cburnett chess-piece artwork remains under GPL-2.0-or-later. Third-party dependencies, fonts, and assets retain their respective terms. The root MIT license does not relicense those materials. See `public/`, `tools/training/LICENSE`, and the site footer for the shipped notices.
+The root MIT license applies to original Prunex contributions. The Cburnett chess-piece artwork has its own GPL-2.0-or-later license and attribution; keep its notice and license in every distributed browser build. Other third-party dependencies, fonts, and assets retain their respective terms. See `public/pieces/`, `tools/training/LICENSE`, and the root `LICENSE`.

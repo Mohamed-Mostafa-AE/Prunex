@@ -89,7 +89,8 @@ const gameResultSubtitle = $("#game-result-subtitle");
 const gameResultCopy = $("#game-result-copy");
 const siteThemeToggle = $("#site-theme-toggle");
 
-const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
+let worker = new Worker(new URL("./engine-worker.js", import.meta.url));
+let pendingWorkerMessage = null;
 const game = new Chess();
 let initialFen = game.fen();
 let reviewMovesSnapshot = null;
@@ -881,7 +882,7 @@ function requestNextReviewPosition() {
   stateEl.dataset.busy = "true";
   reviewProgressLabel.textContent = "Analyzing " + reviewAnalysisIndex + " / " + reviewAnalysisPositions.length +
     " positions · " + reviewBudgetMs + "ms each";
-  worker.postMessage({
+  postWorkerMessage({
     type: "evaluate",
     requestId,
     fen,
@@ -1042,7 +1043,7 @@ async function completeGameReview(results) {
       depth: beforeResult?.depth || 0,
       selDepth: beforeResult?.selDepth || 0,
       nodes: beforeResult?.nodes || 0,
-      evaluationSource: beforeResult?.wdl ? "stockfish-wdl" : "cp-fallback",
+      evaluationSource: "prunex-0.8.0-wasm",
       description: classification.description
     });
   }
@@ -1054,11 +1055,8 @@ async function completeGameReview(results) {
   const averageDepth = depths.length ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
   const deepestDepth = depths.length ? Math.max(...depths) : 0;
   reviewDepth.textContent = "PRUNEX ANALYSIS · " + Math.round(reviewBudgetMs / 1000) + "S / POSITION · AVG DEPTH " + averageDepth;
-  const wdlPositionCount = results.filter(item => item.wdl &&
-    Number.isFinite(item.wdl.win) && Number.isFinite(item.wdl.draw) && Number.isFinite(item.wdl.loss)).length;
-  reviewMethodNote.textContent = wdlPositionCount
-    ? "Prunex compares expected points before and after each move, then applies its own move grading, Apex checks, and accuracy metric. This is not Chess.com's proprietary CAPS2 formula."
-    : "Prunex converts position evaluations into expected points before applying its move-grading and accuracy model.";
+  reviewMethodNote.textContent =
+    "Prunex 0.8.0 evaluates each position through its native C++20 engine compiled to WebAssembly. The review layer converts centipawn scores into expected points before applying its own move grading and accuracy metric.";
   reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
     " moves graded · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
@@ -1283,7 +1281,7 @@ function evaluatePosition() {
   setEvaluationPending();
   stateEl.textContent = "Evaluating position…";
   stateEl.dataset.busy = "true";
-  worker.postMessage({
+  postWorkerMessage({
     type: "evaluate",
     requestId,
     fen: game.fen(),
@@ -1308,7 +1306,7 @@ function search() {
   enginePositionTurn = game.turn();
   requestId += 1;
   render();
-  worker.postMessage({
+  postWorkerMessage({
     type: "search",
     requestId,
     fen: game.fen(),
@@ -1456,11 +1454,12 @@ function onSquare(square) {
 
 
 function cancelSearch() {
+  const interruptingWork = thinking || evaluating || analyzingGame;
   requestId += 1;
-  if (thinking || evaluating || analyzingGame) worker.postMessage({ type: "cancel" });
   thinking = false;
   evaluating = false;
   analyzingGame = false;
+  if (interruptingWork) restartEngineWorker();
 }
 
 function startNewGame() {
@@ -1546,13 +1545,21 @@ async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAt
   }
 }
 
-worker.addEventListener("message", async (event) => {
+async function handleWorkerMessage(event) {
   const data = event.data || {};
   if (data.type === "debug") return;
   if (data.type === "ready") {
     ready = true;
+    if (pendingWorkerMessage) {
+      const queued = pendingWorkerMessage;
+      pendingWorkerMessage = null;
+      render();
+      worker.postMessage(queued);
+      return;
+    }
     render();
-    search();
+    if (reviewMovesSnapshot && !game.isGameOver()) evaluatePosition();
+    else search();
     return;
   }
   if (data.type === "error" && data.requestId === undefined) {
@@ -1644,17 +1651,38 @@ worker.addEventListener("message", async (event) => {
     const turnAtSearch = game.turn();
     await applyEngineReply(data.bestMove, data.requestId, fenAtSearch, turnAtSearch);
   }
-});
+}
 
-
-worker.addEventListener("error", (event) => {
+function handleWorkerError(event) {
   ready = false;
   thinking = false;
+  evaluating = false;
+  analyzingGame = false;
+  pendingWorkerMessage = null;
   render();
-  console.error("The browser chess engine worker stopped unexpectedly.", event.error || event.message);
+  console.error("The Prunex WebAssembly worker stopped unexpectedly.", event.error || event.message);
   statusEl.textContent = "The chess engine stopped unexpectedly. Reload the page to continue.";
   statusEl.dataset.kind = "error";
-});
+}
+
+function attachEngineWorker(target) {
+  target.addEventListener("message", handleWorkerMessage);
+  target.addEventListener("error", handleWorkerError);
+  target.postMessage({ type: "init" });
+}
+
+function postWorkerMessage(message) {
+  if (ready) worker.postMessage(message);
+  else pendingWorkerMessage = message;
+}
+
+function restartEngineWorker() {
+  pendingWorkerMessage = null;
+  ready = false;
+  worker.terminate();
+  worker = new Worker(new URL("./engine-worker.js", import.meta.url));
+  attachEngineWorker(worker);
+}
 
 $("#new-game").addEventListener("click", () => { primeAudio(); startNewGame(); });
 moveFirstButton.addEventListener("click", () => goToPly(0));
@@ -2227,5 +2255,5 @@ enableMoveHistoryResize();
 enableSectionReveals();
 void refreshGameArchive();
 window.addEventListener("online", () => { void refreshGameArchive(); });
-worker.postMessage({ type: "init" });
+attachEngineWorker(worker);
 render();

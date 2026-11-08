@@ -9,9 +9,9 @@ This record separates source-code validation from hosted-service configuration a
 
 ## Architecture
 
-- The native Prunex engine is an independently implemented C++20 chess engine with its own 0x88 board representation, legal move generation, Zobrist hashing, transposition table, iterative-deepening negamax alpha–beta/PVS search, move ordering, and UCI interface. Its current evaluator is handcrafted and tapered across middlegame/endgame phases; it is not NNUE-based.
+- The native Prunex engine is an independently implemented C++20 chess engine with its own 0x88 board representation, legal move generation, Zobrist hashing, transposition table, iterative-deepening negamax alpha–beta/PVS search, move ordering, and UCI interface. Its current evaluator is handcrafted and tapered across middlegame/endgame phases.
 - The Windows desktop application is a native interface to the engine.
-- The website is a separate browser application. It uses `chess.js` for game rules and a separately integrated third-party browser chess engine for opponent and review analysis; it does not execute the native C++ engine. The browser integration provides NNUE-based position evaluation. Prunex owns the browser application, review pipeline, calibration, archive integration, and presentation; the bundled engine component retains its own upstream licensing and attribution.
+- The website is a browser application. It uses `chess.js` for game rules and runs the same Prunex 0.8.0 C++20 engine through its Emscripten/WebAssembly build for opponent and review analysis. Prunex owns the browser worker, review pipeline, calibration, archive integration, and presentation.
 - Private cloud games are stored in Neon PostgreSQL through a same-origin server API. Supabase Auth supplies identity and retains legacy source records. Browser-local games are stored in IndexedDB.
 - Account access supports guest sessions, linking an email to the current guest identity, password setup after email verification, password sign-in, and password recovery.
 - Account closure is the only destructive archive action exposed in the interface. Individual game-record deletion is not available.
@@ -71,7 +71,7 @@ The advisor also reports breached-password protection disabled. Four unused-inde
 - The autofill regression test invokes Chromium autofill through CDP and checks the browser autofill state and computed field appearance.
 - The repository retains the native engine, browser application, and third-party licensing boundaries separately.
 - The project-name explanation is recorded in `README.md` and `docs/project-name.md`: PRUN comes from alpha–beta PRUNing; EX represents the execution of adversarial search while anticipating the opponent's replies.
-- The native C++ evaluator is handcrafted and tapered. NNUE-based evaluation belongs only to the separate browser application; it is not the native engine evaluator. No independently trained Prunex evaluation network is claimed.
+- The native C++ evaluator is handcrafted and tapered, and both native and browser builds use this same evaluator.
 - The deployed Supabase `delete-account` Edge Function is active with JWT verification enabled. Its live logic verifies the caller token, restricts allowed origins, requires explicit confirmation, revokes refresh sessions, and deletes only the authenticated account.
 - The active GitHub `Protect main` ruleset still has no required status-check rule and requires zero approvals. Green workflows therefore are not currently enforced as merge requirements.
 - The website's `main.js` remains a large application controller; `src/gui.cpp` also retains a build-time dependency on the CLI translation unit. These are known refactoring opportunities. They should be addressed incrementally with full regression coverage, not through a broad pre-release rewrite.

@@ -13,7 +13,7 @@ This review focuses on functional correctness, design, complexity, test quality,
 - Native tests run under GCC, Clang, sanitizers, and Windows x64. A separate WebAssembly target is checked against native results.
 - The Windows interface runs engine search on a background thread and applies completed results on the UI thread. Cancellation and stale-result handling have explicit paths.
 - Browser concerns are already split into focused modules for archive access, account feedback, review metrics, and challenge-token handling.
-- The documentation now separates the native handcrafted tapered evaluator from the browser application's separate third-party engine integration and NNUE-based evaluation, and preserves their distinct licensing boundaries.
+- The native and browser applications share the Prunex C++20 engine implementation; Prunex Play loads its Emscripten build through a versioned WebAssembly worker.
 - Public materials do not make a native Elo or comparative-match claim without a reproducible result.
 
 ## Findings

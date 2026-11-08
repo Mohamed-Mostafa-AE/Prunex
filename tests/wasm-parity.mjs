@@ -34,6 +34,9 @@ const apiVersion = wasm.cwrap("prunex_wasm_api_version", "number", []);
 const evaluateFen = wasm.cwrap("prunex_wasm_evaluate_fen", "number", ["number"]);
 const searchFen = wasm.cwrap("prunex_wasm_search_fen", "number", ["number", "number", "number", "number"]);
 const searchNodes = wasm.cwrap("prunex_wasm_nodes", "number", []);
+const timedSearchFen = wasm.cwrap("prunex_wasm_search_fen_timed", "number",
+  ["number", "number", "number", "number", "number"]);
+const searchDepth = wasm.cwrap("prunex_wasm_search_depth", "number", []);
 assert.equal(apiVersion(), 800, "WASM API must identify Prunex 0.8.0.");
 
 function withFenBuffer(fen, callback) {
@@ -69,4 +72,19 @@ for (const [name, fen] of fixtures) {
     }
   });
 }
-console.log("Native/WASM parity: 5 positions matched static scores, best moves, and node counts.");
+withFenBuffer(fixtures[0][1], fenPointer => {
+  const movePointer = wasm._malloc(16);
+  assert.ok(movePointer);
+  try {
+    const score = timedSearchFen(fenPointer, 12, 250, movePointer, 16);
+    assert.notEqual(score, -2147483648, "Timed search returned an invalid API result.");
+    assert.match(wasm.UTF8ToString(movePointer), /^[a-h][1-8][a-h][1-8][qrbn]?$/,
+      "Timed search must return a UCI move.");
+    assert.ok(searchDepth() >= 1 && searchDepth() <= 12,
+      "Timed search must report its last completed iterative-deepening depth.");
+    assert.ok(searchNodes() > 0, "Timed search must report visited nodes.");
+  } finally {
+    wasm._free(movePointer);
+  }
+});
+console.log("Native/WASM parity: 5 positions matched; time-bounded Prunex search API passed.");

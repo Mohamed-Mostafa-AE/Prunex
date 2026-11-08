@@ -1,292 +1,148 @@
-let engine;
-let ready = false;
-let awaitingReady = false;
-let activeJob = null;
-let pendingJob = null;
-let stopping = false;
-let latestScore = null;
-let latestScoresByPv = Object.create(null);
-let multiPvByDepth = new Map();
-let availableOptions = new Set();
+let wasm = null;
+let api = null;
+let initializing = false;
 
-function runCurrentPosition(job) {
-  const fen = job.type === "analyze-game" ? job.positions[job.index] : job.fen;
-  engine.postMessage("position fen " + fen);
-  if (job.type === "search") {
-    engine.postMessage("go nodes " + Math.max(10000, Math.min(2000000, Number(job.nodes) || 25000)));
-  } else if (job.type === "evaluate" && Number.isFinite(job.movetime)) {
-    // Honor the selected time budget instead of silently capping searches at 5s.
-    engine.postMessage("go movetime " + Math.max(50, Math.min(30000, Number(job.movetime))));
-  } else {
-    engine.postMessage("go depth " + Math.max(8, Math.min(16, Number(job.depth) || 10)));
-  }
+const API_ERROR = -2147483648;
+// The exported Prunex 0.8.0 WebAssembly search API is capped at depth 12.
+const MAX_DEPTH = 12;
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value) || min));
 }
 
-function startJob(job) {
-  activeJob = { ...job, cancelled: false };
-  latestScore = null;
-  latestBestMove = null;
-  latestScoresByPv = Object.create(null);
-  multiPvByDepth = new Map();
-  if (availableOptions.has("MultiPV")) {
-    engine.postMessage("setoption name MultiPV value " + (job.type === "evaluate" ? 2 : 1));
-  }
-  if (job.type === "analyze-game") {
-    activeJob.index = 0;
-    activeJob.results = [];
-    runCurrentPosition(activeJob);
+function opponentBudget(nodes) {
+  const requested = Number(nodes) || 25000;
+  if (requested <= 10000) return 150;
+  if (requested <= 25000) return 350;
+  if (requested <= 50000) return 600;
+  if (requested <= 100000) return 1000;
+  return 1800;
+}
+
+async function initialize() {
+  if (wasm) {
+    self.postMessage({ type: "ready", apiVersion: api.version });
     return;
   }
-  runCurrentPosition(activeJob);
-}
-
-function startPendingJob() {
-  stopping = false;
-  if (pendingJob) {
-    const nextJob = pendingJob;
-    pendingJob = null;
-    startJob(nextJob);
-  }
-}
-
-function stopActiveJob() {
-  if (!activeJob || stopping) return;
-  activeJob.cancelled = true;
-  stopping = true;
-  engine.postMessage("stop");
-}
-
-function finishActiveJob() {
-  activeJob = null;
-  latestScore = null;
-  startPendingJob();
-}
-
-function handleBestMove() {
-  const job = activeJob;
-  if (!job) {
-    startPendingJob();
-    return;
-  }
-  if (job.cancelled) {
-    finishActiveJob();
-    return;
-  }
-
-  if (job.type === "analyze-game") {
-    job.results.push({
-      scoreType: latestScore?.scoreType || null,
-      score: latestScore?.score ?? null,
-      wdl: latestScore?.wdl || null,
-      depth: latestScore?.depth ?? 0,
-      bestMove: latestBestMove || null,
-      secondBest: multiPvByDepth.get(latestScore?.depth)?.[2] || null
-    });
-    self.postMessage({
-      type: "analysis-progress",
-      requestId: job.requestId,
-      completed: job.index + 1,
-      total: job.positions.length
-    });
-    job.index += 1;
-    latestScore = null;
-    if (job.index < job.positions.length) {
-      runCurrentPosition(job);
-    } else {
-      self.postMessage({
-        type: "analysis-complete",
-        requestId: job.requestId,
-        results: job.results
-      });
-      finishActiveJob();
-    }
-    return;
-  }
-
-  if (job.type === "evaluate") {
-    self.postMessage({
-      type: "evaluation-complete",
-      requestId: job.requestId,
-      scoreType: latestScore?.scoreType,
-      score: latestScore?.score,
-      wdl: latestScore?.wdl || null,
-      depth: latestScore?.depth,
-      selDepth: latestScore?.selDepth,
-      nodes: latestScore?.nodes,
-      bestMove: latestBestMove,
-      secondBest: multiPvByDepth.get(latestScore?.depth)?.[2] || null
-    });
-  } else if (job.type === "search") {
-    self.postMessage({
-      type: "bestmove",
-      requestId: job.requestId,
-      bestMove: latestBestMove
-    });
-  }
-  finishActiveJob();
-}
-
-let latestBestMove = null;
-
-function restartEngineForJob(job) {
-  pendingJob = job;
+  if (initializing) return;
+  initializing = true;
   try {
-    engine?.terminate();
-  } catch {
-    // The child worker may already have terminated.
-  }
-  engine = null;
-  activeJob = null;
-  latestScore = null;
-  latestBestMove = null;
-  latestScoresByPv = Object.create(null);
-  multiPvByDepth = new Map();
-  stopping = false;
-  ready = false;
-  awaitingReady = false;
-  startEngine();
-}
-
-function startEngine() {
-  if (engine) return;
-  // The upstream UCI worker remains unmodified. Prunex owns this worker's
-  // request scheduling, review orchestration, WDL interpretation, and grading.
-  if (!self.crossOriginIsolated || typeof SharedArrayBuffer === "undefined") {
+    importScripts("/engine/prunex-wasm.js");
+    if (typeof self.createPrunexModule !== "function") {
+      throw new Error("The Prunex WebAssembly module factory was not exported.");
+    }
+    wasm = await self.createPrunexModule({
+      locateFile: path => path.endsWith(".wasm")
+        ? new URL("/engine/prunex-wasm.wasm", self.location.origin).href
+        : path
+    });
+    api = {
+      version: wasm.cwrap("prunex_wasm_api_version", "number", []),
+      search: wasm.cwrap("prunex_wasm_search_fen_timed", "number",
+        ["number", "number", "number", "number", "number"]),
+      depth: wasm.cwrap("prunex_wasm_search_depth", "number", []),
+      nodes: wasm.cwrap("prunex_wasm_nodes", "number", [])
+    };
+    if (api.version() !== 800) {
+      throw new Error("The loaded WebAssembly binary is not Prunex 0.8.0.");
+    }
+    self.postMessage({ type: "ready", apiVersion: api.version() });
+  } catch (error) {
+    wasm = null;
+    api = null;
     self.postMessage({
       type: "error",
-      message: "This browser session cannot start multi-threaded analysis. Open Prunex in a browser that supports cross-origin isolation."
+      message: error instanceof Error ? error.message : String(error)
     });
-    return;
+  } finally {
+    initializing = false;
   }
-  engine = new Worker("/engine/stockfish-19.js");
-  engine.addEventListener("message", (event) => {
-    const line = String(event.data ?? "").trim();
-    if (!line) return;
-
-    if (line.startsWith("option name ")) {
-      const optionName = line.slice("option name ".length).split(/\s+type\s+/)[0];
-      availableOptions.add(optionName);
-      return;
-    }
-
-    if (line === "uciok") {
-      engine.postMessage("setoption name Hash value 256");
-      if (availableOptions.has("Threads")) {
-        const hardwareThreads = Math.max(1, Number(self.navigator?.hardwareConcurrency) || 4);
-        const searchThreads = Math.max(1, Math.min(8, hardwareThreads));
-        engine.postMessage("setoption name Threads value " + searchThreads);
-      }
-      if (availableOptions.has("UCI_ShowWDL")) engine.postMessage("setoption name UCI_ShowWDL value true");
-      engine.postMessage("isready");
-      awaitingReady = true;
-      return;
-    }
-
-    if (line === "readyok" && awaitingReady) {
-      awaitingReady = false;
-      ready = true;
-      if (pendingJob) {
-        const nextJob = pendingJob;
-        pendingJob = null;
-        startJob(nextJob);
-      } else {
-        self.postMessage({ type: "ready" });
-      }
-      return;
-    }
-
-    if (line.startsWith("bestmove ")) {
-      latestBestMove = line.split(/\s+/)[1];
-      handleBestMove();
-      return;
-    }
-
-    if (line.startsWith("info ")) {
-      const scoreMatch = line.match(/\bscore (cp|mate) (-?\d+)/);
-      const depth = Number(line.match(/\bdepth (\d+)/)?.[1] || 0);
-      const selDepth = Number(line.match(/\bseldepth (\d+)/)?.[1] || 0);
-      const nodes = Number(line.match(/\bnodes (\d+)/)?.[1] || 0);
-      const rank = Number(line.match(/\bmultipv (\d+)/)?.[1] || 1);
-      const wdlMatch = line.match(/\bwdl (\d+) (\d+) (\d+)/);
-      const pvMatch = line.match(/\bpv\s+(.+)$/);
-      const isBound = /\b(?:lowerbound|upperbound)\b/.test(line);
-      if (scoreMatch && depth > 0 && !isBound && activeJob && !activeJob.cancelled) {
-        const candidate = {
-          depth, selDepth, nodes, rank,
-          scoreType: scoreMatch[1],
-          score: Number(scoreMatch[2]),
-          wdl: wdlMatch ? { win:Number(wdlMatch[1]), draw:Number(wdlMatch[2]), loss:Number(wdlMatch[3]) } : null,
-          pvMove: pvMatch ? pvMatch[1].trim().split(/\s+/)[0] : null
-        };
-        const previous = latestScoresByPv[rank];
-        if (!previous || candidate.depth > previous.depth ||
-            (candidate.depth === previous.depth && candidate.nodes >= previous.nodes)) {
-          latestScoresByPv[rank] = candidate;
-        }
-        if (rank === 1) latestScore = latestScoresByPv[1];
-
-        // Keep only same-depth MultiPV pairs. Apex is never inferred by
-        // comparing a deep principal line with a shallower alternative.
-        const atDepth = multiPvByDepth.get(depth) || {};
-        atDepth[rank] = candidate;
-        multiPvByDepth.set(depth, atDepth);
-
-        if (rank === 1 && activeJob.type !== "analyze-game") {
-          self.postMessage({
-            type: "info",
-            requestId: activeJob.requestId,
-            jobType: activeJob.type,
-            depth: latestScore.depth,
-            selDepth: latestScore.selDepth,
-            nodes: latestScore.nodes,
-            scoreType: latestScore.scoreType,
-            score: latestScore.score,
-            wdl: latestScore.wdl
-          });
-        }
-      }
-    }
-  });
-  engine.addEventListener("error", (event) => {
-    activeJob = null;
-    pendingJob = null;
-    stopping = false;
-    self.postMessage({ type: "error", message: event.message || "Prunex analysis worker failed." });
-  });
-  engine.postMessage("uci");
 }
 
-self.addEventListener("message", (event) => {
-  if (event.origin && event.origin !== self.origin) return;
+function withFen(fen, callback) {
+  if (!wasm || !api) throw new Error("The Prunex engine is not initialized.");
+  const byteLength = wasm.lengthBytesUTF8(fen) + 1;
+  const fenPointer = wasm._malloc(byteLength);
+  if (!fenPointer) throw new Error("Unable to allocate WebAssembly memory for the position.");
+  try {
+    wasm.stringToUTF8(fen, fenPointer, byteLength);
+    return callback(fenPointer);
+  } finally {
+    wasm._free(fenPointer);
+  }
+}
+
+function searchPosition(fen, timeLimitMs) {
+  return withFen(fen, fenPointer => {
+    const movePointer = wasm._malloc(16);
+    if (!movePointer) throw new Error("Unable to allocate WebAssembly memory for the selected move.");
+    try {
+      const score = api.search(fenPointer, MAX_DEPTH, timeLimitMs, movePointer, 16);
+      if (score === API_ERROR) throw new Error("Prunex rejected the supplied position or search settings.");
+      const bestMove = wasm.UTF8ToString(movePointer);
+      if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove)) {
+        throw new Error("Prunex did not return a valid legal-move coordinate.");
+      }
+      return {
+        scoreType: "cp",
+        score,
+        depth: api.depth(),
+        selDepth: api.depth(),
+        nodes: api.nodes(),
+        bestMove,
+        secondBest: null,
+        wdl: null
+      };
+    } finally {
+      wasm._free(movePointer);
+    }
+  });
+}
+
+function handleJob(job) {
+  const fen = job.fen;
+  if (typeof fen !== "string" || !fen.trim()) {
+    throw new Error("A valid FEN position is required.");
+  }
+  const timeLimitMs = job.type === "search"
+    ? opponentBudget(job.nodes)
+    : clamp(job.movetime, 400, 30000);
+  const result = searchPosition(fen, timeLimitMs);
+
+  if (job.type === "search") {
+    self.postMessage({ type: "bestmove", requestId: job.requestId, bestMove: result.bestMove });
+    return;
+  }
+  self.postMessage({ type: "evaluation-complete", requestId: job.requestId, ...result });
+}
+
+self.addEventListener("message", event => {
   const data = event.data || {};
   if (data.type === "init") {
-    try {
-      startEngine();
-    } catch (error) {
-      self.postMessage({ type: "error", message: error instanceof Error ? error.message : String(error) });
-    }
+    void initialize();
     return;
   }
   if (data.type === "cancel") {
-    pendingJob = null;
-    stopActiveJob();
+    // Searches are synchronous inside this worker. The UI interrupts one by
+    // terminating and recreating this worker, so it cannot block cancellation.
     return;
   }
-  if (data.type === "search" || data.type === "evaluate" || data.type === "analyze-game") {
-    if (!ready || !engine) {
-      self.postMessage({ type: "error", requestId: data.requestId, message: "Engine is not ready." });
-      return;
-    }
-    if (data.type === "analyze-game" && (!Array.isArray(data.positions) || !data.positions.length || data.positions.length > 401)) {
-      self.postMessage({ type: "error", requestId: data.requestId, message: "The game review position list is invalid." });
-      return;
-    }
-    if (activeJob || stopping) {
-      // Replace stale/in-flight work. A review or fresh position must never
-      // be held behind an old search that has not returned bestmove.
-      restartEngineForJob(data);
-    } else {
-      startJob(data);
-    }
+  if (data.type !== "search" && data.type !== "evaluate") return;
+  if (!wasm || !api) {
+    self.postMessage({
+      type: "error",
+      requestId: data.requestId,
+      message: "The Prunex 0.8.0 engine is not ready."
+    });
+    return;
+  }
+  try {
+    handleJob(data);
+  } catch (error) {
+    self.postMessage({
+      type: "error",
+      requestId: data.requestId,
+      message: error instanceof Error ? error.message : String(error)
+    });
   }
 });
