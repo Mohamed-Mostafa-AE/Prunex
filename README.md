@@ -55,6 +55,8 @@ Implemented search components include:
 
 The implementation is deliberately documented as it exists today; no unsupported claims about a full modern engine feature set or measured playing strength are made.
 
+See the [Prunex native search-kernel diagram and implementation walkthrough](docs/search-kernel.md). Run `python3 tools/visualize_search_kernel.py` to regenerate its standalone SVG from the documented source map.
+
 ### Static evaluation
 
 The native evaluator is **handcrafted and tapered**. It combines material values and piece-square/positional terms with middlegame/endgame phase blending. Current terms include:
