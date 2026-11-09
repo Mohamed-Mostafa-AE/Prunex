@@ -14,7 +14,7 @@
 
 ---
 
-Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and implements its own board representation, legal move generation, search, static evaluation, and Universal Chess Interface (UCI). The repository also includes a Windows desktop interface, a separately built WebAssembly target, regression tests, and a browser chess application.
+Prunex is an original chess-engine project created and independently developed from scratch by **Mohamed Mostafa**. Its native engine is written in **C++20** and implements its own board representation, legal move generation, search, static evaluation, and Universal Chess Interface (UCI). The repository also includes a Windows desktop interface, a separately built WebAssembly target, regression tests, and a browser chess application.
 
 **Current native engine version: 0.8.0.**
 
@@ -44,10 +44,12 @@ The native engine uses iterative-deepening negamax with alpha–beta pruning and
 Implemented search components include:
 
 - Transposition-table lookup and bound storage
-- Hash-move, capture, promotion, killer-move, and history-based ordering
+- Hash-move, promotion, killer-move, and history-based ordering, with static-exchange evaluation for capture ordering
 - Aspiration windows with widening on fail-low/fail-high
 - Late-move reductions with re-search when required
-- Quiescence search
+- Quiescence search with check evasions
+- Repetition and fifty-move draw handling, plus insufficient-material detection
+- Null-move pruning with verification at greater depths for suitable non-PV positions
 - Check extensions and mate-distance score normalization
 - Time-managed search and UCI cancellation
 
@@ -130,13 +132,15 @@ The engine also exposes diagnostic commands:
 ./build/prunex --bench 6
 ```
 
+A historical 64-game benchmark for Prunex 0.8.0 recorded **63 wins, 1 draw, and 0 losses** against Stockfish 2.0. The original result record is preserved in [the benchmark commit](https://github.com/Mohamed-Mostafa-AE/Prunex/commit/0662bc3482a265f3407c3402ceb72a0850c1a191); this historical result is not a current independent Elo rating.
+
 The fixed benchmark contains five positions (starting position, Kiwipete, a rook endgame, a closed-center position, and an open position). It clears the transposition table and search-ordering state before each position, then reports the best move, node count, elapsed time, and aggregate nodes per second. The default depth is 5; supported depths are 1–10.
 
 Benchmark NPS is a repeatable search-throughput measurement, not a playing-strength rating.
 
 ## Validation
 
-The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test.
+The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test.
 
 The release-candidate source-validation runs on 6 November 2026 recorded:
 
@@ -181,7 +185,7 @@ These tools do **not** train or create engine weights, or automatically modify t
 - **Public website:** https://prunex-play.vercel.app/
 - **Release-candidate preview:** https://prunex-review.vercel.app/
 
-Prunex Play is a browser application for playing and reviewing chess games. It is separate from the native C++ engine. Game Review uses a configurable analysis-time budget of 3, 10, 15, 20, or 30 seconds per non-terminal position, with 15 seconds as the default. A time budget does not guarantee a fixed search depth or a specific move-quality outcome.
+Prunex Play is a separate browser application for playing and reviewing chess games; it runs the native C++ engine compiled to WebAssembly. Game Review uses a configurable analysis-time budget of 3, 10, 15, 20, or 30 seconds per non-terminal position, with 15 seconds as the default. A time budget does not guarantee a fixed search depth or a specific move-quality outcome.
 
 ## Project name
 
@@ -203,6 +207,7 @@ This is the intended naming inspiration, not a formally standardized acronym. Se
 - [Windows desktop acceptance checklist](docs/windows-desktop-checklist.md)
 - [Production readiness and release status](docs/production-readiness.md)
 - [Finalization and release gates](docs/finalization-gates.md)
+- [Independent engine-strength development plan](docs/engine-strength-development-plan.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 
@@ -210,7 +215,7 @@ This is the intended naming inspiration, not a formally standardized acronym. Se
 
 Original Prunex contributions in this repository are released under the **MIT License**. The license scope and separately licensed components are documented in [LICENSE-SCOPE.md](LICENSE-SCOPE.md).
 
-The Python training tools are separately licensed under GPL-3.0-or-later. The browser engine, chess-piece artwork, dependencies, and datasets also retain their own applicable licenses, attribution, and corresponding-source notices. See [website/README.md](website/README.md), [tools/training/LICENSE](tools/training/LICENSE), and the notices distributed with the site. The root MIT license does not relicense separately licensed material.
+The Python training tools are separately licensed under GPL-3.0-or-later. Chess-piece artwork, dependencies, and datasets also retain their own applicable licenses, attribution, and corresponding-source notices. See [website/README.md](website/README.md), [tools/training/LICENSE](tools/training/LICENSE), and the notices distributed with the site. The root MIT license does not relicense separately licensed material.
 
 ---
 

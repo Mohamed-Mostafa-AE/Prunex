@@ -78,7 +78,7 @@ remain distinct from the root MIT License covering original Prunex contributions
 ## Annotate positions with the native Prunex evaluator
 
 After compiling the native engine, annotate one corpus split with its own
-static evaluation (not the separate browser engine):
+static evaluation (not the browser-side expected-points calibration):
 
 ```bash
 python tools/training/annotate_native.py \

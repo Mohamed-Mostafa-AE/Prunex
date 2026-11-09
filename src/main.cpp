@@ -186,6 +186,7 @@ struct ZobristKeys {
 };
 
 std::array<TTEntry, TT_SIZE> transpositionTable{};
+std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
 std::uint64_t nodes=0;
@@ -210,6 +211,7 @@ void emitLine(const std::string& line) {
 
 void resetSearchState() {
     transpositionTable.fill(TTEntry{});
+    searchPathKeys.fill(0);
     historyScores={};
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
@@ -270,6 +272,14 @@ std::uint64_t positionKey(const Position& p) {
     return key;
 }
 
+bool repeatedPosition(std::uint64_t key,int ply,int reversiblePlies) {
+    const int earliest=std::max(0,ply-reversiblePlies);
+    for(int previous=ply-2;previous>=earliest;previous-=2) {
+        if(searchPathKeys[previous]==key) return true;
+    }
+    return false;
+}
+
 bool sameMove(const Move& a,const Move& b) {
     return a.from==b.from&&a.to==b.to&&a.promotion==b.promotion;
 }
@@ -290,13 +300,106 @@ bool isCapture(const Position& p,const Move& m) {
     return m.enPassant||p.board[m.to]!=EMPTY;
 }
 
+bool pieceAttacksSquare(const Position& p,int from,int target,int piece) {
+    const int fileDelta=fileOf(target)-fileOf(from);
+    const int rankDelta=rankOf(target)-rankOf(from);
+    const int absFile=std::abs(fileDelta);
+    const int absRank=std::abs(rankDelta);
+    const int type=typeOf(piece);
+    if(fileDelta==0&&rankDelta==0) return false;
+    if(type==1) return absFile==1&&rankDelta==(colorOf(piece)==WHITE?1:-1);
+    if(type==2) return (absFile==1&&absRank==2)||(absFile==2&&absRank==1);
+    if(type==6) return absFile<=1&&absRank<=1;
+    if(type==3&&absFile!=absRank) return false;
+    if(type==4&&fileDelta!=0&&rankDelta!=0) return false;
+    if(type==5&&fileDelta!=0&&rankDelta!=0&&absFile!=absRank) return false;
+    if(type!=3&&type!=4&&type!=5) return false;
+    const int step=(rankDelta>0?16:rankDelta<0?-16:0)+(fileDelta>0?1:fileDelta<0?-1:0);
+    for(int square=from+step;square!=target;square+=step) {
+        if(!onBoard(square)||p.board[square]!=EMPTY) return false;
+    }
+    return true;
+}
+
+int leastValuableAttacker(const Position& p,int target,int color) {
+    int bestSquare=-1;
+    int bestValue=INF;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(piece==EMPTY||colorOf(piece)!=color) continue;
+        if(!pieceAttacksSquare(p,square,target,piece)) continue;
+        const int value=MG_VALUE[typeOf(piece)];
+        if(value<bestValue) {
+            bestValue=value;
+            bestSquare=square;
+        }
+    }
+    return bestSquare;
+}
+
+int staticExchangeEvaluation(const Position& original,const Move& move) {
+    if(!isCapture(original,move)) return 0;
+    Position position=original;
+    const int target=move.to;
+    const int capturedSquare=move.enPassant
+        ? target+(original.side==WHITE?-16:16)
+        : target;
+    const int captured=position.board[capturedSquare];
+    const int moving=position.board[move.from];
+    if(captured==EMPTY||moving==EMPTY) return 0;
+
+    std::array<int,32> gains{};
+    int occupant=move.promotion?move.promotion:moving;
+    gains[0]=MG_VALUE[typeOf(captured)];
+    if(move.promotion) gains[0]+=MG_VALUE[typeOf(move.promotion)]-MG_VALUE[1];
+
+    position.board[move.from]=EMPTY;
+    position.board[capturedSquare]=EMPTY;
+    position.board[target]=occupant;
+    int side=1-original.side;
+    int depth=0;
+
+    while(depth<30) {
+        const int attackerSquare=leastValuableAttacker(position,target,side);
+        if(attackerSquare<0) break;
+        int attacker=position.board[attackerSquare];
+        if(typeOf(attacker)==6) {
+            Position kingCapture=position;
+            kingCapture.board[attackerSquare]=EMPTY;
+            kingCapture.board[target]=attacker;
+            if(attacked(kingCapture,target,1-side)) break;
+        }
+
+        ++depth;
+        int promotionGain=0;
+        if(typeOf(attacker)==1&&rankOf(target)==(side==WHITE?7:0)) {
+            promotionGain=MG_VALUE[5]-MG_VALUE[1];
+            attacker=makePiece(5,side);
+        }
+        gains[depth]=MG_VALUE[typeOf(occupant)]+promotionGain-gains[depth-1];
+        position.board[attackerSquare]=EMPTY;
+        position.board[target]=attacker;
+        occupant=attacker;
+        side=1-side;
+    }
+
+    while(depth>0) {
+        gains[depth-1]=-std::max(-gains[depth-1],gains[depth]);
+        --depth;
+    }
+    return gains[0];
+}
+
 int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply) {
     if(hashMove.from>=0&&sameMove(m,hashMove)) return 2000000;
     int score=0;
     if(m.promotion) score+=900000+MG_VALUE[typeOf(m.promotion)]*8;
     if(isCapture(p,m)) {
-        int victim=m.enPassant?makePiece(1,1-p.side):p.board[m.to];
-        score+=1000000+MG_VALUE[typeOf(victim)]*16-MG_VALUE[typeOf(p.board[m.from])];
+        const int victim=m.enPassant?makePiece(1,1-p.side):p.board[m.to];
+        const int exchange=staticExchangeEvaluation(p,m);
+        score+=1000000+(exchange>=0?200000:-200000)+exchange*16
+            +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])];
         return score;
     }
     if(ply<MAX_PLY) {
@@ -307,9 +410,14 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
 }
 
 void orderMoves(const Position& p,std::vector<Move>& moves,const Move& hashMove,int ply) {
-    std::stable_sort(moves.begin(),moves.end(),[&](const Move& a,const Move& b) {
-        return moveOrderingScore(p,a,hashMove,ply)>moveOrderingScore(p,b,hashMove,ply);
+    struct ScoredMove { Move move; int score; };
+    std::vector<ScoredMove> scored;
+    scored.reserve(moves.size());
+    for(const Move& move:moves) scored.push_back({move,moveOrderingScore(p,move,hashMove,ply)});
+    std::stable_sort(scored.begin(),scored.end(),[](const ScoredMove& a,const ScoredMove& b) {
+        return a.score>b.score;
     });
+    for(std::size_t index=0;index<moves.size();++index) moves[index]=scored[index].move;
 }
 
 int evaluate(const Position& p) {
@@ -446,11 +554,39 @@ int evaluate(const Position& p) {
     return p.side==WHITE?score:-score;
 }
 
+bool isInsufficientMaterial(const Position& p) {
+    int minorCount=0;
+    int bishopColor=-1;
+    bool bishopsOnly=true;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(piece==EMPTY||typeOf(piece)==6) continue;
+        const int type=typeOf(piece);
+        if(type==1||type==4||type==5) return false;
+        if(type==2) {
+            ++minorCount;
+            bishopsOnly=false;
+        } else if(type==3) {
+            ++minorCount;
+            const int squareColor=(fileOf(square)+rankOf(square))&1;
+            if(bishopColor<0) bishopColor=squareColor;
+            else if(bishopColor!=squareColor) bishopsOnly=false;
+        }
+    }
+    return minorCount<=1||(bishopsOnly&&bishopColor>=0);
+}
+
 int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     ++nodes;
     if(searchShouldStop()) return evaluate(p);
     if(searchPly>=MAX_PLY-1) return evaluate(p);
+    const std::uint64_t key=positionKey(p);
+    searchPathKeys[searchPly]=key;
+    const bool drawRule=p.halfmove>=100||repeatedPosition(key,searchPly,p.halfmove);
+    const bool insufficient=isInsufficientMaterial(p);
     bool checked=inCheck(p,p.side);
+    if((drawRule||insufficient)&&!checked) return 0;
     auto candidates=pseudoMoves(p);
     std::vector<Move> moves;
     moves.reserve(candidates.size());
@@ -464,6 +600,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         if(checked||isCapture(p,m)||m.promotion) moves.push_back(m);
     }
     if(!hasLegalMove) return checked?-MATE+searchPly:0;
+    if(drawRule||insufficient) return 0;
     if(!checked) {
         int stand=evaluate(p);
         if(stand>=beta) return stand;
@@ -491,16 +628,37 @@ bool hasNonPawnMaterial(const Position& p,int color) {
     return false;
 }
 
-int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode) {
+bool hasNullMoveMaterial(const Position& p) {
+    int minorPieces=0;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(colorOf(piece)!=p.side) continue;
+        const int type=typeOf(piece);
+        if(type==4||type==5) return true;
+        if(type==2||type==3) ++minorPieces;
+    }
+    return minorPieces>=2;
+}
+
+int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
     bool checked=inCheck(p,p.side);
     if(checked) ++depth;
+    const std::uint64_t key=positionKey(p);
+    searchPathKeys[ply]=key;
+    const bool drawRule=p.halfmove>=100||repeatedPosition(key,ply,p.halfmove);
+    const bool insufficient=isInsufficientMaterial(p);
+    if(drawRule||insufficient) {
+        if(!checked) return 0;
+        const auto evasions=legalMoves(p);
+        return evasions.empty()?-MATE+ply:0;
+    }
     if(depth<=0) return quiescence(p,alpha,beta,0,ply);
     ++nodes;
     if(searchShouldStop()) return evaluate(p);
     int originalAlpha=alpha;
-    std::uint64_t key=positionKey(p);
     TTEntry& entry=transpositionTable[key&(TT_SIZE-1)];
     Move hashMove{};
     if(entry.key==key) {
@@ -511,6 +669,21 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode) {
             if(entry.bound==TT_EXACT) return ttScore;
             if(entry.bound==TT_LOWER&&ttScore>=beta) return ttScore;
             if(entry.bound==TT_UPPER&&ttScore<=alpha) return ttScore;
+        }
+    }
+    if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
+        Position nullPosition=p;
+        nullPosition.side=1-nullPosition.side;
+        nullPosition.ep=-1;
+        nullPosition.halfmove=0;
+        const int reduction=2+depth/4;
+        const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
+        if(searchAborted.load(std::memory_order_relaxed)) return 0;
+        if(nullScore>=beta) {
+            if(depth<7) return nullScore;
+            const int verification=negamax(p,depth-1-reduction,beta-1,beta,ply,false,false);
+            if(searchAborted.load(std::memory_order_relaxed)) return 0;
+            if(verification>=beta) return nullScore;
         }
     }
     auto moves=legalMoves(p);
@@ -581,6 +754,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
     for(auto& side:historyScores) for(auto& from:side) for(int& value:from) value/=2;
     nodes=0;
     ttHits=0;
+    searchPathKeys.fill(0);
     completedSearchDepth=0;
     lastSearchScore=evaluate(p);
     Move best=moves.front();

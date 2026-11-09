@@ -4,7 +4,7 @@
 
 Prunex 0.8.0 is an independently implemented C++20 chess engine. The native command-line interface, Windows desktop application, and Prunex Play browser application use the same engine source. The browser loads the Emscripten build through a versioned WebAssembly C API.
 
-The engine's static evaluation is a handcrafted tapered function. It combines material and positional terms with middlegame/endgame phase blending. The search uses iterative deepening, negamax alpha–beta/PVS, transposition-table lookup, move ordering, aspiration windows, late-move reductions, and quiescence search.
+The engine's static evaluation is a handcrafted tapered function. It combines material and positional terms with middlegame/endgame phase blending. The search uses iterative deepening, negamax alpha–beta/PVS, transposition-table lookup, SEE-based capture ordering, aspiration windows, late-move reductions, quiescence search, repetition and fifty-move draw handling, insufficient-material detection, and null-move pruning with verification at greater depths.
 
 ## Browser search interface
 

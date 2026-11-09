@@ -21,13 +21,14 @@ I build software projects that combine algorithmic problem-solving with practica
 
 ### [Prunex](https://github.com/Mohamed-Mostafa-AE/Prunex)
 
-An independently developed chess-engine project with a native C++20 engine, a Windows desktop interface, and a separate browser chess experience.
+Prunex is my original C++20 chess engine, independently developed from scratch, with a Windows desktop interface and a browser experience powered by its WebAssembly build.
 
 **Native engine**
 - 0x88 board representation and legal move generation
 - Zobrist hashing and a transposition table
 - Iterative-deepening negamax alpha–beta / PVS search
-- Aspiration windows, move ordering, late-move reductions, and quiescence search
+- Aspiration windows, SEE-based capture ordering, late-move reductions, quiescence, and null-move pruning with verification at greater depths
+- Repetition, fifty-move, and insufficient-material draw handling
 - Handcrafted tapered middlegame/endgame evaluation
 - Universal Chess Interface (UCI)
 
@@ -37,7 +38,7 @@ An independently developed chess-engine project with a native C++20 engine, a Wi
 - A separate WebAssembly build with native-parity checks
 - Offline PGN ingestion, dataset provenance, native evaluation annotation, and held-out calibration diagnostics
 
-The browser experience is a separate application and does not execute the native C++ engine. Its evaluation path is distinct from the native engine's handcrafted evaluator.
+The browser experience is a separate application, but its opponent and review worker execute the same Prunex C++20 engine compiled to WebAssembly. The native and browser builds share the engine's handcrafted evaluator.
 
 [Explore the repository →](https://github.com/Mohamed-Mostafa-AE/Prunex)
 

@@ -4,7 +4,7 @@
 
 I'm excited to share **Prunex 0.8.0**, a chess-engine project centred on an independently implemented **C++20** engine.
 
-The native engine brings together a 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta pruning and principal-variation search, move ordering, late-move reductions, quiescence search, and a handcrafted tapered evaluator.
+The native engine brings together a 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta pruning and principal-variation search, SEE-based capture ordering, late-move reductions, quiescence search, draw detection, null-move pruning, and a handcrafted tapered evaluator.
 
 The release includes a command-line engine, a native Windows desktop interface, and a standalone WebAssembly build checked against native reference results.
 
@@ -27,4 +27,4 @@ Use the current captures from the release candidate. Do not present the browser 
 
 ## Publication gate
 
-Publish only after the browser-engine replacement requested for this release has been implemented and validated, the final manual Windows 10/11 acceptance is complete, and the required release gates in [finalization-gates.md](finalization-gates.md) are closed. Do not claim an independently measured Elo rating or a comparative match result for the native engine without reproducible evidence.
+The browser application now runs the Prunex 0.8.0 C++20 engine through WebAssembly. Publish only after the current source-validation workflows pass, the final manual Windows 10/11 acceptance is complete, and the required release gates in [finalization-gates.md](finalization-gates.md) are closed. Do not present a historical benchmark as a current independent Elo rating.
