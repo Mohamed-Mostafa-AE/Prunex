@@ -1667,7 +1667,7 @@ function attachEngineWorker() {
   worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
   worker.addEventListener("message", handleEngineWorkerMessage);
   worker.addEventListener("error", handleEngineWorkerError);
-  attachEngineWorker();
+  worker.postMessage({ type: "init" });
 }
 
 
@@ -2242,5 +2242,5 @@ enableMoveHistoryResize();
 enableSectionReveals();
 void refreshGameArchive();
 window.addEventListener("online", () => { void refreshGameArchive(); });
-worker.postMessage({ type: "init" });
+attachEngineWorker();
 render();
