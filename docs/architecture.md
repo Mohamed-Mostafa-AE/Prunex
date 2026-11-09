@@ -71,13 +71,13 @@ The Windows desktop currently includes the engine implementation translation uni
 
 The native search stores position keys and bounds in a fixed-size transposition table. Move ordering uses the hash move, promotions, captures, killer moves, and history scores. Late-move reductions are applied to later quiet moves when the node is not in check and the move does not give check. Fail-low and fail-high aspiration windows widen and repeat the root search.
 
-The evaluator is handcrafted and tapered. It is not an NNUE evaluator. Its terms include material, piece activity, pawn structure, passed/connected pawns, bishop pair, king shelter, and rook-file activity.
+The evaluator is handcrafted and tapered. Its terms include material, piece activity, pawn structure, passed/connected pawns, bishop pair, king shelter, and rook-file activity.
 
 ## Browser application boundary
 
 The browser application has separate modules for the engine worker, review metrics, evaluation calibration, game database access, account feedback, and UI presentation. It supplies application-level expected-points interpretation and move grading around its own browser engine integration.
 
-NNUE-based evaluation is used in the browser path only. It is not the native C++ evaluator, and the project does not claim a newly trained Prunex NNUE network.
+The browser application loads the same C++ engine through its WebAssembly build, keeping the search and evaluation implementation consistent across the native and browser targets.
 
 ## Offline data workflow
 
