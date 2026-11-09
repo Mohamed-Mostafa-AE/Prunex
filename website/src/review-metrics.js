@@ -13,8 +13,8 @@ export function centipawnsToExpectedPoints(scoreCp) {
   if (!Number.isFinite(scoreCp)) return null;
   if (scoreCp >= 10000) return 0.9999;
   if (scoreCp <= -10000) return 0.0001;
-  // Prunex calibration maps centipawns to expected points. Stockfish's
-  // UCI WDL remains preferred whenever it is available.
+  // Prunex calibration maps centipawns to expected points. When an engine
+  // supplies WDL, that result is used instead of centipawn calibration.
   const x = Math.max(-10, Math.min(10, scoreCp / 400));
   const z = evaluationCalibration.slope * x + evaluationCalibration.intercept;
   return 1 / (1 + Math.exp(-Math.max(-40, Math.min(40, z))));
