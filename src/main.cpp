@@ -456,32 +456,39 @@ int evaluate(const Position& p) {
     return p.side==WHITE?score:-score;
 }
 
+bool isInsufficientMaterial(const Position& p) {
+    int minorCount=0;
+    int bishopColor=-1;
+    bool bishopsOnly=true;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(piece==EMPTY||typeOf(piece)==6) continue;
+        const int type=typeOf(piece);
+        if(type==1||type==4||type==5) return false;
+        if(type==2) {
+            ++minorCount;
+            bishopsOnly=false;
+        } else if(type==3) {
+            ++minorCount;
+            const int squareColor=(fileOf(square)+rankOf(square))&1;
+            if(bishopColor<0) bishopColor=squareColor;
+            else if(bishopColor!=squareColor) bishopsOnly=false;
+        }
+    }
+    return minorCount<=1||(bishopsOnly&&bishopColor>=0);
+}
+
 int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     ++nodes;
     if(searchShouldStop()) return evaluate(p);
     if(searchPly>=MAX_PLY-1) return evaluate(p);
     const std::uint64_t key=positionKey(p);
     searchPathKeys[searchPly]=key;
-    if(p.halfmove>=100||repeatedPosition(key,searchPly,p.halfmove)) return 0;
-    bool insufficient=true;
-    int minorCount=0;
-    int bishopSquareColor=-1;
-    for(int square=0;square<128;++square) {
-        if(!onBoard(square)) continue;
-        const int piece=p.board[square];
-        if(piece==EMPTY||typeOf(piece)==6) continue;
-        const int type=typeOf(piece);
-        if(type==1||type==4||type==5) { insufficient=false; break; }
-        if(type==2) { ++minorCount; insufficient=false; }
-        if(type==3) {
-            ++minorCount;
-            const int color=(fileOf(square)+rankOf(square))&1;
-            if(bishopSquareColor<0) bishopSquareColor=color;
-            else if(bishopSquareColor!=color) insufficient=false;
-        }
-    }
-    if(insufficient||minorCount<=1) return 0;
+    const bool drawRule=p.halfmove>=100||repeatedPosition(key,searchPly,p.halfmove);
+    const bool insufficient=isInsufficientMaterial(p);
     bool checked=inCheck(p,p.side);
+    if((drawRule||insufficient)&&!checked) return 0;
     auto candidates=pseudoMoves(p);
     std::vector<Move> moves;
     moves.reserve(candidates.size());
@@ -495,6 +502,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         if(checked||isCapture(p,m)||m.promotion) moves.push_back(m);
     }
     if(!hasLegalMove) return checked?-MATE+searchPly:0;
+    if(drawRule||insufficient) return 0;
     if(!checked) {
         int stand=evaluate(p);
         if(stand>=beta) return stand;
@@ -542,7 +550,9 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     if(checked) ++depth;
     const std::uint64_t key=positionKey(p);
     searchPathKeys[ply]=key;
-    if(p.halfmove>=100||repeatedPosition(key,ply,p.halfmove)) {
+    const bool drawRule=p.halfmove>=100||repeatedPosition(key,ply,p.halfmove);
+    const bool insufficient=isInsufficientMaterial(p);
+    if(drawRule||insufficient) {
         if(!checked) return 0;
         const auto evasions=legalMoves(p);
         return evasions.empty()?-MATE+ply:0;
