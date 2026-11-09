@@ -122,5 +122,18 @@ int main() {
     if(!loadFen(position,"7k/8/8/8/8/8/8/1B2K3 w - - 0 1")) { std::cerr<<"search regression failure 40\n"; return 40; }
     if(negamax(position,2,-INF,INF,0,true)!=0) { std::cerr<<"search regression failure 41\n"; return 41; }
 
+    if(!loadFen(position,"7k/8/8/3q4/8/8/8/K2R4 w - - 0 1")) { std::cerr<<"search regression failure 42\n"; return 42; }
+    Move exchangeMove;
+    if(!parseUciMove(position,"d1d5",exchangeMove)) { std::cerr<<"search regression failure 43\n"; return 43; }
+    if(staticExchangeEvaluation(position,exchangeMove)!=900) { std::cerr<<"search regression failure 44: "<<staticExchangeEvaluation(position,exchangeMove)<<"\n"; return 44; }
+
+    if(!loadFen(position,"7k/3q4/8/3p4/8/8/8/K2R4 w - - 0 1")) { std::cerr<<"search regression failure 45\n"; return 45; }
+    if(!parseUciMove(position,"d1d5",exchangeMove)) { std::cerr<<"search regression failure 46\n"; return 46; }
+    if(staticExchangeEvaluation(position,exchangeMove)!=-400) { std::cerr<<"search regression failure 47: "<<staticExchangeEvaluation(position,exchangeMove)<<"\n"; return 47; }
+
+    if(!loadFen(position,"7k/8/8/3pP3/8/8/8/K7 w - d6 0 1")) { std::cerr<<"search regression failure 48\n"; return 48; }
+    if(!parseUciMove(position,"e5d6",exchangeMove)) { std::cerr<<"search regression failure 49\n"; return 49; }
+    if(staticExchangeEvaluation(position,exchangeMove)!=100) { std::cerr<<"search regression failure 50: "<<staticExchangeEvaluation(position,exchangeMove)<<"\n"; return 50; }
+
     return 0;
 }
