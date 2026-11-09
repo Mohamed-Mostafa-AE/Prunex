@@ -18,7 +18,7 @@ The current native engine is C++20 and includes:
 - Aspiration windows, late-move reductions, move ordering, killer/history heuristics, and quiescence search.
 - A handcrafted tapered middlegame/endgame evaluator.
 - Search-path repetition detection and fifty-move draw handling.
-- Insufficient-material detection and verified null-move pruning.
+- Insufficient-material detection and null-move pruning with verification at greater depths.
 - Native, Windows, and WebAssembly builds with regression and parity tests.
 
 This is the repository's documented baseline. Strength remains a measured engineering objective, not an assumed result.
