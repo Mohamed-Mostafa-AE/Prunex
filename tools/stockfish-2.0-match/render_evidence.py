@@ -53,13 +53,14 @@ def main():
         result=game.headers.get("Result","*")
         make_frame(board,game_no,0,"Opening position", "IN PROGRESS",frames/f"frame_{frame_no:06d}.jpg")
         frame_no+=1
+        moves=list(game.mainline_moves())
         ply=0
-        for move in game.mainline_moves():
+        for move in moves:
             san=board.san(move)
             side="White" if board.turn else "Black"
             board.push(move); ply+=1
             label=f"{side}: {san}  ·  Prunex {prunex_color}"
-            status=result if ply==game.end().ply() else "IN PROGRESS"
+            status=result if ply==len(moves) else "IN PROGRESS"
             make_frame(board,game_no,ply,label,status,frames/f"frame_{frame_no:06d}.jpg")
             frame_no+=1
         finals.append((game_no,board.copy(),result,prunex_color,game.headers.get("Opening","")))
