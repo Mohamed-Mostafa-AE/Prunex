@@ -1,14 +1,16 @@
 # Prunex Windows desktop acceptance record
 
-The automated Windows x64 workflow verifies compilation, CTest, executable architecture, UCI startup, and desktop interaction through the window message loop. The GUI smoke test plays e2-e4, waits for the engine reply, checks paired Undo, starts another search and cancels it with New Game, flips the board, and verifies clean shutdown. Manual acceptance is still required on Windows 10/11 client devices for visual rendering, DPI scaling, promotion, physical input, and sustained-search responsiveness.
+The automated Windows x64 workflow is designed to verify compilation, CTest, executable architecture, UCI startup, and desktop interaction through the window message loop. Its GUI smoke test plays e2-e4, waits for the engine reply, checks paired Undo, starts another search and cancels it with New Game, flips the board, and verifies clean shutdown.
 
-## Latest automated Windows x64 build
+The last recorded successful Windows workflow below is historical: it built an earlier 46-case source revision on Windows Server 2022. The current main source contains 47 CTest cases and has passed fresh local GCC, Clang, and sanitizer builds, but the current Windows x64 workflow has not yet reported success. Manual acceptance on Windows 10/11 client devices remains outstanding.
 
-The latest passing Windows workflow is [run #42279871986](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986). Download the [Prunex-Windows-x64 artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986/artifacts/13535052628).
+## Historical automated Windows x64 build — 6 November 2026
+
+The last recorded passing Windows workflow was [run #42279871986](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986). Download the [Prunex-Windows-x64 artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986/artifacts/13535052628).
 
 - Commit: `d7bf1ee678fc256ce26c7dd614c4abb2a83168ae`
 - Runner: Windows Server 2022; Visual Studio 2022; Release; x64.
-- Native CTest: 46/46 passed.
+- Native CTest on that historical revision: 46/46 passed.
 - GUI path: legal e2-e4 input, engine reply, paired undo, search cancellation via New Game, board flip, normal shutdown.
 - Pull-request head: `6fe61051538f2122191cba67e79921a8ba67ee06` (the Windows job built merge commit `d7bf1ee678fc256ce26c7dd614c4abb2a83168ae`).
 - GUI executable SHA-256: `659DE27421BEB5ADB04A186CB45D825E1D1D5B6FF27A307CB7CB99D82A1DE0F4`.
@@ -32,3 +34,5 @@ The automated GUI check does not replace physical Windows 10/11 acceptance.
 ## Results
 
 Human acceptance status: not recorded.
+
+Current main native test count: 47. Do not use the historical Windows artifact as a release binary. A fresh Windows x64 workflow and the manual checklist must pass on the final release commit.
