@@ -44,7 +44,7 @@ The native engine uses iterative-deepening negamax with alpha–beta pruning and
 Implemented search components include:
 
 - Transposition-table lookup and bound storage
-- Hash-move, capture, promotion, killer-move, and history-based ordering
+- Hash-move, promotion, killer-move, and history-based ordering, with static-exchange evaluation for capture ordering
 - Aspiration windows with widening on fail-low/fail-high
 - Late-move reductions with re-search when required
 - Quiescence search with check evasions
