@@ -14,7 +14,7 @@ This review focuses on functional correctness, design, complexity, test quality,
 - The Windows interface runs engine search on a background thread and applies completed results on the UI thread. Cancellation and stale-result handling have explicit paths.
 - Browser concerns are already split into focused modules for archive access, account feedback, review metrics, and challenge-token handling.
 - The native and browser applications share the Prunex C++20 engine implementation; Prunex Play loads its Emscripten build through a versioned WebAssembly worker.
-- Public materials do not make a native Elo or comparative-match claim without a reproducible result.
+- The historical 64-game result is explicitly labeled as a past benchmark; it is not presented as a current independent Elo rating.
 
 ## Findings
 
