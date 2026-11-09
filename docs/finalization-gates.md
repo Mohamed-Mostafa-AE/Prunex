@@ -4,7 +4,7 @@
 
 ## 0.8.0 feature freeze — effective 7 November 2026
 
-**The initial 0.8.0 feature freeze was reopened for owner-authorized engine-strength work.** The current development cycle permits focused native search and evaluation improvements, provided each change has regression coverage and is validated through reproducible benchmarks or controlled matches. The browser product scope remains unchanged.
+The 0.8.0 release scope is frozen. Required correctness, service, security, recovery, legal, and acceptance work remains in scope; broad refactors and additional feature development are deferred.
 
 Work in this cycle is limited to:
 
@@ -37,7 +37,7 @@ These are the minimum conditions for a professional, reviewable public repositor
 | Reproducible native regression suite | 46/46 across GCC, Clang, sanitizers, and Windows x64 | Pass |
 | Browser, Windows, WebAssembly and CodeQL CI | Website/browser, npm audit, native GCC/Clang, ASan/UBSan, Windows x64, WebAssembly parity, and both CodeQL analyses passed on `056385c5db7fd9c794e23e69dd405d618c72d0c5` | Pass |
 | No unsupported playing-strength or training claims | No native Elo claim; no claim that offline corpus tools train engine weights | Pass |
-| Release integration | PR #10 and its follow-up documentation changes are integrated into `main`; current head is `bf9e8d4a9828da1bb1f824b678043d16706107aa` | Complete |
+| Release integration | PR #10 and its follow-up documentation changes are integrated into `main`; the repository is maintained from the default branch | Complete |
 
 The source-bearing browser and native integration on this branch was freshly validated. The complete workflow matrix passed on `056385c5db7fd9c794e23e69dd405d618c72d0c5`.
 
@@ -67,7 +67,7 @@ These are operational blockers for the hosted browser service. They are not requ
    - Do not publish comparative playing-strength claims without reproducible match-testing evidence.
 
 1. **Original guest archive ownership**
-   - Live recheck on 9 November 2026: Supabase has 35 games across five anonymous identities and 3 reviews across three identities. The sole confirmed email identity owns zero games and zero reviews. The active Neon archive has zero imported games, reviews, and position-memory rows. A retained checksummed source snapshot records 35 games and 3 reviews; it has not been restored into the active archive.
+   - Live recheck on 9 November 2026: Supabase has 31 Auth identities (30 anonymous, one email-confirmed), 35 games across five anonymous identities (7 each), and 3 reviews. The confirmed email identity owns zero games and zero reviews. The active Neon archive and the restored-drill branch each have zero imported games, reviews, and position-memory rows. A retained checksummed source record records 35 games and 3 reviews; it has not been imported into the active archive.
    - Identify the exact guest identity that owns the intended games/reviews in the original browser profile.
    - Verify the archive in that same profile before linking email.
    - Link and verify email on that same guest identity; set its password without signing into an unrelated account.
@@ -78,7 +78,7 @@ These are operational blockers for the hosted browser service. They are not requ
    - Configure the encrypted backup workflow with a database-owner credential and an offline-held age identity.
    - Run it against the real, populated database.
    - Verify artifact checksum, decrypt it, restore into an isolated PostgreSQL instance, and reconcile tables, row counts, constraints, and ownership.
-   - The retained 5 November recovery record contains a checksummed source payload with 35 games, 3 reviews, and 0 position-memory rows. The active Neon archive remains empty. The source snapshot is not an encrypted database backup or a verified restore; the backup workflow's CI success validates tooling only.
+   - The retained 5 November recovery record contains a checksummed source payload with 35 games, 3 reviews, and 0 position-memory rows. The active Neon archive and the restored-drill branch remain empty. Supabase currently has zero records in `vortex_private.encrypted_backups`; the source snapshot is not an encrypted database backup or a verified restore.
 
 3. **Authentication and email delivery**
    - Verify identity linking, email/password sign-in, confirmation, Site URL, and approved redirect URLs in the live Supabase project.
@@ -89,7 +89,7 @@ These are operational blockers for the hosted browser service. They are not requ
 
 4. **Security and deployment controls**
    - Configure required CI status checks for the protected default branch, including native, sanitizer, Windows, WebAssembly, website, CodeQL, and backup-tool validation. The live `Protect main` ruleset currently requires pull requests but zero approvals and no required CI status checks.
-   - The production alias `prunex-play.vercel.app` currently resolves to a deployment built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`; a separate `READY` deployment exists for `main` commit `bf9e8d4a9828da1bb1f824b678043d16706107aa`, but it is only a preview. Build and validate a production-target deployment from `main` after the preceding release gates are closed.
+   - The production alias `prunex-play.vercel.app` currently resolves to deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The latest main-linked deployment inspected was a `READY` preview at commit `bf9e8d4a9828da1bb1f824b678043d16706107aa`; the current main head has not been built for production. Build and validate a production-target deployment from the merged default branch after the preceding release gates are closed.
    - Review the live RLS policies against the guest-account and optional shared-position-memory model; do not remove policies merely to silence advisor warnings.
    - Re-test the deployed account-closure flow and allowed-origin/JWT enforcement.
    - Build a fresh production-target deployment from the merged default branch, test that exact deployment, then promote it. Never promote the preview deployment directly.
@@ -119,7 +119,7 @@ These are worthwhile follow-on engineering tasks. Track them as separate issues 
 ## E. Explicitly out of scope for this finalization pass
 
 - Do not rewrite the engine architecture just to make the codebase look more like a larger engine.
-- Do not invent an Elo rating, tournament result, performance claim, or trained network.
+- Do not invent an Elo rating, tournament result, performance claim, or technical capability.
 - Describe the native and browser builds accurately as the same C++20 engine implementation, with WebAssembly as the browser delivery format.
 - Do not treat a passing backup workflow as proof of successful recovery.
 - Do not promote production while archive ownership or restore capability is unresolved.
@@ -130,10 +130,10 @@ These are worthwhile follow-on engineering tasks. Track them as separate issues 
 - **Native C++ source:** the source-validation matrix passed on the latest source-bearing validation commit; the current `main` head is documentation-only and its applicable checks are green.
 - **Browser runtime:** the branch routes browser play and review through the Prunex 0.8.0 WebAssembly API. Generated assets are committed, parity tests and browser smoke tests pass, and the full compiler/Windows/security matrix is green.
 - **Repository licensing:** MIT applies to original Prunex contributions; third-party materials retain their own terms. The training guide's stale Apache-2.0 statements are corrected in this review branch.
-- **Archive:** Supabase still holds 35 games and 3 reviews across anonymous guest identities. The sole confirmed email account owns none of them. Neon active archive tables contain zero imported rows; a checksummed legacy-source snapshot exists but has not been restored or imported.
+- **Archive:** Supabase holds 35 games across five anonymous guest identities (7 each) and 3 reviews. There are 31 Auth identities (30 anonymous, one email-confirmed); the confirmed email identity owns none of the games or reviews. Neon active archive and restored-drill tables contain zero imported rows; a checksummed legacy-source record exists but has not been imported. Supabase encrypted-backup records: zero.
 - **Authentication/security:** the Vercel server-side environment-variable keys are present, but live email delivery is unverified. Supabase Security Advisor reports leaked-password protection disabled.
 - **Branch protection:** pull requests are required, but required CI checks and approvals are not configured.
-- **Deployment:** the production alias remains on an older feature-branch deployment; the latest `main` deployment is a preview only.
+- **Deployment:** the production alias remains on feature-branch deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`; the inspected `main` deployment was a preview only.
 - **Native Windows downloadable release:** pending final manual Windows 10/11 client-device acceptance and a final tag-bound artifact/checksum run.
 - **Prunex Play production service:** not cleared until all section C gates are closed.
 - **Future engineering:** keep broad refactors and search-strength improvements for a later cycle.
