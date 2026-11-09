@@ -52,7 +52,7 @@ Prunex Play loads the same C++20 engine implementation through the versioned Web
 1. The UCI interface loads a start position or FEN and applies the supplied move sequence.
 2. The position layer stores board state in a 128-slot 0x88 representation.
 3. Pseudo-legal moves are generated, then filtered by king-safety checks.
-4. Search uses iterative deepening, negamax alpha–beta/PVS, move ordering, a transposition table, aspiration windows, late-move reductions, and quiescence.
+4. Search uses iterative deepening, negamax alpha–beta/PVS, move ordering, a transposition table, aspiration windows, late-move reductions, quiescence, repetition and fifty-move draw handling, insufficient-material detection, and verified null-move pruning.
 5. The static evaluator calculates material and handcrafted positional terms, then blends middlegame and endgame scores by game phase.
 6. UCI reports search information and the selected best move.
 
@@ -70,7 +70,7 @@ The Windows desktop currently includes the engine implementation translation uni
 
 ## Search and evaluation
 
-The native search stores position keys and bounds in a fixed-size transposition table. Move ordering uses the hash move, promotions, captures, killer moves, and history scores. Late-move reductions are applied to later quiet moves when the node is not in check and the move does not give check. Fail-low and fail-high aspiration windows widen and repeat the root search.
+The native search stores position keys and bounds in a fixed-size transposition table. Move ordering uses the hash move, promotions, captures, killer moves, and history scores. Search-path repetition checks and the fifty-move rule identify draw lines; dead positions are scored as draws. Null-move pruning is restricted to suitable non-PV positions and uses a verification search at greater depths. Late-move reductions are applied to later quiet moves when the node is not in check and the move does not give check. Fail-low and fail-high aspiration windows widen and repeat the root search.
 
 The evaluator is handcrafted and tapered. Its terms include material, piece activity, pawn structure, passed/connected pawns, bishop pair, king shelter, and rook-file activity.
 
