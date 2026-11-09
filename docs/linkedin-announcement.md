@@ -4,7 +4,7 @@
 
 I'm excited to share **Prunex 0.8.0**, a chess-engine project centred on an independently implemented **C++20** engine.
 
-The native engine brings together a 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta pruning and principal-variation search, move ordering, late-move reductions, quiescence search, draw detection, null-move pruning, and a handcrafted tapered evaluator.
+The native engine brings together a 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta pruning and principal-variation search, SEE-based capture ordering, late-move reductions, quiescence search, draw detection, null-move pruning, and a handcrafted tapered evaluator.
 
 The release includes a command-line engine, a native Windows desktop interface, and a standalone WebAssembly build checked against native reference results.
 
