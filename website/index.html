@@ -351,23 +351,23 @@
           <div class="benchmark-copy">
             <div class="eyebrow"><span class="eyebrow-line"></span> TESTING</div>
             <h2>Checked as it grows.</h2>
-            <p>The current native CTest suite has 46 cases covering move generation, special moves, search positions, and UCI commands. GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI each passed all 46.</p>
+            <p>The native CTest suite has 47 cases covering move generation, special moves, search positions, and UCI commands. On 9 November 2026, all 47 passed in local GCC 11.5 Release, Clang 15 Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer builds against the current main commit. A successful current Windows x64 workflow and manual Windows 10/11 acceptance remain outstanding.</p>
             <p>A separate GCC static-analysis run also completed without diagnostics.</p>
             <p>The Windows desktop application still needs a full manual test on Windows 10 or 11. The current limitations and test coverage are listed in the project notes.</p>
             <a class="text-link" href="https://github.com/Mohamed-Mostafa-AE/Prunex/tree/main/docs" target="_blank" rel="noreferrer">Read the test results and project notes <span aria-hidden="true">↗</span></a>
           </div>
           <div class="benchmark-card">
-            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">CURRENT CI RUNS</span></div>
-            <div class="score-number"><span class="score-primary">46</span><span class="score-secondary">/46</span></div>
-            <p class="score-label">46-case suite passed in every current CI configuration</p>
+            <div class="benchmark-card-top"><span>PRUNEX 0.8.0</span><span class="record-tag">LOCAL VALIDATION</span></div>
+            <div class="score-number"><span class="score-primary">47</span><span class="score-secondary">/47</span></div>
+            <p class="score-label">47-case suite passed in three Linux configurations</p>
             <div class="benchmark-divider"></div>
             <dl class="benchmark-specs">
-              <div><dt>GCC 14.2 Release</dt><dd>46 / 46 passed</dd></div>
-              <div><dt>Clang 17 Release</dt><dd>46 / 46 passed</dd></div>
-              <div><dt>ASan + UBSan</dt><dd>46 / 46 passed</dd></div>
-              <div><dt>Windows x64</dt><dd>46 / 46 passed</dd></div>
+              <div><dt>GCC 11.5 Release</dt><dd>47 / 47 passed</dd></div>
+              <div><dt>Clang 15 Release</dt><dd>47 / 47 passed</dd></div>
+              <div><dt>GCC ASan + UBSan</dt><dd>47 / 47 passed</dd></div>
+              <div><dt>Windows x64</dt><dd>Fresh validation required</dd></div>
             </dl>
-            <p class="benchmark-caveat">The current 46-case suite passed in GCC, Clang, sanitizer, and Windows x64 CI. These checks do not establish an Elo rating or replace manual Windows desktop acceptance.</p>
+            <p class="benchmark-caveat">Local validation was run against main commit 7156395 on 9 November 2026. A successful current Windows x64 workflow and manual Windows 10/11 acceptance remain required. These tests do not establish a playing-strength rating.</p>
           </div>
         </section>
 
