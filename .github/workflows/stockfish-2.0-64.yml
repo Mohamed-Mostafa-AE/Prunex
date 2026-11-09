@@ -1,6 +1,10 @@
 name: Verified Prunex vs Stockfish 2.0 — 64 games
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stockfish-2.0-64.yml'
   workflow_dispatch:
     inputs:
       nodes_per_move:
