@@ -15,7 +15,7 @@ The current native engine is C++20 and includes:
 - FEN and UCI handling, castling, en passant, and promotions.
 - Zobrist position keys and a transposition table.
 - Iterative-deepening negamax with alpha-beta and principal-variation search.
-- Aspiration windows, late-move reductions, move ordering, killer/history heuristics, and quiescence search.
+- Aspiration windows, SEE-based capture ordering, late-move reductions, killer/history heuristics, and quiescence search.
 - A handcrafted tapered middlegame/endgame evaluator.
 - Search-path repetition detection and fifty-move draw handling.
 - Insufficient-material detection and null-move pruning with verification at greater depths.
@@ -39,7 +39,7 @@ Evaluate and implement independently, with an isolated test for each change:
 
 - A cache-friendly clustered transposition table with depth/age-aware replacement.
 - Incremental position hashing and carefully validated make/unmake state.
-- More selective move ordering, including static exchange evaluation and staged move generation.
+- Further refine staged move generation and SEE integration; static-exchange evaluation is now used for capture ordering.
 - Refined history, continuation-history, killer, and countermove scoring.
 - Further tune null-move pruning; evaluate futility pruning, razoring, and refined late-move reductions.
 - Better aspiration-window management and principal-variation stability.
