@@ -66,11 +66,15 @@ jobs:
 
       - name: Run 64 color-balanced games
         run: |
+          NODES_PER_MOVE="${{ inputs.nodes_per_move }}"
+          STOCKFISH_HASH_MB="${{ inputs.stockfish_hash_mb }}"
+          NODES_PER_MOVE="${NODES_PER_MOVE:-1000000}"
+          STOCKFISH_HASH_MB="${STOCKFISH_HASH_MB:-256}"
           python3 tools/stockfish-2.0-match/run_match.py \
             --prunex build/prunex \
             --stockfish stockfish-2.0/src/stockfish \
-            --nodes "${{ inputs.nodes_per_move }}" \
-            --stockfish-hash-mb "${{ inputs.stockfish_hash_mb }}" \
+            --nodes "$NODES_PER_MOVE" \
+            --stockfish-hash-mb "$STOCKFISH_HASH_MB" \
             --out verified-stockfish-2.0-64
 
       - name: Render actual PGNs into a replay video and final-position poster
