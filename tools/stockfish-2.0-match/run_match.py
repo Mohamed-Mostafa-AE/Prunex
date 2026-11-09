@@ -72,7 +72,7 @@ def play_one(prunex, stockfish, opening: chess.Board, prunex_color: chess.Color,
             raise RuntimeError(f"Illegal move from {'Prunex' if is_prunex else 'Stockfish 2.0'}: {result.move}")
         move_san=san(result.move)
         info=result.info or {}
-        node_report=re.search(r"node-limit (\\d+)/(\\d+)",str(info.get("string","")))
+        node_report=re.search(r"node-limit (\d+)/(\d+)",str(info.get("string","")))
         actual_nodes=int(node_report.group(1)) if node_report else info.get("nodes")
         if actual_nodes is not None and actual_nodes>nodes:
             raise RuntimeError(f"Node budget exceeded: {actual_nodes}>{nodes}")
