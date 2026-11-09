@@ -2,29 +2,34 @@
 
 ## Post
 
-I'm excited to share **Prunex 0.8.0**, a chess-engine project centred on an independently implemented **C++20** engine.
+I'm excited to share **Prunex 0.8.0** — an independently developed chess engine built from scratch in **C++20**.
 
-The native engine brings together a 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta pruning and principal-variation search, SEE-based capture ordering, late-move reductions, quiescence search, draw detection, null-move pruning, and a handcrafted tapered evaluator.
+Prunex has its own board representation, legal move generation, Zobrist hashing, transposition table, iterative-deepening negamax search with alpha–beta pruning and principal-variation search, static-exchange-based capture ordering, late-move reductions, quiescence search, draw detection, null-move pruning, and a handcrafted tapered evaluation function.
 
-The release includes a command-line engine, a native Windows desktop interface, and a standalone WebAssembly build checked against native reference results.
+The project includes:
+- A native UCI command-line engine.
+- A Windows desktop interface.
+- A browser chess application powered by the same C++ engine compiled to WebAssembly.
 
-Correctness has been a major focus: the 46-case native regression suite passed under GCC Release, Clang Release, AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64 CI.
+I focused heavily on correctness and reproducibility. The 46-case native regression suite and the current validation matrix passed across GCC, Clang, AddressSanitizer/UndefinedBehaviorSanitizer, Windows x64, WebAssembly parity, website/browser checks, and CodeQL.
 
-**Explore Prunex:** https://github.com/Mohamed-Mostafa-AE/Prunex
+Prunex is an independent implementation: its engine architecture and source code are its own. The browser build is compiled from the same Prunex C++ source.
 
-**Validation records:** [Native 46-case test matrix](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) · [Windows x64 build and GUI smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737)
+**Explore the source:** https://github.com/Mohamed-Mostafa-AE/Prunex
 
-I'd welcome feedback from people interested in C++, chess programming, search algorithms, and engine development.
+**Latest validation:** [Native compiler and sanitizer checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42551830679) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42551830774) · [Website and browser](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42551830676) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42551830689) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42551830677)
+
+I'd welcome feedback from people interested in C++, chess programming, search algorithms, and independent engine development.
 
 #CPlusPlus #ChessProgramming #SoftwareEngineering #ChessEngines
 
 ## Image order
 
-1. **Website overview** — use the 1200 × 675 overview capture as the first image.
-2. **Native engine architecture** — use the 1200 × 675 architecture capture as the second image.
+1. **Project overview** — use the current 1200 × 675 overview capture.
+2. **Engine architecture** — use the current 1200 × 675 architecture capture.
 
-Use the current captures from the release candidate. Do not present the browser chessboard as a screenshot of the native Windows application, and do not use benchmark or Elo graphics.
+Do not present the browser chessboard as a screenshot of the native Windows application. Do not include an Elo graphic or imply a current playing-strength rating.
 
-## Publication gate
+## Publication note
 
-The browser application now runs the Prunex 0.8.0 C++20 engine through WebAssembly. Publish only after the current source-validation workflows pass, the final manual Windows 10/11 acceptance is complete, and the required release gates in [finalization-gates.md](finalization-gates.md) are closed. Do not present a historical benchmark as a current independent Elo rating.
+This post describes the source-code project and its automated validation. It does not claim that the hosted archive service has completed operational/legal release gates, that the Windows desktop has completed additional manual device acceptance, or that the website's move-review labels reproduce another product's proprietary classification system.
