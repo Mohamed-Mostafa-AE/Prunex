@@ -14,7 +14,7 @@
 
 ---
 
-Prunex is an independently developed chess-engine project. Its native engine is written in **C++20** and implements its own board representation, legal move generation, search, static evaluation, and Universal Chess Interface (UCI). The repository also includes a Windows desktop interface, a separately built WebAssembly target, regression tests, and a browser chess application.
+Prunex is an original chess-engine project created and independently developed from scratch by **Mohamed Mostafa**. Its native engine is written in **C++20** and implements its own board representation, legal move generation, search, static evaluation, and Universal Chess Interface (UCI). The repository also includes a Windows desktop interface, a separately built WebAssembly target, regression tests, and a browser chess application.
 
 **Current native engine version: 0.8.0.**
 
@@ -47,7 +47,9 @@ Implemented search components include:
 - Hash-move, capture, promotion, killer-move, and history-based ordering
 - Aspiration windows with widening on fail-low/fail-high
 - Late-move reductions with re-search when required
-- Quiescence search
+- Quiescence search with check evasions
+- Repetition and fifty-move draw handling, plus insufficient-material detection
+- Verified null-move pruning for suitable non-PV positions
 - Check extensions and mate-distance score normalization
 - Time-managed search and UCI cancellation
 
@@ -130,6 +132,8 @@ The engine also exposes diagnostic commands:
 ./build/prunex --bench 6
 ```
 
+A historical 64-game benchmark for Prunex 0.8.0 recorded **63 wins, 1 draw, and 0 losses** against Stockfish 2.0. The original result record is preserved in [the benchmark commit](https://github.com/Mohamed-Mostafa-AE/Prunex/commit/0662bc3482a265f3407c3402ceb72a0850c1a191); this historical result is not a current independent Elo rating.
+
 The fixed benchmark contains five positions (starting position, Kiwipete, a rook endgame, a closed-center position, and an open position). It clears the transposition table and search-ordering state before each position, then reports the best move, node count, elapsed time, and aggregate nodes per second. The default depth is 5; supported depths are 1–10.
 
 Benchmark NPS is a repeatable search-throughput measurement, not a playing-strength rating.
@@ -211,7 +215,7 @@ This is the intended naming inspiration, not a formally standardized acronym. Se
 
 Original Prunex contributions in this repository are released under the **MIT License**. The license scope and separately licensed components are documented in [LICENSE-SCOPE.md](LICENSE-SCOPE.md).
 
-The Python training tools are separately licensed under GPL-3.0-or-later. The browser engine, chess-piece artwork, dependencies, and datasets also retain their own applicable licenses, attribution, and corresponding-source notices. See [website/README.md](website/README.md), [tools/training/LICENSE](tools/training/LICENSE), and the notices distributed with the site. The root MIT license does not relicense separately licensed material.
+The Python training tools are separately licensed under GPL-3.0-or-later. Chess-piece artwork, dependencies, and datasets also retain their own applicable licenses, attribution, and corresponding-source notices. See [website/README.md](website/README.md), [tools/training/LICENSE](tools/training/LICENSE), and the notices distributed with the site. The root MIT license does not relicense separately licensed material.
 
 ---
 
