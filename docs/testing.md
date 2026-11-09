@@ -2,34 +2,32 @@
 
 ## Native engine
 
-Prunex 0.8.0 currently has a **47-case CTest suite** covering move generation, position state, search, draw handling, static-exchange evaluation, UCI behaviour, and fixed-position benchmark smoke tests.
+Prunex 0.8.0 has a **47-case CTest suite** covering move generation, position state, search, draw handling, static-exchange evaluation, UCI behaviour, and fixed-position benchmark smoke tests.
 
-## Current-main local validation — 9 November 2026
+## Current source validation — 9 November 2026
 
-The exact main source commit `715639559b91d0b8b359a5d3e7a2619075c2f144` was freshly configured, built, and tested in an isolated Linux environment.
+The current main commit is `89a60ba3665674121cd42d98840257eba346577c`. Its native engine sources are unchanged from `715639559b91d0b8b359a5d3e7a2619075c2f144`, which was freshly configured, built, and tested in an isolated Linux environment.
 
 | Configuration | Result |
 |---|---:|
 | GCC 11.5 Release | 47/47 passed |
 | Clang 15.0.7 Release | 47/47 passed |
 | GCC 11.5 AddressSanitizer + UndefinedBehaviorSanitizer | 47/47 passed |
-| Website `npm run build` and bundled validation scripts | Passed |
+| Windows 2022 / Visual Studio 2022 x64 Release | 47/47 passed |
 
-The sanitizer run used leak detection and halt-on-error settings. These local results demonstrate the listed Linux builds only; they do not substitute for a successful Windows x64 workflow or manual Windows 10/11 acceptance.
+The sanitizer run used leak detection and halt-on-error settings. The current-main Windows workflow also verified x64 executable headers, UCI startup, and a GUI smoke path covering e2-e4, engine reply, paired undo, search cancellation via New Game, board flip, and clean shutdown.
 
-## Current GitHub Actions status
+The following post-merge runs completed successfully on the current main commit:
 
-The GitHub Actions runs associated with main commit `715639559b91d0b8b359a5d3e7a2619075c2f144` did not produce a fully green cross-platform matrix:
-
-| Workflow | Current recorded result |
+| Workflow | Evidence |
 |---|---|
-| Native compiler matrix and sanitizers | Workflow conclusion: unsuccessful. The accessible job results included GCC Release and GCC ASan/UBSan passing 47/47; the full compiler matrix was not returned. |
-| Windows x64 validation | Workflow conclusion: unsuccessful; a successful current-main Windows result is not available. |
-| CodeQL security analysis | Workflow conclusion: unsuccessful; a successful current-main analysis is not available. |
+| Website build, dependency audit, browser smoke tests, and training-data checks | [Run 42686690073](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686690073) |
+| Windows x64 build and desktop smoke test | [Run 42686689854](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854) |
+| CodeQL C/C++ and JavaScript/TypeScript | [Run 42686689576](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689576) |
 
-Run records: [Native](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729254) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729455) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729565).
+The Windows x64 artifact is [available here](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854/artifacts/13703744988). Its build manifest identifies the current main commit and records executable SHA-256 hashes.
 
-The failed job details were not returned by the connected GitHub inspection, so no root cause is inferred here. The required next validation is a fresh successful run of the affected workflows against the final source commit.
+These results verify the listed builds and automated checks. Physical Windows 10/11 acceptance, hosted authentication/email validation, a populated-data backup/restore drill, legal review, and production deployment are separate release gates. The tests do not establish an Elo rating.
 
 ## Historical release-candidate CI — 6 November 2026
 

@@ -10,18 +10,23 @@ Version 0.8.0 is feature-frozen. This checklist covers release correctness, secu
 - The root MIT license applies to original Prunex contributions. Separately licensed components and assets retain their own notices and terms; see LICENSE-SCOPE.md.
 - The name origin is documented in README.md and docs/project-name.md: PRUN refers to alpha–beta pruning; EX represents competitive execution.
 - Public benchmark material does not claim a measured Elo rating or unsupported competitive result.
-- The main source commit 715639559b91d0b8b359a5d3e7a2619075c2f144 was locally rebuilt and passed 47/47 CTest cases under GCC 11.5 Release, Clang 15.0.7 Release, and GCC 11.5 AddressSanitizer/UndefinedBehaviorSanitizer on 9 November 2026.
-- The website production build and its bundled validation scripts passed locally against the same main source commit.
+- Main commit `89a60ba3665674121cd42d98840257eba346577c` contains the reviewed documentation, website, and test-assertion corrections. Its native engine source is unchanged from `715639559b91d0b8b359a5d3e7a2619075c2f144`, which passed 47/47 under GCC 11.5 Release, Clang 15.0.7 Release, and GCC 11.5 AddressSanitizer/UndefinedBehaviorSanitizer.
+- The post-merge website/browser and training-data workflows passed on main: [run 42686690073](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686690073).
+- The Windows x64 Release build and automated desktop smoke passed all 47 native CTest cases on main: [run 42686689854](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854).
+- Both CodeQL language analyses passed on main: [run 42686689576](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689576).
+- The Windows x64 artifact built from the current main commit is available [here](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854/artifacts/13703744988).
 
-These local results do not establish a fully green CI matrix or production readiness.
+The listed source and automated CI checks are complete. The remaining hosted-service, data-recovery, branch-protection, legal, production-alias, and physical Windows acceptance gates below remain separate.
 
 ## Required before a 0.8.0 release
 
-### 1. Complete current-source CI validation
+### 1. Current source and automated CI — completed
 
-- Obtain successful current-commit runs for the native compiler/sanitizer matrix, Windows x64 build and desktop smoke test, CodeQL analyses, website/browser tests, and WebAssembly parity.
-- The recorded GitHub Actions conclusions for the 9 November main commit were unsuccessful for the native workflow, Windows x64 workflow, and CodeQL workflow. The available job details did not establish a complete green result.
-- Do not describe the full current CI matrix as passing until each required workflow has a successful result tied to the release commit.
+- The current main-commit website/browser and training-data workflows passed: [run 42686690073](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686690073).
+- The Windows x64 build passed all 47 native CTest cases and its UCI/GUI smoke checks: [run 42686689854](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854).
+- Both CodeQL language analyses passed: [run 42686689576](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689576).
+- Local GCC, Clang, and ASan/UBSan builds passed 47/47 on the unchanged native source revision documented above.
+- A separate standalone WebAssembly parity workflow is retained as historical evidence; the current website build verifies that the WebAssembly runtime assets are present, but this release pass did not rerun the dedicated parity job.
 
 ### 2. Enforce default-branch protection
 

@@ -2,9 +2,11 @@
 
 The automated Windows x64 workflow is designed to verify compilation, CTest, executable architecture, UCI startup, and desktop interaction through the window message loop. Its GUI smoke test plays e2-e4, waits for the engine reply, checks paired Undo, starts another search and cancels it with New Game, flips the board, and verifies clean shutdown.
 
-The last recorded successful Windows workflow below is historical: it built an earlier 46-case source revision on Windows Server 2022. The current main source contains 47 CTest cases and has passed fresh local GCC, Clang, and sanitizer builds, but the current Windows x64 workflow has not yet reported success. Manual acceptance on Windows 10/11 client devices remains outstanding.
+The current main commit `89a60ba3665674121cd42d98840257eba346577c` passed the Windows x64 GitHub Actions workflow on Windows Server 2022 with Visual Studio 2022. The Release x64 build passed all 47 CTest cases, x64 executable and UCI startup checks, and the automated desktop smoke path. [Current Windows x64 run](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854) · [Download current-main Windows x64 build artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854/artifacts/13703744988).
 
-## Historical automated Windows x64 build — 6 November 2026
+The artifact manifest records SHA-256 hashes for both executables. This automated Windows Server smoke test is not a substitute for physical Windows 10/11 client acceptance, which remains outstanding.
+
+## Earlier historical automated Windows x64 build — 6 November 2026
 
 The last recorded passing Windows workflow was [run #42279871986](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986). Download the [Prunex-Windows-x64 artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986/artifacts/13535052628).
 
@@ -18,7 +20,7 @@ The last recorded passing Windows workflow was [run #42279871986](https://github
 - Artifact ZIP SHA-256: `a2cd5cdb22fa8df5072397da8287b111a193ba724a9a1fde96a31726afed28fd`.
 - Artifact expiry: 6 December 2026, 19:31 UTC.
 
-The automated GUI check does not replace physical Windows 10/11 acceptance.
+The earlier automated GUI check does not replace physical Windows 10/11 acceptance.
 
 ## Manual Windows 10/11 acceptance
 
@@ -35,4 +37,4 @@ The automated GUI check does not replace physical Windows 10/11 acceptance.
 
 Human acceptance status: not recorded.
 
-Current main native test count: 47. Do not use the historical Windows artifact as a release binary. A fresh Windows x64 workflow and the manual checklist must pass on the final release commit.
+Current main native test count: 47. Use the current-main artifact linked above for final manual acceptance. The 6 November artifact is retained as historical evidence only.
