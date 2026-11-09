@@ -89,7 +89,7 @@ const gameResultSubtitle = $("#game-result-subtitle");
 const gameResultCopy = $("#game-result-copy");
 const siteThemeToggle = $("#site-theme-toggle");
 
-const worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
+let worker = null;
 const game = new Chess();
 let initialFen = game.fen();
 let reviewMovesSnapshot = null;
@@ -1042,7 +1042,7 @@ async function completeGameReview(results) {
       depth: beforeResult?.depth || 0,
       selDepth: beforeResult?.selDepth || 0,
       nodes: beforeResult?.nodes || 0,
-      evaluationSource: beforeResult?.wdl ? "stockfish-wdl" : "cp-fallback",
+      evaluationSource: beforeResult?.wdl ? "uci-wdl" : "prunex-centipawn",
       description: classification.description
     });
   }
@@ -1457,7 +1457,14 @@ function onSquare(square) {
 
 function cancelSearch() {
   requestId += 1;
-  if (thinking || evaluating || analyzingGame) worker.postMessage({ type: "cancel" });
+  if (thinking || evaluating || analyzingGame) {
+    // WebAssembly searches run synchronously inside the worker. Terminating
+    // the worker is the reliable way to interrupt a running search.
+    worker?.terminate();
+    worker = null;
+    ready = false;
+    attachEngineWorker();
+  }
   thinking = false;
   evaluating = false;
   analyzingGame = false;
@@ -1546,7 +1553,7 @@ async function applyEngineReply(bestMove, expectedRequestId, fenAtSearch, turnAt
   }
 }
 
-worker.addEventListener("message", async (event) => {
+async function handleEngineWorkerMessage(event) {
   const data = event.data || {};
   if (data.type === "debug") return;
   if (data.type === "ready") {
@@ -1644,17 +1651,25 @@ worker.addEventListener("message", async (event) => {
     const turnAtSearch = game.turn();
     await applyEngineReply(data.bestMove, data.requestId, fenAtSearch, turnAtSearch);
   }
-});
+}
 
-
-worker.addEventListener("error", (event) => {
+function handleEngineWorkerError(event) {
   ready = false;
   thinking = false;
   render();
   console.error("The browser chess engine worker stopped unexpectedly.", event.error || event.message);
   statusEl.textContent = "The chess engine stopped unexpectedly. Reload the page to continue.";
   statusEl.dataset.kind = "error";
-});
+}
+
+
+function attachEngineWorker() {
+  worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
+  worker.addEventListener("message", handleEngineWorkerMessage);
+  worker.addEventListener("error", handleEngineWorkerError);
+  attachEngineWorker();
+}
+
 
 $("#new-game").addEventListener("click", () => { primeAudio(); startNewGame(); });
 moveFirstButton.addEventListener("click", () => goToPly(0));
