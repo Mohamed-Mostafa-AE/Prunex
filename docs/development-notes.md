@@ -9,7 +9,7 @@ The website is a separate browser chess experience. Its opponent and review work
 ## Implemented foundations
 
 - 0x88 position representation, legal move generation, castling, en passant, promotions, FEN parsing, and make/undo behavior.
-- Iterative-deepening alpha-beta/PVS search, move ordering, transposition table, quiescence search, repetition and fifty-move draw handling, insufficient-material detection, verified null-move pruning, time controls, and asynchronous UCI search cancellation.
+- Iterative-deepening alpha-beta/PVS search, move ordering, transposition table, quiescence search, repetition and fifty-move draw handling, insufficient-material detection, null-move pruning with verification at greater depths, time controls, and asynchronous UCI search cancellation.
 - Native static evaluation terms and a repeatable five-position benchmark command.
 - Native regression coverage for perft, move legality, search outcomes, side-to-move scoring, evaluation symmetry, and interrupted search.
 - Asynchronous Windows desktop search with UI-thread result application, cancellation on new game/undo/window close, and stale-result generation checks.
