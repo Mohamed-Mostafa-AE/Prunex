@@ -4,14 +4,17 @@
 
 ## 0.8.0 feature freeze — effective 7 November 2026
 
-**The feature scope for Prunex 0.8.0 is frozen.** From this point until the 0.8.0 release decision, work is limited to:
+**The initial 0.8.0 feature freeze was reopened for owner-authorized engine-strength work.** The current development cycle permits focused native search and evaluation improvements, provided each change has regression coverage and is validated through reproducible benchmarks or controlled matches. The browser product scope remains unchanged.
+
+Work in this cycle is limited to:
 
 - Fixing reproducible defects in functionality already included in 0.8.0.
+- Improving native engine correctness, search, evaluation, and measured performance.
 - Closing the release gates documented below.
 - Completing code, security, licensing, documentation, and release-readiness review.
-- Making the smallest necessary change when a concrete defect or release blocker is found, with a regression test where practical.
+- Making narrowly scoped changes with regression tests and recorded validation.
 
-The following are not 0.8.0 work: new features, new product capabilities, broad refactors, architecture redesigns, speculative optimization, evaluation/search enhancements, and visual polish. Record worthwhile ideas for the next development cycle instead of adding them to this release.
+New browser-product capabilities, broad refactors, unrelated architecture redesigns, and visual polish remain deferred.
 
 A change may enter the frozen scope only when it is necessary to correct a demonstrated defect, address a security or data-integrity issue, or close an explicit release gate. Keep such changes narrowly scoped; do not use them as an opening for adjacent improvements.
 
