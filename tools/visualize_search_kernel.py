@@ -105,7 +105,7 @@ def build():
     # Left supporting branches
     panel(60,540,550,230,"QUIESCENCE SEARCH  /  qsearch()",["Depth ≤ 0 enters tactical leaf search","Not in check: stand pat, then captures / promotions","Non-check q-ply cap = 18; SEE ordering and α–β cutoffs","In check: no stand pat or q-ply cap; search every legal evasion"],"amber","LEAF EXTENSION","small")
     panel(60,815,550,188,"BOARD + MOVE GENERATION",["0x88 mailbox board (128 slots)","Pseudo-legal generation + make / undo legality test","Castling · en-passant · four promotions · king safety","Side, castling, EP, halfmove / fullmove state"],"teal","POSITION CORE","small")
-    panel(60,1048,550,280,"HANDCRAFTED STATIC EVALUATION",["Tapered middlegame / endgame score; phase capped at 24","Material + piece-square activity / centralization","Pawn structure: doubled, isolated, passed, connected","Bishop pair · king shelter · rook open / semi-open files","Called for root baseline, qsearch stand-pat, stop / max-ply fallback","No neural network or NNUE inference in this path"],"amber","evaluate(position)","small")
+    panel(60,1048,550,280,"HANDCRAFTED STATIC EVALUATION",["Tapered middlegame / endgame score; phase capped at 24","Material + piece-square activity / centralization","Pawn structure: doubled, isolated, passed, connected","Bishop pair · king shelter · rook open / semi-open files","Called for root baseline, qsearch stand-pat, stop / max-ply fallback"],"amber","evaluate(position)","small")
     arrow([(60,1168),(30,1168),(30,655),(60,655)],"amber",None,None,True,2)
     arrow([(610,910),(650,910),(650,1220),(690,1220)],"teal",None,None,False,2)
     

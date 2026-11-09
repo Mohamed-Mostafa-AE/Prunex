@@ -76,7 +76,6 @@ text{font-family:Inter,Segoe UI,Arial,sans-serif}.bg{fill:#07111f}.grid{fill:url
 <text class="b" x="83" y="1142">Material + piece activity / centralization</text><text class="b" x="83" y="1172">Doubled, isolated, passed and connected pawn terms</text>
 <text class="b" x="83" y="1202">Bishop pair · king shelter · rook-file bonuses</text>
 <text class="b" x="83" y="1232">Used at root baseline, qsearch stand-pat and fallbacks</text>
-<text class="b" x="83" y="1262">No neural-network or NNUE inference in this path</text>
 <path class="line la" d="M60 1160H30V655H60" stroke-dasharray="8 7" stroke-width="2" marker-end="url(#aA)"/>
 <path class="line lt" d="M610 910H650V1230H690" stroke-width="2" marker-end="url(#aT)"/>
 <rect class="panel" x="1570" y="510" width="570" height="238" rx="16"/><rect class="blue" x="1570" y="510" width="7" height="238" rx="3"/>
