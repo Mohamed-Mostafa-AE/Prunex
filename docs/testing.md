@@ -59,7 +59,7 @@ Use the same compiler, build mode, hardware, and depth when comparing revisions.
 
 ## Strength reporting
 
-No independently measured Elo rating or controlled public match result is currently claimed for the native C++20 engine. A strength claim requires a reproducible tournament using the current native executable, fixed conditions, balanced colours, retained PGNs, and independently checked results.
+The repository preserves a historical 64-game result for Prunex 0.8.0: 63 wins, 1 draw, and 0 losses against Stockfish 2.0. The original result record is linked from the README. This historical result is not an independent Elo rating for the current native build. Any new strength claim requires a reproducible tournament using the tested executable, fixed conditions, balanced colours, retained PGNs, and independently checked results.
 
 ## Manual acceptance still required
 
