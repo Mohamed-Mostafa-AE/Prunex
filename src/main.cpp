@@ -949,7 +949,8 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 }
             }
             if(moveTime==0) moveTime=1;
-            if(!depthSet&&(moveTime>=0||nodeLimit>0)) depth=12;
+            if(!depthSet&&nodeLimit>0) depth=MAX_PLY-1;
+            else if(!depthSet&&moveTime>=0) depth=12;
             const int searchDepth=std::clamp(depth,1,nodeLimit>0?MAX_PLY-1:12);
             const Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);
