@@ -21,7 +21,7 @@ Both web documents are explicitly marked **Draft for review** and dated 4 Novemb
 - Cloud game/review data includes identifiers, timestamps, player colour, outcomes, FEN positions, moves, PGN, review analysis and accuracy data.
 - Optional position memory is a distinct data-sharing/lookup feature and should be described precisely. The draft says it is off by default and may expose pseudonymized position/move-quality samples for lookup; it is not automatic retraining of the native engine.
 - Provider infrastructure may process IP addresses, request headers, timestamps and diagnostics. The draft does not claim zero provider logging.
-- The native C++20 engine is distinct from the browser opponent/review components.
+- The browser opponent and review worker execute the same Prunex 0.8.0 C++20 engine compiled to WebAssembly; the browser application separately supplies game rules, interface, review presentation, and account/archive features.
 
 ## Questions requiring legal advice
 
@@ -34,7 +34,7 @@ Both web documents are explicitly marked **Draft for review** and dated 4 Novemb
 7. Validate access, correction, export, deletion and account-recovery processes, including local data on other devices, backups, and post-deletion backup expiry.
 8. Review cookies/local storage/IndexedDB disclosures, tracking/analytics (if any), security incident and breach notification commitments, and contact/complaint handling.
 9. Review Terms clauses for acceptable use, third-party tournament rules, user-submitted games/PGNs, dataset licensing, attribution, warranty disclaimers, liability limits, suspension, governing law, disputes and consumer rights.
-10. Confirm the legal relationship between the native engine licence, browser dependencies, the third-party browser-engine dependency and artwork notices so the Terms do not overstate a single licence scope.
+10. Confirm the MIT scope of original Prunex code and the separate terms for browser dependencies, chess-piece artwork, training tools, fonts, and other third-party assets so the Terms do not overstate a single licence scope.
 
 ## Current Egyptian-law findings — 6 November 2026
 
