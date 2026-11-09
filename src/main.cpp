@@ -955,6 +955,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             searchAborted.store(false,std::memory_order_relaxed);
             searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit]() mutable {
                 Move best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit);
+                if(nodeLimit>0) emitLine("info string node-limit "+std::to_string(nodes)+"/"+std::to_string(nodeLimit));
                 emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
             });
         } else if(cmd=="eval"){
