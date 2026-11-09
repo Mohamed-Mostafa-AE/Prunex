@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run a reproducible 64-game, color-balanced Prunex vs Stockfish 2.0 match."""
 from __future__ import annotations
-import argparse, hashlib, json, platform, time
+import argparse, hashlib, json, platform, time, re
 from pathlib import Path
 import chess
 import chess.engine
@@ -72,12 +72,16 @@ def play_one(prunex, stockfish, opening: chess.Board, prunex_color: chess.Color,
             raise RuntimeError(f"Illegal move from {'Prunex' if is_prunex else 'Stockfish 2.0'}: {result.move}")
         move_san=san(result.move)
         info=result.info or {}
+        node_report=re.search(r"node-limit (\\d+)/(\\d+)",str(info.get("string","")))
+        actual_nodes=int(node_report.group(1)) if node_report else info.get("nodes")
+        if actual_nodes is not None and actual_nodes>nodes:
+            raise RuntimeError(f"Node budget exceeded: {actual_nodes}>{nodes}")
         per_move.append({
           "ply":plies+1,"side":"Prunex" if is_prunex else "Stockfish 2.0",
           "fen_before":before,"uci":result.move.uci(),"san":move_san,
-          "nodes":info.get("nodes"),"depth":info.get("depth"),
-          "nps":info.get("nps"),"score":score_text(info),
-          "pv":[m.uci() for m in info.get("pv",[])],
+          "nodes":actual_nodes,"node_limit_report":info.get("string"),
+          "depth":info.get("depth"),"nps":info.get("nps"),
+          "score":score_text(info),"pv":[m.uci() for m in info.get("pv",[])],
         })
         board.push(result.move)
         node=node.add_variation(result.move)
