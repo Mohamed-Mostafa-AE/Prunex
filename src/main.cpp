@@ -162,7 +162,10 @@ bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move
 
 constexpr int MAX_PLY = 128;
 constexpr int MAX_QPLY = 18;
-constexpr int TT_BITS = 18;
+#ifndef PRUNEX_TT_BITS
+#define PRUNEX_TT_BITS 18
+#endif
+constexpr int TT_BITS = PRUNEX_TT_BITS;
 constexpr std::size_t TT_SIZE = std::size_t{1} << TT_BITS;
 constexpr std::array<int, 7> MG_VALUE{0, 100, 325, 335, 510, 950, 0};
 constexpr std::array<int, 7> EG_VALUE{0, 120, 315, 350, 525, 930, 0};
@@ -195,6 +198,7 @@ int completedSearchDepth=0;
 std::uint64_t ttHits=0;
 std::uint8_t ttGeneration=0;
 bool searchTimeLimited=false;
+std::uint64_t searchNodeLimit=0;
 std::atomic<bool> searchAborted{false};
 bool suppressEngineOutput=false;
 #ifndef __EMSCRIPTEN__
@@ -220,12 +224,17 @@ void resetSearchState() {
     ttHits=0;
     ttGeneration=0;
     searchTimeLimited=false;
+    searchNodeLimit=0;
     searchAborted.store(false,std::memory_order_relaxed);
 }
 std::chrono::steady_clock::time_point searchDeadline{};
 
 bool searchShouldStop() {
     if(searchAborted.load(std::memory_order_relaxed)) return true;
+    if(searchNodeLimit>0&&nodes>=searchNodeLimit) {
+        searchAborted.store(true,std::memory_order_relaxed);
+        return true;
+    }
     if(!searchTimeLimited||(nodes&127ULL)!=0) return false;
     if(std::chrono::steady_clock::now()>=searchDeadline) searchAborted.store(true,std::memory_order_relaxed);
     return searchAborted.load(std::memory_order_relaxed);
@@ -743,10 +752,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     return bestScore;
 }
 
-Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
+Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t nodeLimit=0) {
     auto moves=legalMoves(p);
     if(moves.empty()) return {};
     searchTimeLimited=timeLimitMs>0;
+    searchNodeLimit=nodeLimit;
     if(searchTimeLimited) searchDeadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(timeLimitMs);
     ++ttGeneration;
     if(ttGeneration==0) ++ttGeneration;
@@ -793,6 +803,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
         emitLine(info.str());
     }
     searchTimeLimited=false;
+    searchNodeLimit=0;
     return best;
 }
 
@@ -900,6 +911,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             bool depthSet=false;
             int movesToGo=30;
             std::int64_t moveTime=-1,whiteTime=-1,blackTime=-1,whiteIncrement=0,blackIncrement=0;
+            std::uint64_t nodeLimit=0;
             std::string token;
             auto readTime=[&](std::int64_t& value){
                 std::string raw;
@@ -916,6 +928,14 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 else if(token=="winc") readTime(whiteIncrement);
                 else if(token=="binc") readTime(blackIncrement);
                 else if(token=="movestogo") in>>movesToGo;
+                else if(token=="nodes") {
+                    std::string raw;
+                    if(in>>raw) {
+                        std::uint64_t parsed=0;
+                        auto result=std::from_chars(raw.data(),raw.data()+raw.size(),parsed);
+                        if(result.ec==std::errc{}&&result.ptr==raw.data()+raw.size()) nodeLimit=parsed;
+                    }
+                }
             }
             if(moveTime<0){
                 std::int64_t remaining=pos.side==WHITE?whiteTime:blackTime;
@@ -929,12 +949,12 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 }
             }
             if(moveTime==0) moveTime=1;
-            if(!depthSet&&moveTime>=0) depth=12;
+            if(!depthSet&&(moveTime>=0||nodeLimit>0)) depth=12;
             const int searchDepth=std::clamp(depth,1,12);
             const Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);
-            searchThread=std::thread([searchPosition,searchDepth,moveTime]() mutable {
-                Move best=findBestMove(searchPosition,searchDepth,moveTime);
+            searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit]() mutable {
+                Move best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit);
                 emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
             });
         } else if(cmd=="eval"){
