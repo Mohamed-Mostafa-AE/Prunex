@@ -49,7 +49,7 @@ Implemented search components include:
 - Late-move reductions with re-search when required
 - Quiescence search with check evasions
 - Repetition and fifty-move draw handling, plus insufficient-material detection
-- Verified null-move pruning for suitable non-PV positions
+- Null-move pruning with verification at greater depths for suitable non-PV positions
 - Check extensions and mate-distance score normalization
 - Time-managed search and UCI cancellation
 
