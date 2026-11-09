@@ -1,0 +1,78 @@
+name: Paired engine strength match
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'CMakeLists.txt'
+      - 'tools/strength-match/**'
+      - '.github/workflows/strength-match.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-strength-match-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  paired-match:
+    name: Baseline versus candidate (paired colors)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out PR base engine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha || 'main' }}
+          path: baseline
+          persist-credentials: false
+
+      - name: Check out candidate engine
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate
+          persist-credentials: false
+
+      - name: Install build and match dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake ninja-build g++
+          python3 -m pip install --user python-chess
+
+      - name: Build baseline engine
+        run: |
+          cmake -S baseline -B baseline/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build baseline/build --parallel 2
+
+      - name: Build candidate engine
+        run: |
+          cmake -S candidate -B candidate/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build candidate/build --parallel 2
+
+      - name: Verify both UCI engines
+        run: |
+          printf 'uci\nisready\nquit\n' | baseline/build/prunex
+          printf 'uci\nisready\nquit\n' | candidate/build/prunex
+
+      - name: Run paired-color match
+        run: |
+          python3 candidate/tools/strength-match/paired_match.py \
+            --baseline "$PWD/baseline/build/prunex" \
+            --candidate "$PWD/candidate/build/prunex" \
+            --pairs 24 \
+            --seconds 0.20 \
+            --seed 20261109 \
+            --out strength-match-results
+
+      - name: Upload PGNs and match report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prunex-paired-strength-match
+          path: strength-match-results/
+          if-no-files-found: warn
+          retention-days: 90
