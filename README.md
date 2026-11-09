@@ -144,28 +144,28 @@ Benchmark NPS is a repeatable search-throughput measurement, not a playing-stren
 
 The native CTest suite contains **47 regression cases** covering perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test.
 
-The current `main` source commit, `715639559b91d0b8b359a5d3e7a2619075c2f144`, was rebuilt and tested locally on 9 November 2026:
+The current main commit is `89a60ba3665674121cd42d98840257eba346577c`. The native engine source in this commit is unchanged from the source revision `715639559b91d0b8b359a5d3e7a2619075c2f144`, which was rebuilt and tested locally on 9 November 2026:
 
 | Configuration | Result |
 |---|---:|
 | GCC 11.5 Release | 47/47 |
 | Clang 15.0.7 Release | 47/47 |
 | GCC 11.5 AddressSanitizer + UndefinedBehaviorSanitizer | 47/47 |
-| Website production build and bundled checks | Passed |
+| Windows 2022 / Visual Studio 2022 x64 Release | 47/47 |
 
-These are fresh local results for the exact source commit. They do not establish Windows x64 validation or production readiness. The GitHub Actions runs associated with this main commit have not yet produced a fully green cross-platform result: the native, Windows x64, and CodeQL workflow conclusions were unsuccessful. A fresh successful run is required before describing the complete CI matrix as passing.
+The post-merge GitHub Actions runs on the current main commit also passed:
+
+- [Website production build, dependency audit, browser smoke tests, and training-data checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686690073)
+- [Windows x64 build, full native regression suite, UCI startup, and desktop smoke test](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854)
+- [CodeQL C/C++ and JavaScript/TypeScript analyses](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689576)
+
+The Windows x64 build artifact is available [here](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854/artifacts/13703744988). The manifest records main commit `89a60ba3665674121cd42d98840257eba346577c` and SHA-256 hashes for both executables.
+
+These automated checks do not replace physical Windows 10/11 client acceptance, a data-bearing backup/restore drill, or production service verification. They are not an independently measured playing-strength rating.
 
 For historical context, the 6 November 2026 release-candidate commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9` passed its then-current 46-case matrix. Those results apply to that earlier revision, not the current 47-case source.
 
-- [Historical native compiler matrix and sanitizers](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589)
-- [Historical Windows x64 build and desktop smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974)
-- [Historical WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737)
-- [Historical website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610)
-- [Historical CodeQL analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678)
-
-The automated results are not a production certification or an independently measured playing-strength rating. Manual acceptance on Windows 10/11 client devices remains outstanding.
-
-See [Testing](docs/testing.md) for coverage and methodology.
+See [Testing](docs/testing.md) for the detailed methodology and historical run records.
 
 ## WebAssembly
 
