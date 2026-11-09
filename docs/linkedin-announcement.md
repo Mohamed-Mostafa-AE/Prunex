@@ -22,8 +22,6 @@ I've enjoyed working across search algorithms, systems programming, and correctn
 1. **Website overview:** capture the final production website after the current main build has been deployed and visually accepted.
 2. **Native engine architecture:** export docs/assets/prunex-search-kernel.svg to a 1200 × 675 PNG. Keep the original diagram legible and do not add claims that are not represented in the source.
 
-The previously retained responsive-review captures are from an earlier branch revision and are not approved as current release images. Replace them with captures from the final production build before publishing.
-
 ## Publication gate
 
 Publish after the current GitHub workflow matrix is green, the production domain points to the final main build, the archive/authentication and recovery requirements are complete, the Privacy Notice and Terms have received qualified review, and manual Windows 10/11 acceptance has passed.
