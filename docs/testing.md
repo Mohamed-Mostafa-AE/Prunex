@@ -2,7 +2,7 @@
 
 ## Native engine
 
-Prunex 0.8.0 has a 46-case CTest suite covering move generation, position state, search, evaluation, UCI behaviour, and fixed-position benchmark smoke tests.
+Prunex 0.8.0 has a 46-case CTest suite covering move generation, position state, search, draw handling, static-exchange evaluation, UCI behaviour, and fixed-position benchmark smoke tests.
 
 The 6 November 2026 CI matrix recorded 46/46 passing tests in each configuration:
 
