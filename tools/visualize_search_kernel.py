@@ -12,7 +12,7 @@ import argparse
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-W, H = 1900, 1600
+W, H = 1900, 1660
 BG, PANEL, BOX, EDGE = "#08111f", "#101d30", "#14263d", "#365473"
 WHITE, MUTED = "#f1f5fc", "#b0bfd4"
 TEAL, BLUE, GOLD, RED = "#58dec7", "#82b5ff", "#f2c66d", "#ff9292"
@@ -25,7 +25,7 @@ def t(x, y, value, size=19, color=WHITE, weight="400", anchor="start"):
 def node(x, y, w, h, title, rows, accent=TEAL, tag=None):
     out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="18" fill="{BOX}" stroke="{EDGE}" stroke-width="2"/>',
            f'<rect x="{x}" y="{y}" width="8" height="{h}" rx="4" fill="{accent}"/>',
-           t(x+26,y+37,title,22,WHITE,"700")]
+           t(x+26,y+37,title,18 if len(title)>30 else 22,WHITE,"700")]
     if tag: out.append(t(x+w-18,y+34,tag,14,accent,"700","end"))
     for i,row in enumerate(rows): out.append(t(x+26,y+72+i*27,row,17,MUTED))
     return "\n".join(out)
@@ -51,7 +51,7 @@ def render():
     s += [
       node(70,275,490,125,"findBestMove(position, depth, timeLimit)",[
         "Generate legal root moves; set optional search deadline",
-        "Advance TT generation; reset per-search ordering state"],BLUE,"ROOT"),
+        "Advance TT generation; reset per-search ordering state"],BLUE),
       node(705,275,490,125,"Iterative deepening",[
         "Search depth 1 through the requested limit",
         "Keep the last fully completed iteration"],BLUE),
@@ -64,7 +64,7 @@ def render():
     # Main search spine
     s += [
       node(705,475,490,110,"negamax(alpha, beta, depth, ply, PV)",[
-        "Abort / max-ply guards · extend depth when in check"],TEAL,"RECURSIVE SEARCH"),
+        "Abort / max-ply guards · extend depth when in check"],TEAL),
       node(705,620,490,125,"Position and draw rules",[
         "Zobrist position key + search-path repetition detection",
         "50-move rule and insufficient-material detection"],TEAL),
@@ -82,7 +82,7 @@ def render():
         "Generate legal moves; order hash / captures / killers / history",
         "First move full-window; later moves null-window",
         "Late-move reductions, re-search, alpha–beta cutoff"],TEAL),
-      link([(945,400),(945,475)]),
+      link([(1585,400),(1585,440),(945,440),(945,475)],"root search",TEAL,(1450,425)),
       link([(945,585),(945,620)]),
       link([(945,745),(945,780)]),
       link([(945,905),(945,940)]),
@@ -123,12 +123,13 @@ def render():
 
     # Explicit completion path and UCI observability
     s += [
-      node(705,1470,490,90,"Completed iteration → UCI info",[
+      node(705,1450,490,90,"Completed iteration → UCI info",[
         "Depth · centipawn score · nodes / NPS · TT hits · hashfull · PV"],TEAL),
-      link([(945,1440),(945,1470)]),
-      t(70,1510,"Root retries aspiration windows until the score fits; then emits bestmove after the final completed iteration.",17,MUTED),
-      t(1830,1510,"SOURCE MAP",14,TEAL,"700","end"),
-      t(70,1550,"Source: src/main.cpp on main · diagram describes code paths, not a recorded match or measured strength.",15,MUTED),
+      link([(945,1440),(945,1450)]),
+      link([(705,1495),(640,1495),(640,430),(945,430),(945,400)],"next depth",BLUE,(650,420)),
+      t(70,1570,"Root retries aspiration windows until the score fits; then emits bestmove after the final completed iteration.",17,MUTED),
+      t(1830,1610,"SOURCE MAP",14,TEAL,"700","end"),
+      t(70,1610,"Source: src/main.cpp on main · diagram describes code paths, not a recorded match or measured strength.",15,MUTED),
       '</svg>']
     return "\n".join(s)
 
