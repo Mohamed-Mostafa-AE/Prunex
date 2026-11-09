@@ -1,6 +1,6 @@
 # Windows desktop visual acceptance
 
-The current native CTest suite contains 47 cases. The exact main source commit was freshly built and passed all 47 cases locally under GCC 11.5 Release, Clang 15 Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A fresh successful Windows x64 CI run is still required; the last recorded passing Windows runner used an earlier 46-case source revision.
+The current main commit `89a60ba3665674121cd42d98840257eba346577c` passed the Windows x64 Release workflow on Windows Server 2022 with Visual Studio 2022: all 47 CTest cases passed, x64 executable and UCI startup checks passed, and the automated GUI smoke path completed. See [the current Windows x64 run](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854) and [its build artifact](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854/artifacts/13703744988).
 
 This checklist is the final manual visual and input acceptance on a Windows 10/11 client desktop. Record results in [the acceptance record](windows-acceptance-record.md).
 
