@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/stockfish-2.0-64.yml'
+      - 'tools/stockfish-2.0-match/verify_stockfish_2.py'
+      - 'tests/test_stockfish_2_verifier.py'
   workflow_dispatch:
     inputs:
       nodes_per_move:

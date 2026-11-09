@@ -9,18 +9,19 @@ This protocol creates a reproducible public record for the **current independent
 3. Builds that historical source at the pinned commit and verifies three independent fingerprints:
    - the resolved Git source commit equals `aa2de53a83ca5423c8c8007abf71f9afdf589d93`;
    - the UCI handshake reports a `Stockfish 2.0` engine identity;
-   - the historical `bench` suite writes exactly 16 per-position `Nodes:` records to its search log, and their sum is exactly **7,224,363 nodes**. The console aggregate, when present, must agree with that sum.
-4. Records the executable SHA-256, UCI output, raw benchmark output, and original per-position `bench.txt` search log. The verifier reads Stockfish 2.0's own search log rather than relying on a modern console-output format.
-5. Checks Prunex's UCI identity and uses `go nodes N` support to enforce a maximum node budget per move.
-6. Runs **64 games**: 16 fixed opening positions × 2 repetitions × both Prunex color assignments. This produces 32 games with Prunex White and 32 with Prunex Black.
-7. Saves a PGN and a per-game JSONL record containing every move, FEN before the move, UCI/SAN move, and available engine search telemetry.
-8. Renders the actual PGNs into a move-by-move MP4 replay and an 8×8 final-position poster.
+   - the historical `bench` suite writes exactly 16 per-position `Nodes:` records to its search log, and their sum is exactly **7,224,363 nodes**. The console aggregate must match the search log.
+4. Runs the old benchmark with its stdin pipe deliberately kept open until the benchmark process exits. Stockfish 2.0 polls stdin during search; a closed pipe is interpreted as a `quit` command, which can stop the 16-position loop after the current position.
+5. Records the executable SHA-256, UCI output, raw benchmark output, and original per-position `bench.txt` search log.
+6. Checks Prunex's UCI identity and uses `go nodes N` support to enforce a maximum node budget per move.
+7. Runs **64 games**: 16 fixed opening positions × 2 repetitions × both Prunex color assignments. This produces 32 games with Prunex White and 32 with Prunex Black.
+8. Saves a PGN and a per-game JSONL record containing every move, FEN before the move, UCI/SAN move, and available engine search telemetry.
+9. Renders the actual PGNs into a move-by-move MP4 replay and an 8×8 final-position poster.
 
 The Stockfish 2.0 source release and its 7,224,363-node signature are documented by the [official Stockfish 2.0 announcement](https://stockfishchess.org/blog/2011/stockfish-2/).
 
 ## Run it
 
-Open the repository's **Actions** tab and run **Verified Prunex vs Stockfish 2.0 — 64 games** using `workflow_dispatch`. The workflow also runs automatically when its own workflow definition is merged to `main`.
+Open the repository's **Actions** tab and run **Verified Prunex vs Stockfish 2.0 — 64 games** using `workflow_dispatch`. It also runs automatically when the workflow, legacy verifier, or verifier tests change on `main`.
 
 Defaults:
 
