@@ -27,7 +27,7 @@ An independently developed chess-engine project with a native C++20 engine, a Wi
 - 0x88 board representation and legal move generation
 - Zobrist hashing and a transposition table
 - Iterative-deepening negamax alpha–beta / PVS search
-- Aspiration windows, move ordering, late-move reductions, quiescence, and verified null-move pruning
+- Aspiration windows, move ordering, late-move reductions, quiescence, and null-move pruning with verification at greater depths
 - Repetition, fifty-move, and insufficient-material draw handling
 - Handcrafted tapered middlegame/endgame evaluation
 - Universal Chess Interface (UCI)
