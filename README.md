@@ -25,7 +25,7 @@ Prunex is an independently developed chess-engine project. Its native engine is 
 | **Native engine** | Independent C++20 implementation; 0x88 board, move generation, search, handcrafted tapered evaluation, and UCI |
 | **Windows desktop** | Native GUI linked to the engine implementation |
 | **WebAssembly target** | C++ engine compiled with Emscripten; exported position evaluation and fixed-depth search functions |
-| **Prunex Play** | Separate browser application for playing and reviewing games; it does not currently execute the native C++/WebAssembly engine |
+| **Prunex Play** | Browser application for playing and reviewing games; uses the native C++ engine compiled to WebAssembly |
 | **Offline data tools** | Licensed PGN ingestion, deterministic corpus splitting, provenance manifests, static-evaluation annotation, and calibration diagnostics |
 
 ## Native engine architecture
@@ -55,7 +55,7 @@ The implementation is deliberately documented as it exists today; no unsupported
 
 ### Static evaluation
 
-The native evaluator is **handcrafted and tapered**, not NNUE-based. It combines material values and piece-square/positional terms with middlegame/endgame phase blending. Current terms include:
+The native evaluator is **handcrafted and tapered**. It combines material values and piece-square/positional terms with middlegame/endgame phase blending. Current terms include:
 
 - Piece activity and centralization
 - Pawn advancement, doubled and isolated pawn penalties
@@ -64,7 +64,7 @@ The native evaluator is **handcrafted and tapered**, not NNUE-based. It combines
 - King shelter
 - Rook-file bonuses
 
-The separate Prunex Play browser experience uses NNUE-based position evaluation. This is a separate browser engine path, not the native C++ evaluator. The Prunex application layer provides worker orchestration, game-review scheduling, expected-points calibration, move-quality grading, archive integration, and presentation.
+The Prunex Play browser application runs this same C++ engine through WebAssembly. Its application layer provides worker orchestration, game-review scheduling, expected-points calibration, move-quality grading, archive integration, and presentation.
 
 ## Building the native engine
 
@@ -163,7 +163,7 @@ See [Testing](docs/testing.md) for coverage and methodology.
 
 The repository includes a standalone Emscripten target built from the native C++ implementation. It exposes a small C API for FEN evaluation, fixed-depth position search, and node counts. The WebAssembly workflow compares its results with a native reference implementation.
 
-**Current scope:** the WASM artifact and parity checks exist, but Prunex Play has not yet been connected to this native WebAssembly module. The browser application remains a separate engine integration.
+Prunex Play loads the native WebAssembly module for browser play and game review. The module is built from the same C++ engine source and is validated against the native reference implementation.
 
 ## Offline data and evaluation diagnostics
 
@@ -176,7 +176,7 @@ The offline tools under `tools/training/` can:
 5. Annotate positions using the native Prunex static evaluator.
 6. Fit and report held-out expected-points calibration diagnostics.
 
-These tools do **not** train an NNUE network, create native engine weights, or automatically modify the evaluator. A lower calibration loss is not evidence of stronger play. See [Training-data ingestion](docs/training-data-ingestion.md) and [the tool guide](tools/training/README.md).
+These tools do **not** create native engine weights or automatically modify the evaluator. A lower calibration loss is not evidence of stronger play. See [Training-data ingestion](docs/training-data-ingestion.md) and [the tool guide](tools/training/README.md).
 
 ## Try Prunex Play
 
@@ -212,7 +212,7 @@ This is the intended naming inspiration, not a formally standardized acronym. Se
 
 Original Prunex contributions in this repository are released under the **MIT License**. The license scope and separately licensed components are documented in [LICENSE-SCOPE.md](LICENSE-SCOPE.md).
 
-The Python training tools are separately licensed under GPL-3.0-or-later. The browser engine, chess-piece artwork, dependencies, and datasets also retain their own applicable licenses, attribution, and corresponding-source notices. See [website/README.md](website/README.md), [tools/training/LICENSE](tools/training/LICENSE), and the notices distributed with the site. The root MIT license does not relicense separately licensed material.
+The Python data tools are separately licensed under GPL-3.0-or-later, and Cburnett chess-piece artwork is licensed under GPL-2.0-or-later. Third-party dependencies, fonts, and datasets retain their respective terms. See [website/README.md](website/README.md), [tools/training/LICENSE](tools/training/LICENSE), and the notices distributed with the site. The root MIT license does not relicense separately licensed material.
 
 ---
 
