@@ -7,7 +7,7 @@ This is a factual handoff for a qualified lawyer/privacy professional. It is not
 - Public draft Privacy Notice: `website/privacy.html`
 - Public draft Terms of Use: `website/terms.html`
 - Relevant account/identity and archive implementation: `website/src/game-database.js`, `website/api/archive.js`, `supabase/functions/delete-account/index.ts`, `website/supabase/schema.sql`
-- Operational data architecture and release notes: `docs/production-readiness.md`
+- Operational data architecture and release notes: `docs/finalization-gates.md`
 
 Both web documents are explicitly marked **Draft for review** and dated 4 November 2026.
 
