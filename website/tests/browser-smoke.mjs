@@ -661,12 +661,13 @@ try {
   }
   if (await page.locator(".opponent-label strong").textContent() !== "PRUNEX") throw new Error("Engine badge should identify the branded Prunex Play browser experience.");
   const engineNote = await page.locator(".engine-note").innerText();
-  if (!engineNote.includes("PRUNEX") || /Stockfish/i.test(engineNote)) {
-    throw new Error("The analysis panel should keep its focus on the Prunex experience.");
+  if (!engineNote.includes("PRUNEX") || !engineNote.includes("WEBASSEMBLY")) {
+    throw new Error("The analysis panel should identify the native WebAssembly engine.");
   }
   const licenseNote = await page.locator(".license-note").innerText();
-  if (!licenseNote.includes("Stockfish.js 19 Full") || !licenseNote.includes("GPLv3")) {
-    throw new Error("The browser engine's license and attribution notice is missing.");
+  if (!licenseNote.includes("MIT License") || !licenseNote.includes("Cburnett") ||
+      !licenseNote.includes("GPL-2.0-or-later")) {
+    throw new Error("The project licence and chess-piece attribution notice is missing.");
   }
   const sharingCopy = await page.locator("body").innerText();
   if (!sharingCopy.includes("they do not retrain or change the native C++ engine")) {
