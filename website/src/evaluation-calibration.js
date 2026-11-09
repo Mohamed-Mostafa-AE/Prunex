@@ -1,5 +1,5 @@
 // Prunex expected-points calibration. This calibrates score-to-outcome
-// interpretation; it does NOT retrain or modify Stockfish's NNUE network.
+// interpretation only; it does not retrain the engine or change its evaluation.
 export const evaluationCalibration = Object.freeze({
   model: "logistic-expected-points-v1",
   slope: 1,
