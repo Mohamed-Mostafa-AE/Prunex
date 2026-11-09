@@ -100,4 +100,4 @@ These are dashboard/device tasks; repository CI cannot complete them.
 6. Required status checks on `main`; a human approval rule should be enabled only if an independent reviewer is available.
 7. Production-domain smoke testing after the other release controls are closed.
 
-No independently measured Elo rating or comparative match result is claimed for the native engine.
+The historical Prunex 0.8.0 64-game result (63 wins, 1 draw, 0 losses against Stockfish 2.0) is preserved in the repository. It is not an independently measured Elo rating or a strength claim for the current native build.
