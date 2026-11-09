@@ -1,8 +1,7 @@
 # Prunex 0.8.0 — release readiness
 
-**Review date:** 6 November 2026  
-**Reviewed source-validation commit:** `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`  
-**Current documentation branch head:** `6defec6b744fb02bef172e447e45e38a928c6118`  
+**Review date:** 9 November 2026  
+**Repository:** `Mohamed-Mostafa-AE/Prunex`  
 **Scope:** native C++20 engine, Windows desktop application, browser application, identity, and private game archive.
 
 This record separates source-code validation from hosted-service configuration and operational acceptance.
@@ -31,13 +30,13 @@ All six source-validation GitHub Actions workflows passed for source commit `4bb
 
 The native CTest suite passed 46/46 on GCC Release, Clang Release, GCC AddressSanitizer/UndefinedBehaviorSanitizer, and Windows x64. CodeQL also passed on a subsequent documentation-only PR head, with no new alerts in changed files: [CodeQL run 42291135246](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42291135246). The Windows runner exercises move input, engine reply, paired undo, search cancellation, board flip, and shutdown. Both CodeQL language jobs completed with zero SARIF findings. The website workflow covers the browser account interface, inline password recovery, actual Chromium autofill state, responsive desktop/mobile layouts, and user-facing error handling.
 
-The current candidate preview is [prunex-review.vercel.app](https://prunex-review.vercel.app/), a `READY` preview deployment built from source-validation commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`. Subsequent PR commits are documentation-only and do not change the deployed application source. The production alias [prunex-play.vercel.app](https://prunex-play.vercel.app/) still points to production deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The release candidate is 214 commits ahead of that deployed commit. Do not promote the preview until the owner-archive, backup, legal, and manual device gates are satisfied.
+The canonical [prunex-play.vercel.app](https://prunex-play.vercel.app/) domain currently returns HTTP 200 but resolves to production deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The latest main-linked deployment inspected in this review was `READY` at commit `bf9e8d4a9828da1bb1f824b678043d16706107aa`, but it was not a production-target deployment; the current main head had not yet been built for production. Keep the production alias unchanged until the owner archive, backups, authentication, legal, and device-acceptance gates are closed.
 
 ## Live identity and archive state — 6 November 2026
 
 ### Supabase source
 
-The live project has 17 Auth identities: 16 anonymous identities and one confirmed email identity. The public archive tables contain 35 games, 3 reviews, and 0 position-memory rows. Games belong to five distinct user IDs and reviews to three; the confirmed email identity owns zero games and zero reviews.
+A live check on 9 November 2026 found 31 Auth identities: 30 anonymous identities and one email-confirmed identity. The public archive tables contain 35 games, 3 reviews, and 0 position-memory rows. The 35 games are split evenly across five anonymous identities (7 each); the confirmed email identity owns zero games and zero reviews.
 
 The original guest identity that owns the intended personal archive has not been established. No records have been reassigned, imported, or deleted. Import authorization must remain tied to the exact guest identity after email confirmation; row counts and email similarity are not sufficient evidence of ownership.
 
@@ -52,11 +51,11 @@ The active Neon archive contains:
 | `prunex_archive.position_memory` | 0 |
 | `prunex_archive.migration_state` | 0 |
 
-A checksummed recovery record stores the legacy source counts (35 games, 3 reviews, 0 position-memory rows) and its payload hash. It is not an imported active archive or a verified full database backup. The only Neon manual snapshot is named `prunex-empty-schema-before-owner-migration`; a restore-check branch also contains an empty schema. The Neon snapshot schedule is empty and the current primary branch exposes six hours of point-in-time history. Neither is a data-bearing backup.
+Read-only checks on 9 November 2026 found zero rows in the active Neon `games`, `game_reviews`, and `position_memory` tables. The restore-check and restored-drill branches also contain zero rows in those archive tables. A checksummed legacy-source record stores counts of 35 games and 3 reviews with a payload hash, but it is not an imported archive or a verified full database backup. Supabase's `vortex_private.encrypted_backups` table currently contains zero backup records.
 
 ### Authentication and email
 
-The application enforces a 12-character password minimum and does not store password values in browser storage or game records. Supabase Security Advisor reports breached-password protection disabled. Supabase's current documentation states that leaked-password protection is available on the Pro plan and above, so confirm plan eligibility before treating this control as an available toggle. Hosted identity-linking settings, confirmation settings, Site URL, redirect allowlist, custom SMTP, and the three email templates have not been verified in the live dashboard. No controlled mailbox test confirms email-linking, recovery, or password-change notification delivery.
+The application enforces a 12-character password minimum and does not store password values in browser storage or game records. Supabase Security Advisor reports breached-password protection disabled. Hosted identity-linking settings, confirmation settings, Site URL, redirect allowlist, custom SMTP, and the three email templates have not been verified in the live dashboard. No controlled mailbox test confirms email-linking, recovery, or password-change notification delivery. The required server-side Vercel variable keys are present for Supabase Auth verification, the owner-email allowlist, and the restricted Neon application connection; their presence does not prove successful end-to-end operation.
 
 ### Security advisor observations
 
@@ -73,7 +72,7 @@ The advisor also reports breached-password protection disabled. Four unused-inde
 - The project-name explanation is recorded in `README.md` and `docs/project-name.md`: PRUN comes from alpha–beta PRUNing; EX represents the execution of adversarial search while anticipating the opponent's replies.
 - The native C++ evaluator is handcrafted and tapered, and both native and browser builds use this same evaluator.
 - The deployed Supabase `delete-account` Edge Function is active with JWT verification enabled. Its live logic verifies the caller token, restricts allowed origins, requires explicit confirmation, revokes refresh sessions, and deletes only the authenticated account.
-- The active GitHub `Protect main` ruleset still has no required status-check rule and requires zero approvals. Green workflows therefore are not currently enforced as merge requirements.
+- The active GitHub `Protect main` ruleset requires pull requests, but currently has zero required approvals and no required status checks. Green workflows therefore are not enforced as merge requirements.
 - The website's `main.js` remains a large application controller; `src/gui.cpp` also retains a build-time dependency on the CLI translation unit. These are known refactoring opportunities. They should be addressed incrementally with full regression coverage, not through a broad pre-release rewrite.
 
 ## Required operator actions before production promotion
@@ -100,4 +99,4 @@ These are dashboard/device tasks; repository CI cannot complete them.
 6. Required status checks on `main`; a human approval rule should be enabled only if an independent reviewer is available.
 7. Production-domain smoke testing after the other release controls are closed.
 
-The historical Prunex 0.8.0 64-game result (63 wins, 1 draw, 0 losses against Stockfish 2.0) is preserved in the repository. It is not an independently measured Elo rating or a strength claim for the current native build.
+
