@@ -45,19 +45,24 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --parallel 2
           ctest --test-dir build --output-on-failure
+          python3 tests/test_stockfish_2_verifier.py
 
       - name: Build official Stockfish 2.0 source tag
         run: |
           git clone --depth 1 --branch sf_2.0 https://github.com/official-stockfish/Stockfish.git stockfish-2.0
-          test "$(git -C stockfish-2.0 rev-parse HEAD)" = "aa2de53a83ca5423c8c8007abf71f9afdf589d93"
+          SOURCE_COMMIT="$(git -C stockfish-2.0 rev-parse HEAD)"
+          test "$SOURCE_COMMIT" = "aa2de53a83ca5423c8c8007abf71f9afdf589d93"
           make -C stockfish-2.0/src build ARCH=x86-64 -j2
+          echo "STOCKFISH_SOURCE_COMMIT=$SOURCE_COMMIT" >> "$GITHUB_ENV"
 
-      - name: Verify the exact Stockfish 2.0 executable
+      - name: Verify Stockfish 2.0 source, identity, and historical bench signature
         run: |
           mkdir -p verified-stockfish-2.0-64
           python3 tools/stockfish-2.0-match/verify_stockfish_2.py \
             --engine stockfish-2.0/src/stockfish \
-            --output verified-stockfish-2.0-64/stockfish-verification.json
+            --source-commit "$STOCKFISH_SOURCE_COMMIT" \
+            --output verified-stockfish-2.0-64/stockfish-verification.json \
+            --evidence-dir verified-stockfish-2.0-64
 
       - name: Run 64 color-balanced games
         run: |
