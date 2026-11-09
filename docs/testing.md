@@ -2,35 +2,49 @@
 
 ## Native engine
 
-Prunex 0.8.0 has a 46-case CTest suite covering move generation, position state, search, draw handling, static-exchange evaluation, UCI behaviour, and fixed-position benchmark smoke tests.
+Prunex 0.8.0 currently has a **47-case CTest suite** covering move generation, position state, search, draw handling, static-exchange evaluation, UCI behaviour, and fixed-position benchmark smoke tests.
 
-The 6 November 2026 CI matrix recorded 46/46 passing tests in each configuration:
+## Current-main local validation — 9 November 2026
+
+The exact main source commit `715639559b91d0b8b359a5d3e7a2619075c2f144` was freshly configured, built, and tested in an isolated Linux environment.
 
 | Configuration | Result |
-| --- | ---: |
-| GCC Release | 46/46 |
-| Clang Release | 46/46 |
-| GCC AddressSanitizer + UndefinedBehaviorSanitizer | 46/46 |
-| Windows x64 | 46/46 |
+|---|---:|
+| GCC 11.5 Release | 47/47 passed |
+| Clang 15.0.7 Release | 47/47 passed |
+| GCC 11.5 AddressSanitizer + UndefinedBehaviorSanitizer | 47/47 passed |
+| Website `npm run build` and bundled validation scripts | Passed |
 
-The sanitizer build ran with leak detection enabled. The Windows job also passed the desktop interaction smoke test. These results validate the tested CI configurations; they do not constitute interactive acceptance on Windows 10/11 client devices.
+The sanitizer run used leak detection and halt-on-error settings. These local results demonstrate the listed Linux builds only; they do not substitute for a successful Windows x64 workflow or manual Windows 10/11 acceptance.
 
-## Latest release-candidate CI
+## Current GitHub Actions status
 
-All six source-validation workflows passed for pull-request head `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`:
+The GitHub Actions runs associated with main commit `715639559b91d0b8b359a5d3e7a2619075c2f144` did not produce a fully green cross-platform matrix:
 
-| Workflow | Status | Evidence |
-| --- | --- | --- |
-| Website build, unit tests, Playwright, and training-data checks | Passed | [Run 42280861610](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610) |
-| GCC, Clang, and sanitizer matrix | Passed — 46/46 in all four configurations | [Run 42280861589](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) |
-| Windows x64 build, CTest, and desktop smoke test | Passed | [Run 42280861974](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) |
-| WebAssembly build and parity | Passed | [Run 42280861737](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) |
-| Backup-tool validation | Passed — tooling only | [Run 42280861766](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) |
-| CodeQL C/C++ and JavaScript/TypeScript analysis | Passed | [Run 42280861678](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) |
+| Workflow | Current recorded result |
+|---|---|
+| Native compiler matrix and sanitizers | Workflow conclusion: unsuccessful. The accessible job results included GCC Release and GCC ASan/UBSan passing 47/47; the full compiler matrix was not returned. |
+| Windows x64 validation | Workflow conclusion: unsuccessful; a successful current-main Windows result is not available. |
+| CodeQL security analysis | Workflow conclusion: unsuccessful; a successful current-main analysis is not available. |
 
-The website workflow also passed after the documentation update to the browser project: [Run 42285430091](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42285430091).
+Run records: [Native](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729254) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729455) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729565).
 
-Subsequent commits after `4bb43db` on the current PR branch change documentation only; the native and browser source code has not changed since the source-validation head. CodeQL also passed on a subsequent documentation-only PR head, with no new alerts in the changed files: [CodeQL run](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42291135246). Backup-tool validation checks the workflow and tooling; it is not evidence of a successful data-bearing backup or restore.
+The failed job details were not returned by the connected GitHub inspection, so no root cause is inferred here. The required next validation is a fresh successful run of the affected workflows against the final source commit.
+
+## Historical release-candidate CI — 6 November 2026
+
+All six source-validation workflows passed for the earlier release-candidate source commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`. At that point the native suite contained 46 cases:
+
+| Workflow | Historical result |
+|---|---|
+| Website build, unit tests, Playwright, and training-data checks | [Run 42280861610](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610) |
+| GCC, Clang, and sanitizer matrix | [Run 42280861589](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) |
+| Windows x64 build and desktop smoke test | [Run 42280861974](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) |
+| WebAssembly build and parity | [Run 42280861737](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) |
+| CodeQL C/C++ and JavaScript/TypeScript analysis | [Run 42280861678](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) |
+| Backup-tool validation | [Run 42280861766](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) |
+
+The historical backup-tool result validates tooling only. It is not evidence of a successful data-bearing backup or restore.
 
 ## Browser and account tests
 
