@@ -1664,7 +1664,7 @@ function handleEngineWorkerError(event) {
 
 
 function attachEngineWorker() {
-  worker = new Worker(new URL("./engine-worker.js", import.meta.url), { type: "module" });
+  worker = new Worker(new URL("./engine-worker.js", import.meta.url));
   worker.addEventListener("message", handleEngineWorkerMessage);
   worker.addEventListener("error", handleEngineWorkerError);
   worker.postMessage({ type: "init" });
