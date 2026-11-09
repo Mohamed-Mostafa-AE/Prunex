@@ -1,30 +1,36 @@
 # Default-branch protection
 
-**Observed:** 6 November 2026  
-**Ruleset:** `Protect main` (ID `26650516`)  
-**Target:** default branch `main`
+**Observed:** 9 November 2026  
+**Ruleset:** Protect main (ID 26650516)  
+**Target:** default branch main
 
-The active ruleset prevents branch deletion and force-pushes and requires pull requests. It currently requires **zero approvals** and has **no required status-check rule**. Passing CI runs are evidence of validation, not enforced merge restrictions.
+The active ruleset prevents branch deletion and force-pushes and requires pull requests. It currently requires **zero approvals** and has **no required status-check rule**. Passing local or CI tests therefore is not enforced as a merge condition.
 
-## Latest successful checks
+## Current-main validation
 
-All six workflows passed for pull-request head `6fe61051538f2122191cba67e79921a8ba67ee06`.
+Current main commit: 715639559b91d0b8b359a5d3e7a2619075c2f144.
 
-| Workflow / job context | Result |
+Fresh local validation on 9 November 2026 passed 47/47 native CTest cases under GCC 11.5 Release, Clang 15.0.7 Release, and GCC 11.5 AddressSanitizer/UndefinedBehaviorSanitizer.
+
+The associated GitHub Actions workflow conclusions were unsuccessful for the native compiler/sanitizer workflow, the Windows x64 workflow, and CodeQL. The available job details did not establish a full green matrix. See [native](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729254), [Windows](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729455), and [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729565).
+
+## Historical successful checks
+
+The following workflows passed for the earlier 6 November release-candidate source revision. They are retained as historical validation records and do not replace checks on the current release commit.
+
+| Workflow / job context | Historical evidence |
 |---|---|
-| `build-and-test` and `test-training-data` | [Website workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872201) |
-| `Analyze javascript-typescript`, `Analyze c-cpp` | [CodeQL workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872152) |
-| `g++ regression suite`, `clang++ regression suite`, `GCC AddressSanitizer and UndefinedBehaviorSanitizer` | [Native workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871951) |
-| `build` (Windows x64) | [Windows workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871986) |
-| `build-and-compare` (WebAssembly parity) | [WebAssembly workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279872194) |
-| `validate` (backup tooling) | [Backup-tool workflow](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42279871943) |
-
-Every listed workflow completed successfully. The native CTest suite passed 46/46 across GCC Release, Clang Release, GCC ASan/UBSan, and Windows x64. Both CodeQL language jobs completed successfully with zero SARIF findings.
+| Website build, unit tests, Playwright, and training-data checks | [Run 42280861610](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610) |
+| GCC, Clang, and sanitizer matrix | [Run 42280861589](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589) |
+| Windows x64 build and desktop smoke test | [Run 42280861974](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974) |
+| WebAssembly build and parity | [Run 42280861737](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737) |
+| CodeQL C/C++ and JavaScript/TypeScript | [Run 42280861678](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678) |
+| Backup-tool validation | [Run 42280861766](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861766) |
 
 ## Recommended policy
 
-Require the website/browser, CodeQL C/C++ and JavaScript/TypeScript, native compiler/sanitizer, WebAssembly, Windows x64, and backup-tool checks before merging to `main`. Keep the pull-request requirement. Enable strict status checks so the pull request must be up to date with `main`. Require an independent approval when another reviewer is available.
+Require successful website/browser, native compiler/sanitizer, Windows x64, WebAssembly parity, CodeQL C/C++ and JavaScript/TypeScript, and backup-tool checks before merging to main. Keep the pull-request requirement. Enable strict status checks so the branch must be up to date with main. Require an independent approval when another reviewer is available.
 
-GitHub documents status checks as a merge gate in [Available rules for rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets) and [Creating rulesets for a repository](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository).
+GitHub documents status checks as a merge gate in [Available rules for rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets) and [Creating rulesets for a repository](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets).
 
-**Current state:** the required-check and review rules remain unconfigured. Passing workflow results are not enforced as merge requirements.
+**Current state:** required checks and review rules remain unconfigured. The ruleset must be updated and re-read before the repository can rely on CI as an enforced merge gate.

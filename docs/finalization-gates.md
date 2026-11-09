@@ -1,139 +1,92 @@
-# Prunex 0.8.0 — finalization gates
+# Prunex 0.8.0 — release checklist
 
-**Purpose:** separate the work required to publish a credible source release from the additional controls required to operate the hosted browser product. This prevents routine engineering improvements from keeping a release open indefinitely.
+## Scope
 
-## 0.8.0 feature freeze — effective 7 November 2026
+Version 0.8.0 is feature-frozen. This checklist covers release correctness, security, service configuration, recovery, licensing, and acceptance. Broad refactors and additional features are intentionally deferred to a later development cycle.
 
-The 0.8.0 release scope is frozen. Required correctness, service, security, recovery, legal, and acceptance work remains in scope; broad refactors and additional feature development are deferred.
+## Completed source and repository work
 
-Work in this cycle is limited to:
+- The native engine, Windows desktop application, and WebAssembly browser build are documented in the repository.
+- The root MIT license applies to original Prunex contributions. Separately licensed components and assets retain their own notices and terms; see LICENSE-SCOPE.md.
+- The name origin is documented in README.md and docs/project-name.md: PRUN refers to alpha–beta pruning; EX represents competitive execution.
+- Public benchmark material does not claim a measured Elo rating or unsupported competitive result.
+- The main source commit 715639559b91d0b8b359a5d3e7a2619075c2f144 was locally rebuilt and passed 47/47 CTest cases under GCC 11.5 Release, Clang 15.0.7 Release, and GCC 11.5 AddressSanitizer/UndefinedBehaviorSanitizer on 9 November 2026.
+- The website production build and its bundled validation scripts passed locally against the same main source commit.
 
-- Fixing reproducible defects in functionality already included in 0.8.0.
-- Improving native engine correctness, search, evaluation, and measured performance.
-- Closing the release gates documented below.
-- Completing code, security, licensing, documentation, and release-readiness review.
-- Making narrowly scoped changes with regression tests and recorded validation.
+These local results do not establish a fully green CI matrix or production readiness.
 
-New browser-product capabilities, broad refactors, unrelated architecture redesigns, and visual polish remain deferred.
+## Required before a 0.8.0 release
 
-A change may enter the frozen scope only when it is necessary to correct a demonstrated defect, address a security or data-integrity issue, or close an explicit release gate. Keep such changes narrowly scoped; do not use them as an opening for adjacent improvements.
+### 1. Complete current-source CI validation
 
-**Completion rule:** once the required gates are closed and the final review is complete, stop changing 0.8.0. Any later feature or architectural work starts in the next development cycle.
+- Obtain successful current-commit runs for the native compiler/sanitizer matrix, Windows x64 build and desktop smoke test, CodeQL analyses, website/browser tests, and WebAssembly parity.
+- The recorded GitHub Actions conclusions for the 9 November main commit were unsuccessful for the native workflow, Windows x64 workflow, and CodeQL workflow. The available job details did not establish a complete green result.
+- Do not describe the full current CI matrix as passing until each required workflow has a successful result tied to the release commit.
 
-## Release decision in one sentence
+### 2. Enforce default-branch protection
 
-The browser integration now runs Prunex 0.8.0 through the native C++ WebAssembly build. The browser assets were generated from source and the full branch validation matrix passed. Archive ownership, recovery, hosted authentication/email, branch protection, legal review, and final manual acceptance remain separate release gates.
+- Keep pull requests mandatory for main.
+- Configure required status checks for the relevant website/browser, native compiler/sanitizer, Windows x64, WebAssembly, CodeQL, and backup-tool workflows.
+- Require branches to be up to date before merging.
+- Require an independent approval when a second reviewer is available.
+- Re-read the saved ruleset and verify that the checks are actually enforced.
 
-## A. Basic repository finalization
+### 3. Complete archive ownership and migration
 
-These are the minimum conditions for a professional, reviewable public repository.
+- Confirm the exact guest Auth identity that owns the archive before any migration.
+- Preserve the original identity when linking and verifying an email; do not infer ownership from an email address, browser hostname, or record count.
+- Import only records belonging to the verified identity. Reconcile games, reviews, position-memory records, foreign keys, ownership, and migration state.
+- Verify that a retry is idempotent and does not duplicate records.
 
-| Requirement | Current state | Decision |
-|---|---|---|
-| Clear project identity and accurate README | Complete | Keep |
-| Architecture and component boundaries documented | Complete | Keep |
-| Native build and UCI instructions | Documented | Keep |
-| License scope and third-party notices | Documented; final legal review remains separate | Keep |
-| Reproducible native regression suite | 46/46 across GCC, Clang, sanitizers, and Windows x64 | Pass |
-| Browser, Windows, WebAssembly and CodeQL CI | Website/browser, npm audit, native GCC/Clang, ASan/UBSan, Windows x64, WebAssembly parity, and both CodeQL analyses passed on `056385c5db7fd9c794e23e69dd405d618c72d0c5` | Pass |
-| No unsupported playing-strength or training claims | No native Elo claim; no claim that offline corpus tools train engine weights | Pass |
-| Release integration | PR #10 and its follow-up documentation changes are integrated into `main`; the repository is maintained from the default branch | Complete |
+### 4. Complete hosted authentication and email validation
 
-The source-bearing browser and native integration on this branch was freshly validated. The complete workflow matrix passed on `056385c5db7fd9c794e23e69dd405d618c72d0c5`.
+- Verify the hosted identity-linking, email confirmation, password sign-in, recovery, Site URL, and redirect allowlist settings.
+- Install the repository email templates and configure custom SMTP with a verified sender domain and correct SPF, DKIM, and DMARC records.
+- Test confirmation, recovery, and password-change messages with controlled mailboxes.
+- Review the hosted breached-password protection setting and enable it where supported by the service plan.
 
-## B. Required before publishing a native desktop release
+### 5. Prove data recovery
 
-These items are required if Prunex 0.8.0 is presented as a supported downloadable Windows desktop release. They do not need to block source-code review or merging documentation.
+- Configure the encrypted backup workflow with a database-owner credential and a public encryption recipient.
+- Keep the private decryption identity offline; never store it in source control or expose it in logs.
+- Run a backup against a populated archive, verify its checksum, decrypt it, and restore it into an isolated PostgreSQL instance.
+- Reconcile table counts, relationships, owner scope, and integrity. Tooling tests and empty-schema snapshots do not constitute a successful data-bearing restore.
 
-- [ ] Perform manual Windows 10/11 acceptance on a real client device. Cover 100% and 150% display scaling, 1366×768 and 1920×1080 layouts, physical mouse/touchpad input, all promotion choices, checkmate/stalemate/draw states, sustained search, cancellation, and repeated launch/close.
-- [ ] Build the release binaries from the exact final tag/commit using the documented toolchain.
-- [ ] Run the complete native CTest suite against those exact release binaries.
-- [ ] Publish the source tag and release notes, and attach only artifacts built from that tag.
-- [ ] Publish SHA-256 checksums for every downloadable artifact.
-- [ ] Confirm the license-scope notice and all third-party notices are present in the distributed package.
+### 6. Complete legal and privacy review
 
-Do not claim a measured Elo, tournament result, or comparative strength until a controlled match-testing process has been run and its PGNs, conditions, and analysis are retained. An Elo result is not required to publish the source code.
+- Obtain qualified review of the Privacy Notice and Terms of Use before treating them as approved.
+- Review operator disclosures, the likely audience and age/guardian-consent requirements, applicable privacy regimes, cross-border transfers, subprocessors, retention, deletion, backup expiry, and third-party licensing.
+- Keep the public Privacy Notice and Terms clearly marked as drafts until approval is documented.
 
-## C. Required before Prunex Play production promotion
+### 7. Deploy the reviewed source to production
 
-These are operational blockers for the hosted browser service. They are not required to merge the native engine documentation PR, but they are mandatory before promoting the current preview to the production alias.
+- Create a fresh production-target deployment from the final main commit using production environment settings.
+- Test the exact candidate deployment, including authentication, archive operations, responsive layouts, account closure, and error handling.
+- Confirm that the canonical production domain resolves to that deployment before announcing the browser service.
+- Do not promote an older feature-branch deployment or a preview build as a substitute for a production build.
 
-0. **Validate the Prunex 0.8.0 browser runtime integration**
-   - The browser worker now loads the Emscripten build of the native C++20 engine and verifies API version 800.
-   - The timed-search API uses the native iterative-deepening search, reports the last completed depth and node count, and returns a side-to-move centipawn score.
-   - The WebAssembly workflow must compile and parity-test the API, then publish the generated JavaScript and binary assets to this branch for Vercel's static build.
-   - Verify that the website build, dependency audit, browser smoke test, and WASM parity test all pass on this exact branch. The new integration is not considered validated until those checks complete.
-   - Keep unrelated third-party notices, including chess-piece artwork and other dependencies, under their own licenses.
-   - Do not publish comparative playing-strength claims without reproducible match-testing evidence.
+### 8. Final manual Windows acceptance
 
-1. **Original guest archive ownership**
-   - Live recheck on 9 November 2026: Supabase has 31 Auth identities (30 anonymous, one email-confirmed), 35 games across five anonymous identities (7 each), and 3 reviews. The confirmed email identity owns zero games and zero reviews. The active Neon archive and the restored-drill branch each have zero imported games, reviews, and position-memory rows. A retained checksummed source record records 35 games and 3 reviews; it has not been imported into the active archive.
-   - Identify the exact guest identity that owns the intended games/reviews in the original browser profile.
-   - Verify the archive in that same profile before linking email.
-   - Link and verify email on that same guest identity; set its password without signing into an unrelated account.
-   - Verify the server-side owner-email allowlist and reconcile owner-scoped import state.
-   - Do not guess, merge, or reassign records based on email similarity or row counts.
+This is the final hands-on technical acceptance step, after the source, hosted services, recovery, legal, and deployment gates above are closed.
 
-2. **Data-bearing backup and restore**
-   - Configure the encrypted backup workflow with a database-owner credential and an offline-held age identity.
-   - Run it against the real, populated database.
-   - Verify artifact checksum, decrypt it, restore into an isolated PostgreSQL instance, and reconcile tables, row counts, constraints, and ownership.
-   - The retained 5 November recovery record contains a checksummed source payload with 35 games, 3 reviews, and 0 position-memory rows. The active Neon archive and the restored-drill branch remain empty. Supabase currently has zero records in `vortex_private.encrypted_backups`; the source snapshot is not an encrypted database backup or a verified restore.
+- Run docs/windows-desktop-checklist.md on the intended Windows 10/11 client device.
+- Verify 100% and 150% display scaling, 1366×768 and 1920×1080 layouts, physical input, all promotion choices, checkmate/stalemate/draw states, sustained search, cancellation, and repeated launch/close.
+- Record the device, test date, results, and any defects in docs/windows-acceptance-record.md.
 
-3. **Authentication and email delivery**
-   - Verify identity linking, email/password sign-in, confirmation, Site URL, and approved redirect URLs in the live Supabase project.
-   - Configure custom SMTP and sender-domain SPF/DKIM/DMARC.
-   - Apply the repository email templates and test email-linking, recovery, and password-change notifications with controlled mailboxes.
-   - Supabase Security Advisor currently reports leaked-password protection disabled; check project-plan eligibility and enable it where supported.
-   - Review the leaked-password protection setting against the actual Supabase plan and available controls.
+### 9. Build and publish the release
 
-4. **Security and deployment controls**
-   - Configure required CI status checks for the protected default branch, including native, sanitizer, Windows, WebAssembly, website, CodeQL, and backup-tool validation. The live `Protect main` ruleset currently requires pull requests but zero approvals and no required CI status checks.
-   - The production alias `prunex-play.vercel.app` currently resolves to deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`, built from feature-branch commit `b188ff216281c17d90c3000118bba4e06f7e3582`. The latest main-linked deployment inspected was a `READY` preview at commit `bf9e8d4a9828da1bb1f824b678043d16706107aa`; the current main head has not been built for production. Build and validate a production-target deployment from the merged default branch after the preceding release gates are closed.
-   - Review the live RLS policies against the guest-account and optional shared-position-memory model; do not remove policies merely to silence advisor warnings.
-   - Re-test the deployed account-closure flow and allowed-origin/JWT enforcement.
-   - Build a fresh production-target deployment from the merged default branch, test that exact deployment, then promote it. Never promote the preview deployment directly.
+- Tag the exact accepted source commit.
+- Build the release binaries from that tag and run the complete CTest suite against those binaries.
+- Publish release notes and downloadable artifacts built from that tag only.
+- Generate and publish SHA-256 checksums for every downloadable artifact.
+- Include the root MIT license and all required third-party notices in the release package.
 
-5. **Legal and privacy review**
-   - Have qualified counsel review the operator identity, privacy notice, terms, retention/deletion, backup retention, data transfers, age/guardian consent, and third-party software/artwork licensing.
-   - Do not treat repository templates or automated tests as legal approval.
+## Future improvements — not release blockers
 
-6. **Human product acceptance**
-   - Test the actual production-candidate browser experience, identity linking, recovery emails, archive ownership, responsive layouts, and account closure using controlled test accounts.
-   - Retain a release acceptance record and rollback plan.
+- Extract a reusable engine core library from src/main.cpp.
+- Split the website application controller into smaller modules.
+- Expand UCI options and protocol documentation.
+- Broaden the fixed-position benchmark set and add a reproducible match-testing harness.
+- Continue search and evaluation development in a later version.
 
-## D. Improvements that should not block finalization
-
-These are worthwhile follow-on engineering tasks. Track them as separate issues or future milestones rather than extending the current release indefinitely.
-
-| Improvement | Why it can wait |
-|---|---|
-| Extract the engine from `src/main.cpp` into a reusable C++ core library | Current CLI, GUI, and WebAssembly builds pass. The coupling is a maintainability concern, not a demonstrated release-blocking defect. |
-| Split the large website controller into smaller modules | The browser regression suite passes. Refactor incrementally with tests. |
-| Expand UCI options and protocol documentation | Useful for advanced GUI compatibility and users, but current UCI usage is documented. |
-| Broaden benchmark positions and add match-testing automation | Valuable for measuring progress; no unsupported strength claim is currently made. |
-| Improve search heuristics and evaluation terms | Normal engine development, not a completion criterion for version 0.8.0. |
-
-| Add more screenshots, badges, profile widgets, and visual polish | Presentation enhancements; not a substitute for tested software. |
-
-## E. Explicitly out of scope for this finalization pass
-
-- Do not rewrite the engine architecture just to make the codebase look more like a larger engine.
-- Do not invent an Elo rating, tournament result, performance claim, or technical capability.
-- Describe the native and browser builds accurately as the same C++20 engine implementation, with WebAssembly as the browser delivery format.
-- Do not treat a passing backup workflow as proof of successful recovery.
-- Do not promote production while archive ownership or restore capability is unresolved.
-- Do not reopen the release checklist for ordinary feature ideas once the required gates are satisfied.
-
-## Final status — reviewed 9 November 2026
-
-- **Native C++ source:** the source-validation matrix passed on the latest source-bearing validation commit; the current `main` head is documentation-only and its applicable checks are green.
-- **Browser runtime:** the branch routes browser play and review through the Prunex 0.8.0 WebAssembly API. Generated assets are committed, parity tests and browser smoke tests pass, and the full compiler/Windows/security matrix is green.
-- **Repository licensing:** MIT applies to original Prunex contributions; third-party materials retain their own terms. The training guide's stale Apache-2.0 statements are corrected in this review branch.
-- **Archive:** Supabase holds 35 games across five anonymous guest identities (7 each) and 3 reviews. There are 31 Auth identities (30 anonymous, one email-confirmed); the confirmed email identity owns none of the games or reviews. Neon active archive and restored-drill tables contain zero imported rows; a checksummed legacy-source record exists but has not been imported. Supabase encrypted-backup records: zero.
-- **Authentication/security:** the Vercel server-side environment-variable keys are present, but live email delivery is unverified. Supabase Security Advisor reports leaked-password protection disabled.
-- **Branch protection:** pull requests are required, but required CI checks and approvals are not configured.
-- **Deployment:** the production alias remains on feature-branch deployment `dpl_Ddkb1haGZLihbzoaULCZUnbTy2os`; the inspected `main` deployment was a preview only.
-- **Native Windows downloadable release:** pending final manual Windows 10/11 client-device acceptance and a final tag-bound artifact/checksum run.
-- **Prunex Play production service:** not cleared until all section C gates are closed.
-- **Future engineering:** keep broad refactors and search-strength improvements for a later cycle.
+These improvements should be tracked separately and should not reopen the 0.8.0 scope once all required release gates are satisfied.

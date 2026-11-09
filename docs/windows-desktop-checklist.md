@@ -1,8 +1,8 @@
 # Windows desktop visual acceptance
 
-The latest Windows x64 workflow builds the GUI and CLI, runs all 46 native CTest cases, verifies x64 executable headers and UCI startup, and exercises a GUI interaction path: e2-e4, engine reply, paired undo, depth-8 search cancellation through New Game, board flip, and clean shutdown.
+The current native CTest suite contains 47 cases. The exact main source commit was freshly built and passed all 47 cases locally under GCC 11.5 Release, Clang 15 Release, and GCC AddressSanitizer/UndefinedBehaviorSanitizer. A fresh successful Windows x64 CI run is still required; the last recorded passing Windows runner used an earlier 46-case source revision.
 
-This checklist is for the remaining human visual and input acceptance on a Windows 10/11 desktop.
+This checklist is the final manual visual and input acceptance on a Windows 10/11 client desktop. Record results in [the acceptance record](windows-acceptance-record.md).
 
 ## Display and input
 
