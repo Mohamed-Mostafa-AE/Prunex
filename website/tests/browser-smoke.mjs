@@ -673,9 +673,9 @@ try {
   if (!sharingCopy.includes("they do not retrain or change the native C++ engine")) {
     throw new Error("Shared position-memory opt-in must explain that it does not retrain the native engine.");
   }
-  if (!requests.some(url => url.includes("/engine/stockfish-19.js")) ||
-      !requests.some(url => url.includes("/engine/stockfish-19.wasm"))) {
-    throw new Error("The full analysis worker and its WebAssembly network were not loaded.");
+  if (!requests.some(url => url.includes("/engine/prunex-wasm.js")) ||
+      !requests.some(url => url.includes("/engine/prunex-wasm.wasm"))) {
+    throw new Error("The native Prunex WebAssembly module and binary were not loaded.");
   }
   const workspaceBackground = await page.locator(".workspace").evaluate(el => getComputedStyle(el).backgroundColor);
   const avatarBackground = await page.locator(".engine-avatar").evaluate(el => getComputedStyle(el).backgroundColor);
