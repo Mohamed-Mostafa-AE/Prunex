@@ -144,7 +144,7 @@ Benchmark NPS is a repeatable search-throughput measurement, not a playing-stren
 
 ## Validation
 
-The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test.
+The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test. An additional Python-based UCI node-limit smoke test runs when a Python 3 interpreter is available; the recorded 46/46 compiler-matrix results below predate that new test.
 
 The release-candidate source-validation runs on 6 November 2026 recorded:
 
