@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: prunex-stockfish-2-64-\${{ github.ref }}
+  group: prunex-stockfish-2-64-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -60,8 +60,8 @@ jobs:
           python3 tools/stockfish-2.0-match/run_match.py \
             --prunex build/prunex \
             --stockfish stockfish-2.0/src/stockfish \
-            --nodes "\${{ inputs.nodes_per_move }}" \
-            --stockfish-hash-mb "\${{ inputs.stockfish_hash_mb }}" \
+            --nodes "${{ inputs.nodes_per_move }}" \
+            --stockfish-hash-mb "${{ inputs.stockfish_hash_mb }}" \
             --out verified-stockfish-2.0-64
 
       - name: Render actual PGNs into a replay video and final-position poster
@@ -75,7 +75,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: prunex-stockfish-2.0-64-\${{ github.run_number }}
+          name: prunex-stockfish-2.0-64-${{ github.run_number }}
           path: verified-stockfish-2.0-64/
           if-no-files-found: warn
           retention-days: 90
