@@ -142,26 +142,28 @@ Benchmark NPS is a repeatable search-throughput measurement, not a playing-stren
 
 ## Validation
 
-The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test. An additional Python-based UCI node-limit smoke test runs when a Python 3 interpreter is available; the recorded 46/46 compiler-matrix results below predate that new test.
+The native CTest suite contains **47 regression cases** covering perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test.
 
-The release-candidate source-validation runs on 6 November 2026 recorded:
+The current `main` source commit, `715639559b91d0b8b359a5d3e7a2619075c2f144`, was rebuilt and tested locally on 9 November 2026:
 
 | Configuration | Result |
 |---|---:|
-| GCC Release | 46/46 |
-| Clang Release | 46/46 |
-| GCC AddressSanitizer + UndefinedBehaviorSanitizer | 46/46 |
-| Windows x64 | 46/46 |
+| GCC 11.5 Release | 47/47 |
+| Clang 15.0.7 Release | 47/47 |
+| GCC 11.5 AddressSanitizer + UndefinedBehaviorSanitizer | 47/47 |
+| Website production build and bundled checks | Passed |
 
-The Windows workflow also completed its desktop interaction smoke test. Separate workflows validate the website and browser tests, WebAssembly parity, backup tooling, and CodeQL analysis.
+These are fresh local results for the exact source commit. They do not establish Windows x64 validation or production readiness. The GitHub Actions runs associated with this main commit have not yet produced a fully green cross-platform result: the native, Windows x64, and CodeQL workflow conclusions were unsuccessful. A fresh successful run is required before describing the complete CI matrix as passing.
 
-- [Native compiler matrix and sanitizers](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589)
-- [Windows x64 build and desktop smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974)
-- [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737)
-- [Website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610)
-- [CodeQL C/C++ and JavaScript/TypeScript](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678)
+For historical context, the 6 November 2026 release-candidate commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9` passed its then-current 46-case matrix. Those results apply to that earlier revision, not the current 47-case source.
 
-These are automated CI results for release-candidate source commit `4bb43dbacb7a8c567c4a0aa0451f4e8e6a561dd9`; later changes in the release branch have been documentation-only. They are not a production certification or an independently measured Elo result. Manual acceptance on Windows 10/11 client devices remains outstanding.
+- [Historical native compiler matrix and sanitizers](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861589)
+- [Historical Windows x64 build and desktop smoke](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861974)
+- [Historical WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861737)
+- [Historical website and Playwright checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861610)
+- [Historical CodeQL analysis](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42280861678)
+
+The automated results are not a production certification or an independently measured playing-strength rating. Manual acceptance on Windows 10/11 client devices remains outstanding.
 
 See [Testing](docs/testing.md) for coverage and methodology.
 
@@ -207,7 +209,6 @@ This is the intended naming inspiration, not a formally standardized acronym. Se
 - [Development notes](docs/development-notes.md)
 - [Training-data ingestion](docs/training-data-ingestion.md)
 - [Windows desktop acceptance checklist](docs/windows-desktop-checklist.md)
-- [Production readiness and release status](docs/production-readiness.md)
 - [Finalization and release gates](docs/finalization-gates.md)
 - [Independent engine-strength development plan](docs/engine-strength-development-plan.md)
 - [Contributing](CONTRIBUTING.md)
