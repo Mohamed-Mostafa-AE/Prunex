@@ -8,7 +8,7 @@ Version 0.8.0 is feature-frozen. This checklist covers release correctness, secu
 
 - The native engine, Windows desktop application, and WebAssembly browser build are documented in the repository.
 - The root MIT license applies to original Prunex contributions. Separately licensed components and assets retain their own notices and terms; see LICENSE-SCOPE.md.
-- The name origin is documented in README.md and docs/project-name.md: PRUN refers to alpha–beta pruning; EX represents the execution of adversarial search.
+- The name origin is documented in README.md and docs/project-name.md: PRUN refers to alpha–beta pruning; EX represents competitive execution.
 - Public benchmark material does not claim a measured Elo rating or unsupported competitive result.
 - The main source commit 715639559b91d0b8b359a5d3e7a2619075c2f144 was locally rebuilt and passed 47/47 CTest cases under GCC 11.5 Release, Clang 15.0.7 Release, and GCC 11.5 AddressSanitizer/UndefinedBehaviorSanitizer on 9 November 2026.
 - The website production build and its bundled validation scripts passed locally against the same main source commit.
