@@ -4,7 +4,7 @@
 
 Develop Prunex as Mohamed Mostafa's original, independently implemented C++ chess engine, built from scratch with its own architecture and implementation. The objective is to reach top-tier competitive playing strength through measurable, original engineering work. No external engine source, patches, implementation fragments, or weights are to be incorporated into Prunex.
 
-The initial design constraint for this programme is a deterministic, handcrafted evaluation function rather than a neural-network evaluator. Search and evaluation improvements must be implemented as original Prunex code and validated through tests and controlled matches.
+The initial design constraint for this programme is a deterministic, handcrafted evaluation function. Search and evaluation improvements must be implemented as original Prunex code and validated through tests and controlled matches.
 
 ## Current baseline
 
