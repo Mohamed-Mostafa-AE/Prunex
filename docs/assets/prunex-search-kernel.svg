@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1720" viewBox="0 0 2200 1720">
+<defs>
+<style>
+text{font-family:Inter,Segoe UI,Arial,sans-serif}.bg{fill:#07111f}.grid{fill:url(#g);opacity:.52}
+.card{fill:#11243a;stroke:#294660;stroke-width:2}.panel{fill:#0d1b2c;stroke:#294660;stroke-width:2}
+.teal{fill:#55e2d0}.blue{fill:#79aaff}.amber{fill:#f2c56b}.green{fill:#8fe0a8}
+.k{font-size:13px;font-weight:800;letter-spacing:1.4px}.h{font-size:23px;font-weight:700;fill:#eef5ff}
+.p{font-size:20px;font-weight:750;fill:#eef5ff}.b{font-size:15px;fill:#a8bdd0}.s{font-size:13px;fill:#a8bdd0}
+.line{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:3}.lt{stroke:#55e2d0}.lb{stroke:#79aaff}.la{stroke:#f2c56b}.lg{stroke:#8fe0a8}
+.tag{font-size:11px;font-weight:750;letter-spacing:1px}
+</style>
+<pattern id="g" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0V36" stroke="#14263a" fill="none"/></pattern>
+<marker id="aT" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#55e2d0"/></marker>
+<marker id="aB" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#79aaff"/></marker>
+<marker id="aA" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#f2c56b"/></marker>
+<marker id="aG" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8fe0a8"/></marker>
+</defs>
+<rect class="bg" width="2200" height="1720"/><rect class="grid" width="2200" height="1720"/>
+<text class="k teal" x="60" y="58">PRUNEX 0.8.0 / NATIVE C++20 ENGINE</text>
+<text x="60" y="124" font-size="58" font-weight="800" fill="#eef5ff">Inside the Search Kernel</text>
+<text x="62" y="164" font-size="21" fill="#a8bdd0">Source-derived architecture: recursive search, state caches, selective pruning and handcrafted evaluation</text>
+<text class="k blue" x="60" y="245">01 / ROOT ORCHESTRATION</text>
+<rect class="card" x="60" y="270" width="480" height="140" rx="16"/><rect class="blue" x="60" y="270" width="7" height="140" rx="3"/>
+<text class="k blue" x="84" y="296">UCI INPUT</text><text class="h" x="84" y="327">Position + go limits</text><text class="b" x="84" y="357">FEN / start position + move sequence</text><text class="b" x="84" y="382">depth · movetime · clock · optional node cap</text>
+<rect class="card" x="600" y="270" width="480" height="140" rx="16"/><rect class="teal" x="600" y="270" width="7" height="140" rx="3"/>
+<text class="k teal" x="624" y="296">ROOT CONTROLLER</text><text class="h" x="624" y="327">findBestMove(position, depth)</text><text class="b" x="624" y="357">Generate legal root moves; set limits</text><text class="b" x="624" y="382">Advance TT generation; reset search state</text>
+<rect class="card" x="1140" y="270" width="480" height="140" rx="16"/><rect class="blue" x="1140" y="270" width="7" height="140" rx="3"/>
+<text class="k blue" x="1164" y="296">ITERATION SCHEDULE</text><text class="h" x="1164" y="327">Iterative deepening</text><text class="b" x="1164" y="357">Depth 1 → requested limit</text><text class="b" x="1164" y="382">Retain the last fully completed iteration</text>
+<rect class="card" x="1680" y="270" width="460" height="140" rx="16"/><rect class="amber" x="1680" y="270" width="7" height="140" rx="3"/>
+<text class="k amber" x="1704" y="296">WINDOW CONTROL</text><text class="h" x="1704" y="327">Aspiration search</text><text class="b" x="1704" y="357">From depth 3: previous score ± 40 cp</text><text class="b" x="1704" y="382">Fail-low / high widens and retries</text>
+<path class="line lb" d="M540 340H600" marker-end="url(#aB)"/><path class="line lt" d="M1080 340H1140" marker-end="url(#aT)"/><path class="line la" d="M1620 340H1680" marker-end="url(#aA)"/>
+<path class="line la" d="M1910 410V455H1110V492" marker-end="url(#aA)"/>
+<text class="k teal" x="690" y="492">02 / RECURSIVE NEGAMAX + PVS CORE</text>
+<rect class="card" x="690" y="510" width="840" height="96" rx="16"/><rect class="teal" x="690" y="510" width="7" height="96" rx="3"/>
+<text class="k teal" x="714" y="536">NODE ENTRY</text><text class="h" x="714" y="566">negamax(position, depth, α, β, ply, pvNode)</text><text class="b" x="714" y="592">Abort / max-ply guards · extend one ply when in check</text>
+<path class="line lt" d="M1110 606V630" marker-end="url(#aT)"/>
+<rect class="card" x="690" y="632" width="840" height="112" rx="16"/><rect class="blue" x="690" y="632" width="7" height="112" rx="3"/>
+<text class="k blue" x="714" y="658">POSITION VALIDATION</text><text class="h" x="714" y="688">Zobrist + terminal / draw rules</text><text class="b" x="714" y="718">Repetition · 50-move rule · insufficient material; mate checked first</text>
+<path class="line lb" d="M1110 744V770" marker-end="url(#aB)"/>
+<polygon points="1110,770 1300,820 1110,870 920,820" fill="#1b2b3c" stroke="#f2c56b" stroke-width="2.5"/>
+<text x="1110" y="827" text-anchor="middle" font-size="20" font-weight="750" fill="#eef5ff">depth ≤ 0 ?</text>
+<path class="line la" d="M920 820H620V700H610" marker-end="url(#aA)"/><text class="tag amber" x="650" y="803">YES · qsearch</text>
+<path class="line lt" d="M1110 870V895" marker-end="url(#aT)"/><text class="tag teal" x="1130" y="888">NO</text>
+<rect class="card" x="690" y="900" width="840" height="114" rx="16"/><rect class="blue" x="690" y="900" width="7" height="114" rx="3"/>
+<text class="k blue" x="714" y="926">TT PROBE</text><text class="h" x="714" y="956">Direct-mapped transposition table</text><text class="b" x="714" y="986">Zobrist index + full-key match · EXACT / LOWER / UPPER bounds</text>
+<text class="b" x="714" y="1009">A sufficiently deep entry can return a score or cause a cutoff</text>
+<path class="line lt" d="M1110 1014V1035" marker-end="url(#aT)"/>
+<rect class="card" x="690" y="1038" width="840" height="112" rx="16"/><rect class="amber" x="690" y="1038" width="7" height="112" rx="3"/>
+<text class="k amber" x="714" y="1064">SELECTIVE PRUNING</text><text class="h" x="714" y="1094">Null-move pruning gate</text><text class="b" x="714" y="1124">Non-PV · not in check · depth ≥ 3 · sufficient non-pawn material</text>
+<text class="b" x="714" y="1147">R = 2 + depth / 4 · verify fail-high at depth ≥ 7</text>
+<path class="line lt" d="M1110 1150V1170" marker-end="url(#aT)"/>
+<rect class="card" x="690" y="1173" width="840" height="116" rx="16"/><rect class="teal" x="690" y="1173" width="7" height="116" rx="3"/>
+<text class="k teal" x="714" y="1199">EXPANSION</text><text class="h" x="714" y="1229">Legal moves + scored candidate list</text><text class="b" x="714" y="1259">Generate legal moves; empty list distinguishes mate from stalemate</text><text class="b" x="714" y="1282">Order hash move, captures / promotions, killers and history</text>
+<path class="line lt" d="M1110 1289V1307" marker-end="url(#aT)"/>
+<rect class="card" x="690" y="1310" width="840" height="160" rx="16"/><rect class="teal" x="690" y="1310" width="7" height="160" rx="3"/>
+<text class="k teal" x="714" y="1336">PVS MOVE LOOP</text><text class="h" x="714" y="1366">Negamax recursion + late-move reductions</text>
+<text class="s" x="714" y="1395">Move 1: full α–β window; later moves: null-window probes</text>
+<text class="s" x="714" y="1420">Quiet non-check LMR from depth 3 / move 3; deeper late moves can reduce again</text>
+<text class="s" x="714" y="1445">Reduced improvement → re-search; α ≥ β → cutoff and quiet-move heuristic updates</text>
+<path class="line lg" d="M1110 1470V1490" marker-end="url(#aG)"/>
+<rect class="card" x="690" y="1493" width="840" height="84" rx="16"/><rect class="green" x="690" y="1493" width="7" height="84" rx="3"/>
+<text class="k green" x="714" y="1519">NODE RETURN</text><text class="h" x="714" y="1549">Classify bound + store score / best move / depth / generation</text>
+<rect class="panel" x="60" y="540" width="550" height="230" rx="16"/><rect class="amber" x="60" y="540" width="7" height="230" rx="3"/>
+<text class="p" x="83" y="575">QUIESCENCE SEARCH / qsearch()</text><text class="tag amber" x="590" y="572" text-anchor="end">LEAF EXTENSION</text>
+<text class="b" x="83" y="612">Depth ≤ 0 enters tactical leaf search</text><text class="b" x="83" y="642">Not in check: stand-pat, then captures / promotions</text>
+<text class="b" x="83" y="672">Non-check q-ply cap = 18; SEE ordering and α–β cutoffs</text>
+<text class="b" x="83" y="702">In check: no stand-pat or q-ply cap; search every legal evasion</text>
+<rect class="panel" x="60" y="810" width="550" height="190" rx="16"/><rect class="teal" x="60" y="810" width="7" height="190" rx="3"/>
+<text class="p" x="83" y="845">BOARD + MOVE GENERATION</text><text class="tag teal" x="590" y="842" text-anchor="end">POSITION CORE</text>
+<text class="b" x="83" y="882">0x88 mailbox board (128 slots)</text><text class="b" x="83" y="912">Pseudo-legal generation + make / undo legality test</text>
+<text class="b" x="83" y="942">Castling · en-passant · four promotions · king safety</text>
+<text class="b" x="83" y="972">Side, castling, EP and move counters</text>
+<rect class="panel" x="60" y="1040" width="550" height="285" rx="16"/><rect class="amber" x="60" y="1040" width="7" height="285" rx="3"/>
+<text class="p" x="83" y="1075">HANDCRAFTED STATIC EVALUATION</text><text class="tag amber" x="590" y="1072" text-anchor="end">evaluate(position)</text>
+<text class="b" x="83" y="1112">Tapered middlegame / endgame score; phase capped at 24</text>
+<text class="b" x="83" y="1142">Material + piece activity / centralization</text><text class="b" x="83" y="1172">Doubled, isolated, passed and connected pawn terms</text>
+<text class="b" x="83" y="1202">Bishop pair · king shelter · rook-file bonuses</text>
+<text class="b" x="83" y="1232">Used at root baseline, qsearch stand-pat and fallbacks</text>
+<text class="b" x="83" y="1262">No neural-network or NNUE inference in this path</text>
+<path class="line la" d="M60 1160H30V655H60" stroke-dasharray="8 7" stroke-width="2" marker-end="url(#aA)"/>
+<path class="line lt" d="M610 910H650V1230H690" stroke-width="2" marker-end="url(#aT)"/>
+<rect class="panel" x="1570" y="510" width="570" height="238" rx="16"/><rect class="blue" x="1570" y="510" width="7" height="238" rx="3"/>
+<text class="p" x="1593" y="545">ZOBRIST KEY + TT ENTRY</text><text class="tag blue" x="2120" y="542" text-anchor="end">SEARCH STATE</text>
+<text class="b" x="1593" y="582">Key: pieces · side to move · castling · en-passant</text><text class="b" x="1593" y="612">2^18 direct-mapped entries (TT_BITS = 18)</text>
+<text class="b" x="1593" y="642">Entry: full key · best move · score · depth</text><text class="b" x="1593" y="672">Bound: EXACT / LOWER / UPPER · generation</text>
+<text class="b" x="1593" y="702">Mate scores normalized for ply on store / retrieval</text>
+<rect class="panel" x="1570" y="780" width="570" height="180" rx="16"/><rect class="amber" x="1570" y="780" width="7" height="180" rx="3"/>
+<text class="p" x="1593" y="815">NULL-MOVE / REDUCTION POLICY</text><text class="tag amber" x="2120" y="812" text-anchor="end">CONDITIONAL</text>
+<text class="b" x="1593" y="852">Flip side to move; clear en-passant state</text><text class="b" x="1593" y="882">Reduced null-window probe (−β, −β + 1)</text>
+<text class="b" x="1593" y="912">Fail-high accepted below depth 7; deeper result verified</text><text class="b" x="1593" y="942">Verification search disables null-move pruning</text>
+<rect class="panel" x="1570" y="990" width="570" height="205" rx="16"/><rect class="blue" x="1570" y="990" width="7" height="205" rx="3"/>
+<text class="p" x="1593" y="1025">MOVE ORDERING / HEURISTICS</text><text class="tag blue" x="2120" y="1022" text-anchor="end">ORDER BEFORE SEARCH</text>
+<text class="b" x="1593" y="1062">1  Hash move (highest priority)</text><text class="b" x="1593" y="1092">2  Captures: SEE + victim / attacker values</text>
+<text class="b" x="1593" y="1122">3  Promotions receive a priority bonus</text><text class="b" x="1593" y="1152">4  Two killer slots per ply</text><text class="b" x="1593" y="1182">5  History scores for quiet moves</text>
+<rect class="panel" x="1570" y="1225" width="570" height="255" rx="16"/><rect class="teal" x="1570" y="1225" width="7" height="255" rx="3"/>
+<text class="p" x="1593" y="1260">PVS SEARCH-TREE PRINCIPLE</text><text class="tag teal" x="2120" y="1257" text-anchor="end">CONCEPTUAL</text>
+<text class="b" x="1593" y="1298">Root candidate → first full-window search</text><text class="b" x="1593" y="1328">Later siblings → null-window probes / LMR</text>
+<text class="b" x="1593" y="1358">PV improvement → conditional re-search</text><text class="b" x="1593" y="1388">α ≥ β → sibling subtree cutoff</text>
+<text class="s" x="1593" y="1430">Branch sketch is explanatory, not a measured trace</text>
+<path class="line lb" d="M1530 960H1550V640H1570" stroke-width="2" stroke-dasharray="8 7" marker-end="url(#aB)"/>
+<path class="line la" d="M1530 1090H1550V870H1570" stroke-width="2" stroke-dasharray="8 7" marker-end="url(#aA)"/>
+<path class="line lb" d="M1570 1090H1548V1350H1530" stroke-width="2" marker-end="url(#aB)"/>
+<path class="line lg" d="M1530 1535H1550V735H1530" stroke-width="2" stroke-dasharray="8 7" marker-end="url(#aG)"/>
+<rect class="panel" x="690" y="1590" width="1450" height="72" rx="16"/><rect class="green" x="690" y="1590" width="7" height="72" rx="3"/>
+<text class="p" x="713" y="1624">COMPLETED ITERATION / UCI OBSERVABILITY</text><text class="tag green" x="2120" y="1621" text-anchor="end">RUNTIME OUTPUT</text>
+<text class="s" x="713" y="1652">info depth · score cp · nodes · NPS · TT hits · hashfull · pv field (root best move only) · final response: bestmove</text>
+<path class="line lg" d="M1110 1577V1590" marker-end="url(#aG)"/><path class="line lg" d="M2040 1625H2160V235H1380V270" stroke-width="2" stroke-dasharray="8 7" marker-end="url(#aG)"/>
+<text class="s" x="60" y="1690">SOURCE MAP · src/main.cpp: qsearch 589–628 · negamax / TT / pruning 653–752 · root iteration 755–807 · evaluation 432–563</text>
+<text class="s" x="2140" y="1690" text-anchor="end">SOURCE-LEVEL VIEW · NOT A RUNTIME TRACE</text>
+</svg>

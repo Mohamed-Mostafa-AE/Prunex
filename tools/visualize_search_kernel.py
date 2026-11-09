@@ -1,146 +1,142 @@
 #!/usr/bin/env python3
-"""Generate a source-accurate flow diagram of Prunex 0.8.0's native search.
-
-Run from the repository root:
-    python3 tools/visualize_search_kernel.py
-This writes docs/assets/prunex-search-kernel.svg. The SVG is self-contained and
-uses only Python's standard library. It visualizes the implementation in
-src/main.cpp; it is not a trace of a particular game or a strength claim.
-"""
+"""Build an expert, source-derived diagram of Prunex's native C++20 search."""
 from __future__ import annotations
 import argparse
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-W, H = 1900, 1660
-BG, PANEL, BOX, EDGE = "#08111f", "#101d30", "#14263d", "#365473"
-WHITE, MUTED = "#f1f5fc", "#b0bfd4"
-TEAL, BLUE, GOLD, RED = "#58dec7", "#82b5ff", "#f2c66d", "#ff9292"
+W, H = 2200, 1720
+S: list[str] = []
 
-def t(x, y, value, size=19, color=WHITE, weight="400", anchor="start"):
-    return (f'<text x="{x}" y="{y}" font-family="Inter,Segoe UI,Arial,sans-serif" '
-            f'font-size="{size}" font-weight="{weight}" fill="{color}" '
-            f'text-anchor="{anchor}">{escape(value)}</text>')
+def text(x, y, value, cls="body", anchor=None):
+    a = f' text-anchor="{anchor}"' if anchor else ""
+    S.append(f'<text class="{cls}" x="{x}" y="{y}"{a}>{escape(value)}</text>')
 
-def node(x, y, w, h, title, rows, accent=TEAL, tag=None):
-    out = [f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="18" fill="{BOX}" stroke="{EDGE}" stroke-width="2"/>',
-           f'<rect x="{x}" y="{y}" width="8" height="{h}" rx="4" fill="{accent}"/>',
-           t(x+26,y+37,title,18 if len(title)>30 else 22,WHITE,"700")]
-    if tag: out.append(t(x+w-18,y+34,tag,14,accent,"700","end"))
-    for i,row in enumerate(rows): out.append(t(x+26,y+72+i*27,row,17,MUTED))
-    return "\n".join(out)
+def card(x, y, w, h, kicker, title, rows, accent="teal", tag=None, fs="body"):
+    S.append(f'<rect class="card" x="{x}" y="{y}" width="{w}" height="{h}" rx="17"/>')
+    S.append(f'<rect class="bar {accent}" x="{x}" y="{y}" width="7" height="{h}" rx="3"/>')
+    text(x+24, y+27, kicker.upper(), "kicker "+accent)
+    text(x+24, y+57, title, "title")
+    if tag: text(x+w-18, y+25, tag, "tag "+accent, "end")
+    for i,row in enumerate(rows): text(x+24, y+86+i*25, row, fs)
 
-def link(points, label=None, color=TEAL, label_pos=None):
-    path="M "+" L ".join(f"{x} {y}" for x,y in points)
-    out=[f'<path d="{path}" fill="none" stroke="{color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arr)"/>']
-    if label and label_pos: out.append(t(*label_pos,label,15,color,"700"))
-    return "\n".join(out)
+def panel(x, y, w, h, title, rows, accent="blue", tag=None, fs="body"):
+    S.append(f'<rect class="panel" x="{x}" y="{y}" width="{w}" height="{h}" rx="17"/>')
+    S.append(f'<rect class="bar {accent}" x="{x}" y="{y}" width="7" height="{h}" rx="3"/>')
+    text(x+23, y+34, title, "ptitle")
+    if tag: text(x+w-18, y+31, tag, "tag "+accent, "end")
+    for i,row in enumerate(rows): text(x+23, y+70+i*26, row, fs)
 
-def render():
-    s=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">',
-       '<defs><marker id="arr" markerWidth="12" markerHeight="12" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#58dec7"/></marker></defs>',
-       f'<rect width="{W}" height="{H}" fill="{BG}"/>',
-       t(70,78,"PRUNEX 0.8.0  /  C++20",19,TEAL,"700"),
-       t(70,148,"Inside the search kernel",62,WHITE,"700"),
-       t(72,194,"A source-based map of the native engine's actual search path",23,MUTED),
-       t(70,245,"ROOT SEARCH",15,BLUE,"700"),
-       t(70,550,"NEGAMAX CORE",15,TEAL,"700"),
-       t(70,1230,"SUPPORTING SYSTEMS",15,GOLD,"700")]
+def arrow(points, color="teal", label=None, pos=None, dashed=False, width=3):
+    d="M "+" L ".join(f"{x} {y}" for x,y in points)
+    dash=' stroke-dasharray="8 7"' if dashed else ""
+    S.append(f'<path class="line {color}" d="{d}" stroke-width="{width}" marker-end="url(#{color})"{dash}/>')
+    if label and pos: text(pos[0],pos[1],label,"edge-label "+color)
 
-    # Root orchestration
-    s += [
-      node(70,275,490,125,"findBestMove(position, depth, timeLimit)",[
-        "Generate legal root moves; set optional search deadline",
-        "Advance TT generation; reset per-search ordering state"],BLUE),
-      node(705,275,490,125,"Iterative deepening",[
-        "Search depth 1 through the requested limit",
-        "Keep the last fully completed iteration"],BLUE),
-      node(1340,275,490,125,"Aspiration window",[
-        "From depth 3: previous score ± 40 centipawns",
-        "Fail-low / fail-high widens the window and retries"],GOLD),
-      link([(560,337),(705,337)]),
-      link([(1195,337),(1340,337)])]
+def decision(cx,cy,w,h,label):
+    points=f"{cx},{cy-h/2} {cx+w/2},{cy} {cx},{cy+h/2} {cx-w/2},{cy}"
+    S.append(f'<polygon points="{points}" class="decision"/>')
+    text(cx,cy+6,label,"decision-label","middle")
 
-    # Main search spine
-    s += [
-      node(705,475,490,110,"negamax(alpha, beta, depth, ply, PV)",[
-        "Abort / max-ply guards · extend depth when in check"],TEAL),
-      node(705,620,490,125,"Position and draw rules",[
-        "Zobrist position key + search-path repetition detection",
-        "50-move rule and insufficient-material detection"],TEAL),
-      node(705,780,490,125,"Depth boundary",[
-        "At depth ≤ 0, enter quiescence search",
-        "Otherwise continue full-width search"],GOLD),
-      node(705,940,490,145,"Transposition-table probe",[
-        "Look up by Zobrist key; recover the hash move",
-        "Use EXACT / LOWER / UPPER bounds when deep enough",
-        "A usable bound can return immediately"],BLUE),
-      node(705,1120,490,135,"Null-move pruning",[
-        "Only suitable non-PV, non-check nodes at depth ≥ 3",
-        "Reduced null search; verify cutoffs at depth ≥ 7"],GOLD),
-      node(705,1290,490,150,"Legal moves + PVS loop",[
-        "Generate legal moves; order hash / captures / killers / history",
-        "First move full-window; later moves null-window",
-        "Late-move reductions, re-search, alpha–beta cutoff"],TEAL),
-      link([(1585,400),(1585,440),(945,440),(945,475)],"root search",TEAL,(1450,425)),
-      link([(945,585),(945,620)]),
-      link([(945,745),(945,780)]),
-      link([(945,905),(945,940)]),
-      link([(945,1085),(945,1120)]),
-      link([(945,1255),(945,1290)])]
+def build():
+    S.clear()
+    S.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">')
+    S.append('''<defs>
+    <style>
+      text{font-family:Inter,Segoe UI,Arial,sans-serif}
+      .bg{fill:#07111f}.grid{fill:url(#grid);opacity:.55}
+      .card{fill:#11243a;stroke:#294660;stroke-width:2}.panel{fill:#0d1b2c;stroke:#294660;stroke-width:2}
+      .bar{stroke:none}.teal{fill:#55e2d0}.blue{fill:#79aaff}.amber{fill:#f2c56b}.red{fill:#ff8d9b}.green{fill:#8fe0a8}
+      .kicker{font-size:13px;font-weight:800;letter-spacing:1.5px}.title{font-size:23px;font-weight:700;fill:#eef5ff}
+      .ptitle{font-size:21px;font-weight:750;fill:#eef5ff}.tag{font-size:12px;font-weight:750;letter-spacing:1.1px}
+      .body{font-size:16px;font-weight:450;fill:#a8bdd0}.small{font-size:14px;font-weight:450;fill:#a8bdd0}
+      .line{fill:none;stroke-linecap:round;stroke-linejoin:round}.line.teal{stroke:#55e2d0}.line.blue{stroke:#79aaff}.line.amber{stroke:#f2c56b}.line.red{stroke:#ff8d9b}.line.green{stroke:#8fe0a8}
+      .decision{fill:#1b2b3c;stroke:#f2c56b;stroke-width:2.5}.decision-label{font-size:19px;font-weight:750;fill:#eef5ff}
+      .edge-label{font-size:13px;font-weight:750}.header-kicker{font-size:15px;font-weight:800;letter-spacing:2px;fill:#55e2d0}
+      .main-title{font-size:58px;font-weight:800;letter-spacing:-1px;fill:#eef5ff}.subtitle{font-size:21px;font-weight:450;fill:#a8bdd0}
+      .legend{font-size:12px;font-weight:750;letter-spacing:1px;fill:#a8bdd0}.foot{font-size:14px;fill:#708aa3}
+    </style>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0V36" fill="none" stroke="#14263a" stroke-width="1"/></pattern>
+    <marker id="teal" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#55e2d0"/></marker>
+    <marker id="blue" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#79aaff"/></marker>
+    <marker id="amber" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#f2c56b"/></marker>
+    <marker id="red" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#ff8d9b"/></marker>
+    <marker id="green" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8fe0a8"/></marker>
+    </defs>''')
+    S.append(f'<rect class="bg" width="{W}" height="{H}"/><rect class="grid" width="{W}" height="{H}"/>')
+    text(60,58,"PRUNEX 0.8.0  /  NATIVE C++20 ENGINE","header-kicker")
+    text(60,123,"Inside the Search Kernel","main-title")
+    text(62,164,"Source-derived architecture of the actual search path, state caches, selective pruning and handcrafted evaluation","subtitle")
+    for i,(c,l) in enumerate([("teal","CONTROL FLOW"),("blue","SEARCH STATE"),("amber","EVALUATION / LEAF"),("red","PRUNING / CUTOFF"),("green","RESULT / FEEDBACK")]):
+        x=65+i*270
+        S.append(f'<rect class="{c}" x="{x}" y="190" width="12" height="12" rx="3"/>')
+        text(x+22,201,l,"legend")
 
-    # Supporting systems, accurately reflecting evaluate() and quiescence().
-    s += [
-      node(70,625,500,175,"Quiescence search",[
-        "Stand-pat evaluation when not in check",
-        "Search captures, promotions, and all legal check evasions",
-        "Bounded q-ply; alpha–beta cutoffs"],GOLD),
-      node(70,855,500,175,"Move ordering + SEE",[
-        "Hash move and promotions receive priority",
-        "Captures scored by static-exchange evaluation",
-        "Killer moves and history scores order quiet moves"],BLUE),
-      node(1340,625,490,205,"Handcrafted tapered evaluation",[
-        "Material, centralization, activity, relative advancement",
-        "Doubled / isolated / passed / connected pawn terms",
-        "Bishop pair, king shelter, rook-file bonuses",
-        "Middlegame / endgame blend by material phase"],GOLD),
-      node(1340,875,490,185,"Zobrist + transposition table",[
-        "Position key includes pieces, side, castling, en-passant",
-        "Entry stores key, best move, score, depth, bound, generation",
-        "Mate scores are normalized for storage and retrieval"],BLUE),
-      node(70,1100,500,130,"Move generation + position",[
-        "0x88 mailbox board · legal moves · make / undo",
-        "Castling, en-passant, promotions, king-safety checks"],TEAL),
-      node(1340,1100,490,130,"Search state",[
-        "Node / TT-hit counters, killer moves, history scores",
-        "Search path keys, deadline, abort flag"],BLUE),
-      link([(705,835),(620,835),(620,710),(570,710)],"depth ≤ 0",GOLD,(615,690)),
-      link([(705,1360),(620,1360),(620,940),(570,940)],"move ordering",BLUE,(620,920)),
-      link([(1195,1000),(1260,1000),(1260,725),(1340,725)],"evaluate()",GOLD,(1270,700)),
-      link([(1195,1000),(1260,1000),(1260,965),(1340,965)],"Zobrist key",BLUE,(1268,945)),
-      link([(705,680),(625,680),(625,1165),(570,1165)],"position state",TEAL,(620,1145)),
-      link([(1195,1165),(1260,1165),(1260,1165),(1340,1165)],"counters / heuristics",BLUE,(1268,1145))]
+    # Root orchestration layer
+    text(60,250,"01  /  ROOT ORCHESTRATION","kicker blue")
+    card(60,270,480,145,"UCI COMMAND","Position + go limits",["FEN / start position + move sequence","depth · movetime · clock · optional node cap"],"blue")
+    card(600,270,480,145,"ROOT CONTROLLER","findBestMove(position, depth, …)",["Generate legal root moves; set time / node limit","Advance TT generation; reset counters and PV state"],"teal")
+    card(1140,270,480,145,"ITERATION SCHEDULE","Iterative deepening",["Depth 1 → requested limit; keep last completed result","Age history scores; clear killer moves"],"blue")
+    card(1680,270,460,145,"WINDOW CONTROL","Aspiration search",["From depth 3: previous score ± 40 cp","Fail-low / high → widen window and re-search"],"amber")
+    arrow([(540,342),(600,342)],"blue")
+    arrow([(1080,342),(1140,342)],"teal")
+    arrow([(1620,342),(1680,342)],"amber")
+    arrow([(1910,415),(1910,465),(1110,465),(1110,500)],"amber")
 
-    # Explicit completion path and UCI observability
-    s += [
-      node(705,1450,490,90,"Completed iteration → UCI info",[
-        "Depth · centipawn score · nodes / NPS · TT hits · hashfull · PV"],TEAL),
-      link([(945,1440),(945,1450)]),
-      link([(705,1495),(640,1495),(640,430),(945,430),(945,400)],"next depth",BLUE,(650,420)),
-      t(70,1570,"Root retries aspiration windows until the score fits; then emits bestmove after the final completed iteration.",17,MUTED),
-      t(1830,1610,"SOURCE MAP",14,TEAL,"700","end"),
-      t(70,1610,"Source: src/main.cpp on main · diagram describes code paths, not a recorded match or measured strength.",15,MUTED),
-      '</svg>']
-    return "\n".join(s)
+    # Main recursive search lane
+    text(690,492,"02  /  RECURSIVE NEGAMAX + PVS CORE","kicker teal")
+    card(690,510,840,100,"NODE ENTRY","negamax(position, depth, α, β, ply, pvNode)",["Abort / max-ply guards · check extension adds one ply when in check"],"teal")
+    arrow([(1110,610),(1110,635)],"teal")
+    card(690,638,840,112,"POSITION VALIDATION","Zobrist + terminal / draw rules",["Search-path repetition · halfmove clock ≥ 100 · insufficient material","When checked, test legal evasions before returning a draw"],"blue")
+    arrow([(1110,750),(1110,772)],"blue")
+    decision(1110,820,390,96,"depth ≤ 0 ?")
+    arrow([(915,820),(610,820),(610,705)],"amber","YES · qsearch",(650,805))
+    arrow([(1110,868),(1110,895)],"teal","NO",(1130,888))
+    card(690,898,840,118,"TT PROBE","Direct-mapped transposition table",["Index: Zobrist key & (TT_SIZE − 1); confirm full key","Sufficient-depth EXACT / LOWER / UPPER bound can return or cut"],"blue")
+    arrow([(1110,1016),(1110,1035)],"teal")
+    card(690,1038,840,112,"SELECTIVE PRUNING","Null-move pruning gate",["Non-PV · not in check · depth ≥ 3 · below mate threshold","Require non-pawn material · R = 2 + depth / 4 · verify at depth ≥ 7"],"amber")
+    arrow([(1110,1150),(1110,1168)],"teal")
+    card(690,1170,840,117,"EXPANSION","Legal moves + scored candidate list",["Generate legal moves; empty list distinguishes mate from stalemate","Order hash move, captures / promotions, killers and history"],"teal")
+    arrow([(1110,1276),(1110,1295)],"teal")
+    card(690,1297,840,170,"PVS MOVE LOOP","Negamax recursion + late-move reductions",["Move 1: full α–β window; later moves: null-window probes","Quiet non-check LMR: depth ≥ 3 / move index ≥ 3; extra reduction at depth ≥ 6 / index ≥ 8","Reduced improvement → re-search; in-window PV improvement → full-window re-search","α ≥ β → cutoff; update killer + history for quiet moves"],"teal",fs="small")
+    arrow([(1110,1439),(1110,1457)],"green")
+    card(690,1460,840,85,"NODE RETURN","Bound classification + TT store",["UPPER / LOWER / EXACT from original α, β · store score / best move / depth / generation"],"green",fs="small")
+
+    # Left supporting branches
+    panel(60,540,550,230,"QUIESCENCE SEARCH  /  qsearch()",["Depth ≤ 0 enters tactical leaf search","Not in check: stand pat, then captures / promotions","Non-check q-ply cap = 18; SEE ordering and α–β cutoffs","In check: no stand pat or q-ply cap; search every legal evasion"],"amber","LEAF EXTENSION","small")
+    panel(60,815,550,188,"BOARD + MOVE GENERATION",["0x88 mailbox board (128 slots)","Pseudo-legal generation + make / undo legality test","Castling · en-passant · four promotions · king safety","Side, castling, EP, halfmove / fullmove state"],"teal","POSITION CORE","small")
+    panel(60,1048,550,280,"HANDCRAFTED STATIC EVALUATION",["Tapered middlegame / endgame score; phase capped at 24","Material + piece-square activity / centralization","Pawn structure: doubled, isolated, passed, connected","Bishop pair · king shelter · rook open / semi-open files","Called for root baseline, qsearch stand-pat, stop / max-ply fallback","No neural network or NNUE inference in this path"],"amber","evaluate(position)","small")
+    arrow([(60,1168),(30,1168),(30,655),(60,655)],"amber",None,None,True,2)
+    arrow([(610,910),(650,910),(650,1220),(690,1220)],"teal",None,None,False,2)
+    
+
+    # Right support modules
+    panel(1570,510,570,235,"ZOBRIST KEY + TT ENTRY",["Key covers pieces · side to move","castling rights · en-passant square","2^18 direct-mapped entries (TT_BITS = 18)","Entry: full key · best move · score · depth","Bound: EXACT / LOWER / UPPER · generation","Mate scores normalized for ply on store / retrieval"],"blue","SEARCH STATE","small")
+    panel(1570,780,570,175,"NULL-MOVE / REDUCTION POLICY",["Null position flips side and clears en-passant","Reduced null-window probe: (−β, −β + 1)","Fail-high at depth < 7 accepted; deeper result verified","Verification runs with null move disabled"],"amber","CONDITIONAL PRUNING","small")
+    panel(1570,990,570,210,"MOVE ORDERING / HEURISTICS",["1  Hash move (highest priority)","2  Captures: SEE + victim / attacker values","3  Promotions receive a priority bonus","4  Two killer slots per ply","5  History score for quiet moves","Quiet beta-cutoff updates killer + history"],"blue","ORDER BEFORE SEARCH","small")
+    panel(1570,1225,570,235,"PVS SEARCH-TREE VIEW",["Conceptual branch pattern — not a measured trace","Root candidate → first full-window search","Later siblings → null-window probes / LMR","PV improvement → conditional re-search","α ≥ β → sibling subtree cutoff"],"teal","PRINCIPLE, NOT SCALE","small")
+    # State feedback and ordering inputs
+    arrow([(1530,955),(1550,955),(1550,640),(1570,640)],"blue",None,None,True,2)
+    arrow([(1530,1090),(1550,1090),(1550,865),(1570,865)],"amber",None,None,True,2)
+    arrow([(1570,1090),(1548,1090),(1548,1340),(1530,1340)],"blue",None,None,False,2)
+    arrow([(1530,1370),(1550,1370),(1550,1335),(1570,1335)],"teal",None,None,True,2)
+    arrow([(1530,1530),(1550,1530),(1550,735),(1530,735)],"green",None,None,True,2)
+
+    # Completed iteration / UCI layer
+    panel(690,1590,1450,72,"COMPLETED ITERATION  /  UCI OBSERVABILITY",["info depth · score cp · nodes · NPS · TT hits · hashfull · pv field (root best move only) · final response: bestmove"],"green","RUNTIME OUTPUT","small")
+    arrow([(1110,1580),(1110,1590)],"green")
+    arrow([(2040,1625),(2160,1625),(2160,235),(1380,235),(1380,270)],"green",None,None,True,2)
+    text(60,1690,"SOURCE MAP · src/main.cpp: qsearch 589–628 | negamax / TT / pruning 653–752 | root iteration 755–807 | evaluation 432–563","foot")
+    text(2140,1690,"SOURCE-LEVEL VIEW · NOT A RUNTIME TRACE","foot","end")
+    S.append('</svg>')
+    return ''.join(S)
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--output",default="docs/assets/prunex-search-kernel.svg")
+    ap.add_argument('--output',default='docs/assets/prunex-search-kernel.svg')
     args=ap.parse_args()
-    dest=Path(args.output)
-    dest.parent.mkdir(parents=True,exist_ok=True)
-    dest.write_text(render()+"\n",encoding="utf-8")
-    print(f"Prunex search-kernel diagram written to {dest}")
+    p=Path(args.output);p.parent.mkdir(parents=True,exist_ok=True)
+    svg=build();p.write_text(svg+'\n',encoding='utf-8')
+    print(f'Wrote {p} ({len(svg):,} characters)')
 
-if __name__=="__main__":
-    main()
+if __name__=='__main__': main()
