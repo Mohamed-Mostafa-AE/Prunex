@@ -95,5 +95,22 @@ int main() {
     for(const Move& move:legalMoves(position)) returnedLegalMove|=sameMove(move,interruptedBest);
     if(!returnedLegalMove) return 28;
 
+    if(!loadFen(position,"7k/8/8/8/8/8/8/K6R w - - 100 1")) return 29;
+    if(negamax(position,3,-INF,INF,0,true)!=0) return 30;
+
+    if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 100 1")) return 31;
+    if(negamax(position,3,-INF,INF,0,true)!=-MATE) return 32;
+
+    if(!loadFen(position,"7k/8/8/8/8/8/8/1B2K3 w - - 0 1")) return 33;
+    if(!isInsufficientMaterial(position)) return 34;
+
+    if(!loadFen(position,"7k/5n2/8/8/8/8/8/1N2K3 w - - 0 1")) return 35;
+    if(isInsufficientMaterial(position)) return 36;
+
+    searchPathKeys.fill(0);
+    const std::uint64_t repeatedKey=positionKey(position);
+    searchPathKeys[0]=repeatedKey;
+    if(!repeatedPosition(repeatedKey,2,4)) return 37;
+
     return 0;
 }
