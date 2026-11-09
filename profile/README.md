@@ -27,7 +27,8 @@ An independently developed chess-engine project with a native C++20 engine, a Wi
 - 0x88 board representation and legal move generation
 - Zobrist hashing and a transposition table
 - Iterative-deepening negamax alpha–beta / PVS search
-- Aspiration windows, move ordering, late-move reductions, and quiescence search
+- Aspiration windows, move ordering, late-move reductions, quiescence, and verified null-move pruning
+- Repetition, fifty-move, and insufficient-material draw handling
 - Handcrafted tapered middlegame/endgame evaluation
 - Universal Chess Interface (UCI)
 
@@ -37,7 +38,7 @@ An independently developed chess-engine project with a native C++20 engine, a Wi
 - A separate WebAssembly build with native-parity checks
 - Offline PGN ingestion, dataset provenance, native evaluation annotation, and held-out calibration diagnostics
 
-The browser experience is a separate application and does not execute the native C++ engine. Its evaluation path is distinct from the native engine's handcrafted evaluator.
+The browser experience is a separate application, but its opponent and review worker execute the same Prunex C++20 engine compiled to WebAssembly. The native and browser builds share the engine's handcrafted evaluator.
 
 [Explore the repository →](https://github.com/Mohamed-Mostafa-AE/Prunex)
 
