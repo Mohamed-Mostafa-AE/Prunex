@@ -134,7 +134,9 @@ The engine also exposes diagnostic commands:
 ./build/prunex --bench 6
 ```
 
-A historical 64-game benchmark for Prunex 0.8.0 recorded **63 wins, 1 draw, and 0 losses** against Stockfish 2.0. The original result record is preserved in [the benchmark commit](https://github.com/Mohamed-Mostafa-AE/Prunex/commit/0662bc3482a265f3407c3402ceb72a0850c1a191); this historical result is not a current independent Elo rating.
+An owner-supplied historical 64-game report recorded **63 wins, 1 draw, and 0 losses**, but its archived metadata identifies the tested Prunex 0.8.0 binary as **Stockfish 19-derived** and records that the raw PGN/JSONL and verified Stockfish 2.0 executable identity were not supplied. It is not evidence for the independent native C++20 engine in this repository. See the [historical provenance record](https://github.com/Mohamed-Mostafa-AE/Prunex/commit/0662bc3482a265f3407c3402ceb72a0850c1a191) and the [reproducible 64-game verification protocol](docs/stockfish-2.0-reproduction.md).
+
+A new GitHub Actions workflow builds Prunex from the exact commit, builds Stockfish from the official `sf_2.0` source tag, checks its UCI identity and 7,224,363-node signature, and runs a color-balanced 64-game match. It uploads PGN, JSONL, executable hashes, a PGN-derived replay video, and a final-position poster. See [the protocol and evidence format](docs/stockfish-2.0-reproduction.md).
 
 The fixed benchmark contains five positions (starting position, Kiwipete, a rook endgame, a closed-center position, and an open position). It clears the transposition table and search-ordering state before each position, then reports the best move, node count, elapsed time, and aggregate nodes per second. The default depth is 5; supported depths are 1–10.
 
@@ -142,7 +144,7 @@ Benchmark NPS is a repeatable search-throughput measurement, not a playing-stren
 
 ## Validation
 
-The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test.
+The native CTest suite contains **46 regression cases** spanning perft, move generation, position handling, search outcomes, draw rules, static-exchange evaluation, UCI behaviour, time controls, invalid inputs, and a fixed-position benchmark smoke test. An additional Python-based UCI node-limit smoke test runs when a Python 3 interpreter is available; the recorded 46/46 compiler-matrix results below predate that new test.
 
 The release-candidate source-validation runs on 6 November 2026 recorded:
 
