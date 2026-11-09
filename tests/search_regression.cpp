@@ -95,7 +95,7 @@ int main() {
     for(const Move& move:legalMoves(position)) returnedLegalMove|=sameMove(move,interruptedBest);
     if(!returnedLegalMove) return 28;
 
-    if(!loadFen(position,"7k/8/8/8/8/8/8/K6R w - - 100 1")) return 29;
+    if(!loadFen(position,"7k/8/8/8/3R4/8/8/K7 w - - 100 1")) return 29;
     if(negamax(position,3,-INF,INF,0,true)!=0) return 30;
 
     if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 100 1")) return 31;
