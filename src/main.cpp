@@ -186,6 +186,7 @@ struct ZobristKeys {
 };
 
 std::array<TTEntry, TT_SIZE> transpositionTable{};
+std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
 std::uint64_t nodes=0;
@@ -210,6 +211,7 @@ void emitLine(const std::string& line) {
 
 void resetSearchState() {
     transpositionTable.fill(TTEntry{});
+    searchPathKeys.fill(0);
     historyScores={};
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
@@ -268,6 +270,14 @@ std::uint64_t positionKey(const Position& p) {
     if(p.ep>=0) key^=keys.enPassant[p.ep];
     if(p.side==BLACK) key^=keys.side;
     return key;
+}
+
+bool repeatedPosition(std::uint64_t key,int ply,int reversiblePlies) {
+    const int earliest=std::max(0,ply-reversiblePlies);
+    for(int previous=ply-2;previous>=earliest;previous-=2) {
+        if(searchPathKeys[previous]==key) return true;
+    }
+    return false;
 }
 
 bool sameMove(const Move& a,const Move& b) {
@@ -450,6 +460,27 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     ++nodes;
     if(searchShouldStop()) return evaluate(p);
     if(searchPly>=MAX_PLY-1) return evaluate(p);
+    const std::uint64_t key=positionKey(p);
+    searchPathKeys[searchPly]=key;
+    if(p.halfmove>=100||repeatedPosition(key,searchPly,p.halfmove)) return 0;
+    bool insufficient=true;
+    int minorCount=0;
+    int bishopSquareColor=-1;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(piece==EMPTY||typeOf(piece)==6) continue;
+        const int type=typeOf(piece);
+        if(type==1||type==4||type==5) { insufficient=false; break; }
+        if(type==2) { ++minorCount; insufficient=false; }
+        if(type==3) {
+            ++minorCount;
+            const int color=(fileOf(square)+rankOf(square))&1;
+            if(bishopSquareColor<0) bishopSquareColor=color;
+            else if(bishopSquareColor!=color) insufficient=false;
+        }
+    }
+    if(insufficient||minorCount<=1) return 0;
     bool checked=inCheck(p,p.side);
     auto candidates=pseudoMoves(p);
     std::vector<Move> moves;
@@ -491,16 +522,35 @@ bool hasNonPawnMaterial(const Position& p,int color) {
     return false;
 }
 
-int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode) {
+bool hasNullMoveMaterial(const Position& p) {
+    int minorPieces=0;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(colorOf(piece)!=p.side) continue;
+        const int type=typeOf(piece);
+        if(type==4||type==5) return true;
+        if(type==2||type==3) ++minorPieces;
+    }
+    return minorPieces>=2;
+}
+
+int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
     bool checked=inCheck(p,p.side);
     if(checked) ++depth;
+    const std::uint64_t key=positionKey(p);
+    searchPathKeys[ply]=key;
+    if(p.halfmove>=100||repeatedPosition(key,ply,p.halfmove)) {
+        if(!checked) return 0;
+        const auto evasions=legalMoves(p);
+        return evasions.empty()?-MATE+ply:0;
+    }
     if(depth<=0) return quiescence(p,alpha,beta,0,ply);
     ++nodes;
     if(searchShouldStop()) return evaluate(p);
     int originalAlpha=alpha;
-    std::uint64_t key=positionKey(p);
     TTEntry& entry=transpositionTable[key&(TT_SIZE-1)];
     Move hashMove{};
     if(entry.key==key) {
@@ -511,6 +561,21 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode) {
             if(entry.bound==TT_EXACT) return ttScore;
             if(entry.bound==TT_LOWER&&ttScore>=beta) return ttScore;
             if(entry.bound==TT_UPPER&&ttScore<=alpha) return ttScore;
+        }
+    }
+    if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
+        Position nullPosition=p;
+        nullPosition.side=1-nullPosition.side;
+        nullPosition.ep=-1;
+        nullPosition.halfmove=0;
+        const int reduction=2+depth/4;
+        const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
+        if(searchAborted.load(std::memory_order_relaxed)) return 0;
+        if(nullScore>=beta) {
+            if(depth<7) return nullScore;
+            const int verification=negamax(p,depth-1-reduction,beta-1,beta,ply,false,false);
+            if(searchAborted.load(std::memory_order_relaxed)) return 0;
+            if(verification>=beta) return nullScore;
         }
     }
     auto moves=legalMoves(p);
@@ -581,6 +646,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1) {
     for(auto& side:historyScores) for(auto& from:side) for(int& value:from) value/=2;
     nodes=0;
     ttHits=0;
+    searchPathKeys.fill(0);
     completedSearchDepth=0;
     lastSearchScore=evaluate(p);
     Move best=moves.front();
