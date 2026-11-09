@@ -1,6 +1,6 @@
 # Prunex 0.8.0 native search kernel
 
-This page describes the **native C++20 engine** in `src/main.cpp`. The diagram uses a layered technical-architecture style, but it is deliberately **not** an NNUE or neural-network diagram: Prunex's current native evaluator is handcrafted, and its search is a recursive alpha–beta/PVS tree.
+This page describes the **native C++20 engine** in `src/main.cpp`. The diagram and accompanying notes follow the current implementation: recursive alpha–beta/PVS search with a handcrafted tapered evaluator.
 
 ![Detailed architecture of the Prunex 0.8.0 native search kernel](assets/prunex-search-kernel.svg)
 
@@ -52,7 +52,7 @@ flowchart TD
 - **PVS and reductions:** the first move receives a full-window search. Later moves receive a null-window search; quiet late moves may be reduced. A reduced move that improves alpha is re-searched at full child depth, and an in-window PV improvement is then re-searched with the full window.
 - **Move ordering:** a matching hash move is first; capture scores include static-exchange evaluation and victim/attacker values; promotions receive a priority bonus; quiet moves can be ordered by killer and history scores. Capture-promotions combine capture and promotion scoring.
 - **Quiescence:** when not in check, uses stand-pat evaluation and searches captures/promotions, with a non-check quiescence-ply cap of 18. When in check, it does not use stand-pat or that non-check cap; it searches every legal evasion. It applies alpha–beta cutoffs and terminal mate/stalemate handling.
-- **Evaluation:** a handcrafted tapered middlegame/endgame evaluator, blended by material phase (capped at 24). Terms include material, activity/centralization, pawn advancement, doubled/isolated/passed/connected pawns, bishop pair, king shelter, and rook-file bonuses. There is no neural-network or NNUE inference in this native evaluation path.
+- **Evaluation:** a handcrafted tapered middlegame/endgame evaluator, blended by material phase (capped at 24). Terms include material, activity/centralization, pawn advancement, doubled/isolated/passed/connected pawns, bishop pair, king shelter, and rook-file bonuses.
 - **UCI observability:** completed iterations report depth, centipawn score, nodes, NPS, TT hits, hash fullness, and a `pv` field. In the current implementation that field contains the **root best move only**, not a multi-move principal-variation line; the final response emits `bestmove`.
 
 ## Generate the diagram
@@ -71,4 +71,4 @@ The script writes `docs/assets/prunex-search-kernel.svg` and uses only Python's 
 - [Engine architecture in the README](../README.md#native-engine-architecture)
 - [Testing methodology](testing.md)
 
-The architecture is intentionally distinct from the neural-network and NNUE reference diagrams: it shows Prunex's actual recursive search, pruning decisions, caches, board state, and handcrafted evaluation rather than layers of learned weights.
+The diagram shows Prunex's recursive search, pruning decisions, caches, board state, and handcrafted evaluation.
