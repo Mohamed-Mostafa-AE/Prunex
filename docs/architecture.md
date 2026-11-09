@@ -52,7 +52,7 @@ Prunex Play loads the same C++20 engine implementation through the versioned Web
 1. The UCI interface loads a start position or FEN and applies the supplied move sequence.
 2. The position layer stores board state in a 128-slot 0x88 representation.
 3. Pseudo-legal moves are generated, then filtered by king-safety checks.
-4. Search uses iterative deepening, negamax alpha–beta/PVS, move ordering, a transposition table, aspiration windows, late-move reductions, quiescence, repetition and fifty-move draw handling, insufficient-material detection, and verified null-move pruning.
+4. Search uses iterative deepening, negamax alpha–beta/PVS, move ordering, a transposition table, aspiration windows, late-move reductions, quiescence, repetition and fifty-move draw handling, insufficient-material detection, and null-move pruning with verification at greater depths.
 5. The static evaluator calculates material and handcrafted positional terms, then blends middlegame and endgame scores by game phase.
 6. UCI reports search information and the selected best move.
 
