@@ -185,7 +185,7 @@ These tools do **not** train or create engine weights, or automatically modify t
 - **Public website:** https://prunex-play.vercel.app/
 - **Release-candidate preview:** https://prunex-review.vercel.app/
 
-Prunex Play is a browser application for playing and reviewing chess games. It is separate from the native C++ engine. Game Review uses a configurable analysis-time budget of 3, 10, 15, 20, or 30 seconds per non-terminal position, with 15 seconds as the default. A time budget does not guarantee a fixed search depth or a specific move-quality outcome.
+Prunex Play is a separate browser application for playing and reviewing chess games; it runs the native C++ engine compiled to WebAssembly. Game Review uses a configurable analysis-time budget of 3, 10, 15, 20, or 30 seconds per non-terminal position, with 15 seconds as the default. A time budget does not guarantee a fixed search depth or a specific move-quality outcome.
 
 ## Project name
 
