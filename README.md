@@ -196,7 +196,7 @@ Prunex Play is a separate browser application for playing and reviewing chess ga
 The name **Prunex** combines two ideas:
 
 - **PRUN** comes from alpha–beta **PRUNing**.
-- **EX** represents the **execution of adversarial search**: searching candidate moves while accounting for the opponent's possible replies.
+- **EX** represents **competitive execution**: carrying out the search while accounting for the opponent's possible replies.
 
 This is the intended naming inspiration, not a formally standardized acronym. See [Project-name origin](docs/project-name.md).
 
