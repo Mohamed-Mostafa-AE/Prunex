@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a real PGN match into a move-by-move MP4 and 64-board poster."""
 from __future__ import annotations
-import argparse, subprocess
+import argparse, subprocess, shutil
 from pathlib import Path
 import chess
 import chess.pgn
@@ -90,6 +90,7 @@ def main():
         d.text((x+10,y+177),f"Prunex {color}",font=font(11),fill="#aebed3")
     poster_path=out/"64-game-final-positions.png"
     poster.save(poster_path,optimize=True)
+    shutil.rmtree(frames)
     print(f"Rendered {frame_no} actual PGN positions")
     print(f"Video: {video}")
     print(f"Poster: {poster_path}")
