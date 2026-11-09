@@ -33,12 +33,6 @@ The server must verify every condition before importing legacy rows:
 
 The source and destination count checks must include games, reviews, and position-memory records. A successful import is not established by an HTTP success response alone; it requires exact counts, review/game foreign-key integrity, owner scoping, and a retry that does not duplicate rows.
 
-## Current source and destination state
-
-On 6 November 2026, the source Supabase project contained 35 games and 3 reviews across five anonymous identities. A separate confirmed email identity had no games or reviews. The intended archive identity was therefore unresolved and no owner migration was performed.
-
-Neon contained a checksummed recovery snapshot of the source counts, but its active archive tables contained no imported games or reviews at the time of inspection. This snapshot is not a substitute for a verified owner identity or a data-bearing database backup.
-
 ## Security requirements
 
 Never place access tokens, refresh tokens, session cookies, magic-link URLs, passwords, browser-storage exports, or private recovery keys in repository files, screenshots, issues, or pull requests.
