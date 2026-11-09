@@ -1,86 +1,148 @@
-#include <cstring>
-#include <limits>
-#include <string>
+let wasm = null;
+let api = null;
+let initializing = false;
 
-#define PRUNEX_NO_MAIN
-#include "main.cpp"
+const API_ERROR = -2147483648;
+// The exported Prunex 0.8.0 WebAssembly search API is capped at depth 12.
+const MAX_DEPTH = 12;
 
-namespace {
-constexpr int API_ERROR = std::numeric_limits<int>::min();
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value) || min));
+}
 
-class OutputSilencer {
-public:
-    OutputSilencer() : previous_(prunex::suppressEngineOutput) {
-        prunex::suppressEngineOutput = true;
+function opponentBudget(nodes) {
+  const requested = Number(nodes) || 25000;
+  if (requested <= 10000) return 150;
+  if (requested <= 25000) return 350;
+  if (requested <= 50000) return 600;
+  if (requested <= 100000) return 1000;
+  return 1800;
+}
+
+async function initialize() {
+  if (wasm) {
+    self.postMessage({ type: "ready", apiVersion: api.version });
+    return;
+  }
+  if (initializing) return;
+  initializing = true;
+  try {
+    importScripts("/engine/prunex-wasm.js");
+    if (typeof self.createPrunexModule !== "function") {
+      throw new Error("The Prunex WebAssembly module factory was not exported.");
     }
-    ~OutputSilencer() { prunex::suppressEngineOutput = previous_; }
-private:
-    bool previous_;
-};
-}
-
-extern "C" int prunex_wasm_api_version() { return 800; }
-
-// Returns a centipawn evaluation from the side-to-move perspective.
-// API_ERROR indicates an invalid argument or FEN.
-extern "C" int prunex_wasm_evaluate_fen(const char* fen) {
-    if (!fen) return API_ERROR;
-    prunex::Position position;
-    if (!prunex::loadFen(position, fen)) return API_ERROR;
-    return prunex::evaluate(position);
-}
-
-// Returns the static score and writes the selected move in UCI format.
-// Calls are synchronous; invoke them from a dedicated Web Worker in browsers.
-extern "C" int prunex_wasm_search_fen(
-    const char* fen, int depth, char* best_move, int best_move_capacity
-) {
-    if (!fen || !best_move || best_move_capacity < 6 || depth < 1 || depth > 12) return API_ERROR;
-    prunex::Position position;
-    if (!prunex::loadFen(position, fen)) return API_ERROR;
-
-    prunex::resetSearchState();
-    prunex::Move best;
-    {
-        OutputSilencer silence;
-        best = prunex::findBestMove(position, depth);
+    wasm = await self.createPrunexModule({
+      locateFile: path => path.endsWith(".wasm")
+        ? new URL("/engine/prunex-wasm.wasm", self.location.origin).href
+        : path
+    });
+    api = {
+      version: wasm.cwrap("prunex_wasm_api_version", "number", []),
+      search: wasm.cwrap("prunex_wasm_search_fen_timed", "number",
+        ["number", "number", "number", "number", "number"]),
+      depth: wasm.cwrap("prunex_wasm_search_depth", "number", []),
+      nodes: wasm.cwrap("prunex_wasm_nodes", "number", [])
+    };
+    if (api.version() !== 800) {
+      throw new Error("The loaded WebAssembly binary is not Prunex 0.8.0.");
     }
-    if (best.from < 0 || best.to < 0) return API_ERROR;
-
-    const std::string uci = prunex::moveUci(best);
-    if (static_cast<int>(uci.size()) + 1 > best_move_capacity) return API_ERROR;
-    std::memcpy(best_move, uci.c_str(), uci.size() + 1);
-    return prunex::evaluate(position);
+    self.postMessage({ type: "ready", apiVersion: api.version() });
+  } catch (error) {
+    wasm = null;
+    api = null;
+    self.postMessage({
+      type: "error",
+      message: error instanceof Error ? error.message : String(error)
+    });
+  } finally {
+    initializing = false;
+  }
 }
 
-// Performs a time-bounded iterative-deepening search using the native engine.
-// The returned score is from the side-to-move perspective at the root.
-extern "C" int prunex_wasm_search_fen_timed(
-    const char* fen, int max_depth, int time_limit_ms, char* best_move, int best_move_capacity
-) {
-    if (!fen || !best_move || best_move_capacity < 6 || max_depth < 1 || max_depth > 12 ||
-        time_limit_ms < 1 || time_limit_ms > 30000) return API_ERROR;
-    prunex::Position position;
-    if (!prunex::loadFen(position, fen)) return API_ERROR;
+function withFen(fen, callback) {
+  if (!wasm || !api) throw new Error("The Prunex engine is not initialized.");
+  const byteLength = wasm.lengthBytesUTF8(fen) + 1;
+  const fenPointer = wasm._malloc(byteLength);
+  if (!fenPointer) throw new Error("Unable to allocate WebAssembly memory for the position.");
+  try {
+    wasm.stringToUTF8(fen, fenPointer, byteLength);
+    return callback(fenPointer);
+  } finally {
+    wasm._free(fenPointer);
+  }
+}
 
-    prunex::resetSearchState();
-    prunex::Move best;
-    {
-        OutputSilencer silence;
-        best = prunex::findBestMove(position, max_depth, time_limit_ms);
+function searchPosition(fen, timeLimitMs) {
+  return withFen(fen, fenPointer => {
+    const movePointer = wasm._malloc(16);
+    if (!movePointer) throw new Error("Unable to allocate WebAssembly memory for the selected move.");
+    try {
+      const score = api.search(fenPointer, MAX_DEPTH, timeLimitMs, movePointer, 16);
+      if (score === API_ERROR) throw new Error("Prunex rejected the supplied position or search settings.");
+      const bestMove = wasm.UTF8ToString(movePointer);
+      if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove)) {
+        throw new Error("Prunex did not return a valid legal-move coordinate.");
+      }
+      return {
+        scoreType: "cp",
+        score,
+        depth: api.depth(),
+        selDepth: api.depth(),
+        nodes: api.nodes(),
+        bestMove,
+        secondBest: null,
+        wdl: null
+      };
+    } finally {
+      wasm._free(movePointer);
     }
-    if (best.from < 0 || best.to < 0) return API_ERROR;
-
-    const std::string uci = prunex::moveUci(best);
-    if (static_cast<int>(uci.size()) + 1 > best_move_capacity) return API_ERROR;
-    std::memcpy(best_move, uci.c_str(), uci.size() + 1);
-    return prunex::lastSearchScore;
+  });
 }
 
-extern "C" int prunex_wasm_search_depth() {
-    return prunex::completedSearchDepth;
+function handleJob(job) {
+  const fen = job.fen;
+  if (typeof fen !== "string" || !fen.trim()) {
+    throw new Error("A valid FEN position is required.");
+  }
+  const timeLimitMs = job.type === "search"
+    ? opponentBudget(job.nodes)
+    : clamp(job.movetime, 400, 30000);
+  const result = searchPosition(fen, timeLimitMs);
+
+  if (job.type === "search") {
+    self.postMessage({ type: "bestmove", requestId: job.requestId, bestMove: result.bestMove });
+    return;
+  }
+  self.postMessage({ type: "evaluation-complete", requestId: job.requestId, ...result });
 }
 
-extern "C" double prunex_wasm_nodes() {
-    return static_cast<double>(prunex::nodes);
-}
+self.addEventListener("message", event => {
+  const data = event.data || {};
+  if (data.type === "init") {
+    void initialize();
+    return;
+  }
+  if (data.type === "cancel") {
+    // Searches are synchronous inside this worker. The UI interrupts one by
+    // terminating and recreating this worker, so it cannot block cancellation.
+    return;
+  }
+  if (data.type !== "search" && data.type !== "evaluate") return;
+  if (!wasm || !api) {
+    self.postMessage({
+      type: "error",
+      requestId: data.requestId,
+      message: "The Prunex 0.8.0 engine is not ready."
+    });
+    return;
+  }
+  try {
+    handleJob(data);
+  } catch (error) {
+    self.postMessage({
+      type: "error",
+      requestId: data.requestId,
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
