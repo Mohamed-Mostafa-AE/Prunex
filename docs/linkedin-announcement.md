@@ -8,7 +8,7 @@ Its native core brings together a 0x88 board representation, legal move generati
 
 The project includes a UCI command-line engine, a native Windows application, and a browser experience that runs the same C++ engine through WebAssembly.
 
-The name combines two ideas from the engine's design: **PRUN**, from alpha–beta pruning, and **EX**, from the execution of adversarial search.
+The name combines two ideas from the engine's design: **PRUN**, from alpha–beta pruning, and **EX**, from competitive execution.
 
 I've enjoyed working across search algorithms, systems programming, and correctness, and I'd welcome feedback from people interested in C++, chess programming, and engine development.
 
