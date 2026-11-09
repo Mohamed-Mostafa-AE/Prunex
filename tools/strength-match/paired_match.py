@@ -45,12 +45,13 @@ def play_game(candidate: chess.engine.SimpleEngine,
     game.headers["OpeningSeed"] = str(pair_index)
 
     plies = 0
+    game_token = object()
     while plies < 300:
         outcome = board.outcome(claim_draw=True)
         if outcome is not None:
             break
         engine = candidate if board.turn == candidate_color else baseline
-        result = engine.play(board, chess.engine.Limit(time=seconds))
+        result = engine.play(board, chess.engine.Limit(time=seconds), game=game_token)
         if result.move not in board.legal_moves:
             raise RuntimeError(f"Engine returned illegal move: {result.move}")
         board.push(result.move)
