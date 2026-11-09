@@ -5,7 +5,7 @@ This protocol is designed to create a reproducible public record for the **curre
 ## What the workflow verifies
 
 1. Checks out the Prunex commit that launched the workflow and builds its native executable from source.
-2. Checks out the official Stockfish repository at tag `sf_2.0`, pinned to commit `aa2de53a83ca5423c8c8007abf71f9afdf589d93).
+2. Checks out the official Stockfish repository at tag `sf_2.0`, pinned to commit `aa2de53a83ca5423c8c8007abf71f9afdf589d93`.
 3. Builds that historical source and verifies:
    - UCI identity contains `Stockfish 2.0`;
    - the official 2011 benchmark signature is exactly **7,224,363 nodes**;
