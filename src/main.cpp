@@ -300,13 +300,106 @@ bool isCapture(const Position& p,const Move& m) {
     return m.enPassant||p.board[m.to]!=EMPTY;
 }
 
+bool pieceAttacksSquare(const Position& p,int from,int target,int piece) {
+    const int fileDelta=fileOf(target)-fileOf(from);
+    const int rankDelta=rankOf(target)-rankOf(from);
+    const int absFile=std::abs(fileDelta);
+    const int absRank=std::abs(rankDelta);
+    const int type=typeOf(piece);
+    if(fileDelta==0&&rankDelta==0) return false;
+    if(type==1) return absFile==1&&rankDelta==(colorOf(piece)==WHITE?1:-1);
+    if(type==2) return (absFile==1&&absRank==2)||(absFile==2&&absRank==1);
+    if(type==6) return absFile<=1&&absRank<=1;
+    if(type==3&&absFile!=absRank) return false;
+    if(type==4&&fileDelta!=0&&rankDelta!=0) return false;
+    if(type==5&&fileDelta!=0&&rankDelta!=0&&absFile!=absRank) return false;
+    if(type!=3&&type!=4&&type!=5) return false;
+    const int step=(rankDelta>0?16:rankDelta<0?-16:0)+(fileDelta>0?1:fileDelta<0?-1:0);
+    for(int square=from+step;square!=target;square+=step) {
+        if(!onBoard(square)||p.board[square]!=EMPTY) return false;
+    }
+    return true;
+}
+
+int leastValuableAttacker(const Position& p,int target,int color) {
+    int bestSquare=-1;
+    int bestValue=INF;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(piece==EMPTY||colorOf(piece)!=color) continue;
+        if(!pieceAttacksSquare(p,square,target,piece)) continue;
+        const int value=MG_VALUE[typeOf(piece)];
+        if(value<bestValue) {
+            bestValue=value;
+            bestSquare=square;
+        }
+    }
+    return bestSquare;
+}
+
+int staticExchangeEvaluation(const Position& original,const Move& move) {
+    if(!isCapture(original,move)) return 0;
+    Position position=original;
+    const int target=move.to;
+    const int capturedSquare=move.enPassant
+        ? target+(original.side==WHITE?-16:16)
+        : target;
+    const int captured=position.board[capturedSquare];
+    const int moving=position.board[move.from];
+    if(captured==EMPTY||moving==EMPTY) return 0;
+
+    std::array<int,32> gains{};
+    int occupant=move.promotion?move.promotion:moving;
+    gains[0]=MG_VALUE[typeOf(captured)];
+    if(move.promotion) gains[0]+=MG_VALUE[typeOf(move.promotion)]-MG_VALUE[1];
+
+    position.board[move.from]=EMPTY;
+    position.board[capturedSquare]=EMPTY;
+    position.board[target]=occupant;
+    int side=1-original.side;
+    int depth=0;
+
+    while(depth<30) {
+        const int attackerSquare=leastValuableAttacker(position,target,side);
+        if(attackerSquare<0) break;
+        int attacker=position.board[attackerSquare];
+        if(typeOf(attacker)==6) {
+            Position kingCapture=position;
+            kingCapture.board[attackerSquare]=EMPTY;
+            kingCapture.board[target]=attacker;
+            if(attacked(kingCapture,target,1-side)) break;
+        }
+
+        ++depth;
+        int promotionGain=0;
+        if(typeOf(attacker)==1&&rankOf(target)==(side==WHITE?7:0)) {
+            promotionGain=MG_VALUE[5]-MG_VALUE[1];
+            attacker=makePiece(5,side);
+        }
+        gains[depth]=MG_VALUE[typeOf(occupant)]+promotionGain-gains[depth-1];
+        position.board[attackerSquare]=EMPTY;
+        position.board[target]=attacker;
+        occupant=attacker;
+        side=1-side;
+    }
+
+    while(depth>0) {
+        gains[depth-1]=-std::max(-gains[depth-1],gains[depth]);
+        --depth;
+    }
+    return gains[0];
+}
+
 int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply) {
     if(hashMove.from>=0&&sameMove(m,hashMove)) return 2000000;
     int score=0;
     if(m.promotion) score+=900000+MG_VALUE[typeOf(m.promotion)]*8;
     if(isCapture(p,m)) {
-        int victim=m.enPassant?makePiece(1,1-p.side):p.board[m.to];
-        score+=1000000+MG_VALUE[typeOf(victim)]*16-MG_VALUE[typeOf(p.board[m.from])];
+        const int victim=m.enPassant?makePiece(1,1-p.side):p.board[m.to];
+        const int exchange=staticExchangeEvaluation(p,m);
+        score+=1000000+(exchange>=0?200000:-200000)+exchange*16
+            +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])];
         return score;
     }
     if(ply<MAX_PLY) {
@@ -317,9 +410,14 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
 }
 
 void orderMoves(const Position& p,std::vector<Move>& moves,const Move& hashMove,int ply) {
-    std::stable_sort(moves.begin(),moves.end(),[&](const Move& a,const Move& b) {
-        return moveOrderingScore(p,a,hashMove,ply)>moveOrderingScore(p,b,hashMove,ply);
+    struct ScoredMove { Move move; int score; };
+    std::vector<ScoredMove> scored;
+    scored.reserve(moves.size());
+    for(const Move& move:moves) scored.push_back({move,moveOrderingScore(p,move,hashMove,ply)});
+    std::stable_sort(scored.begin(),scored.end(),[](const ScoredMove& a,const ScoredMove& b) {
+        return a.score>b.score;
     });
+    for(std::size_t index=0;index<moves.size();++index) moves[index]=scored[index].move;
 }
 
 int evaluate(const Position& p) {
