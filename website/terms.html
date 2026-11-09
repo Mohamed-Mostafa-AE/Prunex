@@ -23,7 +23,7 @@
   <p class="draft"><strong>Draft for review.</strong> These terms describe intended service use but have not been reviewed by a qualified lawyer. They are not a substitute for jurisdiction-specific legal advice.</p>
 
   <h2>1. The service</h2>
-  <p>Prunex Play provides a browser chess experience, game archive and game-review features. The browser opponent/review component is separate from the native C++ Prunex engine. Features, availability and supported devices may change.</p>
+  <p>Prunex Play provides a browser chess experience, game archive and game-review features. The browser opponent and review worker use the same Prunex 0.8.0 C++20 engine compiled to WebAssembly; the browser application supplies the game interface, game-rule integration, archive, and review presentation. Features, availability and supported devices may change.</p>
 
   <h2>2. Accounts and responsibility</h2>
   <p>A guest account may be created to save games. Guest accounts can become inaccessible if the player clears browser data or changes devices before linking a recoverable sign-in identity. A player can link an email to the existing guest account, verify it in the same browser profile, and then set a password. Password sign-in and email-based password recovery are provided through Supabase Auth. Passwords are not stored in Prunex game records. Players are responsible for protecting their email account and password and for activity performed through their session. Signing into a different account does not automatically merge a separate guest archive.</p>
@@ -43,7 +43,7 @@
   <p>Any public PGN archive used in offline research is handled under that archive's actual license or written permission. Public visibility alone does not grant bulk-download, redistribution or training rights. Source attribution, license terms and any share-alike obligations must be preserved. Dataset records are not automatically covered by the Prunex source-code license.</p>
 
   <h2>6. Third-party software and assets</h2>
-  <p>The native Prunex engine source has its own Apache-2.0 license scope. Browser components, chess-piece artwork, data libraries and other dependencies may have separate license terms. Those notices and conditions continue to apply and are not overridden by the native-engine license.</p>
+  <p>Original Prunex engine source and application contributions are covered by the repository's MIT License, subject to the separately licensed training tools, chess-piece artwork, and third-party dependencies. Browser components, chess-piece artwork, data libraries and other dependencies may have separate license terms. Those notices and conditions continue to apply and are not overridden by the native-engine license.</p>
 
   <h2>7. No rating or strength guarantee</h2>
   <p>Search time, node counts, review depth, a single game score or position-memory retrieval do not guarantee a move is optimal or that the engine has a particular Elo rating. Strength claims require reproducible independent match testing. The service is provided for chess play and analysis, not as a guarantee of tournament performance.</p>
