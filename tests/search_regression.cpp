@@ -129,7 +129,7 @@ int main() {
 
     if(!loadFen(position,"7k/3q4/8/3p4/8/8/8/K2R4 w - - 0 1")) { std::cerr<<"search regression failure 45\n"; return 45; }
     if(!parseUciMove(position,"d1d5",exchangeMove)) { std::cerr<<"search regression failure 46\n"; return 46; }
-    if(staticExchangeEvaluation(position,exchangeMove)!=-400) { std::cerr<<"search regression failure 47: "<<staticExchangeEvaluation(position,exchangeMove)<<"\n"; return 47; }
+    if(staticExchangeEvaluation(position,exchangeMove)!=(MG_VALUE[1]-MG_VALUE[4])) { std::cerr<<"search regression failure 47: "<<staticExchangeEvaluation(position,exchangeMove)<<"\n"; return 47; }
 
     if(!loadFen(position,"7k/8/8/3pP3/8/8/8/K7 w - d6 0 1")) { std::cerr<<"search regression failure 48\n"; return 48; }
     if(!parseUciMove(position,"e5d6",exchangeMove)) { std::cerr<<"search regression failure 49\n"; return 49; }
