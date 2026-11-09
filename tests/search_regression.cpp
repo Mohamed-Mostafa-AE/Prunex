@@ -95,6 +95,8 @@ int main() {
     for(const Move& move:legalMoves(position)) returnedLegalMove|=sameMove(move,interruptedBest);
     if(!returnedLegalMove) return 28;
 
+    searchAborted.store(false,std::memory_order_relaxed);
+
     if(!loadFen(position,"7k/8/8/8/3R4/8/8/K7 w - - 100 1")) { std::cerr<<"search regression failure 29\n"; return 29; }
     if(negamax(position,3,-INF,INF,0,true)!=0) { std::cerr<<"search regression failure 30\n"; return 30; }
 
