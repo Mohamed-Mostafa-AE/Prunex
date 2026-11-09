@@ -4,30 +4,28 @@
 
 I've been building **Prunex 0.8.0**, a chess engine written in **C++20**.
 
-The native engine implements a 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta/PVS search, move-ordering heuristics, quiescence search, draw detection, and a handcrafted tapered evaluation function.
+Its native core brings together a 0x88 board representation, legal move generation, Zobrist hashing, a transposition table, iterative-deepening negamax with alpha–beta and principal-variation search, move ordering, quiescence search, and a handcrafted tapered evaluation function.
 
-The project includes a UCI command-line engine, a native Windows desktop application, and a browser chess application running the same C++ implementation through WebAssembly.
+The project includes a UCI command-line engine, a native Windows application, and a browser experience that runs the same C++ engine through WebAssembly.
 
-The 46-case native regression suite passed across GCC Release, Clang Release, sanitizers, and Windows x64. The browser, WebAssembly parity, and CodeQL checks have also passed in CI.
+The name combines two ideas from the engine's design: **PRUN**, from alpha–beta pruning, and **EX**, from the execution of adversarial search.
 
-The name reflects two ideas from the engine's design: **PRUN** from alpha–beta pruning, and **EX** from the execution of adversarial search.
+I've enjoyed working across search algorithms, systems programming, and correctness, and I'd welcome feedback from people interested in C++, chess programming, and engine development.
 
 **Source code:** https://github.com/Mohamed-Mostafa-AE/Prunex  
-**Browser demo:** https://prunex-play.vercel.app/  
-**Architecture:** https://github.com/Mohamed-Mostafa-AE/Prunex/blob/main/docs/assets/prunex-search-kernel.svg  
-**Validation:** [Native and sanitizer checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/native-ci.yml) · [Windows x64](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/windows-build.yml) · [Browser checks](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/website-ci.yml) · [WebAssembly parity](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/wasm-ci.yml) · [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/workflows/codeql.yml)
-
-I'd welcome feedback from people interested in C++, chess programming, search algorithms, and software engineering.
+**Engine architecture:** https://github.com/Mohamed-Mostafa-AE/Prunex/blob/main/docs/assets/prunex-search-kernel.svg
 
 #CPlusPlus #ChessProgramming #SoftwareEngineering #ChessEngines
 
 ## Image order
 
-1. **Project overview** — attach a current screenshot of the production website after the final production deployment.
-2. **Engine architecture** — attach a PNG export of `docs/assets/prunex-search-kernel.svg`.
+1. **Website overview:** capture the final production website after the current main build has been deployed and visually accepted.
+2. **Native engine architecture:** export docs/assets/prunex-search-kernel.svg to a 1200 × 675 PNG. Keep the original diagram legible and do not add claims that are not represented in the source.
 
-Do not imply a measured playing-strength rating. The native fixed-position benchmark measures search throughput only.
+The previously retained responsive-review captures are from an earlier branch revision and are not approved as current release images. Replace them with captures from the final production build before publishing.
 
-## Publication note
+## Publication gate
 
-This copy describes the source-code project and its automated validation. Publish it after the production deployment, account/archive recovery, backup, authentication, legal, and manual device-acceptance gates have been completed.
+Publish after the current GitHub workflow matrix is green, the production domain points to the final main build, the archive/authentication and recovery requirements are complete, the Privacy Notice and Terms have received qualified review, and manual Windows 10/11 acceptance has passed.
+
+This post intentionally makes no unmeasured playing-strength or rating claim.
