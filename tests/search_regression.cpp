@@ -112,5 +112,13 @@ int main() {
     searchPathKeys[0]=repeatedKey;
     if(!repeatedPosition(repeatedKey,2,4)) return 37;
 
+    if(!loadFen(position,START_FEN)) return 38;
+    searchPathKeys.fill(0);
+    searchPathKeys[0]=positionKey(position);
+    if(negamax(position,2,-INF,INF,2,true)!=0) return 39;
+
+    if(!loadFen(position,"7k/8/8/8/8/8/8/1B2K3 w - - 0 1")) return 40;
+    if(negamax(position,2,-INF,INF,0,true)!=0) return 41;
+
     return 0;
 }
