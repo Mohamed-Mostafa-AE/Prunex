@@ -2,7 +2,7 @@
 
 ## Objective
 
-Develop Prunex as an independently implemented C++ chess engine, with a distinct architecture and a measurable playing-strength target. Stockfish 19 may be used as an external opponent and performance reference only. No Stockfish source, patches, implementation fragments, neural-network weights, or other engine code are to be incorporated into Prunex.
+Develop Prunex as Mohamed Mostafa's original, independently implemented C++ chess engine, built from scratch with its own architecture and implementation. The objective is to reach top-tier competitive playing strength through measurable, original engineering work. No external engine source, patches, implementation fragments, or weights are to be incorporated into Prunex.
 
 The initial design constraint for this programme is a deterministic, handcrafted evaluation function rather than a neural-network evaluator. Search and evaluation improvements must be implemented as original Prunex code and validated through tests and controlled matches.
 
@@ -17,9 +17,11 @@ The current native engine is C++20 and includes:
 - Iterative-deepening negamax with alpha-beta and principal-variation search.
 - Aspiration windows, late-move reductions, move ordering, killer/history heuristics, and quiescence search.
 - A handcrafted tapered middlegame/endgame evaluator.
+- Search-path repetition detection and fifty-move draw handling.
+- Insufficient-material detection and verified null-move pruning.
 - Native, Windows, and WebAssembly builds with regression and parity tests.
 
-This is the repository's documented baseline, not a claim of parity with a top-tier engine.
+This is the repository's documented baseline. Strength remains a measured engineering objective, not an assumed result.
 
 ## Engineering sequence
 
@@ -39,7 +41,7 @@ Evaluate and implement independently, with an isolated test for each change:
 - Incremental position hashing and carefully validated make/unmake state.
 - More selective move ordering, including static exchange evaluation and staged move generation.
 - Refined history, continuation-history, killer, and countermove scoring.
-- Carefully bounded null-move pruning, futility pruning, razoring, and late-move reductions.
+- Further tune null-move pruning; evaluate futility pruning, razoring, and refined late-move reductions.
 - Better aspiration-window management and principal-variation stability.
 - Search instrumentation for node types, cutoffs, reductions, re-searches, and transposition-table quality.
 
@@ -72,13 +74,11 @@ Use held-out positions and controlled matches when tuning parameters. Do not tun
 - Retain every PGN and machine-readable result.
 - Report sample size, score, confidence interval, opponent build identity, and exact Prunex commit.
 - Separate search throughput, tactical-suite results, and Elo estimates; none is a substitute for the others.
-- Do not claim Stockfish 19 parity unless a sufficiently large, reproducible match series supports it.
+- Set strength claims only from sufficiently large, reproducible match series with retained game records.
 
 ## Code-quality standard
 
-The objective is maintainable and correct software, not a particular stylistic appearance. Code should use consistent project conventions, descriptive names, comments that explain non-obvious invariants, small testable units, explicit error handling, and meaningful regression tests. Do not add artificial irregularities or alter code merely to influence authorship detectors.
-
-Research on source-code authorship detection reports poor generalization across tools and domains. Detector scores are not a reliable substitute for source history, design records, tests, and reproducible development evidence.
+Keep the implementation readable, maintainable, and consistent with the existing C++20 codebase. Use descriptive names, explain non-obvious invariants, keep search heuristics bounded, and add focused regression tests for every behavior change. Prefer measured improvements over speculative complexity.
 
 ## Release gates
 
