@@ -1,253 +1,142 @@
 #!/usr/bin/env python3
-"""Generate a detailed, source-grounded architecture plate for Prunex 0.8.0."""
+"""Build an expert, source-derived diagram of Prunex's native C++20 search."""
 from __future__ import annotations
 import argparse
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-W, H = 2600, 2110
-BG = "#07111f"
-PANEL = "#0d1b2c"
-CARD = "#11243a"
-EDGE = "#294660"
-TEXT = "#eef5ff"
-MUTED = "#a8bdd0"
-DIM = "#708aa3"
-CYAN = "#55e2d0"
-BLUE = "#79aaff"
-AMBER = "#f2c56b"
-RED = "#ff8d9b"
-GREEN = "#8fe0a8"
+W, H = 2200, 1720
+S: list[str] = []
 
-parts: list[str] = []
+def text(x, y, value, cls="body", anchor=None):
+    a = f' text-anchor="{anchor}"' if anchor else ""
+    S.append(f'<text class="{cls}" x="{x}" y="{y}"{a}>{escape(value)}</text>')
 
-def txt(x: float, y: float, value: str, size: int = 19, color: str = TEXT,
-        weight: int = 400, anchor: str = "start", letter: float = 0) -> None:
-    parts.append(f'<text x="{x}" y="{y}" font-family="Inter,Segoe UI,Arial,sans-serif" '
-                 f'font-size="{size}" font-weight="{weight}" fill="{color}" '
-                 f'text-anchor="{anchor}" letter-spacing="{letter}">{escape(value)}</text>')
+def card(x, y, w, h, kicker, title, rows, accent="teal", tag=None, fs="body"):
+    S.append(f'<rect class="card" x="{x}" y="{y}" width="{w}" height="{h}" rx="17"/>')
+    S.append(f'<rect class="bar {accent}" x="{x}" y="{y}" width="7" height="{h}" rx="3"/>')
+    text(x+24, y+27, kicker.upper(), "kicker "+accent)
+    text(x+24, y+57, title, "title")
+    if tag: text(x+w-18, y+25, tag, "tag "+accent, "end")
+    for i,row in enumerate(rows): text(x+24, y+86+i*25, row, fs)
 
-def rect(x: float, y: float, w: float, h: float, fill: str = CARD,
-         stroke: str = EDGE, radius: int = 16, sw: int = 2) -> None:
-    parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{radius}" '
-                 f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"/>')
+def panel(x, y, w, h, title, rows, accent="blue", tag=None, fs="body"):
+    S.append(f'<rect class="panel" x="{x}" y="{y}" width="{w}" height="{h}" rx="17"/>')
+    S.append(f'<rect class="bar {accent}" x="{x}" y="{y}" width="7" height="{h}" rx="3"/>')
+    text(x+23, y+34, title, "ptitle")
+    if tag: text(x+w-18, y+31, tag, "tag "+accent, "end")
+    for i,row in enumerate(rows): text(x+23, y+70+i*26, row, fs)
 
-def panel(x: float, y: float, w: float, h: float, title: str, rows: list[str],
-          accent: str = CYAN, tag: str | None = None, row_size: int = 16) -> None:
-    rect(x, y, w, h, PANEL, EDGE, 18, 2)
-    rect(x, y, 7, h, accent, accent, 3, 0)
-    txt(x + 24, y + 34, title, 21, TEXT, 700)
-    if tag:
-        txt(x + w - 20, y + 31, tag, 13, accent, 700, "end", 1)
-    for i, row in enumerate(rows):
-        txt(x + 24, y + 70 + i * 27, row, row_size, MUTED, 450)
+def arrow(points, color="teal", label=None, pos=None, dashed=False, width=3):
+    d="M "+" L ".join(f"{x} {y}" for x,y in points)
+    dash=' stroke-dasharray="8 7"' if dashed else ""
+    S.append(f'<path class="line {color}" d="{d}" stroke-width="{width}" marker-end="url(#{color})"{dash}/>')
+    if label and pos: text(pos[0],pos[1],label,"edge-label "+color)
 
-def block(x: float, y: float, w: float, h: float, label: str, title: str,
-          rows: list[str], accent: str = CYAN, tag: str | None = None,
-          row_size: int = 16) -> None:
-    rect(x, y, w, h, CARD, EDGE, 17, 2)
-    rect(x, y, 7, h, accent, accent, 3, 0)
-    txt(x + 23, y + 24, label.upper(), 12, accent, 750, letter=1.4)
-    txt(x + 23, y + 53, title, 22, TEXT, 700)
-    if tag:
-        txt(x + w - 18, y + 25, tag, 12, accent, 700, "end", 1)
-    for i, row in enumerate(rows):
-        txt(x + 23, y + 83 + i * 25, row, row_size, MUTED, 450)
+def decision(cx,cy,w,h,label):
+    points=f"{cx},{cy-h/2} {cx+w/2},{cy} {cx},{cy+h/2} {cx-w/2},{cy}"
+    S.append(f'<polygon points="{points}" class="decision"/>')
+    text(cx,cy+6,label,"decision-label","middle")
 
-def arrow(points: list[tuple[float, float]], color: str = CYAN,
-          label: str | None = None, label_at: tuple[float, float] | None = None,
-          width: int = 3, dash: str | None = None) -> None:
-    d = "M " + " L ".join(f"{x} {y}" for x, y in points)
-    dash_attr = f' stroke-dasharray="{dash}"' if dash else ""
-    parts.append(f'<path d="{d}" fill="none" stroke="{color}" stroke-width="{width}" '
-                 f'stroke-linecap="round" stroke-linejoin="round" marker-end="url(#{color[1:]})"{dash_attr}/>')
-    if label and label_at:
-        txt(label_at[0], label_at[1], label, 13, color, 700)
-
-def diamond(cx: float, cy: float, w: float, h: float, label: str,
-            accent: str = AMBER) -> None:
-    points = f"{cx},{cy-h/2} {cx+w/2},{cy} {cx},{cy+h/2} {cx-w/2},{cy}"
-    parts.append(f'<polygon points="{points}" fill="#1b2b3c" stroke="{accent}" stroke-width="2.5"/>')
-    txt(cx, cy + 7, label, 17, TEXT, 700, "middle")
-
-def circle(cx: float, cy: float, r: int, fill: str, stroke: str = "none") -> None:
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}" stroke="{stroke}" stroke-width="2"/>')
-
-def build() -> str:
-    parts.clear()
-    parts.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">')
-    parts.append('''<defs>
-      <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse">
-        <path d="M34 0H0V34" fill="none" stroke="#14263a" stroke-width="1"/>
-      </pattern>
-      <marker id="55e2d0" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#55e2d0"/></marker>
-      <marker id="79aaff" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#79aaff"/></marker>
-      <marker id="f2c56b" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#f2c56b"/></marker>
-      <marker id="ff8d9b" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#ff8d9b"/></marker>
-      <marker id="8fe0a8" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8fe0a8"/></marker>
-      <marker id="708aa3" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#708aa3"/></marker>
+def build():
+    S.clear()
+    S.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">')
+    S.append('''<defs>
+    <style>
+      text{font-family:Inter,Segoe UI,Arial,sans-serif}
+      .bg{fill:#07111f}.grid{fill:url(#grid);opacity:.55}
+      .card{fill:#11243a;stroke:#294660;stroke-width:2}.panel{fill:#0d1b2c;stroke:#294660;stroke-width:2}
+      .bar{stroke:none}.teal{fill:#55e2d0}.blue{fill:#79aaff}.amber{fill:#f2c56b}.red{fill:#ff8d9b}.green{fill:#8fe0a8}
+      .kicker{font-size:13px;font-weight:800;letter-spacing:1.5px}.title{font-size:23px;font-weight:700;fill:#eef5ff}
+      .ptitle{font-size:21px;font-weight:750;fill:#eef5ff}.tag{font-size:12px;font-weight:750;letter-spacing:1.1px}
+      .body{font-size:16px;font-weight:450;fill:#a8bdd0}.small{font-size:14px;font-weight:450;fill:#a8bdd0}
+      .line{fill:none;stroke-linecap:round;stroke-linejoin:round}.line.teal{stroke:#55e2d0}.line.blue{stroke:#79aaff}.line.amber{stroke:#f2c56b}.line.red{stroke:#ff8d9b}.line.green{stroke:#8fe0a8}
+      .decision{fill:#1b2b3c;stroke:#f2c56b;stroke-width:2.5}.decision-label{font-size:19px;font-weight:750;fill:#eef5ff}
+      .edge-label{font-size:13px;font-weight:750}.header-kicker{font-size:15px;font-weight:800;letter-spacing:2px;fill:#55e2d0}
+      .main-title{font-size:58px;font-weight:800;letter-spacing:-1px;fill:#eef5ff}.subtitle{font-size:21px;font-weight:450;fill:#a8bdd0}
+      .legend{font-size:12px;font-weight:750;letter-spacing:1px;fill:#a8bdd0}.foot{font-size:14px;fill:#708aa3}
+    </style>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0V36" fill="none" stroke="#14263a" stroke-width="1"/></pattern>
+    <marker id="teal" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#55e2d0"/></marker>
+    <marker id="blue" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#79aaff"/></marker>
+    <marker id="amber" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#f2c56b"/></marker>
+    <marker id="red" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#ff8d9b"/></marker>
+    <marker id="green" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8fe0a8"/></marker>
     </defs>''')
-    rect(0, 0, W, H, BG, BG, 0, 0)
-    parts.append(f'<rect width="{W}" height="{H}" fill="url(#grid)" opacity=".62"/>')
-    txt(78, 66, "PRUNEX 0.8.0  /  NATIVE C++20 ENGINE", 15, CYAN, 750, letter=2.0)
-    txt(78, 132, "Inside the Search Kernel", 58, TEXT, 750, letter=-1.0)
-    txt(82, 177, "Source-derived architecture of the current native implementation — control flow, search state, pruning and evaluation", 21, MUTED, 450)
-    for i, (col, label) in enumerate([(CYAN, "CONTROL FLOW"), (BLUE, "SEARCH STATE"), (AMBER, "EVALUATION / LEAF"), (RED, "PRUNING / CUTOFF"), (GREEN, "RESULT / FEEDBACK")]):
-        x = 86 + i * 300
-        rect(x, 205, 13, 13, col, col, 3, 0)
-        txt(x + 23, 217, label, 12, MUTED, 700, letter=1.0)
+    S.append(f'<rect class="bg" width="{W}" height="{H}"/><rect class="grid" width="{W}" height="{H}"/>')
+    text(60,58,"PRUNEX 0.8.0  /  NATIVE C++20 ENGINE","header-kicker")
+    text(60,123,"Inside the Search Kernel","main-title")
+    text(62,164,"Source-derived architecture of the actual search path, state caches, selective pruning and handcrafted evaluation","subtitle")
+    for i,(c,l) in enumerate([("teal","CONTROL FLOW"),("blue","SEARCH STATE"),("amber","EVALUATION / LEAF"),("red","PRUNING / CUTOFF"),("green","RESULT / FEEDBACK")]):
+        x=65+i*270
+        S.append(f'<rect class="{c}" x="{x}" y="190" width="12" height="12" rx="3"/>')
+        text(x+22,201,l,"legend")
 
-    txt(78, 270, "01  /  ROOT ORCHESTRATION", 13, BLUE, 800, letter=1.6)
-    block(78, 292, 520, 145, "UCI INPUT", "Position + go limits", [
-        "FEN / start position + move sequence",
-        "depth · movetime · clock · optional node cap"], BLUE)
-    block(660, 292, 550, 145, "ROOT DRIVER", "findBestMove(position, depth, …)", [
-        "Generate legal root moves; set time / node limit",
-        "Advance TT generation; reset counters and PV state"], CYAN, row_size=15)
-    block(1274, 292, 550, 145, "ITERATION SCHEDULE", "Iterative deepening", [
-        "Depth 1 → requested limit; preserve last complete result",
-        "Age history scores; clear killer moves for the search"], BLUE)
-    block(1888, 292, 630, 145, "WINDOW CONTROL", "Aspiration search", [
-        "Depth ≥ 3: previous score ± 40 centipawns",
-        "Fail-low / fail-high → widen window and re-search"], AMBER)
-    arrow([(598, 365), (660, 365)], BLUE)
-    arrow([(1210, 365), (1274, 365)], CYAN)
-    arrow([(1824, 365), (1888, 365)], AMBER)
-    arrow([(2203, 437), (2203, 472), (1745, 472), (1745, 515)], AMBER, "root call", (2010, 463))
+    # Root orchestration layer
+    text(60,250,"01  /  ROOT ORCHESTRATION","kicker blue")
+    card(60,270,480,145,"UCI COMMAND","Position + go limits",["FEN / start position + move sequence","depth · movetime · clock · optional node cap"],"blue")
+    card(600,270,480,145,"ROOT CONTROLLER","findBestMove(position, depth, …)",["Generate legal root moves; set time / node limit","Advance TT generation; reset counters and PV state"],"teal")
+    card(1140,270,480,145,"ITERATION SCHEDULE","Iterative deepening",["Depth 1 → requested limit; keep last completed result","Age history scores; clear killer moves"],"blue")
+    card(1680,270,460,145,"WINDOW CONTROL","Aspiration search",["From depth 3: previous score ± 40 cp","Fail-low / high → widen window and re-search"],"amber")
+    arrow([(540,342),(600,342)],"blue")
+    arrow([(1080,342),(1140,342)],"teal")
+    arrow([(1620,342),(1680,342)],"amber")
+    arrow([(1910,415),(1910,465),(1110,465),(1110,500)],"amber")
 
-    txt(820, 510, "02  /  RECURSIVE NEGAMAX PIPELINE", 13, CYAN, 800, letter=1.6)
-    block(820, 535, 970, 116, "NODE ENTRY", "negamax(position, depth, α, β, ply, pvNode)", [
-        "Abort / maximum-ply guard · check extension increments depth when side to move is in check"], CYAN, row_size=16)
-    arrow([(1305, 651), (1305, 683)], CYAN)
-    block(820, 685, 970, 126, "POSITION VALIDATION", "Hash + terminal / draw rules", [
-        "Zobrist key → search-path repetition; halfmove clock ≥ 100; insufficient material",
-        "If a draw condition occurs while checked, test legal evasions to distinguish mate"], BLUE, row_size=15)
-    arrow([(1305, 811), (1305, 840)], BLUE)
-    diamond(1305, 894, 520, 98, "depth ≤ 0 ?", AMBER)
-    arrow([(1045, 894), (740, 894), (740, 946), (650, 946)], AMBER, "YES", (760, 877))
-    panel(78, 830, 570, 265, "QUIESCENCE SEARCH  /  qsearch()", [
-        "Entered at depth ≤ 0; non-check q-ply cap = 18",
-        "Outside check: stand-pat evaluation updates α / β",
-        "Search captures and promotions; order with SEE",
-        "In check: every legal evasion (no stand-pat or q-ply cap)",
-        "Alpha–beta cutoffs; mate / stalemate terminal handling"], AMBER, "LEAF EXTENSION", 15)
-    arrow([(1305, 943), (1305, 969)], CYAN, "NO", (1330, 960))
+    # Main recursive search lane
+    text(690,492,"02  /  RECURSIVE NEGAMAX + PVS CORE","kicker teal")
+    card(690,510,840,100,"NODE ENTRY","negamax(position, depth, α, β, ply, pvNode)",["Abort / max-ply guards · check extension adds one ply when in check"],"teal")
+    arrow([(1110,610),(1110,635)],"teal")
+    card(690,638,840,112,"POSITION VALIDATION","Zobrist + terminal / draw rules",["Search-path repetition · halfmove clock ≥ 100 · insufficient material","When checked, test legal evasions before returning a draw"],"blue")
+    arrow([(1110,750),(1110,772)],"blue")
+    decision(1110,820,390,96,"depth ≤ 0 ?")
+    arrow([(915,820),(610,820),(610,705)],"amber","YES · qsearch",(650,805))
+    arrow([(1110,868),(1110,895)],"teal","NO",(1130,888))
+    card(690,898,840,118,"TT PROBE","Direct-mapped transposition table",["Index: Zobrist key & (TT_SIZE − 1); confirm full key","Sufficient-depth EXACT / LOWER / UPPER bound can return or cut"],"blue")
+    arrow([(1110,1016),(1110,1035)],"teal")
+    card(690,1038,840,112,"SELECTIVE PRUNING","Null-move pruning gate",["Non-PV · not in check · depth ≥ 3 · below mate threshold","Require non-pawn material · R = 2 + depth / 4 · verify at depth ≥ 7"],"amber")
+    arrow([(1110,1150),(1110,1168)],"teal")
+    card(690,1170,840,117,"EXPANSION","Legal moves + scored candidate list",["Generate legal moves; empty list distinguishes mate from stalemate","Order hash move, captures / promotions, killers and history"],"teal")
+    arrow([(1110,1276),(1110,1295)],"teal")
+    card(690,1297,840,170,"PVS MOVE LOOP","Negamax recursion + late-move reductions",["Move 1: full α–β window; later moves: null-window probes","Quiet non-check LMR: depth ≥ 3 / move index ≥ 3; extra reduction at depth ≥ 6 / index ≥ 8","Reduced improvement → re-search; in-window PV improvement → full-window re-search","α ≥ β → cutoff; update killer + history for quiet moves"],"teal",fs="small")
+    arrow([(1110,1439),(1110,1457)],"green")
+    card(690,1460,840,85,"NODE RETURN","Bound classification + TT store",["UPPER / LOWER / EXACT from original α, β · store score / best move / depth / generation"],"green",fs="small")
 
-    block(820, 972, 970, 137, "TRANSPOSITION PROBE", "Direct-mapped transposition table", [
-        "Index = Zobrist key & (TT_SIZE − 1); confirm the stored full key",
-        "Sufficient depth: EXACT returns · LOWER cuts at β · UPPER cuts at α",
-        "Hash move is retained for ordering even when the stored bound cannot return"], BLUE, row_size=15)
-    arrow([(1790, 1038), (1840, 1038), (1840, 750), (1900, 750)], BLUE, "probe / store", (1847, 900))
-    panel(1900, 635, 620, 236, "POSITION HASH + TT ENTRY", [
-        "Zobrist key components: pieces · side to move",
-        "castling rights · en-passant square",
-        "2^18 entries (TT_BITS = 18), indexed directly",
-        "Entry: key · best move · score · depth",
-        "bound (EXACT / LOWER / UPPER) · generation",
-        "Mate scores normalized for ply on store / retrieval"], BLUE, "STATE CACHE", 15)
-    arrow([(1900, 690), (1850, 690), (1850, 990), (1790, 990)], GREEN, "usable bound → return", (1860, 715), 2, "7 6")
+    # Left supporting branches
+    panel(60,540,550,230,"QUIESCENCE SEARCH  /  qsearch()",["Depth ≤ 0 enters tactical leaf search","Not in check: stand pat, then captures / promotions","Non-check q-ply cap = 18; SEE ordering and α–β cutoffs","In check: no stand pat or q-ply cap; search every legal evasion"],"amber","LEAF EXTENSION","small")
+    panel(60,815,550,188,"BOARD + MOVE GENERATION",["0x88 mailbox board (128 slots)","Pseudo-legal generation + make / undo legality test","Castling · en-passant · four promotions · king safety","Side, castling, EP, halfmove / fullmove state"],"teal","POSITION CORE","small")
+    panel(60,1048,550,280,"HANDCRAFTED STATIC EVALUATION",["Tapered middlegame / endgame score; phase capped at 24","Material + piece-square activity / centralization","Pawn structure: doubled, isolated, passed, connected","Bishop pair · king shelter · rook open / semi-open files","Called for root baseline, qsearch stand-pat, stop / max-ply fallback","No neural network or NNUE inference in this path"],"amber","evaluate(position)","small")
+    arrow([(60,1168),(30,1168),(30,655),(60,655)],"amber",None,None,True,2)
+    arrow([(610,910),(650,910),(650,1220),(690,1220)],"teal",None,None,False,2)
+    
 
-    arrow([(1305, 1109), (1305, 1135)], CYAN)
-    block(820, 1137, 970, 139, "SELECTIVE PRUNING", "Null-move pruning gate", [
-        "Only non-PV · not in check · depth ≥ 3 · below mate threshold",
-        "Require non-pawn material; null search uses R = 2 + depth / 4",
-        "Cutoff at depth < 7 is accepted; deeper cutoff gets a verification search"], AMBER, row_size=15)
-    panel(1900, 925, 620, 248, "NULL-MOVE / REDUCTION POLICY", [
-        "Null position: flip side; clear en-passant",
-        "Search a reduced null window (−β, −β + 1)",
-        "If score ≥ β: candidate fail-high",
-        "At depth ≥ 7: verify with null-move disabled",
-        "Verification is another reduced-depth search"], AMBER, "CONDITIONAL", 15)
-    arrow([(1790, 1202), (1845, 1202), (1845, 1050), (1900, 1050)], AMBER, "gate / verify", (1848, 1185), 2, "7 6")
+    # Right support modules
+    panel(1570,510,570,235,"ZOBRIST KEY + TT ENTRY",["Key covers pieces · side to move","castling rights · en-passant square","2^18 direct-mapped entries (TT_BITS = 18)","Entry: full key · best move · score · depth","Bound: EXACT / LOWER / UPPER · generation","Mate scores normalized for ply on store / retrieval"],"blue","SEARCH STATE","small")
+    panel(1570,780,570,175,"NULL-MOVE / REDUCTION POLICY",["Null position flips side and clears en-passant","Reduced null-window probe: (−β, −β + 1)","Fail-high at depth < 7 accepted; deeper result verified","Verification runs with null move disabled"],"amber","CONDITIONAL PRUNING","small")
+    panel(1570,990,570,210,"MOVE ORDERING / HEURISTICS",["1  Hash move (highest priority)","2  Captures: SEE + victim / attacker values","3  Promotions receive a priority bonus","4  Two killer slots per ply","5  History score for quiet moves","Quiet beta-cutoff updates killer + history"],"blue","ORDER BEFORE SEARCH","small")
+    panel(1570,1225,570,235,"PVS SEARCH-TREE VIEW",["Conceptual branch pattern — not a measured trace","Root candidate → first full-window search","Later siblings → null-window probes / LMR","PV improvement → conditional re-search","α ≥ β → sibling subtree cutoff"],"teal","PRINCIPLE, NOT SCALE","small")
+    # State feedback and ordering inputs
+    arrow([(1530,955),(1550,955),(1550,640),(1570,640)],"blue",None,None,True,2)
+    arrow([(1530,1090),(1550,1090),(1550,865),(1570,865)],"amber",None,None,True,2)
+    arrow([(1570,1090),(1548,1090),(1548,1340),(1530,1340)],"blue",None,None,False,2)
+    arrow([(1530,1370),(1550,1370),(1550,1335),(1570,1335)],"teal",None,None,True,2)
+    arrow([(1530,1530),(1550,1530),(1550,735),(1530,735)],"green",None,None,True,2)
 
-    arrow([(1305, 1276), (1305, 1301)], CYAN)
-    block(820, 1303, 970, 122, "EXPANSION", "Legal moves + ordered candidate list", [
-        "Generate legal moves; detect mate / stalemate when the list is empty",
-        "Score and sort candidates before entering the recursive move loop"], CYAN, row_size=15)
-    panel(78, 1243, 570, 230, "POSITION / MOVE GENERATION", [
-        "0x88 mailbox board (128 slots; on-board mask)",
-        "Pseudo-legal generation + make / undo legality test",
-        "Castling · en-passant · promotions · king safety",
-        "Position state: side · castling · EP · halfmove / fullmove"], CYAN, "BOARD CORE", 15)
-    arrow([(648, 1350), (820, 1350)], CYAN, "legal move set", (685, 1335), 2)
+    # Completed iteration / UCI layer
+    panel(690,1590,1450,72,"COMPLETED ITERATION  /  UCI OBSERVABILITY",["info depth · score cp · nodes · NPS · TT hits · hashfull · pv field (root best move only) · final response: bestmove"],"green","RUNTIME OUTPUT","small")
+    arrow([(1110,1580),(1110,1590)],"green")
+    arrow([(2040,1625),(2160,1625),(2160,235),(1380,235),(1380,270)],"green",None,None,True,2)
+    text(60,1690,"SOURCE MAP · src/main.cpp: qsearch 589–628 | negamax / TT / pruning 653–752 | root iteration 755–807 | evaluation 432–563","foot")
+    text(2140,1690,"SOURCE-LEVEL VIEW · NOT A RUNTIME TRACE","foot","end")
+    S.append('</svg>')
+    return ''.join(S)
 
-    arrow([(1305, 1425), (1305, 1450)], CYAN)
-    block(820, 1452, 970, 183, "PRINCIPAL-VARIATION SEARCH", "PVS move loop  /  Negamax recursion", [
-        "Move 1: full α–β window; later moves: null-window probe (−α−1, −α)",
-        "Quiet, non-check moves may receive LMR: depth ≥ 3 and move index ≥ 3",
-        "At depth ≥ 6 and move index ≥ 8, the reduction can increase by one",
-        "Fail-high after reduction → re-search; PV improvement inside window → full re-search",
-        "If α ≥ β: cutoff; update killer and history scores for quiet moves"], CYAN, row_size=15)
-    panel(1900, 1210, 620, 260, "MOVE ORDERING / HEURISTICS", [
-        "1  Hash move (highest priority)",
-        "2  Captures: SEE + victim / attacker value",
-        "3  Promotions: priority bonus (capture-promotions combine both)",
-        "4  Killer moves (two slots per ply)",
-        "5  History score (side · from-square · to-square), for quiet moves",
-        "Quiet beta-cutoff moves update killer + history tables"], BLUE, "ORDER BEFORE SEARCH", 15)
-    arrow([(1900, 1360), (1850, 1360), (1790, 1360)], BLUE, "move scores", (1822, 1344), 2)
-    arrow([(1790, 1590), (1855, 1590), (1855, 1440), (1900, 1440)], BLUE, "killer / history updates", (1860, 1572), 2, "7 6")
+def main():
+    ap=argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--output',default='docs/assets/prunex-search-kernel.svg')
+    args=ap.parse_args()
+    p=Path(args.output);p.parent.mkdir(parents=True,exist_ok=True)
+    svg=build();p.write_text(svg+'\n',encoding='utf-8')
+    print(f'Wrote {p} ({len(svg):,} characters)')
 
-    panel(1900, 1505, 620, 295, "PVS SEARCH-TREE VIEW", [
-        "Conceptual branch structure — not a measured tree or fixed width"], CYAN, "PRINCIPLE, NOT SCALE", 14)
-    root = (1980, 1660)
-    children = [(2120, 1608), (2120, 1660), (2120, 1712)]
-    for x, y in children:
-        arrow([root, (x - 18, y)], BLUE, width=2)
-    circle(*root, 11, CYAN)
-    for i, (x, y) in enumerate(children):
-        circle(x, y, 10, AMBER if i == 0 else BLUE)
-        if i == 0:
-            circle(2255, 1608, 10, GREEN)
-            arrow([(x + 11, y), (2242, 1608)], GREEN, width=2)
-        elif i == 1:
-            circle(2255, 1660, 10, RED)
-            arrow([(x + 11, y), (2242, 1660)], RED, width=2)
-        else:
-            circle(2255, 1712, 10, DIM)
-            arrow([(x + 11, y), (2242, 1712)], DIM, width=2, dash="5 5")
-    txt(2290, 1614, "PV re-search", 13, GREEN, 700)
-    txt(2290, 1666, "β cutoff", 13, RED, 700)
-    txt(2290, 1718, "sibling pruned", 13, DIM, 700)
-
-    panel(78, 1510, 570, 300, "HANDCRAFTED STATIC EVALUATION", [
-        "Material values + piece-square / activity terms",
-        "Pawn terms: advancement · doubled · isolated",
-        "passed · connected pawn bonuses",
-        "Bishop-pair bonus; king-shelter adjustments",
-        "Rook open / semi-open file bonuses",
-        "Middlegame ↔ endgame phase blend (phase capped at 24)",
-        "Root baseline · qsearch stand-pat · stop / max-ply fallback"], AMBER, "evaluate(position)", 14)
-    arrow([(648, 1645), (700, 1645), (700, 1070), (648, 1070)], AMBER, "stand-pat / leaf score", (705, 1320), 2, "7 6")
-
-    arrow([(1305, 1635), (1305, 1662)], GREEN)
-    block(820, 1664, 970, 119, "NODE COMPLETION", "Bound classification + TT store", [
-        "best ≤ original α → UPPER · best ≥ β → LOWER · otherwise EXACT",
-        "Store score, best move, depth and generation; then return node score"], GREEN, row_size=15)
-    arrow([(1790, 1723), (1868, 1723), (1868, 592), (1790, 592)], GREEN, "recursive return to caller", (1875, 1705), 2, "8 7")
-
-    arrow([(1305, 1783), (1305, 1820)], GREEN)
-    panel(560, 1830, 1480, 170, "COMPLETED ITERATION  /  UCI OBSERVABILITY", [
-        "info depth · score cp · nodes · NPS · TT hits · hashfull · pv field (root move only)",
-        "Only a completed iteration updates score / depth; final response emits bestmove",
-        "Node / time stop is checked during search; time polling is sampled every 128 nodes"], GREEN, "MEASURED AT RUNTIME", 16)
-    arrow([(2040, 1910), (2550, 1910), (2550, 258), (1548, 258), (1548, 292)], GREEN, "next depth / retain last complete result", (1580, 250), 2, "8 7")
-
-    txt(78, 2040, "SOURCE MAP  ·  src/main.cpp: 589–628 quiescence  |  653–752 negamax / TT / pruning  |  755–807 root iteration  |  432–563 evaluation", 14, MUTED, 500)
-    txt(78, 2072, "This is a source-level architecture plate, not a captured search trace. The branching inset is explanatory; node counts, tree widths and performance vary by position.", 13, DIM, 450)
-    txt(2518, 2072, "PRUNEX  /  SEARCH SYSTEMS", 12, CYAN, 750, "end", 1.2)
-    parts.append('</svg>')
-    return "\n".join(parts)
-
-def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--output", default="docs/assets/prunex-search-kernel.svg")
-    args = ap.parse_args()
-    destination = Path(args.output)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    svg = build()
-    destination.write_text(svg + "\n", encoding="utf-8")
-    print(f"Wrote {destination} ({len(svg):,} SVG characters)")
-
-if __name__ == "__main__":
-    main()
+if __name__=='__main__': main()
