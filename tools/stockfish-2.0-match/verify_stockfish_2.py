@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Verify the official Stockfish 2.0 source build and historical bench signature.
 
-The Stockfish 2.0 `bench` command writes one `Nodes:` total per benchmark
-position to its Search Log file (bench.txt). This verifier reads that file
-instead of guessing the total from a newer engine's console-output format.
+Stockfish 2.0 polls stdin during search. Closing stdin makes its input loop
+interpret EOF as a UCI 'quit' command, which aborts the benchmark after the
+current position. The benchmark helper below keeps the pipe open until the
+process exits naturally.
 """
 from __future__ import annotations
 
@@ -33,7 +34,7 @@ def sha256_file(path: Path) -> str:
 
 
 def parse_position_node_counts(search_log: str) -> list[int]:
-    """Extract the 16 per-position `Nodes:` values emitted by Stockfish 2.0."""
+    """Extract per-position Nodes totals from Stockfish 2.0 bench.txt."""
     counts: list[int] = []
     for line in search_log.splitlines():
         match = NODE_LINE.match(line)
@@ -43,7 +44,7 @@ def parse_position_node_counts(search_log: str) -> list[int]:
 
 
 def parse_bench_summary(bench_output: str) -> int | None:
-    """Read the optional human-readable aggregate printed by benchmark.cpp."""
+    """Read the aggregate printed by Stockfish 2.0 benchmark.cpp."""
     values: list[int] = []
     for line in bench_output.splitlines():
         match = SUMMARY_LINE.match(line)
@@ -59,6 +60,38 @@ def run_capture(command: Sequence[str], *, input_text: str | None = None,
         text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         timeout=timeout, check=False,
     )
+
+
+def run_bench_keep_stdin_open(command: Sequence[str], *, cwd: Path,
+                              timeout: int = 300) -> subprocess.CompletedProcess[str]:
+    """Run legacy Stockfish bench without sending EOF mid-search.
+
+    Stockfish 2.0 maps EOF to quit in its input polling path. subprocess.run()
+    with no input closes stdin immediately, so the old engine can finish one
+    position and then stop its 16-position benchmark loop. A pipe kept open
+    with no bytes is not readable and does not signal EOF.
+    """
+    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as output:
+        process = subprocess.Popen(
+            list(command),
+            cwd=str(cwd),
+            stdin=subprocess.PIPE,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        try:
+            return_code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            raise
+        finally:
+            if process.stdin is not None and not process.stdin.closed:
+                process.stdin.close()
+        output.seek(0)
+        captured = output.read()
+    return subprocess.CompletedProcess(list(command), return_code, captured, None)
 
 
 def main() -> int:
@@ -90,7 +123,7 @@ def main() -> int:
         "bench_position_count_passed": False,
         "bench_signature_passed": False,
         "verified_as_stockfish_2_0": False,
-        "verification_limit": "Source-commit, UCI identity, historical benchmark-signature, and executable-hash verification; not a cryptographic publisher signature.",
+        "verification_limit": "Pinned official source commit, UCI identity, historical benchmark signature, and executable SHA-256; not a cryptographic publisher signature.",
     }
 
     if not engine.is_file():
@@ -111,17 +144,19 @@ def main() -> int:
             (name for name in result["uci_id_names"] if re.search(r"\bStockfish\s+2\.0\b", name, re.IGNORECASE)),
             None,
         )
-        result["identity_check_passed"] = bool(result["matched_stockfish_2_0_id"]) and uci.returncode == 0 and "uciok" in uci.stdout
+        result["identity_check_passed"] = (
+            bool(result["matched_stockfish_2_0_id"])
+            and uci.returncode == 0
+            and "uciok" in uci.stdout
+        )
         result["uci_output_sha256"] = sha256_file(uci_output_path)
 
-        # Stockfish 2.0 writes per-position `Nodes:` totals to bench.txt because
-        # benchmark.cpp enables the Search Log. Run in an isolated directory so
-        # stale files can never contaminate this fingerprint.
         with tempfile.TemporaryDirectory(prefix="stockfish-2.0-bench-") as temp_name:
             workdir = Path(temp_name)
-            bench = run_capture(
+            bench = run_bench_keep_stdin_open(
                 [str(engine), "bench", "128", "1", "12", "default", "depth"],
-                cwd=workdir, timeout=300,
+                cwd=workdir,
+                timeout=300,
             )
             bench_output_path = evidence_dir / "stockfish-2.0-bench-output.txt"
             bench_output_path.write_text(bench.stdout, encoding="utf-8")
@@ -155,7 +190,7 @@ def main() -> int:
                 result["bench_console_summary_matches_log"] = None
 
         log_total_valid = result.get("bench_nodes") == EXPECTED_NODES
-        console_consistent = result.get("bench_console_summary_matches_log") in (True, None)
+        console_consistent = result.get("bench_console_summary_matches_log") is True
         result["bench_signature_passed"] = bool(
             result["bench_process_passed"]
             and result["bench_position_count_passed"]
