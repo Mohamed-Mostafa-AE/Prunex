@@ -324,13 +324,13 @@ try {
   }
   const testingCopy = await page.locator("#testing").innerText();
   const standardsCopy = await page.locator("#analysis-standards").innerText();
-  if (!standardsCopy.includes("Strength is earned in testing") || !standardsCopy.includes("46")) {
+  if (!standardsCopy.includes("Strength is earned in testing") || !standardsCopy.includes("47")) {
     throw new Error("The site should explain the current validation standard without claiming an unverified rating.");
   }
   if (await page.locator("#match-results").count()) {
     throw new Error("The unsupported historical rating comparison should not be presented as a current Prunex rating.");
   }
-  if (!/46\s*\/\s*46/.test(testingCopy) || !testingCopy.includes("GCC 14.2 Release")) throw new Error("The regression test results are missing.");
+  if (!/47\s*\/\s*47/.test(testingCopy) || !testingCopy.includes("GCC 11.5 Release")) throw new Error("The regression test results are missing.");
   const favicon = await page.locator('link[rel="icon"]').getAttribute("href");
   if (favicon !== "/prunex-mark.png?v=4") throw new Error("Transparent Prunex mark is not configured as the favicon.");
   const markResponse = await page.request.get(new URL("/prunex-mark.png?v=4", baseUrl).toString());
