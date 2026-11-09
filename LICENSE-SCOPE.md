@@ -7,7 +7,6 @@ This includes the original native C++20 engine, the Windows interface, the WebAs
 The following items keep their own terms and are not relicensed by the root MIT notice:
 
 - `tools/training/**` is licensed under GPL-3.0-or-later, as stated in `tools/training/LICENSE`.
-- The browser engine bundle is distributed under GPLv3. Its upstream source and license notices are retained with the website.
 - Cburnett chess-piece artwork is licensed under GPL-2.0-or-later and retains its attribution and license files.
 - Third-party libraries, fonts, and other assets remain subject to their respective licenses.
 - PGN corpora and other datasets retain the terms recorded in their source archives and provenance manifests.
