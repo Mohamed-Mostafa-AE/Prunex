@@ -8,11 +8,15 @@ The active ruleset prevents branch deletion and force-pushes and requires pull r
 
 ## Current-main validation
 
-Current main commit: 715639559b91d0b8b359a5d3e7a2619075c2f144.
+Current main commit: `89a60ba3665674121cd42d98840257eba346577c`.
 
-Fresh local validation on 9 November 2026 passed 47/47 native CTest cases under GCC 11.5 Release, Clang 15.0.7 Release, and GCC 11.5 AddressSanitizer/UndefinedBehaviorSanitizer.
+The native source corresponding to this release passed 47/47 locally under GCC 11.5 Release, Clang 15.0.7 Release, and GCC 11.5 AddressSanitizer/UndefinedBehaviorSanitizer. The post-merge main workflows also passed:
 
-The associated GitHub Actions workflow conclusions were unsuccessful for the native compiler/sanitizer workflow, the Windows x64 workflow, and CodeQL. The available job details did not establish a full green matrix. See [native](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729254), [Windows](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729455), and [CodeQL](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42672729565).
+- Website/browser and training-data validation: [run 42686690073](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686690073).
+- Windows x64 Release build, 47/47 native tests, UCI startup, and GUI smoke: [run 42686689854](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689854).
+- CodeQL C/C++ and JavaScript/TypeScript: [run 42686689576](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/42686689576).
+
+The active repository ruleset remains incomplete: it requires pull requests but has **zero required approvals** and **no required status-check rule**. The successful runs above are evidence of this commit's checks; they are not currently enforced as merge conditions.
 
 ## Historical successful checks
 
