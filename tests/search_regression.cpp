@@ -95,30 +95,30 @@ int main() {
     for(const Move& move:legalMoves(position)) returnedLegalMove|=sameMove(move,interruptedBest);
     if(!returnedLegalMove) return 28;
 
-    if(!loadFen(position,"7k/8/8/8/3R4/8/8/K7 w - - 100 1")) return 29;
-    if(negamax(position,3,-INF,INF,0,true)!=0) return 30;
+    if(!loadFen(position,"7k/8/8/8/3R4/8/8/K7 w - - 100 1")) { std::cerr<<"search regression failure 29\n"; return 29; }
+    if(negamax(position,3,-INF,INF,0,true)!=0) { std::cerr<<"search regression failure 30\n"; return 30; }
 
-    if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 100 1")) return 31;
-    if(negamax(position,3,-INF,INF,0,true)!=-MATE) return 32;
+    if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 100 1")) { std::cerr<<"search regression failure 31\n"; return 31; }
+    if(negamax(position,3,-INF,INF,0,true)!=-MATE) { std::cerr<<"search regression failure 32\n"; return 32; }
 
-    if(!loadFen(position,"7k/8/8/8/8/8/8/1B2K3 w - - 0 1")) return 33;
-    if(!isInsufficientMaterial(position)) return 34;
+    if(!loadFen(position,"7k/8/8/8/8/8/8/1B2K3 w - - 0 1")) { std::cerr<<"search regression failure 33\n"; return 33; }
+    if(!isInsufficientMaterial(position)) { std::cerr<<"search regression failure 34\n"; return 34; }
 
-    if(!loadFen(position,"7k/5n2/8/8/8/8/8/1N2K3 w - - 0 1")) return 35;
-    if(isInsufficientMaterial(position)) return 36;
+    if(!loadFen(position,"7k/5n2/8/8/8/8/8/1N2K3 w - - 0 1")) { std::cerr<<"search regression failure 35\n"; return 35; }
+    if(isInsufficientMaterial(position)) { std::cerr<<"search regression failure 36\n"; return 36; }
 
     searchPathKeys.fill(0);
     const std::uint64_t repeatedKey=positionKey(position);
     searchPathKeys[0]=repeatedKey;
-    if(!repeatedPosition(repeatedKey,2,4)) return 37;
+    if(!repeatedPosition(repeatedKey,2,4)) { std::cerr<<"search regression failure 37\n"; return 37; }
 
-    if(!loadFen(position,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 4 3")) return 38;
+    if(!loadFen(position,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 4 3")) { std::cerr<<"search regression failure 38\n"; return 38; }
     searchPathKeys.fill(0);
     searchPathKeys[0]=positionKey(position);
-    if(negamax(position,2,-INF,INF,2,true)!=0) return 39;
+    if(negamax(position,2,-INF,INF,2,true)!=0) { std::cerr<<"search regression failure 39\n"; return 39; }
 
-    if(!loadFen(position,"7k/8/8/8/8/8/8/1B2K3 w - - 0 1")) return 40;
-    if(negamax(position,2,-INF,INF,0,true)!=0) return 41;
+    if(!loadFen(position,"7k/8/8/8/8/8/8/1B2K3 w - - 0 1")) { std::cerr<<"search regression failure 40\n"; return 40; }
+    if(negamax(position,2,-INF,INF,0,true)!=0) { std::cerr<<"search regression failure 41\n"; return 41; }
 
     return 0;
 }
