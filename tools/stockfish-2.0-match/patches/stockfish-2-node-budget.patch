@@ -18,7 +18,7 @@ diff --git a/src/search.cpp b/src/search.cpp
 +    // Quiescence can expand many nodes without returning to search(). Poll
 +    // here as well so UCI node limits cover the full search tree.
 +    const int threadID = pos.thread();
-+    if (threadID == 0 && ++NodesSincePoll > NodesBetweenPolls)
++    if (MaxNodes && threadID == 0 && ++NodesSincePoll > NodesBetweenPolls)
 +    {
 +        NodesSincePoll = 0;
 +        poll(pos);
