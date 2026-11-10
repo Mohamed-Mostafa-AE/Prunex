@@ -10,6 +10,7 @@ on:
       - 'tests/test_stockfish_2_verifier.py'
       - 'tests/test_replay_evidence.py'
       - 'tests/uci_nodes_limit.py'
+      - 'tests/test_stockfish_match_node_budget.py'
       - 'docs/stockfish-2.0-reproduction.md'
   pull_request:
     branches: [main]
@@ -20,6 +21,7 @@ on:
       - 'tests/test_stockfish_2_verifier.py'
       - 'tests/test_replay_evidence.py'
       - 'tests/uci_nodes_limit.py'
+      - 'tests/test_stockfish_match_node_budget.py'
       - 'docs/stockfish-2.0-reproduction.md'
   workflow_dispatch:
     inputs:
@@ -82,6 +84,7 @@ jobs:
         run: |
           python3 tests/test_stockfish_2_verifier.py
           python3 tests/test_replay_evidence.py
+          python3 tests/test_stockfish_match_node_budget.py
 
       - name: Build pinned official Stockfish 2.0 source
         run: |

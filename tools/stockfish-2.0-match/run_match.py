@@ -7,6 +7,10 @@ import chess
 import chess.engine
 import chess.pgn
 
+# Stockfish 2.0 polls its node limit at most once per 30,000 searched nodes.
+# Its upstream search.cpp uses NodesBetweenPolls = min(MaxNodes, 30000).
+STOCKFISH_2_NODE_POLL_INTERVAL = 30_000
+
 OPENINGS = [
  ("Ruy Lopez", "e4 e5 Nf3 Nc6 Bb5 a6"),
  ("Sicilian Najdorf", "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6"),
@@ -41,6 +45,33 @@ def score_text(info: dict) -> str | None:
     score=info.get("score")
     return str(score) if score is not None else None
 
+
+def node_budget_allowance(engine_name: str, requested_nodes: int) -> int:
+    if engine_name == "Prunex":
+        return 0
+    if engine_name == "Stockfish 2.0":
+        return min(requested_nodes, STOCKFISH_2_NODE_POLL_INTERVAL)
+    raise ValueError(f"Unknown engine for node-budget validation: {engine_name}")
+
+
+def validate_node_budget(engine_name: str, actual_nodes: int | None,
+                         requested_nodes: int, game_number: int, ply: int) -> int:
+    if not isinstance(actual_nodes, int) or actual_nodes < 0:
+        raise RuntimeError(
+            f"Missing or invalid node-count telemetry for {engine_name} "
+            f"(game {game_number}, ply {ply})"
+        )
+    allowance = node_budget_allowance(engine_name, requested_nodes)
+    maximum = requested_nodes + allowance
+    if actual_nodes > maximum:
+        raise RuntimeError(
+            f"{engine_name} exceeded its node budget in game {game_number}, ply {ply}: "
+            f"{actual_nodes} nodes; requested {requested_nodes}, "
+            f"documented polling allowance {allowance}, maximum {maximum}"
+        )
+    return allowance
+
+
 def play_one(prunex, stockfish, opening: chess.Board, prunex_color: chess.Color,
              nodes: int, game_number: int, repetition: int, opening_name: str):
     board=opening.copy()
@@ -74,12 +105,17 @@ def play_one(prunex, stockfish, opening: chess.Board, prunex_color: chess.Color,
         info=result.info or {}
         node_report=re.search(r"node-limit (\d+)/(\d+)",str(info.get("string","")))
         actual_nodes=int(node_report.group(1)) if node_report else info.get("nodes")
-        if actual_nodes is not None and actual_nodes>nodes:
-            raise RuntimeError(f"Node budget exceeded: {actual_nodes}>{nodes}")
+        engine_name="Prunex" if is_prunex else "Stockfish 2.0"
+        node_allowance=validate_node_budget(
+            engine_name,actual_nodes,nodes,game_number,plies+1
+        )
         per_move.append({
-          "ply":plies+1,"side":"Prunex" if is_prunex else "Stockfish 2.0",
+          "ply":plies+1,"side":engine_name,
           "fen_before":before,"uci":result.move.uci(),"san":move_san,
-          "nodes":actual_nodes,"node_limit_report":info.get("string"),
+          "nodes":actual_nodes,"requested_node_limit":nodes,
+          "permitted_node_overshoot":node_allowance,
+          "nodes_over_requested":max(0,actual_nodes-nodes),
+          "node_limit_report":info.get("string"),
           "depth":info.get("depth"),"nps":info.get("nps"),
           "score":score_text(info),"pv":[m.uci() for m in info.get("pv",[])],
         })
@@ -161,7 +197,17 @@ def main():
           "event":"Prunex 0.8.0 vs official Stockfish 2.0",
           "games_completed":game_number,"wins":wins,"draws":draws,"losses":losses,
           "points":wins+draws/2,"score_percent":round((wins+draws/2)/game_number*100,2),
-          "nodes_per_move":args.nodes,"stockfish_hash_mb":args.stockfish_hash_mb,
+          "nodes_per_move_requested":args.nodes,
+          "node_limit_policy":{
+            "prunex":"strict; actual nodes must not exceed the requested limit",
+            "stockfish_2_0":(
+              "UCI go nodes is polled by the pinned upstream engine at intervals of "
+              f"at most {STOCKFISH_2_NODE_POLL_INTERVAL} nodes; actual per-move counts "
+              "are retained and validated against this bounded allowance"
+            ),
+            "stockfish_2_0_max_poll_overshoot_nodes":STOCKFISH_2_NODE_POLL_INTERVAL,
+          },
+          "stockfish_hash_mb":args.stockfish_hash_mb,
           "stockfish_threads":1,"prunex_threads":1,
           "prunex_tt_entries":262144,"prunex_tt_config":"fixed native table: TT_BITS=18; no UCI Hash option",
           "opening_count":len(OPENINGS),"repetitions_per_opening":2,

@@ -7,11 +7,11 @@ This workflow creates a reproducible, color-balanced 64-game record for the curr
 - 16 fixed opening positions.
 - Each opening is repeated twice.
 - Prunex plays White and Black in each repetition: 32 games per color.
-- Each engine receives a maximum of 1,000,000 nodes per move by default.
+- Each engine is asked to search up to 1,000,000 nodes per move by default. Prunex enforces this limit strictly. The pinned Stockfish 2.0 source checks `go nodes` during periodic search polling (`NodesBetweenPolls = min(MaxNodes, 30000)`), so its observed count may exceed the request by up to 30,000 nodes. The runner records every actual count and applies only that bounded allowance to Stockfish 2.0; it never relaxes Prunex's strict cap.
 - Stockfish 2.0 uses a recorded 256 MiB Hash setting and one thread. Prunex uses its fixed native transposition table; this difference is recorded rather than described as equal memory allocation.
 - The workflow records engine identities, source commits, executable SHA-256 hashes, every move, FEN before each move, available search telemetry, game results, and termination reasons.
 
-The 64-game score is a match result, not an Elo rating or proof of general superiority.
+The 64-game score is a match result, not an Elo rating or proof of general superiority. Because the legacy opponent's node limit is polled rather than checked on every node, the protocol is a matched requested budget with a disclosed, bounded polling tolerance—not a claim that both engines stop on the exact same node.
 
 ## Opponent verification
 
