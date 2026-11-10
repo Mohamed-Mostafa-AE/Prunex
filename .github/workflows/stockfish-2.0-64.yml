@@ -35,7 +35,7 @@ permissions:
 
 concurrency:
   group: prunex-stockfish-2-64-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   match:
@@ -48,11 +48,25 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install build and replay dependencies
+      - name: Verify runner build tools
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes build-essential cmake git ffmpeg
-          python3 -m pip install --user python-chess pillow cairosvg
+          cmake --version
+          g++ --version
+          git --version
+          python3 --version
+
+      - name: Install FFmpeg only when needed
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=30
+            timeout 180s sudo apt-get install --yes ffmpeg
+          fi
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Install Python replay dependencies
+        run: |
+          python3 -m pip install --user --disable-pip-version-check --timeout 30 --retries 2 python-chess pillow cairosvg
 
       - name: Build Prunex and run its complete regression suite
         run: |
