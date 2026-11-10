@@ -54,7 +54,7 @@ def main() -> None:
 
             info = result.info or {}
             node_report = re.search(
-                r"node-limit (\\d+)/(\\d+)", str(info.get("string", ""))
+                r"node-limit (\d+)/(\d+)", str(info.get("string", ""))
             )
             actual_nodes = int(node_report.group(1)) if node_report else info.get("nodes")
             allowance = validate_node_budget(
