@@ -5,17 +5,21 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/stockfish-2.0-64.yml'
+      - 'src/**'
       - 'tools/stockfish-2.0-match/**'
       - 'tests/test_stockfish_2_verifier.py'
       - 'tests/test_replay_evidence.py'
+      - 'tests/uci_nodes_limit.py'
       - 'docs/stockfish-2.0-reproduction.md'
   pull_request:
     branches: [main]
     paths:
       - '.github/workflows/stockfish-2.0-64.yml'
+      - 'src/**'
       - 'tools/stockfish-2.0-match/**'
       - 'tests/test_stockfish_2_verifier.py'
       - 'tests/test_replay_evidence.py'
+      - 'tests/uci_nodes_limit.py'
       - 'docs/stockfish-2.0-reproduction.md'
   workflow_dispatch:
     inputs:
