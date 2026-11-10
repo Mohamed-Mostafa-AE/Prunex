@@ -7,9 +7,9 @@ import chess
 import chess.engine
 import chess.pgn
 
-# Stockfish 2.0 polls its node limit at most once per 30,000 searched nodes.
-# Its upstream search.cpp uses NodesBetweenPolls = min(MaxNodes, 30000).
-STOCKFISH_2_NODE_POLL_INTERVAL = 30_000
+# The disclosed Stockfish 2.0 node-limit patch polls both search and qsearch
+# at intervals of at most 1,000 nodes.
+STOCKFISH_2_NODE_POLL_INTERVAL = 1_000
 
 OPENINGS = [
  ("Ruy Lopez", "e4 e5 Nf3 Nc6 Bb5 a6"),
@@ -77,11 +77,11 @@ def play_one(prunex, stockfish, opening: chess.Board, prunex_color: chess.Color,
     board=opening.copy()
     game=chess.pgn.Game()
     game.setup(board)
-    game.headers["Event"]="Prunex vs Official Stockfish 2.0 — 64-game verification match"
+    game.headers["Event"]="Prunex vs Stockfish 2.0 (node-limit polling patch) — 64-game match"
     game.headers["Site"]="Automated reproducibility run"
     game.headers["Round"]=str(game_number)
-    game.headers["White"]="Prunex 0.8.0" if prunex_color else "Stockfish 2.0"
-    game.headers["Black"]="Stockfish 2.0" if prunex_color else "Prunex 0.8.0"
+    game.headers["White"]="Prunex 0.8.0" if prunex_color else "Stockfish 2.0 (node-limit patch)"
+    game.headers["Black"]="Stockfish 2.0 (node-limit patch)" if prunex_color else "Prunex 0.8.0"
     game.headers["Opening"]=opening_name
     game.headers["Repetition"]=str(repetition)
     game.headers["TimeControl"]=f"{nodes} nodes per move"
@@ -194,16 +194,16 @@ def main():
                     print(f"game {game_number:02d}/64 | {opening_name} | Prunex {record['prunex_color']} | {result} | {record['termination']}",flush=True)
 
         metadata={
-          "event":"Prunex 0.8.0 vs official Stockfish 2.0",
+          "event":"Prunex 0.8.0 vs Stockfish 2.0 (disclosed node-limit polling patch)",
           "games_completed":game_number,"wins":wins,"draws":draws,"losses":losses,
           "points":wins+draws/2,"score_percent":round((wins+draws/2)/game_number*100,2),
           "nodes_per_move_requested":args.nodes,
           "node_limit_policy":{
             "prunex":"strict; actual nodes must not exceed the requested limit",
             "stockfish_2_0":(
-              "UCI go nodes is polled by the pinned upstream engine at intervals of "
-              f"at most {STOCKFISH_2_NODE_POLL_INTERVAL} nodes; actual per-move counts "
-              "are retained and validated against this bounded allowance"
+              "A disclosed patch polls both main search and quiescence search at intervals "
+              f"of at most {STOCKFISH_2_NODE_POLL_INTERVAL} nodes; actual per-move "
+              "counts are retained and validated against this bounded allowance"
             ),
             "stockfish_2_0_max_poll_overshoot_nodes":STOCKFISH_2_NODE_POLL_INTERVAL,
           },
@@ -215,8 +215,11 @@ def main():
           "prunex_uci_id":prunex_id,"stockfish_uci_id":stockfish_id,
           "prunex_executable":str(prunex_path),"prunex_sha256":sha256(prunex_path),
           "stockfish_executable":str(stockfish_path),"stockfish_sha256":sha256(stockfish_path),
-          "stockfish_source":"official-stockfish/Stockfish tag sf_2.0",
+          "stockfish_source":"official-stockfish/Stockfish tag sf_2.0 with the disclosed node-limit polling patch",
           "stockfish_source_commit":"aa2de53a83ca5423c8c8007abf71f9afdf589d93",
+          "stockfish_source_patch":"tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch",
+          "stockfish_source_patch_sha256":__import__("os").environ.get("STOCKFISH_SOURCE_PATCH_SHA256","unknown"),
+          "stockfish_source_patch_scope":"node-limit polling in main search and quiescence search; evaluation, move generation, and search scoring are unchanged",
           "git_commit":__import__("os").environ.get("GITHUB_SHA","unknown"),
           "python":platform.python_version(),"python_chess":chess.__version__,
           "elapsed_seconds":round(time.time()-started,1),

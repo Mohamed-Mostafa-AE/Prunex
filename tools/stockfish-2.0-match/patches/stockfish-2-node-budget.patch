@@ -1,0 +1,33 @@
+diff --git a/src/search.cpp b/src/search.cpp
+--- a/src/search.cpp
++++ b/src/search.cpp
+@@ -470,7 +470,7 @@
+   // Set best NodesBetweenPolls interval to avoid lagging under
+   // heavy time pressure.
+   if (MaxNodes)
+-      NodesBetweenPolls = Min(MaxNodes, 30000);
++      NodesBetweenPolls = Min(MaxNodes, 999);
+   else if (myTime && myTime < 1000)
+       NodesBetweenPolls = 1000;
+   else if (myTime && myTime < 5000)
+@@ -1414,5 +1414,14 @@
+     assert(depth <= 0);
+     assert(ply > 0 && ply < PLY_MAX);
+     assert(pos.thread() >= 0 && pos.thread() < ThreadsMgr.active_threads());
+ 
++    // Quiescence can expand many nodes without returning to search(). Poll
++    // here as well so UCI node limits cover the full search tree.
++    const int threadID = pos.thread();
++    if (MaxNodes && threadID == 0 && ++NodesSincePoll > NodesBetweenPolls)
++    {
++        NodesSincePoll = 0;
++        poll(pos);
++    }
++
+     StateInfo st;
+@@ -1428,3 +1437,4 @@
+     // Check for an instant draw or maximum ply reached
+-    if (pos.is_draw() || ply >= PLY_MAX - 1)
++    if (StopRequest || ThreadsMgr.cutoff_at_splitpoint(threadID)
++        || pos.is_draw() || ply >= PLY_MAX - 1)
+         return VALUE_DRAW;

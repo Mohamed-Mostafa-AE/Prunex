@@ -27,12 +27,17 @@ class MatchNodeBudgetTests(unittest.TestCase):
 
     def test_stockfish_2_polling_overshoot_within_documented_interval_is_accepted(self):
         allowance = validate_node_budget(
-            "Stockfish 2.0", 1_008_463, 1_000_000, 1, 2
+            "Stockfish 2.0", 1_000_800, 1_000_000, 1, 2
         )
+        self.assertEqual(allowance, 1_000)
         self.assertEqual(allowance, STOCKFISH_2_NODE_POLL_INTERVAL)
 
     def test_stockfish_2_overshoot_beyond_polling_interval_is_rejected(self):
         maximum = 1_000_000 + STOCKFISH_2_NODE_POLL_INTERVAL
+        self.assertEqual(
+            validate_node_budget("Stockfish 2.0", maximum, 1_000_000, 1, 2),
+            STOCKFISH_2_NODE_POLL_INTERVAL,
+        )
         with self.assertRaisesRegex(RuntimeError, "Stockfish 2.0 exceeded its node budget"):
             validate_node_budget("Stockfish 2.0", maximum + 1, 1_000_000, 1, 2)
 
