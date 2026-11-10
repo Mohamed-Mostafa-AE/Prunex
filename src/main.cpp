@@ -587,8 +587,8 @@ bool isInsufficientMaterial(const Position& p) {
 }
 
 int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
-    ++nodes;
     if(searchShouldStop()) return evaluate(p);
+    ++nodes;
     if(searchPly>=MAX_PLY-1) return evaluate(p);
     const std::uint64_t key=positionKey(p);
     searchPathKeys[searchPly]=key;
@@ -665,8 +665,8 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         return evasions.empty()?-MATE+ply:0;
     }
     if(depth<=0) return quiescence(p,alpha,beta,0,ply);
-    ++nodes;
     if(searchShouldStop()) return evaluate(p);
+    ++nodes;
     int originalAlpha=alpha;
     TTEntry& entry=transpositionTable[key&(TT_SIZE-1)];
     Move hashMove{};
