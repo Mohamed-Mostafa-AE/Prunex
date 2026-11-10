@@ -28,12 +28,12 @@ After all 64 PGNs have been written and validated, the workflow creates:
 - `all-games.pgn`: the authoritative, complete move records.
 - `games.jsonl`: per-game and per-move FEN, SAN/UCI, result, and search telemetry.
 - `evidence/replay.html`: a self-contained offline viewer with game selection, move navigation, autoplay, playback speed, and the same three synthesized move-sound profiles as the Prunex website (Classic wooden tap, Soft felt tap, and Quiet click). Record this viewer on the desktop to capture the actual move sounds.
-- `evidence/64-game-replay.mp4`: a rendered move-by-move replay derived from the PGN, with an AAC audio track using the website's three move-sound profiles.
+- `evidence/64-game-replay.mp4`: a rendered move-by-move replay derived from the PGN, with an AAC audio track using the website's default Classic wooden tap profile.
 - `evidence/64-game-final-positions.png`: a contact sheet of the 64 final positions derived from the PGNs.
 - `evidence/stockfish-2.0-*.txt`: the opponent's raw UCI and benchmark evidence.
 - `stockfish-verification.json`, `summary.json`, and `SHA256SUMS.txt`: verification, aggregate match outcome, source/build identities, and file hashes.
 
-The viewer and video are generated only after the match script has produced 64 completed PGNs. Both are derived from the recorded games; neither invents moves or asks an engine to replay/recalculate them. The MP4 includes move sounds; the interactive HTML viewer is the sound-enabled recording surface.
+The viewer and video are generated only after the match script has produced 64 completed PGNs. Both are derived from the recorded games; neither invents moves or asks an engine to replay/recalculate them. The MP4 includes the Classic wooden tap sounds; the interactive HTML viewer also lets you switch between Classic wooden tap, Soft felt tap, and Quiet click.
 
 The self-contained HTML viewer can be opened locally in a modern browser. Click Play once to enable browser audio. It has no external runtime dependency.
 
