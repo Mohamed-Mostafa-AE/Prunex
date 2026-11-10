@@ -194,7 +194,7 @@ def main():
                     print(f"game {game_number:02d}/64 | {opening_name} | Prunex {record['prunex_color']} | {result} | {record['termination']}",flush=True)
 
         metadata={
-          "event":"Prunex 0.8.0 vs official Stockfish 2.0",
+          "event":"Prunex 0.8.0 vs Stockfish 2.0 (disclosed node-limit polling patch)",
           "games_completed":game_number,"wins":wins,"draws":draws,"losses":losses,
           "points":wins+draws/2,"score_percent":round((wins+draws/2)/game_number*100,2),
           "nodes_per_move_requested":args.nodes,
