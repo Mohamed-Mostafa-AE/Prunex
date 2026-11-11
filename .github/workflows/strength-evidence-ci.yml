@@ -38,8 +38,9 @@ jobs:
         run: |
           git clone --depth 1 --branch sf_2.0 https://github.com/official-stockfish/Stockfish.git stockfish-2.0
           test "$(git -C stockfish-2.0 rev-parse HEAD)" = "aa2de53a83ca5423c8c8007abf71f9afdf589d93"
-          git -C stockfish-2.0 apply --check tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch
-          git -C stockfish-2.0 apply tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch
+          PATCH_FILE="$GITHUB_WORKSPACE/tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch"
+          git -C stockfish-2.0 apply --check "$PATCH_FILE"
+          git -C stockfish-2.0 apply "$PATCH_FILE"
           git -C stockfish-2.0 diff --check
           grep -Fq 'NodesBetweenPolls = Min(MaxNodes, 799);' stockfish-2.0/src/search.cpp
 
