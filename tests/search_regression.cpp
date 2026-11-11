@@ -1,6 +1,29 @@
+#include <random>
+#include <algorithm>
 #define main prunex_console_entry
 #include "../src/main.cpp"
 #undef main
+
+static std::vector<std::string> referenceLegalMoveStrings(prunex::Position position) {
+    using namespace prunex;
+    std::vector<std::string> result;
+    for(const Move& move:pseudoMoves(position)) {
+        const int side=position.side;
+        const Undo undo=makeMove(position,move);
+        const bool safe=!inCheck(position,side);
+        undoMove(position,move,undo);
+        if(safe) result.push_back(moveUci(move));
+    }
+    std::sort(result.begin(),result.end());
+    return result;
+}
+static bool legalMoveSetsAgree(prunex::Position position) {
+    using namespace prunex;
+    std::vector<std::string> actual;
+    for(const Move& move:legalMoves(position)) actual.push_back(moveUci(move));
+    std::sort(actual.begin(),actual.end());
+    return actual==referenceLegalMoveStrings(position)&&bitboardsConsistent(position);
+}
 
 static bool attackedMailboxReference(const prunex::Position& p,int target,int by) {
  using namespace prunex;
@@ -307,6 +330,37 @@ int main() {
     resizedEntry.depth=4;
     if(!resizeTranspositionTable(originalHashSize)) return 96;
     if(ttBucketCount!=originalBucketCount) return 97;
+
+
+    // Compare the optimized pin/check-mask move filter against the former
+    // make/undo legality oracle on tactical and special-move positions.
+    const std::array<const char*,8> legalityFens{{
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+        "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+        "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+        "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
+        "k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+        "4k3/8/8/8/1b6/8/4r3/4K3 w - - 0 1"
+    }};
+    for(const char* fen:legalityFens) {
+        if(!loadFen(position,fen)||!legalMoveSetsAgree(position)) return 92;
+    }
+
+    // Deterministic random legal play checks the optimized generator against
+    // the slow oracle after every position transition.
+    if(!loadFen(position,START_FEN)) return 93;
+    std::mt19937 randomMoves(0x5052554EU);
+    for(int ply=0;ply<160;++ply) {
+        if(!legalMoveSetsAgree(position)) return 94;
+        auto moves=legalMoves(position);
+        if(moves.empty()) break;
+        const Move selected=moves[
+            static_cast<std::size_t>(randomMoves())%moves.size()
+        ];
+        makeMove(position,selected);
+    }
 
     return 0;
 }

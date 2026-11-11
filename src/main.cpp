@@ -318,21 +318,30 @@ std::uint64_t bishopAttacks(int square,std::uint64_t occupied) {
 std::uint64_t rookAttacks(int square,std::uint64_t occupied) {
     return slidingAttackTables().rooks.lookup(square,occupied);
 }
+std::uint64_t attackersTo(const Position& p,int sq,int by) {
+    if(!onBoard(sq)) return 0;
+    const int target=square64From88(sq);
+    const std::uint64_t occupied=p.occupancy[WHITE]|p.occupancy[BLACK];
+    std::uint64_t attackers=PAWN_ATTACKS[1-by][target]&p.piecesBB[by][1];
+    attackers|=KNIGHT_ATTACKS[target]&p.piecesBB[by][2];
+    attackers|=KING_ATTACKS[target]&p.piecesBB[by][6];
+    attackers|=bishopAttacks(target,occupied)&
+        (p.piecesBB[by][3]|p.piecesBB[by][5]);
+    attackers|=rookAttacks(target,occupied)&
+        (p.piecesBB[by][4]|p.piecesBB[by][5]);
+    return attackers;
+}
 bool attacked(const Position& p,int sq,int by) {
- if(!onBoard(sq)) return false;
- int s=square64From88(sq);
- std::uint64_t occ=p.occupancy[WHITE]|p.occupancy[BLACK];
- if(PAWN_ATTACKS[1-by][s]&p.piecesBB[by][1]) return true;
- if(KNIGHT_ATTACKS[s]&p.piecesBB[by][2]) return true;
- if(KING_ATTACKS[s]&p.piecesBB[by][6]) return true;
- if(bishopAttacks(s,occ)&(p.piecesBB[by][3]|p.piecesBB[by][5])) return true;
- return (rookAttacks(s,occ)&(p.piecesBB[by][4]|p.piecesBB[by][5]))!=0;
+    return attackersTo(p,sq,by)!=0;
 }
 int kingSquare(const Position& p,int color) {
- auto kings=p.piecesBB[color][6];
- return kings?square88From64(static_cast<int>(std::countr_zero(kings))):-1;
+    const auto kings=p.piecesBB[color][6];
+    return kings?square88From64(static_cast<int>(std::countr_zero(kings))):-1;
 }
-bool inCheck(const Position& p,int color) { int k=kingSquare(p,color); return k>=0&&attacked(p,k,1-color); }
+bool inCheck(const Position& p,int color) {
+    const int king=kingSquare(p,color);
+    return king>=0&&attackersTo(p,king,1-color)!=0;
+}
 void addMove(std::vector<Move>& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false) {
  out.push_back({from,to,promo,ep,castle});
 }
@@ -491,17 +500,117 @@ void undoMove(Position& p,const Move& m,const Undo& undo) {
     }
     p.key=undo.key;
 }
+struct KingSafetyInfo {
+    std::uint64_t checkers=0;
+    std::uint64_t pinned=0;
+    std::uint64_t evasionMask=~std::uint64_t{0};
+    std::array<std::uint64_t,64> pinRay{};
+};
+
+KingSafetyInfo buildKingSafetyInfo(const Position& position,int color) {
+    KingSafetyInfo info;
+    const int king=kingSquare(position,color);
+    if(king<0) {
+        info.checkers=~std::uint64_t{0};
+        return info;
+    }
+
+    const int enemy=1-color;
+    info.checkers=attackersTo(position,king,enemy);
+    const int checkerCount=std::popcount(info.checkers);
+    if(checkerCount==1) {
+        const int checker64=static_cast<int>(std::countr_zero(info.checkers));
+        const int checker=square88From64(checker64);
+        const int checkerPiece=position.board[checker];
+        const int checkerType=typeOf(checkerPiece);
+        const int fileDelta=fileOf(checker)-fileOf(king);
+        const int rankDelta=rankOf(checker)-rankOf(king);
+        const bool diagonal=std::abs(fileDelta)==std::abs(rankDelta)&&fileDelta!=0;
+        const bool straight=(fileDelta==0) != (rankDelta==0);
+        const bool slidingChecker=checkerType==5||
+            (checkerType==3&&diagonal)||(checkerType==4&&straight);
+        info.evasionMask=squareBit(checker);
+        if(slidingChecker) {
+            const int fileStep=(fileDelta>0)-(fileDelta<0);
+            const int rankStep=(rankDelta>0)-(rankDelta<0);
+            const int step=rankStep*16+fileStep;
+            for(int square=king+step;onBoard(square);square+=step) {
+                info.evasionMask|=squareBit(square);
+                if(square==checker) break;
+            }
+        }
+    } else if(checkerCount>1) {
+        info.evasionMask=0;
+    }
+
+    constexpr std::array<int,8> directions{
+        -17,-15,15,17,-16,-1,1,16
+    };
+    for(std::size_t directionIndex=0;directionIndex<directions.size();++directionIndex) {
+        const int step=directions[directionIndex];
+        const bool diagonal=directionIndex<4;
+        int candidate=-1;
+        std::uint64_t line=0;
+        for(int square=king+step;onBoard(square);square+=step) {
+            const int piece=position.board[square];
+            line|=squareBit(square);
+            if(piece==EMPTY) continue;
+            if(colorOf(piece)==color) {
+                if(candidate>=0) break;
+                candidate=square;
+                continue;
+            }
+
+            if(candidate>=0) {
+                const int type=typeOf(piece);
+                const bool pinner=type==5||(diagonal?type==3:type==4);
+                if(pinner) {
+                    const int candidate64=square64From88(candidate);
+                    info.pinned|=squareBit(candidate);
+                    info.pinRay[candidate64]=line;
+                }
+            }
+            break;
+        }
+    }
+    return info;
+}
+
 std::vector<Move> legalMoves(Position& position) {
     const auto candidates=pseudoMoves(position);
     std::vector<Move> legal;
     legal.reserve(candidates.size());
     const int movingSide=position.side;
+    const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
+    const int checkCount=std::popcount(kingSafety.checkers);
 
     for(const Move& move:candidates) {
-        const Undo undo=makeMove(position,move);
-        const bool leavesKingSafe=!inCheck(position,movingSide);
-        undoMove(position,move,undo);
-        if(leavesKingSafe) legal.push_back(move);
+        const int movingPiece=position.board[move.from];
+        const bool kingMove=typeOf(movingPiece)==6;
+
+        // King moves and en-passant need an exact occupancy update: moving a
+        // king changes the attacked square, while en-passant can uncover two
+        // lines at once by removing a pawn from a different square.
+        if(kingMove||move.enPassant) {
+            const Undo undo=makeMove(position,move);
+            const bool safe=!inCheck(position,movingSide);
+            undoMove(position,move,undo);
+            if(safe) legal.push_back(move);
+            continue;
+        }
+
+        // A double check can only be answered by moving the king.
+        if(checkCount>1) continue;
+
+        const std::uint64_t destination=squareBit(move.to);
+        if(checkCount==1&&(kingSafety.evasionMask&destination)==0) continue;
+
+        const int from64=square64From88(move.from);
+        const std::uint64_t origin=squareBit(move.from);
+        if((kingSafety.pinned&origin)!=0&&
+           (kingSafety.pinRay[from64]&destination)==0) continue;
+
+        legal.push_back(move);
     }
     return legal;
 }
