@@ -23,20 +23,21 @@ int main() {
     if(nodes<=1) return 7;
 
     auto hashRoundTrips=[](const Position& original) {
-        if(original.key!=computePositionKey(original)) return false;
+        if(original.key!=computePositionKey(original)||!bitboardsConsistent(original)) return false;
         Position base=original;
         const auto moves=legalMoves(base);
         if(base.board!=original.board||base.side!=original.side||
            base.castling!=original.castling||base.ep!=original.ep||
            base.halfmove!=original.halfmove||base.fullmove!=original.fullmove||
-           base.key!=original.key) return false;
+           base.key!=original.key||!bitboardsConsistent(base)) return false;
         for(const Move& move:moves) {
             Position child=original;
             const std::uint64_t originalKey=child.key;
             Undo undo=makeMove(child,move);
-            if(child.key!=computePositionKey(child)) return false;
+            if(child.key!=computePositionKey(child)||!bitboardsConsistent(child)) return false;
             undoMove(child,move,undo);
-            if(child.key!=originalKey||child.key!=computePositionKey(child)) return false;
+            if(child.key!=originalKey||child.key!=computePositionKey(child)||
+               !bitboardsConsistent(child)) return false;
         }
         return true;
     };
@@ -62,10 +63,12 @@ int main() {
     if(!hashRoundTrips(position)) return 71;
 
     if(!loadFen(position,START_FEN)) return 72;
+    if(!bitboardsConsistent(position)) return 87;
     const std::uint64_t beforeNull=position.key;
     makeNullMove(position);
     if(position.key!=computePositionKey(position)) return 73;
-    if(position.side!=BLACK||position.ep!=-1||position.key==beforeNull) return 74;
+    if(position.side!=BLACK||position.ep!=-1||position.key==beforeNull||
+       !bitboardsConsistent(position)) return 74;
 
     clearTranspositionTable();
     ttGeneration=7;
@@ -122,6 +125,7 @@ int main() {
     reflected.side=1-position.side;
     reflected.castling=0;
     reflected.ep=-1;
+    rebuildBitboards(reflected);
     if(evaluate(position)!=evaluate(reflected)) return 16;
 
     if(!loadFen(position,"4k3/8/2p5/3p4/3P4/2P5/8/4K3 w - - 0 1")) return 17;

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <bit>
 #include <atomic>
 #include <array>
 #include <cctype>
@@ -29,6 +30,8 @@ enum Castle : int { WKCA=1, WQCA=2, BKCA=4, BQCA=8 };
 struct Move { int from=-1, to=-1, promotion=EMPTY; bool enPassant=false, castle=false; };
 struct Position {
     std::array<int,128> board{};
+    std::array<std::array<std::uint64_t,7>,2> piecesBB{};
+    std::array<std::uint64_t,2> occupancy{};
     int side=WHITE, castling=0, ep=-1, halfmove=0, fullmove=1;
     std::uint64_t key=0;
 };
@@ -58,6 +61,52 @@ std::string squareName(int s) { std::string x="a1"; x[0]=static_cast<char>('a'+f
 int parseSquare(std::string_view s) { if(s.size()!=2 || s[0]<'a'||s[0]>'h'||s[1]<'1'||s[1]>'8') return -1; return (s[1]-'1')*16+(s[0]-'a'); }
 char pieceChar(int p) { static constexpr char chars[]=".PNBRQKpnbrqk"; return p>=0&&p<=12?chars[p]:'.'; }
 int charPiece(char c) { switch(c) {case 'P':return WP;case 'N':return WN;case 'B':return WB;case 'R':return WR;case 'Q':return WQ;case 'K':return WK;case 'p':return BP;case 'n':return BN;case 'b':return BB;case 'r':return BR;case 'q':return BQ;case 'k':return BK;default:return EMPTY;} }
+
+constexpr int bitboardSquare(int square88) {
+    return rankOf(square88)*8+fileOf(square88);
+}
+constexpr std::uint64_t squareBit(int square88) {
+    return onBoard(square88)?(std::uint64_t{1}<<bitboardSquare(square88)):0;
+}
+void removePositionPiece(Position& position,int square88) {
+    const int piece=position.board[square88];
+    if(piece==EMPTY) return;
+    const int color=colorOf(piece),type=typeOf(piece);
+    const std::uint64_t bit=squareBit(square88);
+    position.piecesBB[color][type]&=~bit;
+    position.occupancy[color]&=~bit;
+    position.board[square88]=EMPTY;
+}
+void putPositionPiece(Position& position,int square88,int piece) {
+    if(piece==EMPTY) {
+        removePositionPiece(position,square88);
+        return;
+    }
+    if(position.board[square88]!=EMPTY) removePositionPiece(position,square88);
+    const int color=colorOf(piece),type=typeOf(piece);
+    const std::uint64_t bit=squareBit(square88);
+    position.board[square88]=piece;
+    position.piecesBB[color][type]|=bit;
+    position.occupancy[color]|=bit;
+}
+void rebuildBitboards(Position& position) {
+    position.piecesBB={};
+    position.occupancy={};
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=position.board[square];
+        if(piece==EMPTY) continue;
+        const int color=colorOf(piece),type=typeOf(piece);
+        const std::uint64_t bit=squareBit(square);
+        position.piecesBB[color][type]|=bit;
+        position.occupancy[color]|=bit;
+    }
+}
+bool bitboardsConsistent(const Position& position) {
+    Position rebuilt=position;
+    rebuildBitboards(rebuilt);
+    return rebuilt.piecesBB==position.piecesBB&&rebuilt.occupancy==position.occupancy;
+}
 
 bool parseIntegerToken(std::string_view token, int minimum, int maximum, int& value) {
     int parsed=0;
@@ -127,21 +176,56 @@ bool loadFen(Position& p, std::string_view fen) {
     int wk=0,bk=0;
     for(int s=0;s<128;++s) if(onBoard(s)) { wk+=p.board[s]==WK; bk+=p.board[s]==BK; }
     if(wk!=1||bk!=1) return false;
+    rebuildBitboards(p);
     p.key=computePositionKey(p);
     return true;
 }
 
 bool attacked(const Position& p,int sq,int by) {
-    const int pawn=makePiece(1,by), knight=makePiece(2,by);
-    const int pawnSources[2]={sq+(by==WHITE?-15:15),sq+(by==WHITE?-17:17)};
-    for(int s:pawnSources)if(onBoard(s)&&p.board[s]==pawn)return true;
-    constexpr int knights[8]={-33,-31,-18,-14,14,18,31,33};
-    for(int d:knights){int s=sq+d;if(onBoard(s)&&p.board[s]==knight)return true;}
-    constexpr int dirs[8]={-16,-1,1,16,-17,-15,15,17};
-    for(int i=0;i<8;++i){int s=sq+dirs[i];bool first=true;while(onBoard(s)){int pc=p.board[s];if(pc){if(colorOf(pc)==by&&(typeOf(pc)==5||(first&&typeOf(pc)==6)||(i<4&&typeOf(pc)==4)||(i>=4&&typeOf(pc)==3)))return true;break;}first=false;s+=dirs[i];}}
-    return false;
+    const int pawnRank=rankOf(sq)-(by==WHITE?1:-1);
+    for(int fileDelta:{-1,1}) {
+        const int file=fileOf(sq)+fileDelta;
+        if(file<0||file>7||pawnRank<0||pawnRank>7) continue;
+        const int source=pawnRank*16+file;
+        if(p.piecesBB[by][1]&squareBit(source)) return true;
+    }
+
+    constexpr int knightDirections[8]={-33,-31,-18,-14,14,18,31,33};
+    for(int direction:knightDirections) {
+        const int source=sq+direction;
+        if(onBoard(source)&&(p.piecesBB[by][2]&squareBit(source))) return true;
+    }
+
+    constexpr int kingDirections[8]={-17,-16,-15,-1,1,15,16,17};
+    for(int direction:kingDirections) {
+        const int source=sq+direction;
+        if(onBoard(source)&&(p.piecesBB[by][6]&squareBit(source))) return true;
+    }
+
+    constexpr int bishopDirections[4]={-17,-15,15,17};
+    constexpr int rookDirections[4]={-16,-1,1,16};
+    auto rayAttacks=[&](const auto& directions,bool diagonal) {
+        for(int direction:directions) {
+            for(int target=sq+direction;onBoard(target);target+=direction) {
+                const int piece=p.board[target];
+                if(piece==EMPTY) continue;
+                if(colorOf(piece)==by) {
+                    const int type=typeOf(piece);
+                    if(type==5||(diagonal?type==3:type==4)) return true;
+                }
+                break;
+            }
+        }
+        return false;
+    };
+    return rayAttacks(bishopDirections,true)||rayAttacks(rookDirections,false);
 }
-int kingSquare(const Position& p,int color){int k=makePiece(6,color);for(int s=0;s<128;++s)if(onBoard(s)&&p.board[s]==k)return s;return -1;}
+int kingSquare(const Position& p,int color) {
+    const std::uint64_t kings=p.piecesBB[color][6];
+    if(kings==0) return -1;
+    const int square=static_cast<int>(std::countr_zero(kings));
+    return (square/8)*16+(square%8);
+}
 bool inCheck(const Position& p,int color){int k=kingSquare(p,color);return k>=0&&attacked(p,k,1-color);}
 
 void addMove(std::vector<Move>& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false){out.push_back({from,to,promo,ep,castle});}
@@ -149,7 +233,13 @@ std::vector<Move> pseudoMoves(const Position& p) {
     std::vector<Move> out; out.reserve(96);
     constexpr int knightD[8]={-33,-31,-18,-14,14,18,31,33};
     constexpr int bishopD[4]={-17,-15,15,17}; constexpr int rookD[4]={-16,-1,1,16};
-    for(int from=0;from<128;++from){if(!onBoard(from))continue;int pc=p.board[from];if(colorOf(pc)!=p.side)continue;int t=typeOf(pc);
+    std::uint64_t movingPieces=p.occupancy[p.side];
+    while(movingPieces) {
+        const int square=static_cast<int>(std::countr_zero(movingPieces));
+        movingPieces&=movingPieces-1;
+        const int from=(square/8)*16+(square%8);
+        const int pc=p.board[from];
+        const int t=typeOf(pc);
         if(t==1){int step=p.side==WHITE?16:-16;int one=from+step;int last=p.side==WHITE?7:0;
             if(onBoard(one)&&p.board[one]==EMPTY){if(rankOf(one)==last){for(int pr:{5,4,3,2})addMove(out,from,one,makePiece(pr,p.side));}else{addMove(out,from,one);int two=one+step;if(rankOf(from)==(p.side==WHITE?1:6)&&p.board[two]==EMPTY)addMove(out,from,two);}}
             for(int df:{-1,1}){int to=one+df;if(!onBoard(to))continue;if(colorOf(p.board[to])==1-p.side){if(rankOf(to)==last){for(int pr:{5,4,3,2})addMove(out,from,to,makePiece(pr,p.side));}else addMove(out,from,to);}else if(to==p.ep)addMove(out,from,to,EMPTY,true);}
@@ -177,13 +267,14 @@ Undo makeMove(Position& p,const Move& m) {
         const int capturedSquare=m.to+(p.side==WHITE?-16:16);
         undo.captured=p.board[capturedSquare];
         if(undo.captured!=EMPTY) p.key^=keys.pieces[capturedSquare][undo.captured];
-        p.board[capturedSquare]=EMPTY;
+        removePositionPiece(p,capturedSquare);
     } else if(undo.captured!=EMPTY) {
         p.key^=keys.pieces[m.to][undo.captured];
     }
 
-    p.board[m.from]=EMPTY;
-    p.board[m.to]=placedPiece;
+    removePositionPiece(p,m.from);
+    if(!m.enPassant&&undo.captured!=EMPTY) removePositionPiece(p,m.to);
+    putPositionPiece(p,m.to,placedPiece);
     p.key^=keys.pieces[m.to][placedPiece];
 
     if(m.castle) {
@@ -193,8 +284,9 @@ Undo makeMove(Position& p,const Move& m) {
         if(rook==EMPTY) throw std::logic_error("castling move has no rook");
         p.key^=keys.pieces[rookFrom][rook];
         if(p.board[rookTo]!=EMPTY) p.key^=keys.pieces[rookTo][p.board[rookTo]];
-        p.board[rookFrom]=EMPTY;
-        p.board[rookTo]=rook;
+        removePositionPiece(p,rookFrom);
+        if(p.board[rookTo]!=EMPTY) removePositionPiece(p,rookTo);
+        putPositionPiece(p,rookTo,rook);
         p.key^=keys.pieces[rookTo][rook];
     }
 
@@ -226,18 +318,20 @@ void undoMove(Position& p,const Move& m,const Undo& undo) {
     p.halfmove=undo.halfmove;
 
     const int movedPiece=p.board[m.to];
-    p.board[m.from]=m.promotion?makePiece(1,p.side):movedPiece;
-    p.board[m.to]=m.enPassant?EMPTY:undo.captured;
-    if(m.enPassant) {
-        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
-        p.board[capturedSquare]=undo.captured;
-    }
-
+    removePositionPiece(p,m.to);
     if(m.castle) {
         const int rookFrom=m.to>m.from?m.from+3:m.from-4;
         const int rookTo=m.to>m.from?m.from+1:m.from-1;
-        p.board[rookFrom]=p.board[rookTo];
-        p.board[rookTo]=EMPTY;
+        const int rook=p.board[rookTo];
+        removePositionPiece(p,rookTo);
+        putPositionPiece(p,rookFrom,rook);
+    }
+    putPositionPiece(p,m.from,m.promotion?makePiece(1,p.side):movedPiece);
+    if(m.enPassant) {
+        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
+        putPositionPiece(p,capturedSquare,undo.captured);
+    } else if(undo.captured!=EMPTY) {
+        putPositionPiece(p,m.to,undo.captured);
     }
     p.key=undo.key;
 }
@@ -506,9 +600,10 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
     gains[0]=MG_VALUE[typeOf(captured)];
     if(move.promotion) gains[0]+=MG_VALUE[typeOf(move.promotion)]-MG_VALUE[1];
 
-    position.board[move.from]=EMPTY;
-    position.board[capturedSquare]=EMPTY;
-    position.board[target]=occupant;
+    removePositionPiece(position,move.from);
+    removePositionPiece(position,capturedSquare);
+    removePositionPiece(position,target);
+    putPositionPiece(position,target,occupant);
     int side=1-original.side;
     int depth=0;
 
@@ -518,8 +613,9 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
         int attacker=position.board[attackerSquare];
         if(typeOf(attacker)==6) {
             Position kingCapture=position;
-            kingCapture.board[attackerSquare]=EMPTY;
-            kingCapture.board[target]=attacker;
+            removePositionPiece(kingCapture,attackerSquare);
+            removePositionPiece(kingCapture,target);
+            putPositionPiece(kingCapture,target,attacker);
             if(attacked(kingCapture,target,1-side)) break;
         }
 
@@ -530,8 +626,9 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
             attacker=makePiece(5,side);
         }
         gains[depth]=MG_VALUE[typeOf(occupant)]+promotionGain-gains[depth-1];
-        position.board[attackerSquare]=EMPTY;
-        position.board[target]=attacker;
+        removePositionPiece(position,attackerSquare);
+        removePositionPiece(position,target);
+        putPositionPiece(position,target,attacker);
         occupant=attacker;
         side=1-side;
     }
