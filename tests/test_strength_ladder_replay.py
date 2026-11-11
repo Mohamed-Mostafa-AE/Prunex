@@ -2,6 +2,7 @@
 """End-to-end tests for the modern strength-ladder replay and media pipeline."""
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -164,6 +165,15 @@ class ReplayEvidenceTests(unittest.TestCase):
             )
             (source / "openings.json").write_text("[]", encoding="utf-8")
 
+            original_sums = []
+            for item in sorted(path for path in source.rglob("*") if path.is_file()):
+                digest = hashlib.sha256(item.read_bytes()).hexdigest()
+                original_sums.append(f"{digest}  {item.relative_to(source).as_posix()}")
+            (source / "SHA256SUMS.txt").write_text(
+                "\\n".join(original_sums) + "\\n",
+                encoding="utf-8",
+            )
+
             subprocess.run(
                 [
                     sys.executable, str(LADDER_RENDERER),
@@ -180,9 +190,19 @@ class ReplayEvidenceTests(unittest.TestCase):
             index = (output / "index.html").read_text(encoding="utf-8")
             self.assertEqual(index.count(">Replay</a>"), 6)
             self.assertTrue((output / "SHA256SUMS.txt").is_file())
+            self.assertTrue(
+                (output / "source-run-records" / "SHA256SUMS.txt").is_file()
+            )
             self.assertEqual(
                 len(list((output / "replays").rglob("replay.mp4"))),
                 6,
+            )
+            subprocess.run(
+                ["sha256sum", "--check", "SHA256SUMS.txt"],
+                cwd=output / "source-run-records",
+                check=True,
+                capture_output=True,
+                text=True,
             )
             subprocess.run(
                 ["sha256sum", "--check", "SHA256SUMS.txt"],
