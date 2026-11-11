@@ -227,7 +227,7 @@ def main():
           "python":platform.python_version(),"python_chess":chess.__version__,
           "elapsed_seconds":round(time.time()-started,1),
           "game_records":records,
-          "interpretation":"A controlled 64-game match record, not an Elo estimate or proof of general superiority. Prunex uses its fixed 262,144-entry TT; Stockfish Hash is set to the recorded value."
+          "interpretation":"A controlled 64-game match record, not an Elo estimate or proof of general superiority. Prunex transposition-table settings are recorded above; Stockfish Hash is set to the recorded value."
         }
         (out/"summary.json").write_text(json.dumps(metadata,indent=2)+"\n",encoding="utf-8")
         print(json.dumps({k:v for k,v in metadata.items() if k!="game_records"},indent=2))
