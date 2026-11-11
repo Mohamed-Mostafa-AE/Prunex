@@ -245,7 +245,6 @@ int main() {
 
     if(!loadFen(position,START_FEN)) return 83;
     auto ordered=legalMoves(position);
-    const Move preferred{parseSquare("e2"),parseSquare("e4"),EMPTY,false,false};
     if(!parseUciMove(position,"e2e4",counterCandidate)) return 84;
     orderMoves(position,ordered,counterCandidate,0);
     if(ordered.empty()||!sameMove(ordered.front(),counterCandidate)) return 85;
