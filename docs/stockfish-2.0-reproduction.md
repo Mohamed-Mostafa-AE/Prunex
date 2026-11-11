@@ -7,7 +7,7 @@ This workflow creates a reproducible, color-balanced 64-game record for the curr
 - 16 fixed opening positions.
 - Each opening is repeated twice.
 - Prunex plays White and Black in each repetition: 32 games per color.
-- Each engine is asked to search up to 1,000,000 nodes per move by default. Prunex enforces this limit strictly. The pinned Stockfish 2.0 source is built with `tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch`: it polls both the main search and quiescence search at intervals of at most 1,000 nodes. The runner allows Stockfish 2.0 no more than 1,000 nodes of polling overshoot and records every actual per-move count. Prunex's strict cap is never relaxed.
+- Each engine is asked to search up to 1,000,000 nodes per move by default. Prunex enforces this limit strictly. The pinned Stockfish 2.0 source is built with `tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch`: it polls both the main search and quiescence search every 800 nodes. The runner records every actual per-move count and allows Stockfish 2.0 no more than 1,000 nodes of overshoot as a hard validation ceiling. The tighter polling interval is intended to keep observed overshoot below that ceiling; the ceiling is not a target. Prunex's strict cap is never relaxed.
 - Stockfish 2.0 uses a recorded 256 MiB Hash setting and one thread. Prunex uses a native transposition table configured with `PRUNEX_TT_BITS=22`; its estimated table allocation is recorded by the match runner. This is a disclosed, controlled configuration, not a claim of byte-identical table layouts.
 - The workflow records engine identities, source commits, executable SHA-256 hashes, every move, FEN before each move, available search telemetry, game results, and termination reasons.
 
