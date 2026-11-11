@@ -1,0 +1,172 @@
+name: Archive completed Prunex strength ladder evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: 'Successful modern strength-ladder Actions run ID'
+        required: true
+        type: string
+      artifact_name:
+        description: 'Artifact name from the source run'
+        required: true
+        default: 'prunex-modern-strength-ladder-1'
+        type: string
+      expected_games_per_tier:
+        description: 'Completed games required in each opponent/tier match'
+        required: true
+        default: '24'
+        type: string
+      fps:
+        description: 'Frames per second for match videos'
+        required: true
+        default: '3'
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: prunex-strength-ladder-evidence-archive
+  cancel-in-progress: false
+
+jobs:
+  render-and-archive:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out replay and archive tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Verify source run completed successfully
+        id: source
+        env:
+          GH_TOKEN: ${ github.token }
+          SOURCE_RUN_ID: ${ inputs.source_run_id }
+          EXPECTED_ARTIFACT: ${ inputs.artifact_name }
+        run: |
+          set -euo pipefail
+          RUN="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          STATUS="$(jq -r '.status' <<< "$RUN")"
+          CONCLUSION="$(jq -r '.conclusion' <<< "$RUN")"
+          WORKFLOW_NAME="$(jq -r '.name' <<< "$RUN")"
+          if [ "$STATUS" != "completed" ] || [ "$CONCLUSION" != "success" ]; then
+            echo "Source workflow must finish successfully before archiving (status=$STATUS, conclusion=$CONCLUSION)."
+            exit 1
+          fi
+          if [ "$WORKFLOW_NAME" != "Prunex strength ladder — Stockfish 19 and Triumviratus 8.1" ]; then
+            echo "The selected run is not the expected modern strength-ladder workflow."
+            exit 1
+          fi
+          HEAD_SHA="$(jq -r '.head_sha' <<< "$RUN")"
+          RUN_URL="$(jq -r '.html_url' <<< "$RUN")"
+          RUN_NUMBER="$(jq -r '.run_number' <<< "$RUN")"
+          ARTIFACTS="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts")"
+          FOUND="$(jq -r --arg name "$EXPECTED_ARTIFACT" '.artifacts[] | select(.name == $name and .expired == false) | .name' <<< "$ARTIFACTS")"
+          if [ "$FOUND" != "$EXPECTED_ARTIFACT" ]; then
+            echo "Could not find a non-expired artifact named $EXPECTED_ARTIFACT."
+            exit 1
+          fi
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "run_url=$RUN_URL" >> "$GITHUB_OUTPUT"
+          echo "run_number=$RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Download original PGNs, telemetry and provenance
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${ inputs.artifact_name }
+          repository: ${ github.repository }
+          run-id: ${ inputs.source_run_id }
+          github-token: ${ github.token }
+          path: source-artifact
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install replay dependencies and FFmpeg
+        run: |
+          python -m pip install --disable-pip-version-check python-chess Pillow cairosvg
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+
+      - name: Render six replays and verify MP4 audio tracks
+        env:
+          SOURCE_RUN_ID: ${ inputs.source_run_id }
+          EXPECTED_GAMES_PER_TIER: ${ inputs.expected_games_per_tier }
+          FPS: ${ inputs.fps }
+        run: |
+          set -euo pipefail
+          python tools/strength-match/replay/render_ladder.py \
+            --input source-artifact \
+            --out completed-strength-ladder \
+            --expected-games "$EXPECTED_GAMES_PER_TIER" \
+            --expected-total-games "$((6 * EXPECTED_GAMES_PER_TIER))" \
+            --fps "$FPS" \
+            --source-run-id "$SOURCE_RUN_ID"
+          (cd completed-strength-ladder && sha256sum --check SHA256SUMS.txt)
+
+      - name: Add source workflow provenance and refresh checksums
+        env:
+          SOURCE_RUN_ID: ${ inputs.source_run_id }
+          SOURCE_RUN_URL: ${ steps.source.outputs.run_url }
+          SOURCE_RUN_NUMBER: ${ steps.source.outputs.run_number }
+          SOURCE_COMMIT: ${ steps.source.outputs.head_sha }
+        run: |
+          cat > completed-strength-ladder/SOURCE.md <<EOF
+          # Source workflow
+
+          - Run: [$SOURCE_RUN_NUMBER]($SOURCE_RUN_URL)
+          - Run ID: $SOURCE_RUN_ID
+          - Candidate commit: $SOURCE_COMMIT
+
+          The records were downloaded from the successful workflow artifact.
+          The replay videos and posters were rendered from its retained PGN files.
+          EOF
+          (
+            cd completed-strength-ladder
+            find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+            sha256sum --check SHA256SUMS.txt
+          )
+
+      - name: Save evidence permanently on strength-ladder-progress
+        env:
+          SOURCE_RUN_ID: ${ inputs.source_run_id }
+          SOURCE_RUN_NUMBER: ${ steps.source.outputs.run_number }
+          SOURCE_COMMIT: ${ steps.source.outputs.head_sha }
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin refs/heads/strength-ladder-progress:refs/remotes/origin/strength-ladder-progress
+          WORKTREE="$RUNNER_TEMP/strength-ladder-progress"
+          git worktree add "$WORKTREE" origin/strength-ladder-progress
+          DEST="progress/stages/modern-strength-ladder/run-$SOURCE_RUN_ID"
+          if [ -e "$WORKTREE/$DEST" ]; then
+            echo "This source run is already archived; refusing to overwrite it."
+            exit 1
+          fi
+          mkdir -p "$WORKTREE/$DEST"
+          cp -a completed-strength-ladder/. "$WORKTREE/$DEST/"
+          cat > "$WORKTREE/$DEST/README.md" <<EOF
+          # Prunex modern strength-ladder run $SOURCE_RUN_NUMBER
+
+          - Source workflow run: $SOURCE_RUN_ID
+          - Candidate commit: $SOURCE_COMMIT
+          - Evidence index: [index.html](index.html)
+          - Includes six original PGNs, per-move telemetry and summaries, opponent provenance,
+            six offline replays, six move-sound MP4s, six final-position posters, and SHA-256 checksums.
+
+          Match results are reported under the measured node and time budgets. They are not
+          an independently certified Elo rating.
+          EOF
+          (cd "$WORKTREE/$DEST" && sha256sum --check SHA256SUMS.txt)
+          git -C "$WORKTREE" add "$DEST"
+          git -C "$WORKTREE" commit -m "Archive modern strength ladder run $SOURCE_RUN_NUMBER"
+          git push origin HEAD:refs/heads/strength-ladder-progress
+
+      - name: Show permanent archive link
+        run: |
+          echo "Permanent evidence: https://github.com/$GITHUB_REPOSITORY/tree/strength-ladder-progress/progress/stages/modern-strength-ladder/run-${ inputs.source_run_id }" >> "$GITHUB_STEP_SUMMARY"
