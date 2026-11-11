@@ -557,7 +557,7 @@ void buildEvaluationMaps(const Position& p, EvaluationMaps& maps) {
                 const int count=maps.attacks[color][target];
                 if(count==0) continue;
                 ++attackedSquares;
-                attackUnits+=std::min(2,count);
+                attackUnits+=std::min(2,static_cast<int>(count));
             }
         }
         if(attackedSquares>=2&&attackUnits>=3) {
