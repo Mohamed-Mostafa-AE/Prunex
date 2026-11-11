@@ -70,11 +70,15 @@ def main() -> int:
     if len(report.get("results", [])) != len(STAGES):
         raise ValueError("The match report must contain all six opponent/tier results.")
 
-    for name in ("report.json", "manifest.json", "openings.json"):
-        path = source / name
-        if not path.is_file():
-            raise FileNotFoundError(f"Missing match metadata: {name}")
-        shutil.copy2(path, output / name)
+    source_checksums = source / "SHA256SUMS.txt"
+    if not source_checksums.is_file():
+        raise FileNotFoundError("The original match checksum manifest is missing.")
+    subprocess.run(
+        ["sha256sum", "--check", "SHA256SUMS.txt"],
+        cwd=source,
+        check=True,
+    )
+    shutil.copytree(source, output / "source-run-records")
 
     input_root = Path(args.input)
     provenance_candidates = [source.parent / "opponents", input_root / "opponents"]
@@ -111,11 +115,6 @@ def main() -> int:
         ):
             raise ValueError(f"{opponent}/{tier}: W/D/L counts do not sum to game total.")
 
-        records_dir = output / "records" / opponent / tier
-        records_dir.mkdir(parents=True, exist_ok=True)
-        for file_path in (pgn, summary_path, telemetry):
-            shutil.copy2(file_path, records_dir / file_path.name)
-
         label = f"{opponent.replace('-', ' ').title()} · {tier}"
         replay_dir = output / "replays" / opponent / tier
         subprocess.run(
@@ -145,7 +144,7 @@ def main() -> int:
     for row in rows:
         key = f"{row['opponent']}/{row['tier']}"
         replay_base = f"replays/{key}"
-        record_base = f"records/{key}"
+        record_base = f"source-run-records/{key}"
         table_rows.append(
             "<tr>"
             f"<td>{html.escape(row['opponent'])}</td>"
