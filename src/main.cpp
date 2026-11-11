@@ -442,10 +442,138 @@ bool isPassedPawn(const Position& p,int square,int color) {
     return true;
 }
 
+
+struct EvaluationMaps {
+    std::array<std::array<std::uint8_t, 128>, 2> attacks{};
+    std::array<std::array<std::uint8_t, 128>, 2> pawnAttacks{};
+    std::array<int, 2> mobilityMiddle{};
+    std::array<int, 2> mobilityEnding{};
+    std::array<int, 2> kingPressureMiddle{};
+    std::array<int, 2> kingPressureEnding{};
+};
+
+void buildEvaluationMaps(const Position& p, EvaluationMaps& maps) {
+    constexpr std::array<int, 8> knightDirections{-33, -31, -18, -14, 14, 18, 31, 33};
+    constexpr std::array<int, 8> kingDirections{-17, -16, -15, -1, 1, 15, 16, 17};
+    constexpr std::array<int, 4> bishopDirections{-17, -15, 15, 17};
+    constexpr std::array<int, 4> rookDirections{-16, -1, 1, 16};
+    constexpr std::array<int, 7> mobilityMiddleWeight{0, 0, 4, 3, 2, 1, 0};
+    constexpr std::array<int, 7> mobilityEndingWeight{0, 0, 3, 3, 2, 1, 0};
+    constexpr std::array<int, 7> mobilityCap{0, 0, 8, 13, 14, 27, 0};
+
+    auto markAttack = [&](int color, int target) {
+        if(!onBoard(target)) return;
+        auto& count=maps.attacks[color][target];
+        if(count<std::numeric_limits<std::uint8_t>::max()) ++count;
+    };
+
+    // Build both sides' attack maps before evaluating safe mobility. Pawn
+    // attacks are retained separately because they are especially important
+    // for identifying squares where minor and major pieces can be chased.
+    for(int from=0;from<128;++from) {
+        if(!onBoard(from)) continue;
+        const int piece=p.board[from];
+        if(piece==EMPTY) continue;
+        const int color=colorOf(piece);
+        const int type=typeOf(piece);
+
+        if(type==1) {
+            const int step=color==WHITE?16:-16;
+            for(int fileStep:{-1,1}) {
+                const int target=from+step+fileStep;
+                if(onBoard(target)) {
+                    maps.pawnAttacks[color][target]=1;
+                    markAttack(color,target);
+                }
+            }
+        } else if(type==2||type==6) {
+            const auto& directions=type==2?knightDirections:kingDirections;
+            for(int direction:directions) markAttack(color,from+direction);
+        } else {
+            auto markRays = [&](const auto& directions) {
+                for(int direction:directions) {
+                    for(int target=from+direction;onBoard(target);target+=direction) {
+                        markAttack(color,target);
+                        if(p.board[target]!=EMPTY) break;
+                    }
+                }
+            };
+            if(type==3||type==5) markRays(bishopDirections);
+            if(type==4||type==5) markRays(rookDirections);
+        }
+    }
+
+    // Count pseudo-legal destinations that are not under an enemy pawn
+    // attack. Mobility is capped per piece so a queen cannot dominate the
+    // evaluation merely because it has many available squares.
+    for(int from=0;from<128;++from) {
+        if(!onBoard(from)) continue;
+        const int piece=p.board[from];
+        if(piece==EMPTY) continue;
+        const int color=colorOf(piece);
+        const int type=typeOf(piece);
+        if(type!=2&&type!=3&&type!=4&&type!=5) continue;
+
+        int safeMoves=0;
+        auto consider = [&](int target) {
+            if(!onBoard(target)||colorOf(p.board[target])==color) return;
+            if(!maps.pawnAttacks[1-color][target]) ++safeMoves;
+        };
+
+        if(type==2) {
+            for(int direction:knightDirections) consider(from+direction);
+        } else {
+            auto countRays = [&](const auto& directions) {
+                for(int direction:directions) {
+                    for(int target=from+direction;onBoard(target);target+=direction) {
+                        if(colorOf(p.board[target])==color) break;
+                        consider(target);
+                        if(p.board[target]!=EMPTY) break;
+                    }
+                }
+            };
+            if(type==3||type==5) countRays(bishopDirections);
+            if(type==4||type==5) countRays(rookDirections);
+        }
+
+        const int bounded=std::min(safeMoves,mobilityCap[type]);
+        maps.mobilityMiddle[color]+=bounded*mobilityMiddleWeight[type];
+        maps.mobilityEnding[color]+=bounded*mobilityEndingWeight[type];
+    }
+
+    // Reward coordinated attacks around the opposing king, but require
+    // pressure on multiple neighbouring squares to avoid overvaluing a
+    // single checking piece.
+    for(int color=WHITE;color<=BLACK;++color) {
+        const int enemyKing=kingSquare(p,1-color);
+        if(enemyKing<0) continue;
+        int attackedSquares=0;
+        int attackUnits=0;
+        for(int rankStep=-1;rankStep<=1;++rankStep) {
+            for(int fileStep=-1;fileStep<=1;++fileStep) {
+                if(rankStep==0&&fileStep==0) continue;
+                const int target=enemyKing+rankStep*16+fileStep;
+                if(!onBoard(target)) continue;
+                const int count=maps.attacks[color][target];
+                if(count==0) continue;
+                ++attackedSquares;
+                attackUnits+=std::min(2,count);
+            }
+        }
+        if(attackedSquares>=2&&attackUnits>=3) {
+            const int pressure=std::min(36,attackedSquares*2+attackUnits*2);
+            maps.kingPressureMiddle[color]=pressure;
+            maps.kingPressureEnding[color]=pressure/3;
+        }
+    }
+}
+
 int evaluate(const Position& p) {
     std::array<int, 2> middle{};
     std::array<int, 2> ending{};
     std::array<std::array<int, 8>, 2> pawnFiles{};
+    EvaluationMaps evaluationMaps;
+    buildEvaluationMaps(p,evaluationMaps);
     int phase=0;
     for(int square=0;square<128;++square) {
         if(!onBoard(square)) continue;
@@ -562,6 +690,12 @@ int evaluate(const Position& p) {
                 ending[color]+=7;
             }
         }
+    }
+    for(int color=WHITE;color<=BLACK;++color) {
+        middle[color]+=evaluationMaps.mobilityMiddle[color]
+            +evaluationMaps.kingPressureMiddle[color];
+        ending[color]+=evaluationMaps.mobilityEnding[color]
+            +evaluationMaps.kingPressureEnding[color];
     }
     phase=std::min(24,phase);
     int whiteMiddle=middle[WHITE]-middle[BLACK];
@@ -720,8 +854,13 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             int reduction=0;
             if(!checked&&!givesCheck&&quiet&&depth>=3&&moveNumber>=3) {
                 reduction=1;
-                if(depth>=6&&moveNumber>=8) ++reduction;
-                reduction=std::min(reduction,std::max(0,childDepth-1));
+                if(depth>=5&&moveNumber>=6) ++reduction;
+                if(depth>=8&&moveNumber>=12) ++reduction;
+                if(pvNode) --reduction;
+                const int history=historyScores[p.side][m.from][m.to];
+                if(history>5000) --reduction;
+                else if(history<-5000) ++reduction;
+                reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
             }
             score=-negamax(p,childDepth-reduction,-alpha-1,-alpha,ply+1,false);
             if(score>alpha&&reduction>0) score=-negamax(p,childDepth,-alpha-1,-alpha,ply+1,false);
@@ -737,6 +876,14 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         if(score>alpha) alpha=score;
         if(alpha>=beta) {
             if(quiet&&ply<MAX_PLY) {
+                // Quiet moves that failed before the cutoff receive a modest
+                // history malus; the cutoff move receives the larger reward.
+                for(int previous=0;previous<moveNumber-1;++previous) {
+                    const Move& rejected=moves[previous];
+                    if(isCapture(p,rejected)||rejected.promotion) continue;
+                    int& rejectedHistory=historyScores[p.side][rejected.from][rejected.to];
+                    rejectedHistory=std::max(-30000,rejectedHistory-depth*depth*8);
+                }
                 if(!sameMove(m,killerMoves[ply][0])) {
                     killerMoves[ply][1]=killerMoves[ply][0];
                     killerMoves[ply][0]=m;
@@ -775,6 +922,16 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     completedSearchDepth=0;
     lastSearchScore=evaluate(p);
     Move best=moves.front();
+    int fallbackScore=-INF;
+    for(const Move& move:moves) {
+        Position child=p;
+        makeMove(child,move);
+        const int score=-evaluate(child);
+        if(score>fallbackScore) {
+            fallbackScore=score;
+            best=move;
+        }
+    }
     int previousScore=0;
     const auto start=std::chrono::steady_clock::now();
     for(int currentDepth=1;currentDepth<=depth;++currentDepth) {
