@@ -67,6 +67,37 @@ int main() {
     if(position.key!=computePositionKey(position)) return 73;
     if(position.side!=BLACK||position.ep!=-1||position.key==beforeNull) return 74;
 
+    clearTranspositionTable();
+    ttGeneration=7;
+    const std::uint64_t clusterBaseKey=0x12345ULL;
+    bool tableHit=false;
+    TTEntry& deepEntry=probeTranspositionTable(clusterBaseKey,tableHit);
+    if(tableHit) return 75;
+    deepEntry.key=clusterBaseKey;
+    deepEntry.depth=14;
+    deepEntry.bound=TT_EXACT;
+    deepEntry.generation=ttGeneration;
+
+    const std::uint64_t shallowKey=clusterBaseKey+TT_BUCKETS;
+    TTEntry& shallowEntry=probeTranspositionTable(shallowKey,tableHit);
+    if(tableHit||&deepEntry==&shallowEntry) return 76;
+    shallowEntry.key=shallowKey;
+    shallowEntry.depth=3;
+    shallowEntry.bound=TT_LOWER;
+    shallowEntry.generation=ttGeneration;
+
+    const std::uint64_t thirdKey=clusterBaseKey+2*TT_BUCKETS;
+    TTEntry& replacement=probeTranspositionTable(thirdKey,tableHit);
+    if(tableHit||replacement.key!=shallowKey) return 77;
+    replacement.key=thirdKey;
+    replacement.depth=5;
+    replacement.bound=TT_UPPER;
+    replacement.generation=ttGeneration;
+
+    TTEntry& retainedDeep=probeTranspositionTable(clusterBaseKey,tableHit);
+    if(!tableHit||retainedDeep.depth!=14) return 78;
+    clearTranspositionTable();
+
     if(!loadFen(position,"7k/8/5KQ1/8/8/8/8/8 w - - 0 1")) return 10;
     Move matingMove=findBestMove(position,3);
     if(moveUci(matingMove)!="g6g7") return 11;

@@ -266,6 +266,8 @@ constexpr int MAX_QPLY = 18;
 #endif
 constexpr int TT_BITS = PRUNEX_TT_BITS;
 constexpr std::size_t TT_SIZE = std::size_t{1} << TT_BITS;
+constexpr std::size_t TT_WAYS = 2;
+constexpr std::size_t TT_BUCKETS = TT_SIZE / TT_WAYS;
 constexpr std::array<int, 7> MG_VALUE{0, 100, 325, 335, 510, 950, 0};
 constexpr std::array<int, 7> EG_VALUE{0, 120, 315, 350, 525, 930, 0};
 
@@ -282,7 +284,8 @@ struct TTEntry {
 
 
 
-std::array<TTEntry, TT_SIZE> transpositionTable{};
+using TTCluster = std::array<TTEntry, TT_WAYS>;
+std::array<TTCluster, TT_BUCKETS> transpositionTable{};
 std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
@@ -307,8 +310,39 @@ void emitLine(const std::string& line) {
     std::cout << line << '\n' << std::flush;
 }
 
+void clearTranspositionTable() {
+    for(auto& cluster:transpositionTable) cluster.fill(TTEntry{});
+}
+
+TTEntry& probeTranspositionTable(std::uint64_t key,bool& found) {
+    auto& cluster=transpositionTable[key&(TT_BUCKETS-1)];
+    TTEntry* replacement=&cluster.front();
+    int replacementQuality=std::numeric_limits<int>::max();
+
+    for(auto& entry:cluster) {
+        if(entry.bound!=TT_NONE&&entry.key==key) {
+            found=true;
+            return entry;
+        }
+        if(entry.bound==TT_NONE) {
+            found=false;
+            return entry;
+        }
+
+        const int age=static_cast<std::uint8_t>(ttGeneration-entry.generation);
+        const int quality=entry.depth-age*8;
+        if(quality<replacementQuality) {
+            replacementQuality=quality;
+            replacement=&entry;
+        }
+    }
+
+    found=false;
+    return *replacement;
+}
+
 void resetSearchState() {
-    transpositionTable.fill(TTEntry{});
+    clearTranspositionTable();
     searchPathKeys.fill(0);
     historyScores={};
     for(auto& pair:killerMoves) pair={Move{},Move{}};
@@ -335,9 +369,14 @@ bool searchShouldStop() {
 }
 
 int hashFullPermille() {
-    constexpr std::size_t sample=1000;
+    constexpr std::size_t sampleEntries=1000;
+    constexpr std::size_t sampleClusters=sampleEntries/TT_WAYS;
     std::size_t used=0;
-    for(std::size_t i=0;i<sample;++i) if(transpositionTable[i].generation==ttGeneration&&transpositionTable[i].bound!=TT_NONE) ++used;
+    for(std::size_t index=0;index<sampleClusters;++index) {
+        for(const auto& entry:transpositionTable[index]) {
+            if(entry.generation==ttGeneration&&entry.bound!=TT_NONE) ++used;
+        }
+    }
     return static_cast<int>(used);
 }
 
@@ -920,9 +959,10 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     if(searchShouldStop()) return evaluate(p);
     ++nodes;
     int originalAlpha=alpha;
-    TTEntry& entry=transpositionTable[key&(TT_SIZE-1)];
+    bool ttFound=false;
+    TTEntry& entry=probeTranspositionTable(key,ttFound);
     Move hashMove{};
-    if(entry.key==key) {
+    if(ttFound) {
         ++ttHits;
         hashMove=entry.best;
         if(entry.depth>=depth) {
@@ -1004,7 +1044,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
     }
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
-    if(entry.key!=key||entry.generation!=ttGeneration||depth>=entry.depth) {
+    if(!ttFound||entry.generation!=ttGeneration||depth>=entry.depth) {
         entry.key=key;
         entry.best=bestMove;
         entry.score=scoreToTable(bestScore,ply);
@@ -1052,8 +1092,9 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         while(true) {
             score=negamax(p,currentDepth,alpha,beta,0,true);
             if(searchAborted.load(std::memory_order_relaxed)) break;
-            TTEntry& rootEntry=transpositionTable[positionKey(p)&(TT_SIZE-1)];
-            if(rootEntry.key==positionKey(p)&&rootEntry.best.from>=0) best=rootEntry.best;
+            bool rootFound=false;
+            TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
+            if(rootFound&&rootEntry.best.from>=0) best=rootEntry.best;
             if(score<=alpha&&alpha>-INF) {
                 window=std::min(INF,window*2);
                 alpha=window==INF?-INF:std::max(-INF,previousScore-window);
@@ -1098,7 +1139,7 @@ void runBenchmark(int depth) {
             std::cerr<<"Invalid built-in benchmark position: "<<item.name<<"\n";
             continue;
         }
-        transpositionTable.fill(TTEntry{});
+        clearTranspositionTable();
         historyScores={};
         for(auto& pair:killerMoves) pair={Move{},Move{}};
         searchAborted.store(false,std::memory_order_relaxed);
@@ -1172,7 +1213,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         } else if(cmd=="ucinewgame"){
             stopAndJoin();
             loadFen(pos,START_FEN);
-            transpositionTable.fill(TTEntry{});
+            clearTranspositionTable();
             historyScores={};
             for(auto& pair:killerMoves)pair={Move{},Move{}};
         } else if(cmd=="position"){
