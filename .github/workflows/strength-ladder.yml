@@ -59,7 +59,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
       - name: Install match and replay dependencies
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: |
           python3 -m pip install --user --disable-pip-version-check --timeout 30 --retries 2 python-chess pillow cairosvg
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
@@ -70,14 +70,14 @@ jobs:
           ffprobe -version
 
       - name: Test match verifier and replay renderer
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: |
           python3 tests/test_stockfish_2_verifier.py
           python3 tests/test_replay_evidence.py
           python3 tests/test_stockfish_match_node_budget.py
 
       - name: Build the pinned baseline opponent
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: |
           git clone --depth 1 --branch sf_2.0 https://github.com/official-stockfish/Stockfish.git stockfish-2.0
           SOURCE_COMMIT="$(git -C stockfish-2.0 rev-parse HEAD)"
@@ -92,16 +92,21 @@ jobs:
           make -C stockfish-2.0/src build ARCH=x86-64 -j2
 
       - name: Test node-limit enforcement for both colors
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
+        env:
+          NODES_PER_MOVE_INPUT: ${{ inputs.nodes_per_move }}
+          OPPONENT_HASH_MB_INPUT: ${{ inputs.opponent_hash_mb }}
         run: |
+          NODES_PER_MOVE="${NODES_PER_MOVE_INPUT:-1000000}"
+          OPPONENT_HASH_MB="${OPPONENT_HASH_MB_INPUT:-256}"
           python3 tests/test_stockfish_2_node_limit.py \
             --prunex build/prunex \
             --stockfish stockfish-2.0/src/stockfish \
-            --nodes "${{ inputs.nodes_per_move }}" \
-            --stockfish-hash-mb "${{ inputs.opponent_hash_mb }}"
+            --nodes "$NODES_PER_MOVE" \
+            --stockfish-hash-mb "$OPPONENT_HASH_MB"
 
       - name: Verify baseline opponent identity and build provenance
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p verified-strength-ladder/evidence
           cp tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch \
@@ -116,21 +121,25 @@ jobs:
             --evidence-dir verified-strength-ladder/evidence
 
       - name: Run the 64-game color-balanced baseline match
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         env:
+          NODES_PER_MOVE_INPUT: ${{ inputs.nodes_per_move }}
+          OPPONENT_HASH_MB_INPUT: ${{ inputs.opponent_hash_mb }}
           PRUNEX_TT_BITS: '22'
           STOCKFISH_SOURCE_COMMIT: ${{ env.STOCKFISH_SOURCE_COMMIT }}
           STOCKFISH_SOURCE_PATCH_SHA256: ${{ env.STOCKFISH_SOURCE_PATCH_SHA256 }}
         run: |
+          NODES_PER_MOVE="${NODES_PER_MOVE_INPUT:-1000000}"
+          OPPONENT_HASH_MB="${OPPONENT_HASH_MB_INPUT:-256}"
           python3 tools/stockfish-2.0-match/run_match.py \
             --prunex build/prunex \
             --stockfish stockfish-2.0/src/stockfish \
-            --nodes "${{ inputs.nodes_per_move }}" \
-            --stockfish-hash-mb "${{ inputs.opponent_hash_mb }}" \
+            --nodes "$NODES_PER_MOVE" \
+            --stockfish-hash-mb "$OPPONENT_HASH_MB" \
             --out verified-strength-ladder
 
       - name: Render replay video, HTML viewer, and final-position poster
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         run: |
           python3 tools/stockfish-2.0-match/render_evidence.py \
             --pgn verified-strength-ladder/all-games.pgn \
@@ -140,7 +149,7 @@ jobs:
             | sort -z | xargs -0 sha256sum > verified-strength-ladder/SHA256SUMS.txt
 
       - name: Save permanent machine-readable progress to GitHub
-        if: success() && github.event_name == 'workflow_dispatch'
+        if: success() && github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -176,7 +185,7 @@ jobs:
           git -C "$WORKTREE" push origin "HEAD:refs/heads/strength-ladder-progress"
 
       - name: Upload replay and complete match evidence
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prunex-strength-ladder-stage-01-${{ github.run_number }}
