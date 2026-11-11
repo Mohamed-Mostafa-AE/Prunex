@@ -1,6 +1,82 @@
+#include <random>
+#include <algorithm>
 #define main prunex_console_entry
 #include "../src/main.cpp"
 #undef main
+
+static std::vector<std::string> referenceLegalMoveStrings(prunex::Position position) {
+    using namespace prunex;
+    std::vector<std::string> result;
+    for(const Move& move:pseudoMoves(position)) {
+        const int side=position.side;
+        const Undo undo=makeMove(position,move);
+        const bool safe=!inCheck(position,side);
+        undoMove(position,move,undo);
+        if(safe) result.push_back(moveUci(move));
+    }
+    std::sort(result.begin(),result.end());
+    return result;
+}
+
+static bool sliderTableIndicesAgree() {
+    using namespace prunex;
+    const auto& tables=slidingAttackTables();
+    auto verify=[](const SliderAttackTable& table,const auto& directions) {
+        for(int square=0;square<64;++square) {
+            const std::uint64_t mask=table.masks[square];
+            const unsigned bits=static_cast<unsigned>(std::popcount(mask));
+            const std::size_t subsetCount=std::size_t{1}<<bits;
+            for(std::size_t subset=0;subset<subsetCount;++subset) {
+                const auto occupancy=expandOccupancyIndex(
+                    static_cast<std::uint32_t>(subset),mask);
+                if(compressOccupancy(occupancy,mask)!=subset) return false;
+                if(table.lookup(square,occupancy)!=
+                   traceSlidingAttacks(square,occupancy,directions)) return false;
+            }
+        }
+        return true;
+    };
+    return verify(tables.bishops,BISHOP_DIRECTIONS)&&
+           verify(tables.rooks,ROOK_DIRECTIONS);
+}
+
+static bool legalMoveSetsAgree(prunex::Position position) {
+    using namespace prunex;
+    std::vector<std::string> actual;
+    for(const Move& move:legalMoves(position)) actual.push_back(moveUci(move));
+    std::sort(actual.begin(),actual.end());
+    return actual==referenceLegalMoveStrings(position)&&bitboardsConsistent(position);
+}
+
+static bool attackedMailboxReference(const prunex::Position& p,int target,int by) {
+ using namespace prunex;
+ constexpr int nd[8]={-33,-31,-18,-14,14,18,31,33};
+ constexpr int kd[8]={-17,-16,-15,-1,1,15,16,17};
+ int pawn=makePiece(1,by), sources[2]={target+(by==WHITE?-15:15),target+(by==WHITE?-17:17)};
+ for(int s:sources) if(onBoard(s)&&p.board[s]==pawn) return true;
+ int knight=makePiece(2,by), king=makePiece(6,by);
+ for(int d:nd) { int s=target+d; if(onBoard(s)&&p.board[s]==knight) return true; }
+ for(int d:kd) { int s=target+d; if(onBoard(s)&&p.board[s]==king) return true; }
+ constexpr int bd[4]={-17,-15,15,17}, rd[4]={-16,-1,1,16};
+ auto ray=[&](const auto& dirs,bool diag) {
+  for(int d:dirs) for(int s=target+d;onBoard(s);s+=d) {
+   int pc=p.board[s]; if(pc==EMPTY) continue;
+   if(colorOf(pc)==by) { int t=typeOf(pc); if(t==5||(diag?t==3:t==4)) return true; }
+   break;
+  }
+  return false;
+ };
+ return ray(bd,true)||ray(rd,false);
+}
+static bool attackMapsAgree(const prunex::Position& p) {
+ using namespace prunex;
+ for(int rank=0;rank<8;++rank) for(int file=0;file<8;++file)
+  for(int color=WHITE;color<=BLACK;++color) {
+   int s=rank*16+file;
+   if(attacked(p,s,color)!=attackedMailboxReference(p,s,color)) return false;
+  }
+ return true;
+}
 
 int main() {
     using namespace prunex;
@@ -23,23 +99,32 @@ int main() {
     if(nodes<=1) return 7;
 
     auto hashRoundTrips=[](const Position& original) {
-        if(original.key!=computePositionKey(original)) return false;
+        if(original.key!=computePositionKey(original)||!bitboardsConsistent(original)) return false;
         Position base=original;
         const auto moves=legalMoves(base);
         if(base.board!=original.board||base.side!=original.side||
            base.castling!=original.castling||base.ep!=original.ep||
            base.halfmove!=original.halfmove||base.fullmove!=original.fullmove||
-           base.key!=original.key) return false;
+           base.key!=original.key||!bitboardsConsistent(base)) return false;
         for(const Move& move:moves) {
             Position child=original;
             const std::uint64_t originalKey=child.key;
             Undo undo=makeMove(child,move);
-            if(child.key!=computePositionKey(child)) return false;
+            if(child.key!=computePositionKey(child)||!bitboardsConsistent(child)) return false;
             undoMove(child,move,undo);
-            if(child.key!=originalKey||child.key!=computePositionKey(child)) return false;
+            if(child.key!=originalKey||child.key!=computePositionKey(child)||
+               !bitboardsConsistent(child)) return false;
         }
         return true;
     };
+
+    if(!loadFen(position,START_FEN)||!attackMapsAgree(position)) return 88;
+    if(!loadFen(position,"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")||
+       !attackMapsAgree(position)) return 89;
+    if(!loadFen(position,"r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w - - 0 1")||
+       !attackMapsAgree(position)) return 90;
+    if(!loadFen(position,"7k/8/8/3pP3/8/8/8/K7 w - d6 0 1")||
+       !attackMapsAgree(position)) return 91;
 
     if(!loadFen(position,START_FEN)) return 8;
     std::uint64_t startKey=positionKey(position);
@@ -62,10 +147,12 @@ int main() {
     if(!hashRoundTrips(position)) return 71;
 
     if(!loadFen(position,START_FEN)) return 72;
+    if(!bitboardsConsistent(position)) return 87;
     const std::uint64_t beforeNull=position.key;
     makeNullMove(position);
     if(position.key!=computePositionKey(position)) return 73;
-    if(position.side!=BLACK||position.ep!=-1||position.key==beforeNull) return 74;
+    if(position.side!=BLACK||position.ep!=-1||position.key==beforeNull||
+       !bitboardsConsistent(position)) return 74;
 
     clearTranspositionTable();
     ttGeneration=7;
@@ -78,7 +165,7 @@ int main() {
     deepEntry.bound=TT_EXACT;
     deepEntry.generation=ttGeneration;
 
-    const std::uint64_t shallowKey=clusterBaseKey+TT_BUCKETS;
+    const std::uint64_t shallowKey=clusterBaseKey+ttBucketCount;
     TTEntry& shallowEntry=probeTranspositionTable(shallowKey,tableHit);
     if(tableHit||&deepEntry==&shallowEntry) return 76;
     shallowEntry.key=shallowKey;
@@ -86,7 +173,7 @@ int main() {
     shallowEntry.bound=TT_LOWER;
     shallowEntry.generation=ttGeneration;
 
-    const std::uint64_t thirdKey=clusterBaseKey+2*TT_BUCKETS;
+    const std::uint64_t thirdKey=clusterBaseKey+2*ttBucketCount;
     TTEntry& replacement=probeTranspositionTable(thirdKey,tableHit);
     if(tableHit||replacement.key!=shallowKey) return 77;
     replacement.key=thirdKey;
@@ -122,6 +209,7 @@ int main() {
     reflected.side=1-position.side;
     reflected.castling=0;
     reflected.ep=-1;
+    rebuildBitboards(reflected);
     if(evaluate(position)!=evaluate(reflected)) return 16;
 
     if(!loadFen(position,"4k3/8/2p5/3p4/3P4/2P5/8/4K3 w - - 0 1")) return 17;
@@ -252,6 +340,61 @@ int main() {
         if(moveOrderingScore(position,ordered[index-1],counterCandidate,0)<
            moveOrderingScore(position,ordered[index],counterCandidate,0)) return 86;
     }
+
+    const int originalHashSize=configuredHashMB;
+    const std::size_t originalBucketCount=ttBucketCount;
+    if(!resizeTranspositionTable(1)) return 93;
+    if(ttBucketCount==0||ttBucketCount>originalBucketCount) return 94;
+    bool resizedTableHit=false;
+    TTEntry& resizedEntry=probeTranspositionTable(0xABCDEF1234567890ULL,resizedTableHit);
+    if(resizedTableHit||resizedEntry.bound!=TT_NONE) return 95;
+    resizedEntry.key=0xABCDEF1234567890ULL;
+    resizedEntry.bound=TT_EXACT;
+    resizedEntry.depth=4;
+    if(!resizeTranspositionTable(originalHashSize)) return 96;
+    if(ttBucketCount!=originalBucketCount) return 97;
+
+
+    // Compare the optimized pin/check-mask move filter against the former
+    // make/undo legality oracle on tactical and special-move positions.
+    const std::array<const char*,8> legalityFens{{
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+        "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+        "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+        "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
+        "k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+        "4k3/8/8/8/1b6/8/4r3/4K3 w - - 0 1"
+    }};
+    for(const char* fen:legalityFens) {
+        if(!loadFen(position,fen)||!legalMoveSetsAgree(position)) return 92;
+    }
+
+    // Deterministic random legal play checks the optimized generator against
+    // the slow oracle after every position transition.
+    if(!loadFen(position,START_FEN)) return 93;
+    std::mt19937 randomMoves(0x5052554EU);
+    for(int ply=0;ply<160;++ply) {
+        if(!legalMoveSetsAgree(position)) return 94;
+        auto moves=legalMoves(position);
+        if(moves.empty()) break;
+        const Move selected=moves[
+            static_cast<std::size_t>(randomMoves())%moves.size()
+        ];
+        makeMove(position,selected);
+    }
+
+
+    // A timed search must not stop at the old depth-12 ceiling when there
+    // is still time available. Bare kings keep each iteration inexpensive.
+    if(!loadFen(position,"7k/8/8/8/8/8/8/K7 w - - 0 1")) return 95;
+    searchAborted.store(false,std::memory_order_relaxed);
+    const Move timedBest=findBestMove(position,MAX_PLY-1,50,0);
+    if(timedBest.from<0||timedBest.to<0||completedSearchDepth<=12) return 96;
+    if(searchTimeLimited||searchNodeLimit!=0) return 97;
+
+    if(!sliderTableIndicesAgree()) return 98;
 
     return 0;
 }

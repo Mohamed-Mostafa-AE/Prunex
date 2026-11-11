@@ -1,0 +1,142 @@
+name: Prunex strength ladder — Stockfish 19 and Triumviratus 8.1
+
+on:
+  push:
+    branches: ['feature/bitboard-position-foundation']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/strength-match/modern_strength_ladder.py'
+      - '.github/workflows/modern-strength-ladder.yml'
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: 'Paired opening positions per opponent and tier'
+        required: true
+        default: '12'
+        type: string
+      movetime_ms:
+        description: 'No-node-cap time per move in milliseconds'
+        required: true
+        default: '500'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-modern-strength-ladder
+  cancel-in-progress: false
+
+jobs:
+  three-tier-strength-ladder:
+    name: 100k nodes, 1M nodes, and timed search
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    steps:
+      - name: Check out exact Prunex candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install build and benchmark tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++ make git curl ca-certificates
+          python3 -m pip install --user --disable-pip-version-check --timeout 30 --retries 2 python-chess
+
+      - name: Build Prunex candidate with 2^22-entry transposition table
+        run: |
+          cmake -S . -B build-native -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPRUNEX_TT_BITS=22
+          cmake --build build-native --target prunex --parallel 2
+          printf 'uci\nisready\nquit\n' | build-native/prunex
+
+      - name: Build pinned official Stockfish 19
+        run: |
+          git clone --depth 1 --branch sf_19 https://github.com/official-stockfish/Stockfish.git stockfish-19
+          STOCKFISH_SHA="$(git -C stockfish-19 rev-parse HEAD)"
+          test "$STOCKFISH_SHA" = "edb0d9db6731067ec50ce619ff372b463bc4dd5d"
+          echo "STOCKFISH_SOURCE_COMMIT=$STOCKFISH_SHA" >> "$GITHUB_ENV"
+          make -C stockfish-19/src -j2 build ARCH=x86-64
+          test -x stockfish-19/src/stockfish
+
+      - name: Download official Triumviratus 8.1 AVX2-noPEXT release and NNUE
+        run: |
+          mkdir -p opponents/triumviratus-8.1
+          cd opponents/triumviratus-8.1
+          curl --fail --location --retry 3 --retry-delay 2 \
+            https://github.com/Tors3/Triumviratus/releases/download/v8.1/Triumviratus_8.1_linux_avx2-nopext \
+            --output Triumviratus_8.1_linux_avx2-nopext
+          curl --fail --location --retry 3 --retry-delay 2 \
+            https://github.com/Tors3/Triumviratus/releases/download/v8.1/nn-consilium-plebis.nnue \
+            --output nn-consilium-plebis.nnue
+          curl --fail --location --retry 3 --retry-delay 2 \
+            https://github.com/Tors3/Triumviratus/releases/download/v8.1/SHA256SUMS_linux.txt \
+            --output SHA256SUMS_linux.txt
+          grep -E '[[:space:]](Triumviratus_8.1_linux_avx2-nopext|nn-consilium-plebis\.nnue)$' \
+            SHA256SUMS_linux.txt | sha256sum --check -
+          chmod +x Triumviratus_8.1_linux_avx2-nopext
+          ldd Triumviratus_8.1_linux_avx2-nopext | tee ldd.txt
+          if grep -q 'not found' ldd.txt; then
+            echo "Triumviratus release binary has a missing shared library."
+            exit 1
+          fi
+
+      - name: Verify Triumviratus release identity and UCI startup
+        run: |
+          cd opponents/triumviratus-8.1
+          printf 'uci\nisready\nquit\n' | ./Triumviratus_8.1_linux_avx2-nopext | tee uci.txt
+          grep -i 'Triumviratus' uci.txt
+          grep 'uciok' uci.txt
+          grep 'readyok' uci.txt
+
+      - name: Run paired 3-tier ladder against both engines
+        env:
+          PAIRS_INPUT: ${{ inputs.pairs }}
+          MOVETIME_MS_INPUT: ${{ inputs.movetime_ms }}
+        run: |
+          PAIRS="${PAIRS_INPUT:-12}"
+          MOVETIME_MS="${MOVETIME_MS_INPUT:-500}"
+          python3 tools/strength-match/modern_strength_ladder.py \
+            --candidate build-native/prunex \
+            --stockfish stockfish-19/src/stockfish \
+            --triumviratus opponents/triumviratus-8.1/Triumviratus_8.1_linux_avx2-nopext \
+            --triumviratus-cwd opponents/triumviratus-8.1 \
+            --candidate-commit "${GITHUB_SHA}" \
+            --stockfish-source-commit "${STOCKFISH_SOURCE_COMMIT}" \
+            --triumviratus-release-commit "bd309e0673a5a851941f0c19d15b01cbaba4baa5" \
+            --pairs "$PAIRS" \
+            --seed 20261112 \
+            --hash-mb 256 \
+            --threads 1 \
+            --movetime-ms "$MOVETIME_MS" \
+            --max-plies 300 \
+            --out strength-ladder-results
+
+      - name: Create checksums for all match evidence
+        if: always()
+        run: |
+          if [ -d strength-ladder-results ]; then
+            (
+              cd strength-ladder-results
+              find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum
+            ) > strength-ladder-results/SHA256SUMS.txt
+            (
+              cd strength-ladder-results
+              sha256sum --check SHA256SUMS.txt
+            )
+          fi
+
+      - name: Upload PGN, per-move telemetry, summaries, and manifests
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prunex-modern-strength-ladder-${{ github.run_number }}
+          path: |
+            strength-ladder-results/
+            opponents/triumviratus-8.1/uci.txt
+            opponents/triumviratus-8.1/ldd.txt
+          if-no-files-found: warn
+          retention-days: 90
