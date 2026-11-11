@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Prunex · Match Replay</title>
+<style>
+:root{color-scheme:dark;--bg:#08111e;--panel:#101d2d;--line:#29415c;--muted:#9eb2c9;--text:#eff5fc;--accent:#68d8c6;--blue:#78aef5}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -25%,#18304c,transparent 58%),var(--bg);color:var(--text);font:15px/1.45 Inter,Segoe UI,Arial,sans-serif;min-height:100vh}
+header{max-width:1320px;margin:auto;padding:24px 28px;display:flex;justify-content:space-between;gap:18px;border-bottom:1px solid #29415c}
+.brand{display:flex;align-items:center;gap:12px}.mark{width:42px;height:42px;border:1px solid #47718a;border-radius:12px;display:grid;place-items:center;color:var(--accent);font-size:24px}.eyebrow{font:700 10px ui-monospace,monospace;letter-spacing:.17em;color:var(--accent)}h1{font-size:22px;margin:4px 0 0}.meta-head{text-align:right;color:var(--muted);font:11px ui-monospace,monospace}
+main{max-width:1320px;margin:auto;padding:22px 28px 36px;display:grid;grid-template-columns:minmax(340px,760px) minmax(300px,1fr);gap:22px}
+.panel{border:1px solid var(--line);background:linear-gradient(160deg,#14243a,#0d1928 72%);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0003;min-width:0}
+.topline{display:flex;align-items:center;justify-content:space-between;gap:10px}label{font:700 10px ui-monospace,monospace;letter-spacing:.1em;color:var(--muted)}
+select,button{font:inherit;color:var(--text);background:#17283e;border:1px solid #38536f;border-radius:9px;padding:9px 12px}button{cursor:pointer}button:hover{background:#203853;border-color:#6aa9cf}button:disabled{opacity:.35;cursor:not-allowed}
+.board-wrap{width:min(100%,680px);aspect-ratio:1;margin:18px auto;position:relative;border:7px solid #1c2d41;border-radius:8px;box-shadow:0 12px 32px #0007}.board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;height:100%;overflow:hidden}
+.square{position:relative;display:grid;place-items:center;min-width:0;min-height:0;font-family:"Segoe UI Symbol","DejaVu Sans",serif;font-size:clamp(24px,5.1vw,62px);line-height:1}.light{background:#e5e9ed}.dark{background:#8192a5}.last-from{box-shadow:inset 0 0 0 100px #e4c56a55}.last-to{box-shadow:inset 0 0 0 100px #68a9e555}.white{color:#fff;filter:drop-shadow(0 1px 1px #202a35);-webkit-text-stroke:.8px #31445a}.black{color:#172536;text-shadow:0 1px 0 #e6edf5}
+.coord{position:absolute;font:10px ui-monospace,monospace;color:#24374b;opacity:.8}.rank{top:2px;left:4px}.file{right:4px;bottom:1px}
+.status{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font:12px ui-monospace,monospace}.progress{width:100%;accent-color:var(--accent);margin:14px 0}.transport{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.transport button{min-width:64px}.primary{background:#1a5b60;border-color:#3b9991}
+.card{background:#0b1725;border:1px solid #2a435d;border-radius:12px;padding:14px;margin-bottom:14px}.result{font-size:28px;font-weight:750;margin:4px 0}.sub{color:var(--muted);font-size:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.cell small{display:block;color:var(--muted);font:10px ui-monospace,monospace}.cell b{font-size:13px;display:block;margin-top:3px}
+.settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}.setting{display:flex;flex-direction:column;gap:5px}.setting select{width:100%}.toggle{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-bottom:16px}.toggle input{accent-color:var(--accent)}
+.moves-head{display:flex;justify-content:space-between;color:var(--muted);font:700 10px ui-monospace,monospace;letter-spacing:.12em}.moves{overflow:auto;max-height:360px;border:1px solid #2c435d;border-radius:10px;background:#091523;padding:7px;display:flex;flex-direction:column;gap:3px}.move-row{display:grid;grid-template-columns:34px 1fr 1fr;gap:4px;align-items:center;min-height:31px;border-radius:6px;padding:2px 5px}.move-no{font:11px ui-monospace,monospace;color:#8299b2}.move-cell{border:0;background:transparent;padding:5px 7px;text-align:left;font:13px ui-monospace,monospace}.move-cell.active{background:#215465;color:#f0fffc;outline:1px solid #56a99e}.empty{color:#7e93aa;padding:12px;text-align:center;font-size:12px}
+.foot{max-width:1320px;padding:0 28px 26px;margin:auto;color:#7188a2;font:10px ui-monospace,monospace;text-align:center}
+@media(max-width:900px){main{grid-template-columns:1fr;padding:15px}.panel{padding:14px}header{padding:18px 15px}.meta-head{display:none}.board-wrap{width:min(100%,620px)}.moves{max-height:240px}}
+</style></head>
+<body>
+<header><div class="brand"><div class="mark">♞</div><div><div class="eyebrow">PRUNEX · RECORDED MATCH</div><h1>Game Replay</h1></div></div><div class="meta-head" id="match-meta">PGN-DERIVED POSITIONS · OFFLINE VIEWER</div></header>
+<main>
+<section class="panel">
+ <div class="topline"><label for="game-select">SELECT GAME</label><select id="game-select" aria-label="Select game"></select></div>
+ <div class="board-wrap"><div class="board" id="board" role="img" aria-label="Chess position"></div></div>
+ <div class="status"><strong id="position-status">Starting position</strong><span id="ply-status">0 / 0 plies</span></div>
+ <input id="progress" class="progress" type="range" min="0" max="0" value="0" aria-label="Game position">
+ <div class="transport"><button id="first">|◀</button><button id="prev">◀</button><button id="play" class="primary">▶ Play</button><button id="next">▶</button><button id="last">▶|</button></div>
+</section>
+<aside class="panel">
+ <div class="card"><div class="eyebrow" id="game-label">GAME 01 / 64</div><div class="result" id="game-result">½–½</div><div class="sub" id="game-description">Opening · repetition · termination</div>
+  <div class="grid"><div class="cell"><small>PRUNEX COLOUR</small><b id="prunex-colour">White</b></div><div class="cell"><small>MOVE COUNT</small><b id="move-count">0 plies</b></div><div class="cell"><small>OPENING</small><b id="opening">—</b></div><div class="cell"><small>REPETITION</small><b id="repetition">—</b></div></div>
+ </div>
+ <div class="settings"><label class="setting">PLAYBACK SPEED<select id="speed"><option value="1400">Slow</option><option value="850" selected>Normal</option><option value="450">Fast</option></select></label><label class="setting">MOVE SOUND<select id="sound-style"><option value="classic">Classic wooden tap</option><option value="soft">Soft felt tap</option><option value="muted">Quiet click</option></select></label></div>
+ <label class="toggle"><input id="sound-enabled" type="checkbox" checked> Enable website-style move sounds</label>
+ <div class="moves-head"><span>MOVE LIST</span><span id="move-count-head">0 PLIES</span></div><div class="moves" id="moves"><div class="empty">Loading recorded moves…</div></div>
+</aside>
+</main>
+<div class="foot">Every move and result is read from the retained PGN. This viewer never asks an engine to generate or recalculate moves.</div>
+<script>
+const DATA = /*__PRUNEX_REPLAY_DATA__*/;
+const GLYPH={K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙",k:"♚",q:"♛",r:"♜",b:"♝",n:"♞",p:"♟︎"};
+const $=id=>document.getElementById(id);
+let gameIndex=0,ply=0,playing=false,timer=null,audioContext=null;
+const game=()=>DATA.games[gameIndex];
+const meta=DATA.meta||{};
+$("match-meta").textContent=[meta.opponent,meta.tier,DATA.games.length+" paired games"].filter(Boolean).join(" · ");
+function fenPieces(fen){const out=[];for(const row of fen.split(" ")[0].split("/")){for(const c of row){if(/[1-8]/.test(c)){for(let n=0;n<Number(c);n++)out.push(".");}else out.push(c);}}return out;}
+function renderBoard(){const g=game(),fen=g.positions[ply],pieces=fenPieces(fen),last=g.moves[ply-1]?.uci||"",from=last.slice(0,2),to=last.slice(2,4),board=$("board");board.innerHTML="";for(let i=0;i<64;i++){const row=Math.floor(i/8),file=i%8,sq="abcdefgh"[file]+(8-row),p=pieces[i],cell=document.createElement("div");cell.className="square "+((row+file)%2===0?"light":"dark")+(sq===from?" last-from":"")+(sq===to?" last-to":"");if(p!=="."){const piece=document.createElement("span");piece.className=p===p.toUpperCase()?"white":"black";piece.textContent=GLYPH[p];cell.append(piece);}if(file===0){const c=document.createElement("span");c.className="coord rank";c.textContent=8-row;cell.append(c);}if(row===7){const c=document.createElement("span");c.className="coord file";c.textContent="abcdefgh"[file];cell.append(c);}board.append(cell);}const side=fen.split(" ")[1]==="w"?"White":"Black";$("position-status").textContent=ply===g.moves.length?"Final position · "+g.result:side+" to move";$("ply-status").textContent=ply+" / "+g.moves.length+" plies";$("progress").max=g.moves.length;$("progress").value=ply;$("prev").disabled=ply===0;$("first").disabled=ply===0;$("next").disabled=ply===g.moves.length;$("last").disabled=ply===g.moves.length;}
+function renderMoves(){const g=game(),root=$("moves");root.innerHTML="";if(!g.moves.length){root.innerHTML='<div class="empty">No moves in this record.</div>';return;}const groups=new Map();g.moves.forEach((m,i)=>{const row=groups.get(m.move_number)||{white:null,black:null};row[m.side]=i;groups.set(m.move_number,row);});for(const [number,entry] of groups){const row=document.createElement("div");row.className="move-row";const no=document.createElement("span");no.className="move-no";no.textContent=number+".";row.append(no);for(const side of ["white","black"]){const cell=document.createElement("button");cell.className="move-cell";const idx=entry[side];if(idx===null){cell.disabled=true;}else{cell.textContent=g.moves[idx].san;if(ply===idx+1)cell.classList.add("active");cell.addEventListener("click",()=>showPly(idx+1,true));}row.append(cell);}root.append(row);}$("move-count-head").textContent=g.moves.length+" PLIES";}
+function renderMeta(){const g=game();$("game-select").value=String(gameIndex);$("game-label").textContent="GAME "+String(g.number).padStart(2,"0")+" / "+DATA.games.length;$("game-result").textContent=g.result.replace("1/2-1/2","½–½");$("game-description").textContent=[g.opponent,g.tier,g.termination].filter(Boolean).join(" · ");$("prunex-colour").textContent=g.prunex_color;$("move-count").textContent=g.moves.length+" plies";$("opening").textContent=g.opening;$("repetition").textContent=g.repetition;}
+function render(){renderBoard();renderMoves();renderMeta();$("play").textContent=playing?"Ⅱ Pause":"▶ Play";}
+function primeAudio(){if(!$("sound-enabled").checked)return null;const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;try{audioContext ||= new C();if(audioContext.state==="suspended")audioContext.resume().catch(()=>{});return audioContext;}catch{return null;}}
+function playMoveSound(move){if(!move||!$("sound-enabled").checked)return;const ctx=primeAudio();if(!ctx)return;const p=({classic:{start:430,end:255,duration:.072,volume:.043,type:"triangle"},soft:{start:560,end:390,duration:.055,volume:.030,type:"sine"},muted:{start:300,end:195,duration:.068,volume:.026,type:"sine"}})[$("sound-style").value]||{start:430,end:255,duration:.072,volume:.043,type:"triangle"};const d=move.capture?p.duration*1.12:p.duration,now=ctx.currentTime,o=ctx.createOscillator(),gain=ctx.createGain();o.type=p.type;o.frequency.setValueAtTime(p.start,now);o.frequency.exponentialRampToValueAtTime(p.end,now+d);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(p.volume*(move.capture?1.08:1),now+.004);gain.gain.exponentialRampToValueAtTime(.0001,now+d);o.connect(gain);gain.connect(ctx.destination);o.start(now);o.stop(now+d+.01);}
+function stop(){playing=false;if(timer!==null){clearTimeout(timer);timer=null;}$("play").textContent="▶ Play";}
+function showPly(next,sound=false){const g=game();next=Math.max(0,Math.min(g.moves.length,next));if(sound&&next!==ply)playMoveSound(g.moves[next>ply?next-1:ply-1]);ply=next;render();if(playing&&ply>=g.moves.length)stop();}
+function tick(){if(!playing)return;if(ply>=game().moves.length){stop();return;}showPly(ply+1,true);if(playing)timer=setTimeout(tick,Number($("speed").value));}
+DATA.games.forEach(g=>{const o=document.createElement("option");o.value=String(g.number-1);o.textContent="Game "+String(g.number).padStart(2,"0")+" · "+g.result;$("game-select").append(o);});
+$("game-select").addEventListener("change",()=>{stop();gameIndex=Number($("game-select").value);ply=0;render();});
+$("first").addEventListener("click",()=>{stop();showPly(0);});$("prev").addEventListener("click",()=>{stop();showPly(ply-1,true);});$("next").addEventListener("click",()=>{stop();showPly(ply+1,true);});$("last").addEventListener("click",()=>{stop();showPly(game().moves.length,true);});$("progress").addEventListener("input",e=>{stop();showPly(Number(e.target.value),true);});
+$("play").addEventListener("click",()=>{if(playing){stop();return;}primeAudio();if(ply>=game().moves.length)ply=0;playing=true;render();tick();});
+render();
+</script></body></html>
