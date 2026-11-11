@@ -48,6 +48,13 @@ class ReplayEvidenceTests(unittest.TestCase):
                            "Enable website-style move sounds", "Fool's Mate", "Qh4#"):
                 self.assertIn(phrase, page)
             self.assertNotIn("__PRUNEX_REPLAY_DATA__", page)
+            # Keep the viewer's synthesized move sounds aligned with Prunex Play.
+            for profile in (
+                'classic:{start:430,end:255,duration:.072,volume:.043,type:"triangle"}',
+                'soft:{start:560,end:390,duration:.055,volume:.030,type:"sine"}',
+                'muted:{start:300,end:195,duration:.068,volume:.026,type:"sine"}',
+            ):
+                self.assertIn(profile, page)
 
             result = subprocess.run([sys.executable, str(RENDERER), "--pgn", str(pgn),
                                      "--out", str(evidence), "--fps", "3",
