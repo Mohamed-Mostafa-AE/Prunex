@@ -1,7 +1,7 @@
 diff --git a/src/search.cpp b/src/search.cpp
 --- a/src/search.cpp
 +++ b/src/search.cpp
-@@ -1653,9 +1653,15 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta) {
+@@ -1654,9 +1654,15 @@ Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta) {
  
      static_assert(nodeType != Root);
      constexpr bool PvNode = nodeType == PV;
