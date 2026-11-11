@@ -36,8 +36,9 @@ The next opponent is selected after the previous stage has been demonstrated. Th
 ## GitHub recordkeeping
 
 - Pull requests preserve every code change and its regression evidence.
-- Pushes to `main` run the native regression suite.
-- Manual ladder runs produce full game evidence, a replay artifact, and a permanent commit on the `strength-ladder-progress` branch.
+- Pushes to `main` that touch the active engine, match harness, tests, ladder workflow, or stage documentation run the native regression suite and the active 64-game baseline stage.
+- Manual workflow dispatches can repeat the baseline with an explicitly selected node budget and opponent hash size.
+- Each completed match produces full game evidence, a replay artifact, and a permanent commit on the `strength-ladder-progress` branch.
 - Each recorded run has its own directory and is never overwritten by a later attempt.
 - Keep failed and cancelled workflow runs identifiable; do not report them as completed matches.
 
