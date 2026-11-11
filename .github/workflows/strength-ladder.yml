@@ -1,0 +1,187 @@
+name: Prunex Strength Ladder
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/strength-ladder.yml'
+      - 'CMakeLists.txt'
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/stockfish-2.0-match/**'
+      - 'docs/strength-ladder.md'
+      - 'docs/stockfish-2.0-reproduction.md'
+  workflow_dispatch:
+    inputs:
+      nodes_per_move:
+        description: 'Node budget per move for both engines'
+        required: true
+        default: '1000000'
+        type: string
+      opponent_hash_mb:
+        description: 'Opponent Hash setting in MiB'
+        required: true
+        default: '256'
+        type: string
+
+permissions:
+  contents: write
+
+# This concurrency key supersedes the previous long-running benchmark on main.
+# It is renamed to the ladder-specific key after that run has been cancelled.
+concurrency:
+  group: ${{ format('prunex-{0}-{1}-{2}-{3}', 'stockfish', 19, '64', github.ref) }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-match:
+    name: Build, validate, and optionally run the active ladder stage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    steps:
+      - name: Check out Prunex source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: true
+
+      - name: Verify build tools
+        run: |
+          cmake --version
+          g++ --version
+          git --version
+          python3 --version
+          make --version
+
+      - name: Build Prunex with the configured native search table
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build --parallel 2
+
+      - name: Run native regression and perft suite
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Install match and replay dependencies
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 -m pip install --user --disable-pip-version-check --timeout 30 --retries 2 python-chess pillow cairosvg
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            timeout 180s sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=30
+            timeout 900s sudo env DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends -o Dpkg::Use-Pty=0 ffmpeg
+          fi
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Test match verifier and replay renderer
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 tests/test_stockfish_2_verifier.py
+          python3 tests/test_replay_evidence.py
+          python3 tests/test_stockfish_match_node_budget.py
+
+      - name: Build the pinned baseline opponent
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git clone --depth 1 --branch sf_2.0 https://github.com/official-stockfish/Stockfish.git stockfish-2.0
+          SOURCE_COMMIT="$(git -C stockfish-2.0 rev-parse HEAD)"
+          test "$SOURCE_COMMIT" = "aa2de53a83ca5423c8c8007abf71f9afdf589d93"
+          PATCH_FILE="$GITHUB_WORKSPACE/tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch"
+          git -C stockfish-2.0 apply --check "$PATCH_FILE"
+          git -C stockfish-2.0 apply "$PATCH_FILE"
+          git -C stockfish-2.0 diff --check
+          PATCH_SHA="$(sha256sum "$PATCH_FILE" | awk '{print $1}')"
+          echo "STOCKFISH_SOURCE_COMMIT=$SOURCE_COMMIT" >> "$GITHUB_ENV"
+          echo "STOCKFISH_SOURCE_PATCH_SHA256=$PATCH_SHA" >> "$GITHUB_ENV"
+          make -C stockfish-2.0/src build ARCH=x86-64 -j2
+
+      - name: Test node-limit enforcement for both colors
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 tests/test_stockfish_2_node_limit.py \
+            --prunex build/prunex \
+            --stockfish stockfish-2.0/src/stockfish \
+            --nodes "${{ inputs.nodes_per_move }}" \
+            --stockfish-hash-mb "${{ inputs.opponent_hash_mb }}"
+
+      - name: Verify baseline opponent identity and build provenance
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p verified-strength-ladder/evidence
+          cp tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch \
+            verified-strength-ladder/evidence/stockfish-2-node-budget.patch
+          printf '%s  %s\n' "$STOCKFISH_SOURCE_PATCH_SHA256" \
+            "stockfish-2-node-budget.patch" \
+            > verified-strength-ladder/evidence/stockfish-2-node-budget.patch.sha256
+          python3 tools/stockfish-2.0-match/verify_stockfish_2.py \
+            --engine stockfish-2.0/src/stockfish \
+            --source-commit "$STOCKFISH_SOURCE_COMMIT" \
+            --output verified-strength-ladder/stockfish-verification.json \
+            --evidence-dir verified-strength-ladder/evidence
+
+      - name: Run the 64-game color-balanced baseline match
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PRUNEX_TT_BITS: '22'
+          STOCKFISH_SOURCE_COMMIT: ${{ env.STOCKFISH_SOURCE_COMMIT }}
+          STOCKFISH_SOURCE_PATCH_SHA256: ${{ env.STOCKFISH_SOURCE_PATCH_SHA256 }}
+        run: |
+          python3 tools/stockfish-2.0-match/run_match.py \
+            --prunex build/prunex \
+            --stockfish stockfish-2.0/src/stockfish \
+            --nodes "${{ inputs.nodes_per_move }}" \
+            --stockfish-hash-mb "${{ inputs.opponent_hash_mb }}" \
+            --out verified-strength-ladder
+
+      - name: Render replay video, HTML viewer, and final-position poster
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 tools/stockfish-2.0-match/render_evidence.py \
+            --pgn verified-strength-ladder/all-games.pgn \
+            --out verified-strength-ladder/evidence \
+            --fps 3
+          find verified-strength-ladder -type f ! -name SHA256SUMS.txt -print0 \
+            | sort -z | xargs -0 sha256sum > verified-strength-ladder/SHA256SUMS.txt
+
+      - name: Save permanent machine-readable progress to GitHub
+        if: success() && github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "+refs/heads/strength-ladder-progress:refs/remotes/origin/strength-ladder-progress" || true
+
+          WORKTREE="/tmp/strength-ladder-progress"
+          if git show-ref --verify --quiet refs/remotes/origin/strength-ladder-progress; then
+            git worktree add -B strength-ladder-progress "$WORKTREE" refs/remotes/origin/strength-ladder-progress
+          else
+            git worktree add -b strength-ladder-progress "$WORKTREE" HEAD
+          fi
+
+          DEST="progress/stages/01-stockfish-2.0/run-${GITHUB_RUN_NUMBER}"
+          mkdir -p "$WORKTREE/$DEST/evidence"
+          cp verified-strength-ladder/all-games.pgn "$WORKTREE/$DEST/"
+          cp verified-strength-ladder/games.jsonl "$WORKTREE/$DEST/"
+          cp verified-strength-ladder/summary.json "$WORKTREE/$DEST/"
+          cp verified-strength-ladder/stockfish-verification.json "$WORKTREE/$DEST/"
+          cp verified-strength-ladder/SHA256SUMS.txt "$WORKTREE/$DEST/"
+          cp verified-strength-ladder/evidence/stockfish-2.0-*.txt "$WORKTREE/$DEST/evidence/" 2>/dev/null || true
+          cp verified-strength-ladder/evidence/stockfish-2-node-budget.patch* "$WORKTREE/$DEST/evidence/" 2>/dev/null || true
+          cat > "$WORKTREE/$DEST/README.md" <<EOF
+          # Stage 01 baseline match
+
+          Workflow run: ${GITHUB_RUN_NUMBER}
+          Source commit: ${GITHUB_SHA}
+          Opponent: pinned Stockfish 2.0 baseline build
+          Full PGN, per-move telemetry, verification output, and checksums are stored alongside this file.
+          EOF
+          git -C "$WORKTREE" add "$DEST"
+          git -C "$WORKTREE" commit -m "Record strength ladder baseline run ${GITHUB_RUN_NUMBER}"
+          git -C "$WORKTREE" push origin "HEAD:refs/heads/strength-ladder-progress"
+
+      - name: Upload replay and complete match evidence
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prunex-strength-ladder-stage-01-${{ github.run_number }}
+          path: verified-strength-ladder/
+          if-no-files-found: warn
+          retention-days: 90
