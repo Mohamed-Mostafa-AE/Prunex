@@ -7,8 +7,8 @@ import chess
 import chess.engine
 import chess.pgn
 
-# The disclosed Stockfish 19 node-limit patch also polls quiescence search.
-# The main-thread polling interval is bounded to at most 512 nodes.
+# The disclosed Stockfish 19 patch polls quiescence as well as full search.
+# The node-limited main-thread polling interval is at most 512 nodes.
 STOCKFISH_19_NODE_POLL_INTERVAL = 512
 
 OPENINGS = [
@@ -209,7 +209,7 @@ def main():
           },
           "stockfish_hash_mb":args.stockfish_hash_mb,
           "stockfish_threads":1,"prunex_threads":1,
-          "prunex_tt_bits":int(__import__("os").environ.get("PRUNEX_TT_BITS","18")),"prunex_tt_entries":1 << int(__import__("os").environ.get("PRUNEX_TT_BITS","18")),"prunex_tt_config":"fixed native table; compile-time PRUNEX_TT_BITS, recorded explicitly; no UCI Hash option",
+          "prunex_tt_bits":int(__import__("os").environ.get("PRUNEX_TT_BITS","18")),"prunex_tt_entries":1 << int(__import__("os").environ.get("PRUNEX_TT_BITS","18")),"prunex_tt_entry_bytes":40,"prunex_tt_memory_mib":round((1 << int(__import__("os").environ.get("PRUNEX_TT_BITS","18")))*40/(1024*1024),2),"prunex_tt_config":"fixed native table; compile-time PRUNEX_TT_BITS, recorded explicitly; no UCI Hash option",
           "opening_count":len(OPENINGS),"repetitions_per_opening":2,
           "color_balance":{"prunex_white":32,"prunex_black":32},
           "prunex_uci_id":prunex_id,"stockfish_uci_id":stockfish_id,
