@@ -13,7 +13,7 @@ from pathlib import Path
 EXPECTED_SOURCE_COMMIT = "edb0d9db6731067ec50ce619ff372b463bc4dd5d"
 EXPECTED_BENCH_NODES = 2_497_913
 EXPECTED_NET_NAME = "nn-1a298aa575a0.nnue"
-SUMMARY_LINE = re.compile(r"^\\s*Nodes searched\\s*:\\s*([0-9][0-9,]*)\\s*$", re.I)
+SUMMARY_LINE = re.compile(r"^\s*Nodes searched\s*:\s*([0-9][0-9,]*)\s*$", re.I)
 
 
 def sha256_file(path: Path) -> str:
@@ -81,14 +81,14 @@ def main() -> int:
         result["engine_path"] = str(engine)
         result["executable_sha256"] = sha256_file(engine)
         uci = subprocess.run(
-            [str(engine)], input="uci\\nquit\\n", text=True,
+            [str(engine)], input="uci\nquit\n", text=True,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             cwd=str(engine.parent), timeout=30, check=False,
         )
         uci_file = evidence / "stockfish-19-uci-output.txt"
         uci_file.write_text(uci.stdout, encoding="utf-8")
-        names = re.findall(r"(?im)^\\s*id name\\s+(.+?)\\s*$", uci.stdout)
-        matched = next((name for name in names if re.search(r"\\bStockfish\\s+19\\b", name, re.I)), None)
+        names = re.findall(r"(?im)^\s*id name\s+(.+?)\s*$", uci.stdout)
+        matched = next((name for name in names if re.search(r"\bStockfish\s+19\b", name, re.I)), None)
         result.update({
             "uci_exit_code": uci.returncode,
             "uci_id_names": names,
@@ -127,7 +127,7 @@ def main() -> int:
         and result["nnue_file_check_passed"]
         and result["bench_signature_passed"]
     )
-    payload = json.dumps(result, indent=2) + "\\n"
+    payload = json.dumps(result, indent=2) + "\n"
     output.write_text(payload, encoding="utf-8")
     print(payload, end="")
     return 0 if result["verified_as_stockfish_19"] else 2
