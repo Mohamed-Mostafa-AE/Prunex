@@ -146,10 +146,9 @@ jobs:
             --pgn verified-strength-ladder/all-games.pgn \
             --out verified-strength-ladder/evidence \
             --fps 3
-          ( \
-            cd verified-strength-ladder \
-            find . -type f ! -name SHA256SUMS.txt -print0 \
-              | sort -z | xargs -0 sha256sum \
+          (
+            cd verified-strength-ladder
+            find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum
           ) > verified-strength-ladder/SHA256SUMS.txt
 
       - name: Save permanent machine-readable progress to GitHub
