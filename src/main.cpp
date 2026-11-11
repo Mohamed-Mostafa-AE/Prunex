@@ -208,15 +208,116 @@ inline constexpr auto KNIGHT_ATTACKS=buildKnightAttacks();
 inline constexpr auto KING_ATTACKS=buildKingAttacks();
 inline constexpr auto PAWN_ATTACKS=buildPawnAttacks();
 template<std::size_t N>
-std::uint64_t slidingAttacks(int s64,std::uint64_t occ,const std::array<int,N>& dirs) {
- std::uint64_t a=0; int from=square88From64(s64);
- for(int d:dirs) for(int t=from+d;onBoard(t);t+=d) {
-  auto bit=squareBit(t); a|=bit; if(occ&bit) break;
- }
- return a;
+std::uint64_t traceSlidingAttacks(int square64,std::uint64_t occupied,
+                                  const std::array<int,N>& directions) {
+    std::uint64_t attacks=0;
+    const int from=square88From64(square64);
+    for(int direction:directions) {
+        for(int target=from+direction;onBoard(target);target+=direction) {
+            const std::uint64_t bit=squareBit(target);
+            attacks|=bit;
+            if((occupied&bit)!=0) break;
+        }
+    }
+    return attacks;
 }
-std::uint64_t bishopAttacks(int s,std::uint64_t o) { return slidingAttacks(s,o,BISHOP_DIRECTIONS); }
-std::uint64_t rookAttacks(int s,std::uint64_t o) { return slidingAttacks(s,o,ROOK_DIRECTIONS); }
+
+std::uint64_t relevantOccupancyMask(
+    int square64,const std::array<int,4>& directions) {
+    const int from=square88From64(square64);
+    std::uint64_t mask=0;
+    for(int direction:directions) {
+        for(int target=from+direction;onBoard(target);target+=direction) {
+            // The outermost edge square cannot change a ray beyond itself,
+            // so it is intentionally omitted from the lookup index.
+            if(!onBoard(target+direction)) break;
+            mask|=squareBit(target);
+        }
+    }
+    return mask;
+}
+
+std::uint64_t expandOccupancyIndex(std::uint32_t index,std::uint64_t mask) {
+    std::uint64_t occupancy=0;
+    unsigned outputBit=0;
+    while(mask) {
+        const std::uint64_t bit=mask&(~mask+1);
+        mask&=mask-1;
+        if(index&(std::uint32_t{1}<<outputBit)) occupancy|=bit;
+        ++outputBit;
+    }
+    return occupancy;
+}
+
+// Portable parallel-bit-extract: compresses the masked occupied squares into
+// a dense table index. A hardware BMI2 implementation can replace this
+// function later without changing the table format or attack semantics.
+std::uint32_t compressOccupancy(std::uint64_t occupied,std::uint64_t mask) {
+    std::uint32_t index=0;
+    unsigned outputBit=0;
+    while(mask) {
+        const std::uint64_t bit=mask&(~mask+1);
+        mask&=mask-1;
+        if(occupied&bit) index|=std::uint32_t{1}<<outputBit;
+        ++outputBit;
+    }
+    return index;
+}
+
+struct SliderAttackTable {
+    std::array<std::uint64_t,64> masks{};
+    std::array<std::size_t,64> offsets{};
+    std::vector<std::uint64_t> attacks;
+
+    template<std::size_t N>
+    void initialize(const std::array<int,4>& directions) {
+        std::size_t total=0;
+        for(int square=0;square<64;++square) {
+            masks[square]=relevantOccupancyMask(square,directions);
+            offsets[square]=total;
+            const unsigned bits=static_cast<unsigned>(std::popcount(masks[square]));
+            total+=std::size_t{1}<<bits;
+        }
+        attacks.resize(total);
+        for(int square=0;square<64;++square) {
+            const unsigned bits=static_cast<unsigned>(std::popcount(masks[square]));
+            const std::size_t subsetCount=std::size_t{1}<<bits;
+            for(std::size_t subset=0;subset<subsetCount;++subset) {
+                const auto occupancy=expandOccupancyIndex(
+                    static_cast<std::uint32_t>(subset),masks[square]);
+                attacks[offsets[square]+subset]=
+                    traceSlidingAttacks(square,occupancy,directions);
+            }
+        }
+    }
+
+    std::uint64_t lookup(int square64,std::uint64_t occupied) const {
+        const auto index=compressOccupancy(occupied,masks[square64]);
+        return attacks[offsets[square64]+index];
+    }
+};
+
+struct SlidingAttackTables {
+    SliderAttackTable bishops;
+    SliderAttackTable rooks;
+
+    SlidingAttackTables() {
+        bishops.initialize<4>(BISHOP_DIRECTIONS);
+        rooks.initialize<4>(ROOK_DIRECTIONS);
+    }
+};
+
+const SlidingAttackTables& slidingAttackTables() {
+    static const SlidingAttackTables tables;
+    return tables;
+}
+
+std::uint64_t bishopAttacks(int square,std::uint64_t occupied) {
+    return slidingAttackTables().bishops.lookup(square,occupied);
+}
+std::uint64_t rookAttacks(int square,std::uint64_t occupied) {
+    return slidingAttackTables().rooks.lookup(square,occupied);
+}
 bool attacked(const Position& p,int sq,int by) {
  if(!onBoard(sq)) return false;
  int s=square64From88(sq);
