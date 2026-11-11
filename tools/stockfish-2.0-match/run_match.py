@@ -209,7 +209,7 @@ def main():
           },
           "stockfish_hash_mb":args.stockfish_hash_mb,
           "stockfish_threads":1,"prunex_threads":1,
-          "prunex_tt_entries":262144,"prunex_tt_config":"fixed native table: TT_BITS=18; no UCI Hash option",
+          "prunex_tt_bits":int(__import__("os").environ.get("PRUNEX_TT_BITS","18")),"prunex_tt_entries":1 << int(__import__("os").environ.get("PRUNEX_TT_BITS","18")),"prunex_tt_config":"fixed native table configured at compile time via PRUNEX_TT_BITS; no UCI Hash option",
           "opening_count":len(OPENINGS),"repetitions_per_opening":2,
           "color_balance":{"prunex_white":32,"prunex_black":32},
           "prunex_uci_id":prunex_id,"stockfish_uci_id":stockfish_id,
