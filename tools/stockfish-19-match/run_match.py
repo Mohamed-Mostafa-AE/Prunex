@@ -7,8 +7,8 @@ import chess
 import chess.engine
 import chess.pgn
 
-# The disclosed Stockfish 19 node-limit patch polls both search and qsearch
-# at intervals of at most 1,000 nodes.
+# The disclosed Stockfish 19 node-limit patch also polls quiescence search.
+# The main-thread polling interval is bounded to at most 512 nodes.
 STOCKFISH_19_NODE_POLL_INTERVAL = 512
 
 OPENINGS = [
@@ -200,12 +200,12 @@ def main():
           "nodes_per_move_requested":args.nodes,
           "node_limit_policy":{
             "prunex":"strict; actual nodes must not exceed the requested limit",
-            "stockfish_2_0":(
+            "stockfish_19":(
               "A disclosed patch polls both main search and quiescence search at intervals "
               f"of at most {STOCKFISH_19_NODE_POLL_INTERVAL} nodes; actual per-move "
               "counts are retained and validated against this bounded allowance"
             ),
-            "stockfish_2_0_max_poll_overshoot_nodes":STOCKFISH_19_NODE_POLL_INTERVAL,
+            "stockfish_19_max_poll_overshoot_nodes":STOCKFISH_19_NODE_POLL_INTERVAL,
           },
           "stockfish_hash_mb":args.stockfish_hash_mb,
           "stockfish_threads":1,"prunex_threads":1,
@@ -215,6 +215,8 @@ def main():
           "prunex_uci_id":prunex_id,"stockfish_uci_id":stockfish_id,
           "prunex_executable":str(prunex_path),"prunex_sha256":sha256(prunex_path),
           "stockfish_executable":str(stockfish_path),"stockfish_sha256":sha256(stockfish_path),
+          "stockfish_nnue_file":str(stockfish_path.parent/"nn-1a298aa575a0.nnue"),
+          "stockfish_nnue_sha256":sha256(stockfish_path.parent/"nn-1a298aa575a0.nnue"),
           "stockfish_source":"official-stockfish/Stockfish tag sf_19 with the disclosed node-limit polling patch",
           "stockfish_source_commit":"edb0d9db6731067ec50ce619ff372b463bc4dd5d",
           "stockfish_source_patch":"tools/stockfish-19-match/patches/stockfish-19-node-budget.patch",
@@ -224,7 +226,7 @@ def main():
           "python":platform.python_version(),"python_chess":chess.__version__,
           "elapsed_seconds":round(time.time()-started,1),
           "game_records":records,
-          "interpretation":"A controlled 64-game match record, not an Elo estimate or proof of general superiority. Prunex uses its fixed 262,144-entry TT; Stockfish Hash is set to the recorded value."
+          "interpretation":"A controlled 64-game match record, not an Elo estimate or proof of general superiority. Prunex uses a fixed 2^PRUNEX_TT_BITS-entry TT; Stockfish 19 Hash is set to the recorded value. This 64-game diagnostic is not an Elo estimate."
         }
         (out/"summary.json").write_text(json.dumps(metadata,indent=2)+"\n",encoding="utf-8")
         print(json.dumps({k:v for k,v in metadata.items() if k!="game_records"},indent=2))
