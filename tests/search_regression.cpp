@@ -17,6 +17,29 @@ static std::vector<std::string> referenceLegalMoveStrings(prunex::Position posit
     std::sort(result.begin(),result.end());
     return result;
 }
+
+static bool sliderTableIndicesAgree() {
+    using namespace prunex;
+    const auto& tables=slidingAttackTables();
+    auto verify=[](const SliderAttackTable& table,const auto& directions) {
+        for(int square=0;square<64;++square) {
+            const std::uint64_t mask=table.masks[square];
+            const unsigned bits=static_cast<unsigned>(std::popcount(mask));
+            const std::size_t subsetCount=std::size_t{1}<<bits;
+            for(std::size_t subset=0;subset<subsetCount;++subset) {
+                const auto occupancy=expandOccupancyIndex(
+                    static_cast<std::uint32_t>(subset),mask);
+                if(compressOccupancy(occupancy,mask)!=subset) return false;
+                if(table.lookup(square,occupancy)!=
+                   traceSlidingAttacks(square,occupancy,directions)) return false;
+            }
+        }
+        return true;
+    };
+    return verify(tables.bishops,BISHOP_DIRECTIONS)&&
+           verify(tables.rooks,ROOK_DIRECTIONS);
+}
+
 static bool legalMoveSetsAgree(prunex::Position position) {
     using namespace prunex;
     std::vector<std::string> actual;
@@ -370,6 +393,8 @@ int main() {
     const Move timedBest=findBestMove(position,MAX_PLY-1,50,0);
     if(timedBest.from<0||timedBest.to<0||completedSearchDepth<=12) return 96;
     if(searchTimeLimited||searchNodeLimit!=0) return 97;
+
+    if(!sliderTableIndicesAgree()) return 98;
 
     return 0;
 }
