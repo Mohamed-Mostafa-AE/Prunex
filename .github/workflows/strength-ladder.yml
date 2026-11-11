@@ -27,10 +27,8 @@ on:
 permissions:
   contents: write
 
-# This concurrency key supersedes the previous long-running benchmark on main.
-# It is renamed to the ladder-specific key after that run has been cancelled.
 concurrency:
-  group: ${{ format('prunex-{0}-{1}-{2}-{3}', 'stockfish', 19, '64', github.ref) }}
+  group: prunex-strength-ladder-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
