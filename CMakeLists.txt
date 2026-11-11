@@ -29,9 +29,16 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(PRUNEX_TT_BITS "18" CACHE STRING "Log2 of native Prunex transposition-table entries (16-23)")
+if(NOT PRUNEX_TT_BITS MATCHES "^[0-9]+$" OR PRUNEX_TT_BITS LESS 16 OR PRUNEX_TT_BITS GREATER 23)
+    message(FATAL_ERROR "PRUNEX_TT_BITS must be an integer from 16 through 23")
+endif()
+
 add_executable(prunex src/main.cpp)
 target_compile_features(prunex PRIVATE cxx_std_20)
+target_compile_definitions(prunex PRIVATE PRUNEX_TT_BITS=${PRUNEX_TT_BITS})
 target_link_libraries(prunex PRIVATE Threads::Threads)
+message(STATUS "Prunex transposition-table entries: 2^${PRUNEX_TT_BITS}")
 
 if(WIN32)
     add_executable(PrunexGUI WIN32 src/gui.cpp)
@@ -112,6 +119,7 @@ if(BUILD_TESTING)
 
     add_executable(prunex_search_tests tests/search_regression.cpp)
     target_compile_features(prunex_search_tests PRIVATE cxx_std_20)
+    target_compile_definitions(prunex_search_tests PRIVATE PRUNEX_TT_BITS=${PRUNEX_TT_BITS})
     target_link_libraries(prunex_search_tests PRIVATE Threads::Threads)
 
     add_executable(prunex_parity_reference tests/wasm_parity_reference.cpp)
