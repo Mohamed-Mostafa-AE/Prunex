@@ -287,6 +287,9 @@ struct TTEntry {
 using TTCluster = std::array<TTEntry, TT_WAYS>;
 std::array<TTCluster, TT_BUCKETS> transpositionTable{};
 std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
+std::array<Move, MAX_PLY> searchPathMoves{};
+std::array<int, MAX_PLY> searchPathPieceTypes{};
+std::array<std::array<Move, 128>, 7> counterMoves{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
 std::uint64_t nodes=0;
@@ -344,6 +347,9 @@ TTEntry& probeTranspositionTable(std::uint64_t key,bool& found) {
 void resetSearchState() {
     clearTranspositionTable();
     searchPathKeys.fill(0);
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+    counterMoves={};
     historyScores={};
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
@@ -551,6 +557,12 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
     if(ply<MAX_PLY) {
         if(sameMove(m,killerMoves[ply][0])) return 800000;
         if(sameMove(m,killerMoves[ply][1])) return 790000;
+    }
+    if(ply>0&&ply<MAX_PLY) {
+        const int previousType=searchPathPieceTypes[ply-1];
+        const Move& previous=searchPathMoves[ply-1];
+        if(previousType>=1&&previousType<=6&&previous.to>=0&&
+           sameMove(m,counterMoves[previousType][previous.to])) return 780000;
     }
     return score+historyScores[p.side][m.from][m.to];
 }
@@ -975,8 +987,14 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
         Position nullPosition=p;
         makeNullMove(nullPosition);
+        const Move savedPathMove=searchPathMoves[ply];
+        const int savedPathType=searchPathPieceTypes[ply];
+        searchPathMoves[ply]=Move{};
+        searchPathPieceTypes[ply]=0;
         const int reduction=2+depth/4;
         const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
+        searchPathMoves[ply]=savedPathMove;
+        searchPathPieceTypes[ply]=savedPathType;
         if(searchAborted.load(std::memory_order_relaxed)) return 0;
         if(nullScore>=beta) {
             if(depth<7) return nullScore;
@@ -992,6 +1010,9 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     Move bestMove=moves.front();
     int moveNumber=0;
     for(const Move& m:moves) {
+        const int movingPieceType=typeOf(p.board[m.from]);
+        searchPathMoves[ply]=m;
+        searchPathPieceTypes[ply]=movingPieceType;
         bool quiet=!isCapture(p,m)&&!m.promotion;
         Undo undo=makeMove(p,m);
         bool givesCheck=inCheck(p,p.side);
@@ -1039,6 +1060,14 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 }
                 int& history=historyScores[p.side][m.from][m.to];
                 history=std::min(30000,history+depth*depth*16);
+
+                if(ply>0&&ply<MAX_PLY) {
+                    const int previousType=searchPathPieceTypes[ply-1];
+                    const Move& previous=searchPathMoves[ply-1];
+                    if(previousType>=1&&previousType<=6&&previous.to>=0) {
+                        counterMoves[previousType][previous.to]=m;
+                    }
+                }
             }
             break;
         }
@@ -1068,6 +1097,8 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     nodes=0;
     ttHits=0;
     searchPathKeys.fill(0);
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
     completedSearchDepth=0;
     lastSearchScore=evaluate(p);
     Move best=moves.front();
@@ -1215,6 +1246,9 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             loadFen(pos,START_FEN);
             clearTranspositionTable();
             historyScores={};
+            counterMoves={};
+            searchPathMoves.fill(Move{});
+            searchPathPieceTypes.fill(0);
             for(auto& pair:killerMoves)pair={Move{},Move{}};
         } else if(cmd=="position"){
             stopAndJoin();

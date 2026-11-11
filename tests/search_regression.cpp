@@ -228,5 +228,20 @@ int main() {
     searchAborted.store(false,std::memory_order_relaxed);
     if(moveUci(fallback)!="d1d5") return 63;
 
+    if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 79;
+    Move counterCandidate;
+    if(!parseUciMove(position,"g1f3",counterCandidate)) return 80;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+    counterMoves={};
+    searchPathMoves[0]={parseSquare("g8"),parseSquare("f6"),EMPTY,false,false};
+    searchPathPieceTypes[0]=2;
+    counterMoves[2][parseSquare("f6")]=counterCandidate;
+    if(moveOrderingScore(position,counterCandidate,Move{},1)!=780000) return 81;
+    counterMoves={};
+    if(moveOrderingScore(position,counterCandidate,Move{},1)==780000) return 82;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+
     return 0;
 }
