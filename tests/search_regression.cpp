@@ -26,6 +26,10 @@ int main() {
         if(original.key!=computePositionKey(original)) return false;
         Position base=original;
         const auto moves=legalMoves(base);
+        if(base.board!=original.board||base.side!=original.side||
+           base.castling!=original.castling||base.ep!=original.ep||
+           base.halfmove!=original.halfmove||base.fullmove!=original.fullmove||
+           base.key!=original.key) return false;
         for(const Move& move:moves) {
             Position child=original;
             const std::uint64_t originalKey=child.key;

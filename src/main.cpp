@@ -248,9 +248,10 @@ std::vector<Move> legalMoves(Position& position) {
     const int movingSide=position.side;
 
     for(const Move& move:candidates) {
-        Position child=position;
-        makeMove(child,move);
-        if(!inCheck(child,movingSide)) legal.push_back(move);
+        const Undo undo=makeMove(position,move);
+        const bool leavesKingSafe=!inCheck(position,movingSide);
+        undoMove(position,move,undo);
+        if(leavesKingSafe) legal.push_back(move);
     }
     return legal;
 }
@@ -528,13 +529,17 @@ void orderMoves(const Position& p,std::vector<Move>& moves,const Move& hashMove,
 
 bool isPassedPawn(const Position& p,int square,int color) {
     if(!onBoard(square)||p.board[square]!=makePiece(1,color)) return false;
+
     const int file=fileOf(square);
     const int rank=rankOf(square);
-    for(int enemySquare=0;enemySquare<128;++enemySquare) {
-        if(!onBoard(enemySquare)||p.board[enemySquare]!=makePiece(1,1-color)) continue;
-        if(std::abs(fileOf(enemySquare)-file)>1) continue;
-        const int enemyRank=rankOf(enemySquare);
-        if(color==WHITE?enemyRank>rank:enemyRank<rank) return false;
+    const int advance=color==WHITE?1:-1;
+    const int enemyPawn=makePiece(1,1-color);
+
+    // Only enemy pawns on the three forward files can stop a passer.
+    for(int enemyFile=std::max(0,file-1);enemyFile<=std::min(7,file+1);++enemyFile) {
+        for(int enemyRank=rank+advance;enemyRank>=0&&enemyRank<8;enemyRank+=advance) {
+            if(p.board[enemyRank*16+enemyFile]==enemyPawn) return false;
+        }
     }
     return true;
 }
