@@ -6,7 +6,7 @@ diff --git a/src/search.cpp b/src/search.cpp
    // heavy time pressure.
    if (MaxNodes)
 -      NodesBetweenPolls = Min(MaxNodes, 30000);
-+      NodesBetweenPolls = Min(MaxNodes, 999);
++      NodesBetweenPolls = Min(MaxNodes, 799);
    else if (myTime && myTime < 1000)
        NodesBetweenPolls = 1000;
    else if (myTime && myTime < 5000)
