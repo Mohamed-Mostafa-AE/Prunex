@@ -29,8 +29,23 @@ struct Move { int from=-1, to=-1, promotion=EMPTY; bool enPassant=false, castle=
 struct Position {
     std::array<int,128> board{};
     int side=WHITE, castling=0, ep=-1, halfmove=0, fullmove=1;
+    std::uint64_t key=0;
 };
-struct Undo { int captured=EMPTY, castling=0, ep=-1, halfmove=0, fullmove=1; };
+
+struct Undo {
+    int captured=EMPTY, castling=0, ep=-1, halfmove=0, fullmove=1;
+    std::uint64_t key=0;
+};
+
+struct ZobristKeys {
+    std::array<std::array<std::uint64_t, 13>, 128> pieces{};
+    std::array<std::uint64_t, 16> castling{};
+    std::array<std::uint64_t, 128> enPassant{};
+    std::uint64_t side=0;
+};
+
+const ZobristKeys& zobristKeys();
+std::uint64_t computePositionKey(const Position& p);
 
 constexpr bool onBoard(int s) { return s >= 0 && s < 128 && (s & 0x88) == 0; }
 constexpr int fileOf(int s) { return s & 7; }
@@ -110,7 +125,9 @@ bool loadFen(Position& p, std::string_view fen) {
     if(!parseFenCounter(halfmove,0,p.halfmove)||!parseFenCounter(fullmove,1,p.fullmove)) return false;
     int wk=0,bk=0;
     for(int s=0;s<128;++s) if(onBoard(s)) { wk+=p.board[s]==WK; bk+=p.board[s]==BK; }
-    return wk==1&&bk==1;
+    if(wk!=1||bk!=1) return false;
+    p.key=computePositionKey(p);
+    return true;
 }
 
 bool attacked(const Position& p,int sq,int by) {
@@ -144,19 +161,86 @@ std::vector<Move> pseudoMoves(const Position& p) {
     }return out;
 }
 
-Undo makeMove(Position& p,const Move& m){Undo u{p.board[m.to],p.castling,p.ep,p.halfmove,p.fullmove};int pc=p.board[m.from];p.board[m.from]=EMPTY;p.board[m.to]=m.promotion?m.promotion:pc;
-    if(m.enPassant){int cap=m.to+(p.side==WHITE?-16:16);u.captured=p.board[cap];p.board[cap]=EMPTY;}
-    if(m.castle){if(m.to>m.from){p.board[m.from+1]=p.board[m.from+3];p.board[m.from+3]=EMPTY;}else{p.board[m.from-1]=p.board[m.from-4];p.board[m.from-4]=EMPTY;}}
-    if(pc==WK)p.castling&=~(WKCA|WQCA);
-    if(pc==BK)p.castling&=~(BKCA|BQCA);
-    if(m.from==0||m.to==0)p.castling&=~WQCA;
-    if(m.from==7||m.to==7)p.castling&=~WKCA;
-    if(m.from==112||m.to==112)p.castling&=~BQCA;
-    if(m.from==119||m.to==119)p.castling&=~BKCA;
-    p.ep=(typeOf(pc)==1&&std::abs(m.to-m.from)==32)?(m.to+m.from)/2:-1;
-    p.halfmove=(typeOf(pc)==1||u.captured!=EMPTY)?0:p.halfmove+1;if(p.side==BLACK)++p.fullmove;p.side=1-p.side;return u;}
-void undoMove(Position& p,const Move& m,const Undo& u){p.side=1-p.side;if(p.side==BLACK)--p.fullmove;p.castling=u.castling;p.ep=u.ep;p.halfmove=u.halfmove;int pc=p.board[m.to];p.board[m.from]=m.promotion?makePiece(1,p.side):pc;p.board[m.to]=m.enPassant?EMPTY:u.captured;if(m.enPassant)p.board[m.to+(p.side==WHITE?-16:16)]=u.captured;if(m.castle){if(m.to>m.from){p.board[m.from+3]=p.board[m.from+1];p.board[m.from+1]=EMPTY;}else{p.board[m.from-4]=p.board[m.from-1];p.board[m.from-1]=EMPTY;}}}
-std::vector<Move> legalMoves(Position& p){auto candidates=pseudoMoves(p);std::vector<Move> legal;legal.reserve(candidates.size());int us=p.side;for(const Move&m:candidates){Position q=p;makeMove(q,m);if(!inCheck(q,us))legal.push_back(m);}return legal;}
+Undo makeMove(Position& p,const Move& m) {
+    Undo undo{p.board[m.to],p.castling,p.ep,p.halfmove,p.fullmove,p.key};
+    const auto& keys=zobristKeys();
+    const int movingPiece=p.board[m.from];
+    const int placedPiece=m.promotion?m.promotion:movingPiece;
+
+    // Remove the old position state before changing pieces or rights.
+    p.key^=keys.castling[p.castling];
+    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    p.key^=keys.side;
+
+    p.key^=keys.pieces[m.from][movingPiece];
+    if(m.enPassant) {
+        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
+        undo.captured=p.board[capturedSquare];
+        if(undo.captured!=EMPTY) p.key^=keys.pieces[capturedSquare][undo.captured];
+        p.board[capturedSquare]=EMPTY;
+    } else if(undo.captured!=EMPTY) {
+        p.key^=keys.pieces[m.to][undo.captured];
+    }
+
+    p.board[m.from]=EMPTY;
+    p.board[m.to]=placedPiece;
+    p.key^=keys.pieces[m.to][placedPiece];
+
+    if(m.castle) {
+        const int rookFrom=m.to>m.from?m.from+3:m.from-4;
+        const int rookTo=m.to>m.from?m.from+1:m.from-1;
+        const int rook=p.board[rookFrom];
+        if(rook==EMPTY) throw std::logic_error("castling move has no rook");
+        p.key^=keys.pieces[rookFrom][rook];
+        if(p.board[rookTo]!=EMPTY) p.key^=keys.pieces[rookTo][p.board[rookTo]];
+        p.board[rookFrom]=EMPTY;
+        p.board[rookTo]=rook;
+        p.key^=keys.pieces[rookTo][rook];
+    }
+
+    if(movingPiece==WK) p.castling&=~(WKCA|WQCA);
+    if(movingPiece==BK) p.castling&=~(BKCA|BQCA);
+    if(m.from==0||m.to==0) p.castling&=~WQCA;
+    if(m.from==7||m.to==7) p.castling&=~WKCA;
+    if(m.from==112||m.to==112) p.castling&=~BQCA;
+    if(m.from==119||m.to==119) p.castling&=~BKCA;
+
+    p.ep=(typeOf(movingPiece)==1&&std::abs(m.to-m.from)==32)
+        ?(m.to+m.from)/2:-1;
+    p.halfmove=(typeOf(movingPiece)==1||undo.captured!=EMPTY)?0:p.halfmove+1;
+    if(p.side==BLACK) ++p.fullmove;
+    p.side=1-p.side;
+
+    // Add the new rights, en-passant square and side-to-move key.
+    p.key^=keys.castling[p.castling];
+    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    p.key^=keys.side;
+    return undo;
+}
+
+void undoMove(Position& p,const Move& m,const Undo& undo) {
+    p.side=1-p.side;
+    if(p.side==BLACK) --p.fullmove;
+    p.castling=undo.castling;
+    p.ep=undo.ep;
+    p.halfmove=undo.halfmove;
+
+    const int movedPiece=p.board[m.to];
+    p.board[m.from]=m.promotion?makePiece(1,p.side):movedPiece;
+    p.board[m.to]=m.enPassant?EMPTY:undo.captured;
+    if(m.enPassant) {
+        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
+        p.board[capturedSquare]=undo.captured;
+    }
+
+    if(m.castle) {
+        const int rookFrom=m.to>m.from?m.from+3:m.from-4;
+        const int rookTo=m.to>m.from?m.from+1:m.from-1;
+        p.board[rookFrom]=p.board[rookTo];
+        p.board[rookTo]=EMPTY;
+    }
+    p.key=undo.key;
+}
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
 bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move&m:legalMoves(p))if(moveUci(m)==text){result=m;return true;}return false;}
 
@@ -181,12 +265,7 @@ struct TTEntry {
     std::uint8_t generation=0;
 };
 
-struct ZobristKeys {
-    std::array<std::array<std::uint64_t, 13>, 128> pieces{};
-    std::array<std::uint64_t, 16> castling{};
-    std::array<std::uint64_t, 128> enPassant{};
-    std::uint64_t side=0;
-};
+
 
 std::array<TTEntry, TT_SIZE> transpositionTable{};
 std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
@@ -267,18 +346,22 @@ const ZobristKeys& zobristKeys() {
     return keys;
 }
 
-std::uint64_t positionKey(const Position& p) {
+std::uint64_t computePositionKey(const Position& p) {
     const auto& keys=zobristKeys();
     std::uint64_t key=0;
     for(int square=0;square<128;++square) {
         if(!onBoard(square)) continue;
-        int piece=p.board[square];
+        const int piece=p.board[square];
         if(piece!=EMPTY) key^=keys.pieces[square][piece];
     }
     key^=keys.castling[p.castling];
     if(p.ep>=0) key^=keys.enPassant[p.ep];
     if(p.side==BLACK) key^=keys.side;
     return key;
+}
+
+std::uint64_t positionKey(const Position& p) {
+    return p.key;
 }
 
 bool repeatedPosition(std::uint64_t key,int ply,int reversiblePlies) {
@@ -769,6 +852,15 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     return alpha;
 }
 
+void makeNullMove(Position& p) {
+    const auto& keys=zobristKeys();
+    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    p.ep=-1;
+    p.side=1-p.side;
+    p.key^=keys.side;
+    p.halfmove=0;
+}
+
 bool hasNonPawnMaterial(const Position& p,int color) {
     for(int square=0;square<128;++square) {
         if(!onBoard(square)) continue;
@@ -823,9 +915,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     }
     if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
         Position nullPosition=p;
-        nullPosition.side=1-nullPosition.side;
-        nullPosition.ep=-1;
-        nullPosition.halfmove=0;
+        makeNullMove(nullPosition);
         const int reduction=2+depth/4;
         const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
         if(searchAborted.load(std::memory_order_relaxed)) return 0;

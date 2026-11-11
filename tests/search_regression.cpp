@@ -22,14 +22,46 @@ int main() {
     quiescence(position,-INF,INF,0,0);
     if(nodes<=1) return 7;
 
+    auto hashRoundTrips=[](const Position& original) {
+        if(original.key!=computePositionKey(original)) return false;
+        Position base=original;
+        const auto moves=legalMoves(base);
+        for(const Move& move:moves) {
+            Position child=original;
+            const std::uint64_t originalKey=child.key;
+            Undo undo=makeMove(child,move);
+            if(child.key!=computePositionKey(child)) return false;
+            undoMove(child,move,undo);
+            if(child.key!=originalKey||child.key!=computePositionKey(child)) return false;
+        }
+        return true;
+    };
+
     if(!loadFen(position,START_FEN)) return 8;
     std::uint64_t startKey=positionKey(position);
+    if(!hashRoundTrips(position)) return 9;
     auto startMoves=legalMoves(position);
     for(const Move& move:startMoves) {
         Undo undo=makeMove(position,move);
+        if(positionKey(position)!=computePositionKey(position)) return 64;
         undoMove(position,move,undo);
-        if(positionKey(position)!=startKey) return 9;
+        if(positionKey(position)!=startKey||position.key!=computePositionKey(position)) return 65;
     }
+
+    if(!loadFen(position,"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")) return 66;
+    if(!hashRoundTrips(position)) return 67;
+
+    if(!loadFen(position,"7k/8/8/3pP3/8/8/8/K7 w - d6 0 1")) return 68;
+    if(!hashRoundTrips(position)) return 69;
+
+    if(!loadFen(position,"7k/P7/8/8/8/8/8/7K w - - 0 1")) return 70;
+    if(!hashRoundTrips(position)) return 71;
+
+    if(!loadFen(position,START_FEN)) return 72;
+    const std::uint64_t beforeNull=position.key;
+    makeNullMove(position);
+    if(position.key!=computePositionKey(position)) return 73;
+    if(position.side!=BLACK||position.ep!=-1||position.key==beforeNull) return 74;
 
     if(!loadFen(position,"7k/8/5KQ1/8/8/8/8/8 w - - 0 1")) return 10;
     Move matingMove=findBestMove(position,3);
