@@ -48,9 +48,9 @@ jobs:
           cmake -S baseline -B baseline/build -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build baseline/build --parallel 2
 
-      - name: Build candidate engine
+      - name: Build candidate engine with the larger native hash table
         run: |
-          cmake -S candidate -B candidate/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake -S candidate -B candidate/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
           cmake --build candidate/build --parallel 2
 
       - name: Verify both UCI engines

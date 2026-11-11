@@ -43,10 +43,11 @@ permissions:
 
 concurrency:
   group: prunex-stockfish-2-64-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   match:
+    if: github.event_name != 'push'
     name: Verify engines, run 64 games, and render replay evidence
     runs-on: ubuntu-22.04
     timeout-minutes: 360

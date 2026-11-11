@@ -429,6 +429,19 @@ void orderMoves(const Position& p,std::vector<Move>& moves,const Move& hashMove,
     for(std::size_t index=0;index<moves.size();++index) moves[index]=scored[index].move;
 }
 
+bool isPassedPawn(const Position& p,int square,int color) {
+    if(!onBoard(square)||p.board[square]!=makePiece(1,color)) return false;
+    const int file=fileOf(square);
+    const int rank=rankOf(square);
+    for(int enemySquare=0;enemySquare<128;++enemySquare) {
+        if(!onBoard(enemySquare)||p.board[enemySquare]!=makePiece(1,1-color)) continue;
+        if(std::abs(fileOf(enemySquare)-file)>1) continue;
+        const int enemyRank=rankOf(enemySquare);
+        if(color==WHITE?enemyRank>rank:enemyRank<rank) return false;
+    }
+    return true;
+}
+
 int evaluate(const Position& p) {
     std::array<int, 2> middle{};
     std::array<int, 2> ending{};
@@ -491,13 +504,7 @@ int evaluate(const Position& p) {
             int rank=rankOf(square);
             int relativeRank=color==WHITE?rank:7-rank;
             bool passed=true;
-            for(int enemySquare=0;enemySquare<128&&passed;++enemySquare) {
-                if(!onBoard(enemySquare)||p.board[enemySquare]!=makePiece(1,1-color)) continue;
-                int enemyFile=fileOf(enemySquare);
-                int enemyRank=rankOf(enemySquare);
-                int enemyRelativeRank=color==WHITE?enemyRank:7-enemyRank;
-                if(std::abs(enemyFile-file)<=1&&enemyRelativeRank>relativeRank) passed=false;
-            }
+            if(!isPassedPawn(p,square,color)) passed=false;
             if(passed) {
                 constexpr std::array<int, 8> bonus{0, 5, 10, 18, 30, 48, 78, 0};
                 middle[color]+=bonus[relativeRank];
