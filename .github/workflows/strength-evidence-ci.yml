@@ -9,6 +9,7 @@ on:
       - 'tools/stockfish-2.0-match/**'
       - 'tests/test_replay_evidence.py'
       - 'tests/test_stockfish_2_match_budget.py'
+      - 'tests/test_stockfish_match_node_budget.py'
       - 'tests/test_stockfish_2_node_limit.py'
       - 'tests/test_stockfish_2_verifier.py'
 
@@ -45,7 +46,9 @@ jobs:
           grep -Fq 'NodesBetweenPolls = Min(MaxNodes, 799);' stockfish-2.0/src/search.cpp
 
       - name: Test node-budget boundaries and polling contract
-        run: python3 tests/test_stockfish_2_match_budget.py
+        run: |
+          python3 tests/test_stockfish_2_match_budget.py
+          python3 tests/test_stockfish_match_node_budget.py
 
       - name: Test opponent verification parser
         run: python3 tests/test_stockfish_2_verifier.py

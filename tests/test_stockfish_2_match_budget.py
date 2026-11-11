@@ -17,10 +17,10 @@ spec.loader.exec_module(module)
 
 
 class StockfishNodeBudgetTests(unittest.TestCase):
-    def test_poll_interval_is_tighter_than_the_documented_hard_allowance(self):
+    def test_poll_interval_matches_the_hard_overshoot_allowance(self):
         self.assertEqual(module.STOCKFISH_2_NODE_POLL_INTERVAL, 800)
-        self.assertEqual(module.STOCKFISH_2_NODE_MAX_OVERSHOOT, 1_000)
-        self.assertLess(
+        self.assertEqual(module.STOCKFISH_2_NODE_MAX_OVERSHOOT, 800)
+        self.assertEqual(
             module.STOCKFISH_2_NODE_POLL_INTERVAL,
             module.STOCKFISH_2_NODE_MAX_OVERSHOOT,
         )
@@ -32,10 +32,10 @@ class StockfishNodeBudgetTests(unittest.TestCase):
 
     def test_stockfish_can_use_only_the_explicit_bounded_allowance(self):
         self.assertEqual(
-            module.validate_node_budget("Stockfish 2.0", 1_001_000, 1_000_000, 1, 1),
-            1_000,
+            module.validate_node_budget("Stockfish 2.0", 1_000_800, 1_000_000, 1, 1),
+            800,
         )
-        for reported_nodes in (1_001_001, 1_001_011):
+        for reported_nodes in (1_000_801, 1_001_011):
             with self.subTest(reported_nodes=reported_nodes):
                 with self.assertRaisesRegex(RuntimeError, "Stockfish 2.0 exceeded its node budget"):
                     module.validate_node_budget(
