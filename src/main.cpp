@@ -1044,7 +1044,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
     }
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
-    if(!ttFound||entry.generation!=ttGeneration||depth>=entry.depth) {
+    if(!ttFound||entry.key!=key||entry.generation!=ttGeneration||depth>=entry.depth) {
         entry.key=key;
         entry.best=bestMove;
         entry.score=scoreToTable(bestScore,ply);
