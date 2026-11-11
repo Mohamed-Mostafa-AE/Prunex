@@ -7,9 +7,10 @@ import chess
 import chess.engine
 import chess.pgn
 
-# The disclosed Stockfish 2.0 node-limit patch polls both search and qsearch
-# at intervals of at most 1,000 nodes.
-STOCKFISH_2_NODE_POLL_INTERVAL = 1_000
+# Poll both main search and quiescence search frequently enough to keep the
+# opponent's measured overshoot comfortably below the harness's hard limit.
+STOCKFISH_2_NODE_POLL_INTERVAL = 800
+STOCKFISH_2_NODE_MAX_OVERSHOOT = 1_000
 
 OPENINGS = [
  ("Ruy Lopez", "e4 e5 Nf3 Nc6 Bb5 a6"),
@@ -50,7 +51,7 @@ def node_budget_allowance(engine_name: str, requested_nodes: int) -> int:
     if engine_name == "Prunex":
         return 0
     if engine_name == "Stockfish 2.0":
-        return min(requested_nodes, STOCKFISH_2_NODE_POLL_INTERVAL)
+        return min(requested_nodes, STOCKFISH_2_NODE_MAX_OVERSHOOT)
     raise ValueError(f"Unknown engine for node-budget validation: {engine_name}")
 
 
@@ -67,7 +68,7 @@ def validate_node_budget(engine_name: str, actual_nodes: int | None,
         raise RuntimeError(
             f"{engine_name} exceeded its node budget in game {game_number}, ply {ply}: "
             f"{actual_nodes} nodes; requested {requested_nodes}, "
-            f"documented polling allowance {allowance}, maximum {maximum}"
+            f"configured maximum overshoot allowance {allowance}, maximum {maximum}"
         )
     return allowance
 
@@ -201,11 +202,13 @@ def main():
           "node_limit_policy":{
             "prunex":"strict; actual nodes must not exceed the requested limit",
             "stockfish_2_0":(
-              "A disclosed patch polls both main search and quiescence search at intervals "
-              f"of at most {STOCKFISH_2_NODE_POLL_INTERVAL} nodes; actual per-move "
-              "counts are retained and validated against this bounded allowance"
+              "A disclosed patch polls both main search and quiescence search every "
+              f"{STOCKFISH_2_NODE_POLL_INTERVAL} nodes; actual per-move counts are "
+              "retained and rejected if they exceed the requested limit by more "
+              "than the configured 1,000-node hard allowance"
             ),
-            "stockfish_2_0_max_poll_overshoot_nodes":STOCKFISH_2_NODE_POLL_INTERVAL,
+            "stockfish_2_0_node_poll_interval_nodes":STOCKFISH_2_NODE_POLL_INTERVAL,
+            "stockfish_2_0_max_allowed_overshoot_nodes":STOCKFISH_2_NODE_MAX_OVERSHOOT,
           },
           "stockfish_hash_mb":args.stockfish_hash_mb,
           "stockfish_threads":1,"prunex_threads":1,
