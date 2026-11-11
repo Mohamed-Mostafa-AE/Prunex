@@ -186,9 +186,9 @@ jobs:
           Full PGN, per-move telemetry, opponent verification, checksums, and replay media are stored alongside this file.
 
           Replay files:
-          - `evidence/replay.html`: interactive offline replay viewer with the website's three move-sound profiles.
-          - `evidence/64-game-replay.mp4`: rendered replay with the Classic wooden-tap sound.
-          - `evidence/64-game-final-positions.png`: final position from every game.
+          - evidence/replay.html: interactive offline replay viewer with the website's three move-sound profiles.
+          - evidence/64-game-replay.mp4: rendered replay with the Classic wooden-tap sound.
+          - evidence/64-game-final-positions.png: final position from every game.
           EOF
           git -C "$WORKTREE" add "$DEST"
           git -C "$WORKTREE" commit -m "Record strength ladder baseline run ${GITHUB_RUN_NUMBER}"
