@@ -362,5 +362,14 @@ int main() {
         makeMove(position,selected);
     }
 
+
+    // A timed search must not stop at the old depth-12 ceiling when there
+    // is still time available. Bare kings keep each iteration inexpensive.
+    if(!loadFen(position,"7k/8/8/8/8/8/8/K7 w - - 0 1")) return 95;
+    searchAborted.store(false,std::memory_order_relaxed);
+    const Move timedBest=findBestMove(position,MAX_PLY-1,50,0);
+    if(timedBest.from<0||timedBest.to<0||completedSearchDepth<=12) return 96;
+    if(searchTimeLimited||searchNodeLimit!=0) return 97;
+
     return 0;
 }
