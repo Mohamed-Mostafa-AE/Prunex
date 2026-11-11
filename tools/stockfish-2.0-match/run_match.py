@@ -10,7 +10,7 @@ import chess.pgn
 # Poll both main search and quiescence search frequently enough to keep the
 # opponent's measured overshoot comfortably below the harness's hard limit.
 STOCKFISH_2_NODE_POLL_INTERVAL = 800
-STOCKFISH_2_NODE_MAX_OVERSHOOT = 1_000
+STOCKFISH_2_NODE_MAX_OVERSHOOT = 800
 
 OPENINGS = [
  ("Ruy Lopez", "e4 e5 Nf3 Nc6 Bb5 a6"),
@@ -205,7 +205,7 @@ def main():
               "A disclosed patch polls both main search and quiescence search every "
               f"{STOCKFISH_2_NODE_POLL_INTERVAL} nodes; actual per-move counts are "
               "retained and rejected if they exceed the requested limit by more "
-              "than the configured 1,000-node hard allowance"
+              "than the configured 800-node hard allowance"
             ),
             "stockfish_2_0_node_poll_interval_nodes":STOCKFISH_2_NODE_POLL_INTERVAL,
             "stockfish_2_0_max_allowed_overshoot_nodes":STOCKFISH_2_NODE_MAX_OVERSHOOT,
