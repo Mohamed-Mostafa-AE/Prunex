@@ -47,7 +47,7 @@ class StockfishNodeBudgetTests(unittest.TestCase):
         self.assertIn("+      NodesBetweenPolls = Min(MaxNodes, 799);", patch)
         self.assertIn("Quiescence can expand many nodes", patch)
         self.assertIn("+    if (StopRequest)", patch)
-        self.assertIn("+           && !StopRequest", patch)
+        self.assertGreaterEqual(patch.count("+    while (   !StopRequest"), 2)
 
     def test_missing_node_telemetry_and_unknown_engines_are_rejected(self):
         with self.assertRaisesRegex(RuntimeError, "Missing or invalid node-count telemetry"):
