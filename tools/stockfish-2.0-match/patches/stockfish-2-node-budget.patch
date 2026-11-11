@@ -10,7 +10,15 @@ diff --git a/src/search.cpp b/src/search.cpp
    else if (myTime && myTime < 1000)
        NodesBetweenPolls = 1000;
    else if (myTime && myTime < 5000)
-@@ -1414,5 +1414,14 @@
+@@ -1157,5 +1157,6 @@
+     // Step 10. Loop through moves
+     // Loop through all legal moves until no moves remain or a beta cutoff occurs
+-    while (   bestValue < beta
++    while (   !StopRequest
++           && bestValue < beta
+            && (move = mp.get_next_move()) != MOVE_NONE
+            && !ThreadsMgr.cutoff_at_splitpoint(threadID))
+@@ -1414,5 +1415,14 @@
      assert(depth <= 0);
      assert(ply > 0 && ply < PLY_MAX);
      assert(pos.thread() >= 0 && pos.thread() < ThreadsMgr.active_threads());
@@ -25,9 +33,25 @@ diff --git a/src/search.cpp b/src/search.cpp
 +    }
 +
      StateInfo st;
-@@ -1428,3 +1437,4 @@
+@@ -1428,3 +1438,4 @@
      // Check for an instant draw or maximum ply reached
 -    if (pos.is_draw() || ply >= PLY_MAX - 1)
 +    if (StopRequest || ThreadsMgr.cutoff_at_splitpoint(threadID)
 +        || pos.is_draw() || ply >= PLY_MAX - 1)
          return VALUE_DRAW;
+@@ -1493,3 +1504,4 @@
+     // Loop through the moves until no moves remain or a beta cutoff occurs
+-    while (   alpha < beta
++    while (   !StopRequest
++           && alpha < beta
+            && (move = mp.get_next_move()) != MOVE_NONE)
+@@ -1561,6 +1573,9 @@
+           }
+        }
+     }
+ 
++    if (StopRequest)
++        return VALUE_DRAW;
++
+     // All legal moves have been searched. A special case: If we're in check
+     // and no legal moves were found, it is checkmate.
