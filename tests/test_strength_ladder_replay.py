@@ -170,7 +170,7 @@ class ReplayEvidenceTests(unittest.TestCase):
                 digest = hashlib.sha256(item.read_bytes()).hexdigest()
                 original_sums.append(f"{digest}  {item.relative_to(source).as_posix()}")
             (source / "SHA256SUMS.txt").write_text(
-                "\\n".join(original_sums) + "\\n",
+                "\n".join(original_sums) + "\n",
                 encoding="utf-8",
             )
 
