@@ -2,6 +2,36 @@
 #include "../src/main.cpp"
 #undef main
 
+static bool attackedMailboxReference(const prunex::Position& p,int target,int by) {
+ using namespace prunex;
+ constexpr int nd[8]={-33,-31,-18,-14,14,18,31,33};
+ constexpr int kd[8]={-17,-16,-15,-1,1,15,16,17};
+ int pawn=makePiece(1,by), sources[2]={target+(by==WHITE?-15:15),target+(by==WHITE?-17:17)};
+ for(int s:sources) if(onBoard(s)&&p.board[s]==pawn) return true;
+ int knight=makePiece(2,by), king=makePiece(6,by);
+ for(int d:nd) { int s=target+d; if(onBoard(s)&&p.board[s]==knight) return true; }
+ for(int d:kd) { int s=target+d; if(onBoard(s)&&p.board[s]==king) return true; }
+ constexpr int bd[4]={-17,-15,15,17}, rd[4]={-16,-1,1,16};
+ auto ray=[&](const auto& dirs,bool diag) {
+  for(int d:dirs) for(int s=target+d;onBoard(s);s+=d) {
+   int pc=p.board[s]; if(pc==EMPTY) continue;
+   if(colorOf(pc)==by) { int t=typeOf(pc); if(t==5||(diag?t==3:t==4)) return true; }
+   break;
+  }
+  return false;
+ };
+ return ray(bd,true)||ray(rd,false);
+}
+static bool attackMapsAgree(const prunex::Position& p) {
+ using namespace prunex;
+ for(int rank=0;rank<8;++rank) for(int file=0;file<8;++file)
+  for(int color=WHITE;color<=BLACK;++color) {
+   int s=rank*16+file;
+   if(attacked(p,s,color)!=attackedMailboxReference(p,s,color)) return false;
+  }
+ return true;
+}
+
 int main() {
     using namespace prunex;
     Position position;
@@ -41,6 +71,14 @@ int main() {
         }
         return true;
     };
+
+    if(!loadFen(position,START_FEN)||!attackMapsAgree(position)) return 88;
+    if(!loadFen(position,"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")||
+       !attackMapsAgree(position)) return 89;
+    if(!loadFen(position,"r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w - - 0 1")||
+       !attackMapsAgree(position)) return 90;
+    if(!loadFen(position,"7k/8/8/3pP3/8/8/8/K7 w - d6 0 1")||
+       !attackMapsAgree(position)) return 91;
 
     if(!loadFen(position,START_FEN)) return 8;
     std::uint64_t startKey=positionKey(position);

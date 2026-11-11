@@ -181,75 +181,130 @@ bool loadFen(Position& p, std::string_view fen) {
     return true;
 }
 
+constexpr int square88From64(int square64) { return (square64/8)*16+(square64%8); }
+constexpr int square64From88(int square88) { return rankOf(square88)*8+fileOf(square88); }
+constexpr std::array<int,8> KNIGHT_DIRECTIONS{-33,-31,-18,-14,14,18,31,33};
+constexpr std::array<int,8> KING_DIRECTIONS{-17,-16,-15,-1,1,15,16,17};
+constexpr std::array<int,4> BISHOP_DIRECTIONS{-17,-15,15,17};
+constexpr std::array<int,4> ROOK_DIRECTIONS{-16,-1,1,16};
+constexpr std::array<std::uint64_t,64> buildKnightAttacks() {
+ std::array<std::uint64_t,64> a{};
+ for(int s=0;s<64;++s) for(int d:KNIGHT_DIRECTIONS) { int t=square88From64(s)+d; if(onBoard(t)) a[s]|=squareBit(t); }
+ return a;
+}
+constexpr std::array<std::uint64_t,64> buildKingAttacks() {
+ std::array<std::uint64_t,64> a{};
+ for(int s=0;s<64;++s) for(int d:KING_DIRECTIONS) { int t=square88From64(s)+d; if(onBoard(t)) a[s]|=squareBit(t); }
+ return a;
+}
+constexpr std::array<std::array<std::uint64_t,64>,2> buildPawnAttacks() {
+ std::array<std::array<std::uint64_t,64>,2> a{};
+ for(int s=0;s<64;++s) for(int c=WHITE;c<=BLACK;++c) for(int df:{-1,1}) {
+  int t=square88From64(s)+(c==WHITE?16:-16)+df; if(onBoard(t)) a[c][s]|=squareBit(t);
+ }
+ return a;
+}
+inline constexpr auto KNIGHT_ATTACKS=buildKnightAttacks();
+inline constexpr auto KING_ATTACKS=buildKingAttacks();
+inline constexpr auto PAWN_ATTACKS=buildPawnAttacks();
+template<std::size_t N>
+std::uint64_t slidingAttacks(int s64,std::uint64_t occ,const std::array<int,N>& dirs) {
+ std::uint64_t a=0; int from=square88From64(s64);
+ for(int d:dirs) for(int t=from+d;onBoard(t);t+=d) {
+  auto bit=squareBit(t); a|=bit; if(occ&bit) break;
+ }
+ return a;
+}
+std::uint64_t bishopAttacks(int s,std::uint64_t o) { return slidingAttacks(s,o,BISHOP_DIRECTIONS); }
+std::uint64_t rookAttacks(int s,std::uint64_t o) { return slidingAttacks(s,o,ROOK_DIRECTIONS); }
 bool attacked(const Position& p,int sq,int by) {
-    const int pawnRank=rankOf(sq)-(by==WHITE?1:-1);
-    for(int fileDelta:{-1,1}) {
-        const int file=fileOf(sq)+fileDelta;
-        if(file<0||file>7||pawnRank<0||pawnRank>7) continue;
-        const int source=pawnRank*16+file;
-        if(p.piecesBB[by][1]&squareBit(source)) return true;
-    }
-
-    constexpr int knightDirections[8]={-33,-31,-18,-14,14,18,31,33};
-    for(int direction:knightDirections) {
-        const int source=sq+direction;
-        if(onBoard(source)&&(p.piecesBB[by][2]&squareBit(source))) return true;
-    }
-
-    constexpr int kingDirections[8]={-17,-16,-15,-1,1,15,16,17};
-    for(int direction:kingDirections) {
-        const int source=sq+direction;
-        if(onBoard(source)&&(p.piecesBB[by][6]&squareBit(source))) return true;
-    }
-
-    constexpr int bishopDirections[4]={-17,-15,15,17};
-    constexpr int rookDirections[4]={-16,-1,1,16};
-    auto rayAttacks=[&](const auto& directions,bool diagonal) {
-        for(int direction:directions) {
-            for(int target=sq+direction;onBoard(target);target+=direction) {
-                const int piece=p.board[target];
-                if(piece==EMPTY) continue;
-                if(colorOf(piece)==by) {
-                    const int type=typeOf(piece);
-                    if(type==5||(diagonal?type==3:type==4)) return true;
-                }
-                break;
-            }
-        }
-        return false;
-    };
-    return rayAttacks(bishopDirections,true)||rayAttacks(rookDirections,false);
+ if(!onBoard(sq)) return false;
+ int s=square64From88(sq);
+ std::uint64_t occ=p.occupancy[WHITE]|p.occupancy[BLACK];
+ if(PAWN_ATTACKS[1-by][s]&p.piecesBB[by][1]) return true;
+ if(KNIGHT_ATTACKS[s]&p.piecesBB[by][2]) return true;
+ if(KING_ATTACKS[s]&p.piecesBB[by][6]) return true;
+ if(bishopAttacks(s,occ)&(p.piecesBB[by][3]|p.piecesBB[by][5])) return true;
+ return (rookAttacks(s,occ)&(p.piecesBB[by][4]|p.piecesBB[by][5]))!=0;
 }
 int kingSquare(const Position& p,int color) {
-    const std::uint64_t kings=p.piecesBB[color][6];
-    if(kings==0) return -1;
-    const int square=static_cast<int>(std::countr_zero(kings));
-    return (square/8)*16+(square%8);
+ auto kings=p.piecesBB[color][6];
+ return kings?square88From64(static_cast<int>(std::countr_zero(kings))):-1;
 }
-bool inCheck(const Position& p,int color){int k=kingSquare(p,color);return k>=0&&attacked(p,k,1-color);}
-
-void addMove(std::vector<Move>& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false){out.push_back({from,to,promo,ep,castle});}
+bool inCheck(const Position& p,int color) { int k=kingSquare(p,color); return k>=0&&attacked(p,k,1-color); }
+void addMove(std::vector<Move>& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false) {
+ out.push_back({from,to,promo,ep,castle});
+}
+void addPawnMove(std::vector<Move>& out,int from,int to,int color,bool ep=false) {
+ if(rankOf(to)==(color==WHITE?7:0)) for(int type:{5,4,3,2}) addMove(out,from,to,makePiece(type,color),ep);
+ else addMove(out,from,to,EMPTY,ep);
+}
 std::vector<Move> pseudoMoves(const Position& p) {
-    std::vector<Move> out; out.reserve(96);
-    constexpr int knightD[8]={-33,-31,-18,-14,14,18,31,33};
-    constexpr int bishopD[4]={-17,-15,15,17}; constexpr int rookD[4]={-16,-1,1,16};
-    std::uint64_t movingPieces=p.occupancy[p.side];
-    while(movingPieces) {
-        const int square=static_cast<int>(std::countr_zero(movingPieces));
-        movingPieces&=movingPieces-1;
-        const int from=(square/8)*16+(square%8);
-        const int pc=p.board[from];
-        const int t=typeOf(pc);
-        if(t==1){int step=p.side==WHITE?16:-16;int one=from+step;int last=p.side==WHITE?7:0;
-            if(onBoard(one)&&p.board[one]==EMPTY){if(rankOf(one)==last){for(int pr:{5,4,3,2})addMove(out,from,one,makePiece(pr,p.side));}else{addMove(out,from,one);int two=one+step;if(rankOf(from)==(p.side==WHITE?1:6)&&p.board[two]==EMPTY)addMove(out,from,two);}}
-            for(int df:{-1,1}){int to=one+df;if(!onBoard(to))continue;if(colorOf(p.board[to])==1-p.side){if(rankOf(to)==last){for(int pr:{5,4,3,2})addMove(out,from,to,makePiece(pr,p.side));}else addMove(out,from,to);}else if(to==p.ep)addMove(out,from,to,EMPTY,true);}
-        } else if(t==2){for(int d:knightD){int to=from+d;if(onBoard(to)&&colorOf(p.board[to])!=p.side)addMove(out,from,to);}}
-        else {auto slide=[&](const int* ds,int count,bool repeat){for(int i=0;i<count;++i){int to=from+ds[i];while(onBoard(to)){if(colorOf(p.board[to])==p.side)break;addMove(out,from,to);if(p.board[to]!=EMPTY||!repeat)break;to+=ds[i];}}};
-            if(t==3)slide(bishopD,4,true);else if(t==4)slide(rookD,4,true);else if(t==5){slide(bishopD,4,true);slide(rookD,4,true);}else if(t==6){constexpr int kingD[8]={-17,-16,-15,-1,1,15,16,17};slide(kingD,8,false);
-                if(p.side==WHITE&&from==4&&!inCheck(p,WHITE)){if((p.castling&WKCA)&&p.board[5]==EMPTY&&p.board[6]==EMPTY&&p.board[7]==WR&&!attacked(p,5,BLACK)&&!attacked(p,6,BLACK))addMove(out,from,6,EMPTY,false,true);if((p.castling&WQCA)&&p.board[1]==EMPTY&&p.board[2]==EMPTY&&p.board[3]==EMPTY&&p.board[0]==WR&&!attacked(p,3,BLACK)&&!attacked(p,2,BLACK))addMove(out,from,2,EMPTY,false,true);}
-                if(p.side==BLACK&&from==116&&!inCheck(p,BLACK)){if((p.castling&BKCA)&&p.board[117]==EMPTY&&p.board[118]==EMPTY&&p.board[119]==BR&&!attacked(p,117,WHITE)&&!attacked(p,118,WHITE))addMove(out,from,118,EMPTY,false,true);if((p.castling&BQCA)&&p.board[113]==EMPTY&&p.board[114]==EMPTY&&p.board[115]==EMPTY&&p.board[112]==BR&&!attacked(p,115,WHITE)&&!attacked(p,114,WHITE))addMove(out,from,114,EMPTY,false,true);}
-            }}
-    }return out;
+ std::vector<Move> out; out.reserve(96);
+ const int us=p.side, them=1-us, step=us==WHITE?16:-16;
+ const std::uint64_t own=p.occupancy[us], occ=own|p.occupancy[them];
+ auto pawns=p.piecesBB[us][1];
+ while(pawns) {
+  int s=static_cast<int>(std::countr_zero(pawns)); pawns&=pawns-1;
+  int from=square88From64(s), one=from+step;
+  if(onBoard(one)&&p.board[one]==EMPTY) {
+   addPawnMove(out,from,one,us);
+   int two=one+step;
+   if(rankOf(from)==(us==WHITE?1:6)&&p.board[two]==EMPTY) addMove(out,from,two);
+  }
+  for(int df:{-1,1}) {
+   int to=one+df; if(!onBoard(to)) continue;
+   int target=p.board[to];
+   if(target!=EMPTY&&colorOf(target)==them&&typeOf(target)!=6) addPawnMove(out,from,to,us);
+   else if(to==p.ep) addMove(out,from,to,EMPTY,true);
+  }
+ }
+ auto leaper=[&](int type,const auto& table) {
+  auto pieces=p.piecesBB[us][type];
+  while(pieces) {
+   int from64=static_cast<int>(std::countr_zero(pieces)); pieces&=pieces-1;
+   int from=square88From64(from64); auto targets=table[from64]&~own;
+   while(targets) {
+    int to64=static_cast<int>(std::countr_zero(targets)); targets&=targets-1;
+    int to=square88From64(to64), target=p.board[to];
+    if(target!=EMPTY&&typeOf(target)==6) continue;
+    addMove(out,from,to);
+   }
+  }
+ };
+ leaper(2,KNIGHT_ATTACKS); leaper(6,KING_ATTACKS);
+ auto sliders=[&](int type,bool diagonal,bool orthogonal) {
+  auto pieces=p.piecesBB[us][type];
+  while(pieces) {
+   int from64=static_cast<int>(std::countr_zero(pieces)); pieces&=pieces-1;
+   int from=square88From64(from64); std::uint64_t targets=0;
+   if(diagonal) targets|=bishopAttacks(from64,occ);
+   if(orthogonal) targets|=rookAttacks(from64,occ);
+   targets&=~own;
+   while(targets) {
+    int to64=static_cast<int>(std::countr_zero(targets)); targets&=targets-1;
+    int to=square88From64(to64), target=p.board[to];
+    if(target!=EMPTY&&typeOf(target)==6) continue;
+    addMove(out,from,to);
+   }
+  }
+ };
+ sliders(3,true,false); sliders(4,false,true); sliders(5,true,true);
+ const int king=us==WHITE?4:116, rook=makePiece(4,us);
+ if(p.board[king]==makePiece(6,us)&&!inCheck(p,us)) {
+  if(us==WHITE) {
+   if((p.castling&WKCA)&&p.board[7]==rook&&p.board[5]==EMPTY&&p.board[6]==EMPTY&&
+      !attacked(p,5,them)&&!attacked(p,6,them)) addMove(out,4,6,EMPTY,false,true);
+   if((p.castling&WQCA)&&p.board[0]==rook&&p.board[1]==EMPTY&&p.board[2]==EMPTY&&p.board[3]==EMPTY&&
+      !attacked(p,3,them)&&!attacked(p,2,them)) addMove(out,4,2,EMPTY,false,true);
+  } else {
+   if((p.castling&BKCA)&&p.board[119]==rook&&p.board[117]==EMPTY&&p.board[118]==EMPTY&&
+      !attacked(p,117,them)&&!attacked(p,118,them)) addMove(out,116,118,EMPTY,false,true);
+   if((p.castling&BQCA)&&p.board[112]==rook&&p.board[113]==EMPTY&&p.board[114]==EMPTY&&p.board[115]==EMPTY&&
+      !attacked(p,115,them)&&!attacked(p,114,them)) addMove(out,116,114,EMPTY,false,true);
+  }
+ }
+ return out;
 }
 
 Undo makeMove(Position& p,const Move& m) {
