@@ -51,6 +51,21 @@ def write_sample_pgn(path: Path, games: int = 2) -> None:
 
 
 class ReplayEvidenceTests(unittest.TestCase):
+    def test_archive_workflow_uses_valid_github_expressions(self):
+        workflow = (
+            ROOT / ".github" / "workflows"
+            / "archive-modern-strength-ladder.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("if [ \"$STATUS\" != \"completed\" ]", workflow)
+        self.assertIn("\${{ github.token }}", workflow)
+        self.assertIn("\${{ inputs.source_run_id }}", workflow)
+        self.assertIn("\${{ inputs.artifact_name }}", workflow)
+        self.assertIn("\${{ steps.source.outputs.head_sha }}", workflow)
+        self.assertNotRegex(workflow, r"\\$\\{\\s*(?:github|inputs|steps)\\.")
+        self.assertIn("sha256sum --check", workflow)
+        self.assertIn("strength-ladder-progress", workflow)
+
     def test_offline_replay_has_recorded_moves_and_sound_controls(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
