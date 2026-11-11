@@ -135,5 +135,15 @@ int main() {
     if(!parseUciMove(position,"e5d6",exchangeMove)) { std::cerr<<"search regression failure 49\n"; return 49; }
     if(staticExchangeEvaluation(position,exchangeMove)!=100) { std::cerr<<"search regression failure 50: "<<staticExchangeEvaluation(position,exchangeMove)<<"\n"; return 50; }
 
+    // Passed-pawn detection must use one rank coordinate system for both colors.
+    if(!loadFen(position,"7k/8/4p3/8/3P4/8/8/K7 w - - 0 1")) return 51;
+    if(isPassedPawn(position,parseSquare("d4"),WHITE)) return 52;
+    if(!loadFen(position,"7k/8/8/8/3P4/4p3/8/K7 w - - 0 1")) return 53;
+    if(!isPassedPawn(position,parseSquare("d4"),WHITE)) return 54;
+    if(!loadFen(position,"7k/8/8/8/3p4/4P3/8/K7 b - - 0 1")) return 55;
+    if(isPassedPawn(position,parseSquare("d4"),BLACK)) return 56;
+    if(!loadFen(position,"7k/8/8/4P3/3p4/8/8/K7 b - - 0 1")) return 57;
+    if(!isPassedPawn(position,parseSquare("d4"),BLACK)) return 58;
+
     return 0;
 }
