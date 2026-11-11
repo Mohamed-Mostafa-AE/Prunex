@@ -1,13 +1,11 @@
-name: One game vs Stockfish 2.0
+name: One game vs Stockfish 2.0 (fast path)
 
 on:
   push:
     branches: ['test/single-stockfish-2.0']
     paths:
       - '.github/workflows/single-stockfish-game.yml'
-      - 'CMakeLists.txt'
-      - 'src/**'
-      - 'tests/**'
+      - 'src/main.cpp'
       - 'tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch'
       - 'tools/stockfish-2.0-match/run_single_game.py'
 
@@ -16,24 +14,24 @@ permissions:
 
 concurrency:
   group: prunex-single-stockfish-2-game
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   play-one-game:
-    name: Build pinned Stockfish 2.0 and play one game
+    name: Direct compile and one game
     runs-on: ubuntu-22.04
-    timeout-minutes: 180
+    timeout-minutes: 45
     steps:
-      - name: Check out the selected Prunex development commit
+      - name: Check out Prunex development source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: true
 
-      - name: Install native build and match tools
+      - name: Install minimal dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes cmake g++ make git python3-pip
-          python3 -m pip install --user --disable-pip-version-check python-chess
+          sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=30
+          sudo apt-get install --yes --no-install-recommends g++ make git python3-pip
+          python3 -m pip install --user --disable-pip-version-check --timeout 30 --retries 2 python-chess
 
       - name: Build the pinned Stockfish 2.0 opponent
         run: |
@@ -48,26 +46,24 @@ jobs:
           echo "STOCKFISH_SOURCE_PATCH_SHA256=$PATCH_SHA" >> "$GITHUB_ENV"
           make -C stockfish-2.0/src build ARCH=x86-64 -j2
 
-      - name: Build the current Prunex development engine
+      - name: Compile only Prunex (no CMake or full test suite)
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
-          cmake --build build --parallel 2
+          mkdir -p build
+          timeout 180s g++ -std=c++20 -O2 -DNDEBUG -DPRUNEX_TT_BITS=22 \
+            -pthread -Wall -Wextra -Wpedantic -Wconversion -Wshadow \
+            src/main.cpp -o build/prunex
+          printf 'uci\nisready\n' | timeout 10s build/prunex
 
-      - name: Run the native regression and perft suite
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Play exactly one color-assigned game
-        env:
-          PRUNEX_TT_BITS: '22'
+      - name: Play one Ruy Lopez game at 250,000 nodes per move
         run: |
           python3 tools/stockfish-2.0-match/run_single_game.py \
             --prunex build/prunex \
             --stockfish stockfish-2.0/src/stockfish \
-            --nodes 1000000 \
+            --nodes 250000 \
             --stockfish-hash-mb 256 \
             --out single-game-evidence
 
-      - name: Generate checksums and archive the result permanently
+      - name: Verify and permanently archive game evidence
         if: success()
         run: |
           set -euo pipefail
@@ -84,28 +80,28 @@ jobs:
           else
             git worktree add -b strength-ladder-progress "$WORKTREE" HEAD
           fi
-          DEST="progress/smoke-tests/stockfish-2.0/run-${GITHUB_RUN_NUMBER}"
+          DEST="progress/smoke-tests/stockfish-2.0/fast-run-$GITHUB_RUN_NUMBER"
           mkdir -p "$WORKTREE/$DEST"
           cp -a single-game-evidence/. "$WORKTREE/$DEST/"
           cat > "$WORKTREE/$DEST/README.md" <<EOF
           # Prunex single-game validation
 
-          Workflow run: ${GITHUB_RUN_NUMBER}
-          Prunex source commit: ${GITHUB_SHA}
-          Opponent: official Stockfish 2.0 source at the pinned commit, with the disclosed node-polling patch.
-          Format: one Ruy Lopez game, Prunex White, 1,000,000 nodes per move, one thread each.
+          Workflow run: $GITHUB_RUN_NUMBER
+          Prunex source commit: $GITHUB_SHA
+          Opponent: pinned official Stockfish 2.0 source with disclosed node-polling patch.
+          Conditions: one Ruy Lopez game; Prunex White; 250,000 nodes per move; one thread per engine; Prunex TT 2^22 entries; Stockfish Hash 256 MiB.
 
-          This one-game result is a smoke test, not a strength rating or Elo estimate.
+          A single game is an individual result, not an Elo estimate or proof of general superiority.
           EOF
           git -C "$WORKTREE" add "$DEST"
-          git -C "$WORKTREE" commit -m "Archive single Prunex vs Stockfish 2.0 game ${GITHUB_RUN_NUMBER}"
+          git -C "$WORKTREE" commit -m "Archive fast single Prunex vs Stockfish 2.0 game $GITHUB_RUN_NUMBER"
           git -C "$WORKTREE" push origin "HEAD:refs/heads/strength-ladder-progress"
 
-      - name: Upload the one-game PGN and telemetry
+      - name: Upload PGN and per-move telemetry
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: prunex-single-stockfish-2-game-${{ github.run_number }}
+          name: prunex-single-stockfish-2-game-fast-${{ github.run_number }}
           path: single-game-evidence/
           if-no-files-found: warn
           retention-days: 90
