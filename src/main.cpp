@@ -535,7 +535,14 @@ struct TTEntry {
 
 
 using TTCluster = std::array<TTEntry, TT_WAYS>;
-std::array<TTCluster, TT_BUCKETS> transpositionTable{};
+constexpr std::size_t MEBIBYTE=1024U*1024U;
+constexpr std::size_t DEFAULT_TT_BYTES=TT_BUCKETS*sizeof(TTCluster);
+constexpr int DEFAULT_HASH_MB=static_cast<int>(
+    std::max<std::size_t>(1,(DEFAULT_TT_BYTES+MEBIBYTE-1)/MEBIBYTE));
+std::vector<TTCluster> transpositionTable(TT_BUCKETS);
+std::size_t ttBucketCount=TT_BUCKETS;
+std::size_t ttBucketMask=TT_BUCKETS-1;
+int configuredHashMB=DEFAULT_HASH_MB;
 std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
 std::array<Move, MAX_PLY> searchPathMoves{};
 std::array<int, MAX_PLY> searchPathPieceTypes{};
@@ -567,8 +574,31 @@ void clearTranspositionTable() {
     for(auto& cluster:transpositionTable) cluster.fill(TTEntry{});
 }
 
+bool resizeTranspositionTable(int megabytes) {
+    if(megabytes<1||megabytes>4096) return false;
+    const std::size_t requestedBytes=static_cast<std::size_t>(megabytes)*MEBIBYTE;
+    const std::size_t maximumBuckets=requestedBytes/sizeof(TTCluster);
+    if(maximumBuckets==0) return false;
+    const std::size_t newBucketCount=std::bit_floor(maximumBuckets);
+    if(newBucketCount==0) return false;
+
+    try {
+        std::vector<TTCluster> replacement(newBucketCount);
+        transpositionTable.swap(replacement);
+    } catch(const std::bad_alloc&) {
+        return false;
+    }
+
+    ttBucketCount=newBucketCount;
+    ttBucketMask=newBucketCount-1;
+    configuredHashMB=megabytes;
+    ttGeneration=0;
+    clearTranspositionTable();
+    return true;
+}
+
 TTEntry& probeTranspositionTable(std::uint64_t key,bool& found) {
-    auto& cluster=transpositionTable[key&(TT_BUCKETS-1)];
+    auto& cluster=transpositionTable[key&ttBucketMask];
     TTEntry* replacement=&cluster.front();
     int replacementQuality=std::numeric_limits<int>::max();
 
@@ -626,14 +656,16 @@ bool searchShouldStop() {
 
 int hashFullPermille() {
     constexpr std::size_t sampleEntries=1000;
-    constexpr std::size_t sampleClusters=sampleEntries/TT_WAYS;
+    constexpr std::size_t maximumSampleClusters=sampleEntries/TT_WAYS;
+    const std::size_t sampleClusters=std::min(ttBucketCount,maximumSampleClusters);
     std::size_t used=0;
     for(std::size_t index=0;index<sampleClusters;++index) {
         for(const auto& entry:transpositionTable[index]) {
             if(entry.generation==ttGeneration&&entry.bound!=TT_NONE) ++used;
         }
     }
-    return static_cast<int>(used);
+    const std::size_t sampledEntries=sampleClusters*TT_WAYS;
+    return sampledEntries==0?0:static_cast<int>(used*1000/sampledEntries);
 }
 
 std::uint64_t splitMix64(std::uint64_t& state) {
@@ -1511,7 +1543,41 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         std::string cmd;
         in>>cmd;
         if(cmd=="uci"){
-            emitLine("id name Prunex 0.8.0\nid author Prunex Project\nuciok");
+            emitLine(
+                "id name Prunex 0.8.0\n"
+                "id author Prunex Project\n"
+                "option name Hash type spin default "+std::to_string(DEFAULT_HASH_MB)+" min 1 max 4096\n"
+                "option name Threads type spin default 1 min 1 max 1\n"
+                "option name Clear Hash type button\n"
+                "uciok"
+            );
+        } else if(cmd=="setoption"){
+            stopAndJoin();
+            std::string token,name,value;
+            if(!(in>>token)||token!="name") continue;
+            while(in>>token&&token!="value") {
+                if(!name.empty()) name+=' ';
+                name+=token;
+            }
+            while(in>>token) {
+                if(!value.empty()) value+=' ';
+                value+=token;
+            }
+            if(name=="Hash") {
+                int requestedHash=0;
+                if(!parseIntegerToken(value,1,4096,requestedHash)) {
+                    emitLine("info string invalid Hash value; expected 1..4096 MiB");
+                } else if(!resizeTranspositionTable(requestedHash)) {
+                    emitLine("info string unable to allocate requested Hash size; previous table retained");
+                }
+            } else if(name=="Clear Hash") {
+                clearTranspositionTable();
+                ttGeneration=0;
+            } else if(name=="Threads") {
+                int requestedThreads=0;
+                if(!parseIntegerToken(value,1,1,requestedThreads))
+                    emitLine("info string this build supports Threads=1 only");
+            }
         } else if(cmd=="isready"){
             emitLine("readyok");
         } else if(cmd=="ucinewgame"){

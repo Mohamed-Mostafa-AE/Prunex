@@ -119,7 +119,7 @@ int main() {
     deepEntry.bound=TT_EXACT;
     deepEntry.generation=ttGeneration;
 
-    const std::uint64_t shallowKey=clusterBaseKey+TT_BUCKETS;
+    const std::uint64_t shallowKey=clusterBaseKey+ttBucketCount;
     TTEntry& shallowEntry=probeTranspositionTable(shallowKey,tableHit);
     if(tableHit||&deepEntry==&shallowEntry) return 76;
     shallowEntry.key=shallowKey;
@@ -127,7 +127,7 @@ int main() {
     shallowEntry.bound=TT_LOWER;
     shallowEntry.generation=ttGeneration;
 
-    const std::uint64_t thirdKey=clusterBaseKey+2*TT_BUCKETS;
+    const std::uint64_t thirdKey=clusterBaseKey+2*ttBucketCount;
     TTEntry& replacement=probeTranspositionTable(thirdKey,tableHit);
     if(tableHit||replacement.key!=shallowKey) return 77;
     replacement.key=thirdKey;
@@ -294,6 +294,19 @@ int main() {
         if(moveOrderingScore(position,ordered[index-1],counterCandidate,0)<
            moveOrderingScore(position,ordered[index],counterCandidate,0)) return 86;
     }
+
+    const int originalHashSize=configuredHashMB;
+    const std::size_t originalBucketCount=ttBucketCount;
+    if(!resizeTranspositionTable(1)) return 93;
+    if(ttBucketCount==0||ttBucketCount>originalBucketCount) return 94;
+    bool resizedTableHit=false;
+    TTEntry& resizedEntry=probeTranspositionTable(0xABCDEF1234567890ULL,resizedTableHit);
+    if(resizedTableHit||resizedEntry.bound!=TT_NONE) return 95;
+    resizedEntry.key=0xABCDEF1234567890ULL;
+    resizedEntry.bound=TT_EXACT;
+    resizedEntry.depth=4;
+    if(!resizeTranspositionTable(originalHashSize)) return 96;
+    if(ttBucketCount!=originalBucketCount) return 97;
 
     return 0;
 }
