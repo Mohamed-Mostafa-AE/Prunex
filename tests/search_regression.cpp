@@ -22,14 +22,81 @@ int main() {
     quiescence(position,-INF,INF,0,0);
     if(nodes<=1) return 7;
 
+    auto hashRoundTrips=[](const Position& original) {
+        if(original.key!=computePositionKey(original)) return false;
+        Position base=original;
+        const auto moves=legalMoves(base);
+        if(base.board!=original.board||base.side!=original.side||
+           base.castling!=original.castling||base.ep!=original.ep||
+           base.halfmove!=original.halfmove||base.fullmove!=original.fullmove||
+           base.key!=original.key) return false;
+        for(const Move& move:moves) {
+            Position child=original;
+            const std::uint64_t originalKey=child.key;
+            Undo undo=makeMove(child,move);
+            if(child.key!=computePositionKey(child)) return false;
+            undoMove(child,move,undo);
+            if(child.key!=originalKey||child.key!=computePositionKey(child)) return false;
+        }
+        return true;
+    };
+
     if(!loadFen(position,START_FEN)) return 8;
     std::uint64_t startKey=positionKey(position);
+    if(!hashRoundTrips(position)) return 9;
     auto startMoves=legalMoves(position);
     for(const Move& move:startMoves) {
         Undo undo=makeMove(position,move);
+        if(positionKey(position)!=computePositionKey(position)) return 64;
         undoMove(position,move,undo);
-        if(positionKey(position)!=startKey) return 9;
+        if(positionKey(position)!=startKey||position.key!=computePositionKey(position)) return 65;
     }
+
+    if(!loadFen(position,"r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")) return 66;
+    if(!hashRoundTrips(position)) return 67;
+
+    if(!loadFen(position,"7k/8/8/3pP3/8/8/8/K7 w - d6 0 1")) return 68;
+    if(!hashRoundTrips(position)) return 69;
+
+    if(!loadFen(position,"7k/P7/8/8/8/8/8/7K w - - 0 1")) return 70;
+    if(!hashRoundTrips(position)) return 71;
+
+    if(!loadFen(position,START_FEN)) return 72;
+    const std::uint64_t beforeNull=position.key;
+    makeNullMove(position);
+    if(position.key!=computePositionKey(position)) return 73;
+    if(position.side!=BLACK||position.ep!=-1||position.key==beforeNull) return 74;
+
+    clearTranspositionTable();
+    ttGeneration=7;
+    const std::uint64_t clusterBaseKey=0x12345ULL;
+    bool tableHit=false;
+    TTEntry& deepEntry=probeTranspositionTable(clusterBaseKey,tableHit);
+    if(tableHit) return 75;
+    deepEntry.key=clusterBaseKey;
+    deepEntry.depth=14;
+    deepEntry.bound=TT_EXACT;
+    deepEntry.generation=ttGeneration;
+
+    const std::uint64_t shallowKey=clusterBaseKey+TT_BUCKETS;
+    TTEntry& shallowEntry=probeTranspositionTable(shallowKey,tableHit);
+    if(tableHit||&deepEntry==&shallowEntry) return 76;
+    shallowEntry.key=shallowKey;
+    shallowEntry.depth=3;
+    shallowEntry.bound=TT_LOWER;
+    shallowEntry.generation=ttGeneration;
+
+    const std::uint64_t thirdKey=clusterBaseKey+2*TT_BUCKETS;
+    TTEntry& replacement=probeTranspositionTable(thirdKey,tableHit);
+    if(tableHit||replacement.key!=shallowKey) return 77;
+    replacement.key=thirdKey;
+    replacement.depth=5;
+    replacement.bound=TT_UPPER;
+    replacement.generation=ttGeneration;
+
+    TTEntry& retainedDeep=probeTranspositionTable(clusterBaseKey,tableHit);
+    if(!tableHit||retainedDeep.depth!=14) return 78;
+    clearTranspositionTable();
 
     if(!loadFen(position,"7k/8/5KQ1/8/8/8/8/8 w - - 0 1")) return 10;
     Move matingMove=findBestMove(position,3);
@@ -160,6 +227,31 @@ int main() {
     Move fallback=findBestMove(position,6);
     searchAborted.store(false,std::memory_order_relaxed);
     if(moveUci(fallback)!="d1d5") return 63;
+
+    if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 79;
+    Move counterCandidate;
+    if(!parseUciMove(position,"g1f3",counterCandidate)) return 80;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+    counterMoves={};
+    searchPathMoves[0]={parseSquare("g8"),parseSquare("f6"),EMPTY,false,false};
+    searchPathPieceTypes[0]=2;
+    counterMoves[2][parseSquare("f6")]=counterCandidate;
+    if(moveOrderingScore(position,counterCandidate,Move{},1)!=780000) return 81;
+    counterMoves={};
+    if(moveOrderingScore(position,counterCandidate,Move{},1)==780000) return 82;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+
+    if(!loadFen(position,START_FEN)) return 83;
+    auto ordered=legalMoves(position);
+    if(!parseUciMove(position,"e2e4",counterCandidate)) return 84;
+    orderMoves(position,ordered,counterCandidate,0);
+    if(ordered.empty()||!sameMove(ordered.front(),counterCandidate)) return 85;
+    for(std::size_t index=1;index<ordered.size();++index) {
+        if(moveOrderingScore(position,ordered[index-1],counterCandidate,0)<
+           moveOrderingScore(position,ordered[index],counterCandidate,0)) return 86;
+    }
 
     return 0;
 }
