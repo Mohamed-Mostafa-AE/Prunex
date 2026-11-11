@@ -243,5 +243,16 @@ int main() {
     searchPathMoves.fill(Move{});
     searchPathPieceTypes.fill(0);
 
+    if(!loadFen(position,START_FEN)) return 83;
+    auto ordered=legalMoves(position);
+    const Move preferred{parseSquare("e2"),parseSquare("e4"),EMPTY,false,false};
+    if(!parseUciMove(position,"e2e4",counterCandidate)) return 84;
+    orderMoves(position,ordered,counterCandidate,0);
+    if(ordered.empty()||!sameMove(ordered.front(),counterCandidate)) return 85;
+    for(std::size_t index=1;index<ordered.size();++index) {
+        if(moveOrderingScore(position,ordered[index-1],counterCandidate,0)<
+           moveOrderingScore(position,ordered[index],counterCandidate,0)) return 86;
+    }
+
     return 0;
 }

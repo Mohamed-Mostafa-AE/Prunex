@@ -568,14 +568,34 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
 }
 
 void orderMoves(const Position& p,std::vector<Move>& moves,const Move& hashMove,int ply) {
-    struct ScoredMove { Move move; int score; };
-    std::vector<ScoredMove> scored;
-    scored.reserve(moves.size());
-    for(const Move& move:moves) scored.push_back({move,moveOrderingScore(p,move,hashMove,ply)});
-    std::stable_sort(scored.begin(),scored.end(),[](const ScoredMove& a,const ScoredMove& b) {
-        return a.score>b.score;
-    });
-    for(std::size_t index=0;index<moves.size();++index) moves[index]=scored[index].move;
+    struct ScoredMove {
+        Move move;
+        int score;
+    };
+    constexpr std::size_t MAX_LEGAL_MOVES=256;
+    std::array<ScoredMove,MAX_LEGAL_MOVES> scored{};
+
+    if(moves.size()>scored.size()) {
+        throw std::runtime_error("legal move count exceeds the move-ordering buffer");
+    }
+
+    const std::size_t count=moves.size();
+    for(std::size_t index=0;index<count;++index) {
+        const Move& move=moves[index];
+        scored[index]={move,moveOrderingScore(p,move,hashMove,ply)};
+    }
+
+    std::sort(scored.begin(),scored.begin()+static_cast<std::ptrdiff_t>(count),
+        [](const ScoredMove& left,const ScoredMove& right) {
+            if(left.score!=right.score) return left.score>right.score;
+            if(left.move.from!=right.move.from) return left.move.from<right.move.from;
+            if(left.move.to!=right.move.to) return left.move.to<right.move.to;
+            return left.move.promotion<right.move.promotion;
+        });
+
+    for(std::size_t index=0;index<count;++index) {
+        moves[index]=scored[index].move;
+    }
 }
 
 bool isPassedPawn(const Position& p,int square,int color) {
