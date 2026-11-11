@@ -11,6 +11,7 @@
 #include <limits>
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -170,7 +171,6 @@ Undo makeMove(Position& p,const Move& m) {
     // Remove the old position state before changing pieces or rights.
     p.key^=keys.castling[p.castling];
     if(p.ep>=0) p.key^=keys.enPassant[p.ep];
-    p.key^=keys.side;
 
     p.key^=keys.pieces[m.from][movingPiece];
     if(m.enPassant) {
