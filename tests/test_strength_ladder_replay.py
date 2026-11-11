@@ -62,7 +62,9 @@ class ReplayEvidenceTests(unittest.TestCase):
         self.assertIn("\${{ inputs.source_run_id }}", workflow)
         self.assertIn("\${{ inputs.artifact_name }}", workflow)
         self.assertIn("\${{ steps.source.outputs.head_sha }}", workflow)
-        self.assertNotRegex(workflow, r"\\$\\{\\s*(?:github|inputs|steps)\\.")
+        self.assertNotIn("${ github.", workflow)
+        self.assertNotIn("${ inputs.", workflow)
+        self.assertNotIn("${ steps.", workflow)
         self.assertIn("sha256sum --check", workflow)
         self.assertIn("strength-ladder-progress", workflow)
 
