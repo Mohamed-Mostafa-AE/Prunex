@@ -149,7 +149,7 @@ jobs:
             | sort -z | xargs -0 sha256sum > verified-strength-ladder/SHA256SUMS.txt
 
       - name: Save permanent machine-readable progress to GitHub
-        if: success() && github.event_name == 'workflow_dispatch'
+        if: success() && github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -185,7 +185,7 @@ jobs:
           git -C "$WORKTREE" push origin "HEAD:refs/heads/strength-ladder-progress"
 
       - name: Upload replay and complete match evidence
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: prunex-strength-ladder-stage-01-${{ github.run_number }}
