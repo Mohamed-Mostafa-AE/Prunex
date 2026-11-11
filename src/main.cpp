@@ -241,6 +241,20 @@ void undoMove(Position& p,const Move& m,const Undo& undo) {
     }
     p.key=undo.key;
 }
+std::vector<Move> legalMoves(Position& position) {
+    const auto candidates=pseudoMoves(position);
+    std::vector<Move> legal;
+    legal.reserve(candidates.size());
+    const int movingSide=position.side;
+
+    for(const Move& move:candidates) {
+        Position child=position;
+        makeMove(child,move);
+        if(!inCheck(child,movingSide)) legal.push_back(move);
+    }
+    return legal;
+}
+
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
 bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move&m:legalMoves(p))if(moveUci(m)==text){result=m;return true;}return false;}
 
