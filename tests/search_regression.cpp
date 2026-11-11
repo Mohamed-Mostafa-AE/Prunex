@@ -145,5 +145,21 @@ int main() {
     if(!loadFen(position,"7k/8/8/4P3/3p4/8/8/K7 b - - 0 1")) return 57;
     if(!isPassedPawn(position,parseSquare("d4"),BLACK)) return 58;
 
+    // A developed knight with several safe destinations should score above
+    // the same material with the knight undeveloped and restricted.
+    if(!loadFen(position,"7k/8/8/8/8/5N2/8/K7 w - - 0 1")) return 59;
+    const int mobileKnight=evaluate(position);
+    if(!loadFen(position,"7k/8/8/8/8/8/8/KN6 w - - 0 1")) return 60;
+    const int restrictedKnight=evaluate(position);
+    if(mobileKnight<=restrictedKnight) return 61;
+
+    // If search is interrupted before depth one completes, use an
+    // evaluation-ranked legal fallback instead of the first generated move.
+    if(!loadFen(position,"7k/8/8/3q4/8/8/8/K2R4 w - - 0 1")) return 62;
+    searchAborted.store(true,std::memory_order_relaxed);
+    Move fallback=findBestMove(position,6);
+    searchAborted.store(false,std::memory_order_relaxed);
+    if(moveUci(fallback)!="d1d5") return 63;
+
     return 0;
 }
