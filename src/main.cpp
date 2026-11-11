@@ -1275,34 +1275,35 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     searchPathKeys[searchPly]=key;
     const bool drawRule=p.halfmove>=100||repeatedPosition(key,searchPly,p.halfmove);
     const bool insufficient=isInsufficientMaterial(p);
-    bool checked=inCheck(p,p.side);
+    const bool checked=inCheck(p,p.side);
     if((drawRule||insufficient)&&!checked) return 0;
-    auto candidates=pseudoMoves(p);
-    std::vector<Move> moves;
-    moves.reserve(candidates.size());
-    bool hasLegalMove=false;
-    for(const Move& m:candidates) {
-        Undo undo=makeMove(p,m);
-        bool legal=!inCheck(p,1-p.side);
-        undoMove(p,m,undo);
-        if(!legal) continue;
-        hasLegalMove=true;
-        if(checked||isCapture(p,m)||m.promotion) moves.push_back(m);
-    }
-    if(!hasLegalMove) return checked?-MATE+searchPly:0;
+
+    // Reuse the pin/check-aware legal generator. The old qsearch path tested
+    // every pseudo-legal move by making it, even though the main search now
+    // has a faster bitboard legality filter.
+    const auto legal=legalMoves(p);
+    if(legal.empty()) return checked?-MATE+searchPly:0;
     if(drawRule||insufficient) return 0;
+
+    std::vector<Move> moves;
+    moves.reserve(legal.size());
+    for(const Move& move:legal) {
+        if(checked||isCapture(p,move)||move.promotion) moves.push_back(move);
+    }
+
     if(!checked) {
-        int stand=evaluate(p);
+        const int stand=evaluate(p);
         if(stand>=beta) return stand;
         if(stand>alpha) alpha=stand;
         if(qply>=MAX_QPLY||moves.empty()) return alpha;
     }
+
     orderMoves(p,moves,Move{},searchPly);
-    for(const Move& m:moves) {
-        Undo undo=makeMove(p,m);
-        int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
-        undoMove(p,m,undo);
-        if(searchAborted) return 0;
+    for(const Move& move:moves) {
+        const Undo undo=makeMove(p,move);
+        const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
+        undoMove(p,move,undo);
+        if(searchAborted.load(std::memory_order_relaxed)) return 0;
         if(score>=beta) return score;
         if(score>alpha) alpha=score;
     }
@@ -1328,16 +1329,9 @@ bool hasNonPawnMaterial(const Position& p,int color) {
 }
 
 bool hasNullMoveMaterial(const Position& p) {
-    int minorPieces=0;
-    for(int square=0;square<128;++square) {
-        if(!onBoard(square)) continue;
-        const int piece=p.board[square];
-        if(colorOf(piece)!=p.side) continue;
-        const int type=typeOf(piece);
-        if(type==4||type==5) return true;
-        if(type==2||type==3) ++minorPieces;
-    }
-    return minorPieces>=2;
+    const auto& pieces=p.piecesBB[p.side];
+    if((pieces[4]|pieces[5])!=0) return true;
+    return std::popcount(pieces[2]|pieces[3])>=2;
 }
 
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
