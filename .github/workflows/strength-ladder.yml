@@ -103,6 +103,7 @@ jobs:
             --prunex build/prunex \
             --stockfish stockfish-2.0/src/stockfish \
             --nodes "$NODES_PER_MOVE" \
+            --plies 96 \
             --stockfish-hash-mb "$OPPONENT_HASH_MB"
 
       - name: Verify baseline opponent identity and build provenance
@@ -145,8 +146,10 @@ jobs:
             --pgn verified-strength-ladder/all-games.pgn \
             --out verified-strength-ladder/evidence \
             --fps 3
-          find verified-strength-ladder -type f ! -name SHA256SUMS.txt -print0 \
-            | sort -z | xargs -0 sha256sum > verified-strength-ladder/SHA256SUMS.txt
+          (
+            cd verified-strength-ladder
+            find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum
+          ) > verified-strength-ladder/SHA256SUMS.txt
 
       - name: Save permanent machine-readable progress to GitHub
         if: success() && github.event_name != 'pull_request'
@@ -164,21 +167,27 @@ jobs:
           fi
 
           DEST="progress/stages/01-stockfish-2.0/run-${GITHUB_RUN_NUMBER}"
-          mkdir -p "$WORKTREE/$DEST/evidence"
+          mkdir -p "$WORKTREE/$DEST"
           cp verified-strength-ladder/all-games.pgn "$WORKTREE/$DEST/"
           cp verified-strength-ladder/games.jsonl "$WORKTREE/$DEST/"
           cp verified-strength-ladder/summary.json "$WORKTREE/$DEST/"
           cp verified-strength-ladder/stockfish-verification.json "$WORKTREE/$DEST/"
           cp verified-strength-ladder/SHA256SUMS.txt "$WORKTREE/$DEST/"
-          cp verified-strength-ladder/evidence/stockfish-2.0-*.txt "$WORKTREE/$DEST/evidence/" 2>/dev/null || true
-          cp verified-strength-ladder/evidence/stockfish-2-node-budget.patch* "$WORKTREE/$DEST/evidence/" 2>/dev/null || true
+          cp -a verified-strength-ladder/evidence "$WORKTREE/$DEST/"
+          (cd "$WORKTREE/$DEST" && sha256sum -c SHA256SUMS.txt)
           cat > "$WORKTREE/$DEST/README.md" <<EOF
           # Stage 01 baseline match
 
           Workflow run: ${GITHUB_RUN_NUMBER}
           Source commit: ${GITHUB_SHA}
           Opponent: pinned Stockfish 2.0 baseline build
-          Full PGN, per-move telemetry, verification output, and checksums are stored alongside this file.
+
+          Full PGN, per-move telemetry, opponent verification, checksums, and replay media are stored alongside this file.
+
+          Replay files:
+          - evidence/replay.html: interactive offline replay viewer with the website's three move-sound profiles.
+          - evidence/64-game-replay.mp4: rendered replay with the Classic wooden-tap sound.
+          - evidence/64-game-final-positions.png: final position from every game.
           EOF
           git -C "$WORKTREE" add "$DEST"
           git -C "$WORKTREE" commit -m "Record strength ladder baseline run ${GITHUB_RUN_NUMBER}"

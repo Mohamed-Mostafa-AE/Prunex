@@ -1,0 +1,54 @@
+name: Strength evidence validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/strength-evidence-ci.yml'
+      - '.github/workflows/strength-ladder.yml'
+      - 'tools/stockfish-2.0-match/**'
+      - 'tests/test_replay_evidence.py'
+      - 'tests/test_stockfish_2_match_budget.py'
+      - 'tests/test_stockfish_2_node_limit.py'
+      - 'tests/test_stockfish_2_verifier.py'
+
+permissions:
+  contents: read
+
+jobs:
+  replay-and-budget:
+    name: Validate replay, sound, and node-limit handling
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install replay dependencies
+        run: |
+          python3 -m pip install --user --disable-pip-version-check --timeout 30 --retries 2 python-chess pillow cairosvg
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install --yes --no-install-recommends ffmpeg
+          fi
+
+      - name: Verify pinned Stockfish patch applies cleanly
+        run: |
+          git clone --depth 1 --branch sf_2.0 https://github.com/official-stockfish/Stockfish.git stockfish-2.0
+          test "$(git -C stockfish-2.0 rev-parse HEAD)" = "aa2de53a83ca5423c8c8007abf71f9afdf589d93"
+          PATCH_FILE="$GITHUB_WORKSPACE/tools/stockfish-2.0-match/patches/stockfish-2-node-budget.patch"
+          git -C stockfish-2.0 apply --check "$PATCH_FILE"
+          git -C stockfish-2.0 apply "$PATCH_FILE"
+          git -C stockfish-2.0 diff --check
+          grep -Fq 'NodesBetweenPolls = Min(MaxNodes, 799);' stockfish-2.0/src/search.cpp
+
+      - name: Test node-budget boundaries and polling contract
+        run: python3 tests/test_stockfish_2_match_budget.py
+
+      - name: Test opponent verification parser
+        run: python3 tests/test_stockfish_2_verifier.py
+
+      - name: Test legal PGN replay, website-style move sounds, and MP4 audio
+        run: python3 tests/test_replay_evidence.py
