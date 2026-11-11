@@ -10,7 +10,7 @@ diff --git a/src/search.cpp b/src/search.cpp
    else if (myTime && myTime < 1000)
        NodesBetweenPolls = 1000;
    else if (myTime && myTime < 5000)
-@@ -1157,7 +1157,8 @@
+@@ -1157,5 +1157,6 @@
      // Step 10. Loop through moves
      // Loop through all legal moves until no moves remain or a beta cutoff occurs
 -    while (   bestValue < beta
@@ -39,18 +39,17 @@ diff --git a/src/search.cpp b/src/search.cpp
 +    if (StopRequest || ThreadsMgr.cutoff_at_splitpoint(threadID)
 +        || pos.is_draw() || ply >= PLY_MAX - 1)
          return VALUE_DRAW;
-@@ -1493,6 +1503,7 @@
+@@ -1493,4 +1504,5 @@
      // Loop through the moves until no moves remain or a beta cutoff occurs
 -    while (   alpha < beta
 +    while (   !StopRequest
 +           && alpha < beta
             && (move = mp.get_next_move()) != MOVE_NONE)
-@@ -1561,6 +1572,9 @@
+@@ -1561,6 +1573,9 @@
            }
         }
      }
  
-+    // Do not publish a partial quiescence result after a node-limit stop.
 +    if (StopRequest)
 +        return VALUE_DRAW;
 +
