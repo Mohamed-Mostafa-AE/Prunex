@@ -454,6 +454,34 @@ bool inCheck(const Position& p,int color) {
     const int king=kingSquare(p,color);
     return king>=0&&attackersTo(p,king,1-color)!=0;
 }
+
+// En-passant state belongs in the position hash only when the side to move
+// has at least one legal capture. A target square alone is insufficient:
+// an adjacent pawn may be pinned and unable to capture without exposing its king.
+int hashableEnPassantSquare(const Position& position) {
+    const int target=position.ep;
+    if(!onBoard(target)) return -1;
+
+    const int capturingSide=position.side;
+    const int capturedSquare=target+(capturingSide==WHITE?-16:16);
+    const int capturedPawn=makePiece(1,1-capturingSide);
+    if(!onBoard(capturedSquare)||position.board[capturedSquare]!=capturedPawn)
+        return -1;
+
+    for(const int fileOffset:{-1,1}) {
+        const int source=capturedSquare+fileOffset;
+        if(!onBoard(source)
+           ||position.board[source]!=makePiece(1,capturingSide)) continue;
+
+        Position after=position;
+        removePositionPiece(after,source);
+        removePositionPiece(after,capturedSquare);
+        putPositionPiece(after,target,makePiece(1,capturingSide));
+        if(!inCheck(after,capturingSide)) return target;
+    }
+
+    return -1;
+}
 void addMove(MoveList& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false) {
  out.push_back({from,to,promo,ep,castle});
 }
@@ -568,7 +596,8 @@ Undo makeMove(Position& p,const Move& m) {
 
     // Remove the old position state before changing pieces or rights.
     p.key^=keys.castling[p.castling];
-    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    const int previousHashedEp=hashableEnPassantSquare(p);
+    if(previousHashedEp>=0) p.key^=keys.enPassant[previousHashedEp];
 
     p.key^=keys.pieces[m.from][movingPiece];
     if(m.enPassant) {
@@ -620,7 +649,8 @@ Undo makeMove(Position& p,const Move& m) {
 
     // Add the new rights, en-passant square and side-to-move key.
     p.key^=keys.castling[p.castling];
-    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    const int currentHashedEp=hashableEnPassantSquare(p);
+    if(currentHashedEp>=0) p.key^=keys.enPassant[currentHashedEp];
     p.key^=keys.side;
     return undo;
 }
@@ -1002,7 +1032,8 @@ std::uint64_t computePositionKey(const Position& p) {
         if(piece!=EMPTY) key^=keys.pieces[square][piece];
     }
     key^=keys.castling[p.castling];
-    if(p.ep>=0) key^=keys.enPassant[p.ep];
+    const int hashedEp=hashableEnPassantSquare(p);
+    if(hashedEp>=0) key^=keys.enPassant[hashedEp];
     if(p.side==BLACK) key^=keys.side;
     return key;
 }
@@ -1586,7 +1617,8 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
 
 void makeNullMove(Position& p) {
     const auto& keys=zobristKeys();
-    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    const int hashedEp=hashableEnPassantSquare(p);
+    if(hashedEp>=0) p.key^=keys.enPassant[hashedEp];
     p.ep=-1;
     p.side=1-p.side;
     p.key^=keys.side;

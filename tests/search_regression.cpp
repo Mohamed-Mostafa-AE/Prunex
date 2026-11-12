@@ -78,9 +78,56 @@ static bool attackMapsAgree(const prunex::Position& p) {
  return true;
 }
 
+static bool enPassantHashingMatchesLegalMoves() {
+    using namespace prunex;
+    Position noAdjacentPawn;
+    Position unusedTarget;
+    if(!loadFen(noAdjacentPawn,"4k3/8/8/3p4/8/8/8/4K3 w - - 0 1")
+       ||!loadFen(unusedTarget,"4k3/8/8/3p4/8/8/8/4K3 w - d6 0 1")
+       ||noAdjacentPawn.key!=unusedTarget.key) return false;
+
+    Position legalCapture;
+    Position noLegalCapture;
+    if(!loadFen(legalCapture,"4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
+       ||!loadFen(noLegalCapture,"4k3/8/8/3pP3/8/8/8/4K3 w - - 0 1")
+       ||legalCapture.key==noLegalCapture.key) return false;
+
+    Position pinnedPawn;
+    Position pinnedWithoutTarget;
+    if(!loadFen(pinnedPawn,"k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
+       ||!loadFen(pinnedWithoutTarget,"k3r3/8/8/3pP3/8/8/8/4K3 w - - 0 1")
+       ||pinnedPawn.key!=pinnedWithoutTarget.key) return false;
+
+    Position doublePush;
+    if(!loadFen(doublePush,"4k3/8/8/8/3p4/8/4P3/4K3 w - - 0 1"))
+        return false;
+    const std::uint64_t parentKey=doublePush.key;
+    Move move;
+    if(!parseUciMove(doublePush,"e2e4",move)) return false;
+    const Undo undo=makeMove(doublePush,move);
+    if(doublePush.key!=computePositionKey(doublePush)) return false;
+    Position withoutTarget=doublePush;
+    withoutTarget.ep=-1;
+    if(doublePush.key==computePositionKey(withoutTarget)) return false;
+    undoMove(doublePush,move,undo);
+    if(doublePush.key!=parentKey||doublePush.key!=computePositionKey(doublePush))
+        return false;
+
+    // Null moves clear the raw target but must only remove its hash component
+    // when an en-passant capture was actually legal.
+    makeNullMove(pinnedPawn);
+    if(pinnedPawn.key!=computePositionKey(pinnedPawn)) return false;
+    makeNullMove(legalCapture);
+    if(legalCapture.key!=computePositionKey(legalCapture)) return false;
+
+    return true;
+}
+
 int main() {
     using namespace prunex;
     Position position;
+
+    if(!enPassantHashingMatchesLegalMoves()) return 125;
 
     if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 0 1")) return 1;
     nodes=0;
