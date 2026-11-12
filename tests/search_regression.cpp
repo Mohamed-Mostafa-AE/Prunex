@@ -207,7 +207,9 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
             std::cerr<<"pawn attack map mismatch, color "<<color<<"\\n";
             return false;
         }
+    }
 
+    for(int color=WHITE;color<=BLACK;++color) {
         int expectedMiddle=0;
         int expectedEnding=0;
         constexpr std::array<int,7> middleWeight{0,0,4,3,2,1,0};
