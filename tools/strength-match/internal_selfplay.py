@@ -277,7 +277,7 @@ def main() -> int:
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--baseline-commit", required=True)
     parser.add_argument("--candidate-commit", required=True)
-    parser.add_argument("--pairs", type=int, default=40)
+    parser.add_argument("--pairs", type=int, default=100)
     parser.add_argument("--nodes", type=int, default=100_000)
     parser.add_argument("--hash-mb", type=int, default=128)
     parser.add_argument("--threads", type=int, default=1)

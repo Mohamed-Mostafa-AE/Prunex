@@ -13,7 +13,7 @@ on:
       pairs:
         description: 'Paired opening positions (each played with colours swapped)'
         required: true
-        default: '40'
+        default: '100'
         type: string
       nodes:
         description: 'Equal node limit per move'
@@ -73,7 +73,7 @@ jobs:
             --candidate build-selfplay/prunex \
             --baseline-commit "$BASELINE_SHA" \
             --candidate-commit "$GITHUB_SHA" \
-            --pairs "${PAIRS_INPUT:-40}" \
+            --pairs "${PAIRS_INPUT:-100}" \
             --nodes "${NODES_INPUT:-100000}" \
             --hash-mb 128 --threads 1 --seed 20261112 --max-plies 240 \
             --out internal-selfplay-results
