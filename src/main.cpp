@@ -1611,6 +1611,14 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     while(true) {
         const Move move=picker.next();
         if(move.from<0) break;
+
+        // Quiescence should follow captures that can change the evaluation,
+        // not exchanges that lose material without compensation.
+        if(!checked&&!move.promotion&&isCapture(p,move)
+            &&staticExchangeEvaluation(p,move)<-80) {
+            continue;
+        }
+
         const Undo undo=makeMove(p,move);
         const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
         undoMove(p,move,undo);
@@ -1677,6 +1685,30 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(entry.bound==TT_UPPER&&ttScore<=alpha) return ttScore;
         }
     }
+
+    const int staticEval=evaluate(p);
+    const bool safeForForwardPruning=!pvNode&&!checked
+        &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
+
+    // At shallow non-PV nodes, a position that is already comfortably above
+    // beta is unlikely to need a full search. Keep the margin deliberately
+    // wide and avoid positions where null-move assumptions are unreliable.
+    if(safeForForwardPruning&&depth<=6) {
+        const int margin=120+70*depth;
+        if(staticEval-margin>=beta) return staticEval-margin;
+    }
+
+    // When static evaluation is far below alpha, a shallow quiescence search
+    // is a cheap test for a tactical resource before expanding the full tree.
+    if(safeForForwardPruning&&depth<=2) {
+        const int razorMargin=170+90*depth;
+        if(staticEval+razorMargin<=alpha) {
+            const int razorScore=quiescence(p,alpha,beta,0,ply);
+            if(searchAborted.load(std::memory_order_relaxed)) return 0;
+            if(razorScore<=alpha) return razorScore;
+        }
+    }
+
     if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
         Position nullPosition=p;
         makeNullMove(nullPosition);
