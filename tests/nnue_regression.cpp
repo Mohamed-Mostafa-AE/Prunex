@@ -198,6 +198,52 @@ bool accumulatorMatchesRebuild(
     return childMatches && position.nnue.values == rebuiltParent.nnue.values;
 }
 
+bool accumulatorUpdatesMatchScalar() {
+    constexpr std::array<std::size_t, 21> sizes{
+        0, 1, 7, 8, 9, 15, 16, 17, 31, 32, 33,
+        63, 64, 65, 127, 128, 129, 255, 256, 257, 1025
+    };
+    constexpr std::array<int, 2> directions{-1, 1};
+    std::array<std::int8_t, 1025> weights{};
+    std::array<std::int32_t, 1025> expected{};
+    std::array<std::int32_t, 1025> actual{};
+
+    for (const std::size_t size : sizes) {
+        for (std::size_t index = 0; index < size; ++index) {
+            weights[index] = static_cast<std::int8_t>(
+                static_cast<int>((index * 71 + size * 13) % 255) - 127
+            );
+        }
+
+        for (const int direction : directions) {
+            for (std::size_t index = 0; index < size; ++index) {
+                const auto initial = static_cast<std::int32_t>(
+                    static_cast<int>((index * 31 + size * 7) % 1001) - 500
+                );
+                expected[index] = initial;
+                actual[index] = initial;
+            }
+
+            prunex::nnue_detail::addScaledInt8RowScalar(
+                expected.data(), weights.data(), size, direction
+            );
+            prunex::nnue_detail::addScaledInt8Row(
+                actual.data(), weights.data(), size, direction
+            );
+
+            for (std::size_t index = 0; index < size; ++index) {
+                if (actual[index] != expected[index]) {
+                    std::cerr << "NNUE SIMD accumulator mismatch at width "
+                              << size << " and direction " << direction
+                              << " at element " << index << '\n';
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 bool dotProductsMatchScalar() {
     constexpr std::array<std::size_t, 21> sizes{
         0, 1, 7, 31, 32, 33, 63, 64, 65, 127, 128,
@@ -236,6 +282,7 @@ int main() {
     using namespace prunex;
 
     if (!dotProductsMatchScalar()) return 35;
+    if (!accumulatorUpdatesMatchScalar()) return 36;
 
     const auto directory = std::filesystem::temp_directory_path();
     const auto validPath = directory / "prunex-qat-regression.nnue";

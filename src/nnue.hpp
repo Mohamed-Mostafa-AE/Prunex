@@ -88,6 +88,64 @@ inline std::int64_t dotProduct(
     return dotProductScalar(weights, activations, count);
 }
 
+inline void addScaledInt8RowScalar(
+    std::int32_t* accumulator,
+    const std::int8_t* weights,
+    std::size_t count,
+    int direction
+) noexcept {
+    for (std::size_t index = 0; index < count; ++index) {
+        accumulator[index] += direction * static_cast<std::int32_t>(weights[index]);
+    }
+}
+
+#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+__attribute__((target("avx2")))
+inline void addScaledInt8RowAvx2(
+    std::int32_t* accumulator,
+    const std::int8_t* weights,
+    std::size_t count,
+    int direction
+) noexcept {
+    std::size_t index = 0;
+    for (; index + 8 <= count; index += 8) {
+        const __m128i weightBytes = _mm_loadl_epi64(
+            reinterpret_cast<const __m128i*>(weights + index)
+        );
+        const __m256i weightValues = _mm256_cvtepi8_epi32(weightBytes);
+        const __m256i currentValues = _mm256_loadu_si256(
+            reinterpret_cast<const __m256i*>(accumulator + index)
+        );
+        const __m256i updatedValues = direction > 0
+            ? _mm256_add_epi32(currentValues, weightValues)
+            : _mm256_sub_epi32(currentValues, weightValues);
+        _mm256_storeu_si256(
+            reinterpret_cast<__m256i*>(accumulator + index), updatedValues
+        );
+    }
+
+    for (; index < count; ++index) {
+        accumulator[index] += direction
+            * static_cast<std::int32_t>(weights[index]);
+    }
+}
+#endif
+
+inline void addScaledInt8Row(
+    std::int32_t* accumulator,
+    const std::int8_t* weights,
+    std::size_t count,
+    int direction
+) noexcept {
+#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+    if (avx2Available()) {
+        addScaledInt8RowAvx2(accumulator, weights, count, direction);
+        return;
+    }
+#endif
+    addScaledInt8RowScalar(accumulator, weights, count, direction);
+}
+
 }  // namespace nnue_detail
 
 class NnueNetwork {
@@ -336,10 +394,9 @@ private:
     ) const noexcept {
         const std::size_t offset =
             static_cast<std::size_t>(featureIndex) * hidden_;
-        for (std::uint32_t index = 0; index < hidden_; ++index) {
-            accumulator[index] += direction
-                * static_cast<std::int32_t>(featureWeights_[offset + index]);
-        }
+        nnue_detail::addScaledInt8Row(
+            accumulator.data(), featureWeights_.data() + offset, hidden_, direction
+        );
     }
 
     void updatePieceFeature(

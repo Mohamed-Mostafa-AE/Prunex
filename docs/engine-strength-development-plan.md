@@ -29,17 +29,16 @@ The experimental capture/continuation-history additions were removed after the f
 
 ## Fixed-position performance evidence
 
-GitHub Actions run [43227602993](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43227602993), candidate commit `d40529248ddce0075450eadb42934e30fee78182`, compared the archived baseline and the current search on five fixed positions, with three repeated runs per variant:
+GitHub Actions run [43241766591](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43241766591), candidate commit `ac198de7d34b4957d8f52e46f1b3d5dc342f4b1c`, compared the archived baseline and the current search on five fixed positions, with three repeated runs per variant:
 
 | Measure | Archived baseline | Candidate |
 |---|---:|---:|
-| Median NPS, depth 5 | 527,823 | 1,072,842 |
-| Median elapsed time, depth 5 | 510 ms | 286 ms |
-| Median nodes, depth 5 | 269,190 | 269,164 |
+| Median NPS, depth 5 | 520,676 | 1,036,597 |
+| Median elapsed time, depth 5 | 517 ms | 296 ms |
 | Median depth at 200,000 nodes | 6 | 6 |
-| Median time at 200,000 nodes | 340 ms | 174 ms |
+| Median time at 200,000 nodes | 341 ms | 181 ms |
 
-This is a measured throughput result for the search build. It is not a playing-strength result: the workflow explicitly ran no opponent games, the equal-node median depth remained 6, and the optional NNUE file was not loaded. The incremental NNUE cache is therefore not responsible for this benchmark result; its own performance still needs to be measured with a trained model loaded.
+This is a measured throughput result for the search build. It is not a playing-strength result: the workflow explicitly ran no opponent games, the equal-node median depth remained 6, and the optional NNUE file was not loaded. The incremental NNUE cache, AVX2 inference and factorized trainer are therefore not responsible for this benchmark result; their performance still needs to be measured with a trained model loaded.
 
 An earlier 40-pair / 80-game internal match against the archived Prunex build scored 28 wins, 29 draws and 23 losses (53.12%), with a paired 95% interval of 46.3%–60.0%. That result is inconclusive and is for an earlier candidate commit. A larger 100-pair run is tracked separately; its result must be read from the finished artifact before drawing conclusions.
 
@@ -49,12 +48,12 @@ The branch now contains an original Prunex network file format, a HalfKP-style f
 
 - `src/nnue.hpp`: bounded file loader and native inference for the Prunex network format. It is not compatible with Stockfish `.nnue` network files.
 - `tools/training/prepare_lichess_eval.py`: streams the Lichess evaluation export, validates positions, excludes mate-only labels, records source hashes and provenance, deduplicates position IDs using a disk-backed SQLite index, and creates hash-based train/validation/test splits.
-- `tools/training/train_halfkp.py`: trains an original HalfKP model with a virtual `P)-feature factorizer, coalesces the learned virtual rows into the real HalfKP rows, and exports a Prunex network, checkpoint and report.
+- `tools/training/train_halfkp.py`: trains an original HalfKP model with a virtual P-feature factorizer, coalesces the learned virtual rows into the real HalfKP rows, and exports a Prunex network, checkpoint and report.
 - `tests/test_halfkp_training.py`: end-to-end smoke test intended to train a small fixture, export the file, and load it in the native engine.
 
 The Lichess Open Database page reports 417,862,375 evaluated positions as of 2026-11-11, released under CC0. Its evaluations were produced by various Stockfish flavours, not exclusively Stockfish 19: https://database.lichess.org/. The training corpus is teacher data, not ground-truth optimal play.
 
-**Important limitations:** no full Lichess corpus has been imported for this project, no production-scale Prunex network has been trained, and no trained network has been shown to improve playing strength. The native inference path uses quantized integer weights and activations with a final centipawn scaling step. Each position now carries 32-bit HalfKP feature accumulators: ordinary piece moves update only the affected rows, while king moves rebuild the moved side's perspective. The cache is restored through undo and rebuilt when it is invalid or belongs to another loaded network. The trainer now uses a virtual P factorizer to share early learning across the 64 king-square buckets; the P weights are coalesced into the HalfKP rows during export, so the runtime format and inference feature count remain unchanged. The implementation is correctness-tested, but it is still a prototype without a strength-qualified trained model or the broader feature sets used by modern Stockfish. The UCI option continues to use the handcrafted evaluator until a model is explicitly loaded.
+**Important limitations:** no full Lichess corpus has been imported for this project, no production-scale Prunex network has been trained, and no trained network has been shown to improve playing strength. The native inference path uses quantized integer weights and activations with a final centipawn scaling step. Both dense-layer dot products and incremental feature-row updates now have runtime-dispatched AVX2 implementations with exact scalar fallbacks. Each position now carries 32-bit HalfKP feature accumulators: ordinary piece moves update only the affected rows, while king moves rebuild the moved side's perspective. The cache is restored through undo and rebuilt when it is invalid or belongs to another loaded network. The trainer now uses a virtual P factorizer to share early learning across the 64 king-square buckets; the P weights are coalesced into the HalfKP rows during export, so the runtime format and inference feature count remain unchanged. The implementation is correctness-tested, but it is still a prototype without a strength-qualified trained model or the broader feature sets used by modern Stockfish. The UCI option continues to use the handcrafted evaluator until a model is explicitly loaded.
 
 The initial training smoke test exposed a missing NumPy dependency in the export path; NumPy is now pinned. The corrected end-to-end CI run passed on the current candidate, including export, native loading, search startup, and Python/native evaluation parity on 16 synthetic held-out fixture positions. This validates the training/export/inference pipeline, not the quality of a production model.
 

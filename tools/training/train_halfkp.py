@@ -566,7 +566,7 @@ def train(args: argparse.Namespace) -> dict:
     network_hash = export_network(model, output_path, args.score_scale)
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({
-        "format": "prunex-halfkp-qat-v1",
+        "format": "prunex-halfkp-factorized-qat-v1",
         "model": model.state_dict(),
         "dimensions": {
             "features": FEATURE_COUNT,
