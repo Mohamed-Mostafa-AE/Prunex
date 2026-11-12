@@ -1015,10 +1015,9 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
 // work on moves that are never searched.
 class MovePicker {
 public:
-    MovePicker(const Position& position,MoveList moves,const Move& hashMove,
-               int ply,bool checked=false)
+    MovePicker(const Position& position,MoveList moves,const Move& hashMove,int ply)
         : position_(position),moves_(moves),scratch_(moveScratch[moves.ply]),
-          hashMove_(hashMove),ply_(ply),checked_(checked) {
+          hashMove_(hashMove),ply_(ply) {
         scratch_.picked.fill(0);
         for(std::size_t index=0;index<moves_.size();++index) {
             const Move& move=moves_[index];
@@ -1068,7 +1067,6 @@ private:
     MoveScratch& scratch_;
     Move hashMove_;
     int ply_;
-    bool checked_;
     int stage_=0;
     std::array<std::uint8_t,MAX_LEGAL_MOVES> stages_{};
 };
@@ -1415,7 +1413,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         if(qply>=MAX_QPLY||moves.empty()) return alpha;
     }
 
-    MovePicker picker(p,moves,Move{},searchPly,checked);
+    MovePicker picker(p,moves,Move{},searchPly);
     while(true) {
         const Move move=picker.next();
         if(move.from<0) break;
