@@ -1,0 +1,21 @@
+{
+  "build_configuration": "Release",
+  "cmake": "cmake version 3.31.6",
+  "compiler": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+  "engine_path": "build/prunex",
+  "engine_sha256": "d7622906386ad87af332a0aab8ea981202137cf9834189eeffb9863e387a079d",
+  "positions": [
+    {
+      "depth": 8,
+      "name": "Initial position"
+    },
+    {
+      "depth": 6,
+      "name": "Kiwipete"
+    }
+  ],
+  "prunex_tt_bits": 22,
+  "source_commit": "ca175a9096b573da77e7cffeee3ec7ef15dc403b",
+  "timestamp_utc": "2026-11-12T00:05:57+00:00",
+  "transcript_sha256": "9957275168e74ed7a3f150e580ab8e569e7500f67110642958b579c86835ae7e"
+}
