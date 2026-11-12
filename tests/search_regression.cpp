@@ -118,6 +118,15 @@ int main() {
         return true;
     };
 
+    if(!loadFen(position,START_FEN)) return 120;
+    const Position beforeInvalidFen=position;
+    if(loadFen(position,"P7/8/4k3/8/8/8/8/4K3 w - - 0 1")) return 121;
+    if(position.board!=beforeInvalidFen.board||position.side!=beforeInvalidFen.side
+       ||position.castling!=beforeInvalidFen.castling||position.ep!=beforeInvalidFen.ep
+       ||position.key!=beforeInvalidFen.key) return 122;
+    if(loadFen(position,"4k3/8/8/8/8/8/8/4K3 w K - 0 1")) return 123;
+    if(position.board!=beforeInvalidFen.board||position.key!=beforeInvalidFen.key) return 124;
+
     if(!loadFen(position,START_FEN)||!attackMapsAgree(position)) return 88;
     if(!loadFen(position,"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")||
        !attackMapsAgree(position)) return 89;

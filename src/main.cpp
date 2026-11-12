@@ -184,7 +184,7 @@ bool parseFenCounter(const std::string& token, int minimum, int& value) {
 }
 
 bool loadFen(Position& p, std::string_view fen) {
-    p=Position{};
+    Position parsed{};
     std::istringstream in{std::string(fen)};
     std::string placement, stm, rights, ep, halfmove, fullmove, extra;
     if(!(in>>placement>>stm>>rights>>ep>>halfmove>>fullmove)||(in>>extra)) return false;
@@ -204,14 +204,14 @@ bool loadFen(Position& p, std::string_view fen) {
         } else {
             int pc=charPiece(c);
             if(pc==EMPTY||file>=8) return false;
-            p.board[rank*16+file]=pc;
+            parsed.board[rank*16+file]=pc;
             ++file;
             previousDigit=false;
         }
     }
     if(rank!=0||file!=8) return false;
     if(stm!="w"&&stm!="b") return false;
-    p.side=stm=="w"?WHITE:BLACK;
+    parsed.side=stm=="w"?WHITE:BLACK;
     if(rights!="-") {
         for(char c:rights) {
             int bit=0;
@@ -220,25 +220,58 @@ bool loadFen(Position& p, std::string_view fen) {
             else if(c=='k') bit=BKCA;
             else if(c=='q') bit=BQCA;
             else return false;
-            if(p.castling&bit) return false;
-            p.castling|=bit;
+            if(parsed.castling&bit) return false;
+            parsed.castling|=bit;
         }
     }
-    p.ep=ep=="-"?-1:parseSquare(ep);
-    if(ep!="-"&&p.ep<0) return false;
-    if(p.ep>=0){
-        int expectedRank=p.side==WHITE?5:2;
-        int capturedSquare=p.ep+(p.side==WHITE?-16:16);
-        int originSquare=p.ep+(p.side==WHITE?16:-16);
-        if(rankOf(p.ep)!=expectedRank||p.board[p.ep]!=EMPTY||!onBoard(capturedSquare)||!onBoard(originSquare)) return false;
-        if(p.board[capturedSquare]!=makePiece(1,1-p.side)||p.board[originSquare]!=EMPTY) return false;
+    parsed.ep=ep=="-"?-1:parseSquare(ep);
+    if(ep!="-"&&parsed.ep<0) return false;
+    if(parsed.ep>=0){
+        int expectedRank=parsed.side==WHITE?5:2;
+        int capturedSquare=parsed.ep+(parsed.side==WHITE?-16:16);
+        int originSquare=parsed.ep+(parsed.side==WHITE?16:-16);
+        if(rankOf(parsed.ep)!=expectedRank||parsed.board[parsed.ep]!=EMPTY||!onBoard(capturedSquare)||!onBoard(originSquare)) return false;
+        if(parsed.board[capturedSquare]!=makePiece(1,1-parsed.side)||parsed.board[originSquare]!=EMPTY) return false;
     }
-    if(!parseFenCounter(halfmove,0,p.halfmove)||!parseFenCounter(fullmove,1,p.fullmove)) return false;
+    if(!parseFenCounter(halfmove,0,parsed.halfmove)||!parseFenCounter(fullmove,1,parsed.fullmove)) return false;
     int wk=0,bk=0;
-    for(int s=0;s<128;++s) if(onBoard(s)) { wk+=p.board[s]==WK; bk+=p.board[s]==BK; }
-    if(wk!=1||bk!=1) return false;
-    rebuildBitboards(p);
-    p.key=computePositionKey(p);
+    std::array<int,2> pawnCounts{};
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=parsed.board[square];
+        wk+=piece==WK;
+        bk+=piece==BK;
+        if(typeOf(piece)==1) {
+            if(rankOf(square)==0||rankOf(square)==7) return false;
+            ++pawnCounts[colorOf(piece)];
+        }
+    }
+    if(wk!=1||bk!=1||pawnCounts[WHITE]>8||pawnCounts[BLACK]>8) return false;
+
+    const int whiteKing=parseSquare("e1");
+    const int blackKing=parseSquare("e8");
+    if((parsed.castling&WKCA)
+       &&(parsed.board[whiteKing]!=WK||parsed.board[parseSquare("h1")]!=WR)) return false;
+    if((parsed.castling&WQCA)
+       &&(parsed.board[whiteKing]!=WK||parsed.board[parseSquare("a1")]!=WR)) return false;
+    if((parsed.castling&BKCA)
+       &&(parsed.board[blackKing]!=BK||parsed.board[parseSquare("h8")]!=BR)) return false;
+    if((parsed.castling&BQCA)
+       &&(parsed.board[blackKing]!=BK||parsed.board[parseSquare("a8")]!=BR)) return false;
+
+    int whiteKingSquare=-1;
+    int blackKingSquare=-1;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        if(parsed.board[square]==WK) whiteKingSquare=square;
+        if(parsed.board[square]==BK) blackKingSquare=square;
+    }
+    if(std::abs(fileOf(whiteKingSquare)-fileOf(blackKingSquare))<=1
+       &&std::abs(rankOf(whiteKingSquare)-rankOf(blackKingSquare))<=1) return false;
+
+    rebuildBitboards(parsed);
+    parsed.key=computePositionKey(parsed);
+    p=parsed;
     return true;
 }
 
