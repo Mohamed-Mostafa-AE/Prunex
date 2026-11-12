@@ -272,6 +272,26 @@ int main() {
     if (!accumulatorMatchesRebuild(nnueNetwork, blackMoveFen, "e7e5")) return 26;
     if (!accumulatorMatchesRebuild(nnueNetwork, blackKingMoveFen, "e8d8")) return 28;
 
+    Position retainedPosition;
+    if (!loadFen(retainedPosition, START_FEN)) return 29;
+    (void)nnueNetwork.evaluate(retainedPosition);
+    if (!nnueNetwork.canUpdate(retainedPosition)) return 30;
+
+    const std::uint64_t previousGeneration = nnueNetwork.generation();
+    if (!nnueNetwork.load(validPath.string())) return 31;
+    if (nnueNetwork.generation() == previousGeneration
+        || nnueNetwork.canUpdate(retainedPosition)) {
+        return 32;
+    }
+
+    (void)nnueNetwork.evaluate(retainedPosition);
+    if (!nnueNetwork.canUpdate(retainedPosition)) return 33;
+
+    Position rebuiltAfterReload = retainedPosition;
+    rebuiltAfterReload.nnue.valid = false;
+    (void)nnueNetwork.evaluate(rebuiltAfterReload);
+    if (retainedPosition.nnue.values != rebuiltAfterReload.nnue.values) return 34;
+
     if (network.evaluate(position) != 400) return 9;
 
     if (network.load(invalidPath.string())) return 10;
