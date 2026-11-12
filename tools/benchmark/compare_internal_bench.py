@@ -123,7 +123,6 @@ def run_node_suite(executable: Path, node_budget: int) -> dict[str, Any]:
             final: dict[str, int] | None = None
             bestmove = None
             while bestmove is None:
-                line = read_until_any = None
                 if process.stdout is None:
                     raise RuntimeError("Engine stdout is unavailable")
                 line = process.stdout.readline()
