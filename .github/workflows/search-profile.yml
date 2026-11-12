@@ -1,0 +1,81 @@
+name: Prunex native search profile
+
+on:
+  push:
+    branches: ['engine/search-profile-2026-11-13']
+    paths:
+      - 'CMakeLists.txt'
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/search-profile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-search-profile
+  cancel-in-progress: false
+
+jobs:
+  profile-native-search:
+    name: Profile release search on the runner CPU
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install compiler, profiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++ binutils
+
+      - name: Record host and compiler configuration
+        run: |
+          mkdir -p profile-output
+          lscpu > profile-output/runner-cpu.txt
+          g++ --version > profile-output/compiler.txt
+          g++ -Q -march=native --help=target > profile-output/native-target-options.txt
+
+      - name: Build instrumented native candidate
+        run: |
+          cmake -S . -B build-profile -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPRUNEX_TT_BITS=22 \
+            -DPRUNEX_NATIVE_TUNING=ON \
+            -DCMAKE_CXX_FLAGS="-O3 -DNDEBUG -pg" \
+            -DCMAKE_EXE_LINKER_FLAGS="-pg"
+          cmake --build build-profile --target prunex --parallel 2
+          printf 'uci\\nisready\\nquit\\n' | build-profile/prunex
+
+      - name: Run the regression perft and benchmark suite
+        run: |
+          cmake -S . -B build-tests -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPRUNEX_TT_BITS=22 \
+            -DPRUNEX_NATIVE_TUNING=ON
+          cmake --build build-tests --parallel 2
+          ctest --test-dir build-tests --output-on-failure
+
+      - name: Profile fixed search positions
+        run: |
+          rm -f gmon.out
+          ./build-profile/prunex --bench 8 2>&1 | tee profile-output/benchmark.txt
+          test -s gmon.out
+          gprof -b build-profile/prunex gmon.out > profile-output/gprof-flat.txt
+          nm -C --defined-only build-profile/prunex > profile-output/symbols.txt
+          grep -E '^(Flat profile:| time|% time|Each sample)' profile-output/gprof-flat.txt || true
+          sed -n '1,100p' profile-output/gprof-flat.txt
+
+      - name: Upload profile and exact-build evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prunex-native-search-profile-${{ github.run_number }}
+          path: |
+            profile-output/
+            gmon.out
+          if-no-files-found: error
+          retention-days: 90
