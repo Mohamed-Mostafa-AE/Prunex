@@ -61,6 +61,7 @@ struct MoveScratch {
     std::array<Move,MAX_LEGAL_MOVES> pseudo{};
     std::array<Move,MAX_LEGAL_MOVES> legal{};
     std::array<ScoredMove,MAX_LEGAL_MOVES> scored{};
+    std::array<std::uint8_t,MAX_LEGAL_MOVES> picked{};
 };
 std::array<MoveScratch,MAX_PLY> moveScratch{};
 
@@ -980,13 +981,16 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
     return gains[0];
 }
 
-int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply) {
+int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply,
+                      int* exchangeOut=nullptr) {
+    if(exchangeOut) *exchangeOut=0;
     if(hashMove.from>=0&&sameMove(m,hashMove)) return 2000000;
     int score=0;
     if(m.promotion) score+=900000+MG_VALUE[typeOf(m.promotion)]*8;
     if(isCapture(p,m)) {
         const int victim=m.enPassant?makePiece(1,1-p.side):p.board[m.to];
         const int exchange=staticExchangeEvaluation(p,m);
+        if(exchangeOut) *exchangeOut=exchange;
         score+=1000000+(exchange>=0?200000:-200000)+exchange*16
             +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])];
         return score;
@@ -1003,6 +1007,71 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
     }
     return score+historyScores[p.side][m.from][m.to];
 }
+
+// Staged move selection: hash move, profitable captures/promotions,
+// killer/counter quiets, remaining quiets, then losing captures. Unlike the
+// previous eager full-list sort, the picker selects the next best candidate
+// only when the search actually asks for it, so beta cutoffs avoid ordering
+// work on moves that are never searched.
+class MovePicker {
+public:
+    MovePicker(const Position& position,MoveList moves,const Move& hashMove,
+               int ply,bool checked=false)
+        : position_(position),moves_(moves),scratch_(moveScratch[moves.ply]),
+          hashMove_(hashMove),ply_(ply),checked_(checked) {
+        scratch_.picked.fill(0);
+        for(std::size_t index=0;index<moves_.size();++index) {
+            const Move& move=moves_[index];
+            int exchange=0;
+            const int score=moveOrderingScore(position_,move,hashMove_,ply_,&exchange);
+            scratch_.scored[index]={move,score};
+            const bool capture=isCapture(position_,move);
+            const bool promotion=move.promotion!=EMPTY;
+            if(hashMove_.from>=0&&sameMove(move,hashMove_)) {
+                stages_[index]=0;
+            } else if(promotion||(capture&&exchange>=0)) {
+                stages_[index]=1;
+            } else if(!capture&&score>=780000) {
+                stages_[index]=2;
+            } else if(!capture) {
+                stages_[index]=3;
+            } else {
+                stages_[index]=4;
+            }
+        }
+    }
+
+    Move next() {
+        while(stage_<=4) {
+            std::size_t bestIndex=moves_.size();
+            int bestScore=-INF;
+            for(std::size_t index=0;index<moves_.size();++index) {
+                if(scratch_.picked[index]||stages_[index]!=stage_) continue;
+                const int score=scratch_.scored[index].score;
+                if(bestIndex==moves_.size()||score>bestScore) {
+                    bestIndex=index;
+                    bestScore=score;
+                }
+            }
+            if(bestIndex!=moves_.size()) {
+                scratch_.picked[bestIndex]=1;
+                return scratch_.scored[bestIndex].move;
+            }
+            ++stage_;
+        }
+        return Move{};
+    }
+
+private:
+    const Position& position_;
+    MoveList moves_;
+    MoveScratch& scratch_;
+    Move hashMove_;
+    int ply_;
+    bool checked_;
+    int stage_=0;
+    std::array<std::uint8_t,MAX_LEGAL_MOVES> stages_{};
+};
 
 void orderMoves(const Position& p,MoveList& moves,const Move& hashMove,int ply) {
     if(moves.size()>MAX_LEGAL_MOVES) {
@@ -1346,8 +1415,10 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         if(qply>=MAX_QPLY||moves.empty()) return alpha;
     }
 
-    orderMoves(p,moves,Move{},searchPly);
-    for(const Move& move:moves) {
+    MovePicker picker(p,moves,Move{},searchPly,checked);
+    while(true) {
+        const Move move=picker.next();
+        if(move.from<0) break;
         const Undo undo=makeMove(p,move);
         const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
         undoMove(p,move,undo);
@@ -1434,11 +1505,13 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     }
     auto moves=legalMoves(p,ply);
     if(moves.empty()) return checked?-MATE+ply:0;
-    orderMoves(p,moves,hashMove,ply);
+    MovePicker picker(p,moves,hashMove,ply,checked);
     int bestScore=-INF;
     Move bestMove=moves.front();
     int moveNumber=0;
-    for(const Move& m:moves) {
+    while(true) {
+        const Move m=picker.next();
+        if(m.from<0) break;
         const int movingColor=p.side;
         const int movingPieceType=typeOf(p.board[m.from]);
         searchPathMoves[ply]=m;
