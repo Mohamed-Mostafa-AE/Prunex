@@ -20,10 +20,10 @@ import chess.pgn
 
 
 FINAL_INFO = re.compile(
-    r"search-final\\s+nodes=(\\d+)\\s+depth=(\\d+)\\s+"
-    r"elapsed_ms=(\\d+)\\s+tthits=(\\d+)\\s+node_limit=(\\d+)"
+    r"search-final\s+nodes=(\d+)\s+depth=(\d+)\s+"
+    r"elapsed_ms=(\d+)\s+tthits=(\d+)\s+node_limit=(\d+)"
 )
-NODE_LIMIT_INFO = re.compile(r"node-limit\\s+(\\d+)/(\\d+)")
+NODE_LIMIT_INFO = re.compile(r"node-limit\s+(\d+)/(\d+)")
 
 
 def sha256_file(path: Path) -> str:
