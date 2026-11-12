@@ -1503,7 +1503,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     }
     auto moves=legalMoves(p,ply);
     if(moves.empty()) return checked?-MATE+ply:0;
-    MovePicker picker(p,moves,hashMove,ply,checked);
+    MovePicker picker(p,moves,hashMove,ply);
     int bestScore=-INF;
     Move bestMove=moves.front();
     int moveNumber=0;
