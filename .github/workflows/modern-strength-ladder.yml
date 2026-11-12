@@ -1,4 +1,4 @@
-name: Prunex strength ladder — Stockfish 19 and Triumviratus 8.1
+name: Prunex strength ladder — Stockfish 19, Triumviratus, PlentyChess and Reckless
 
 on:
   push:
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   three-tier-strength-ladder:
     name: 100k nodes, 1M nodes, and timed search
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
       - name: Check out exact Prunex candidate commit
