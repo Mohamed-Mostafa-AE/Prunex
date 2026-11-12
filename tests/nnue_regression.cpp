@@ -170,18 +170,18 @@ bool writeIncrementalNetworkFile(const std::filesystem::path& path) {
 }
 
 bool accumulatorMatchesRebuild(
-    NnueNetwork& network,
+    prunex::NnueNetwork& network,
     std::string_view fen,
     const std::string& uci
 ) {
-    Position position;
-    if (!loadFen(position, fen)) return false;
+    prunex::Position position;
+    if (!prunex::loadFen(position, fen)) return false;
     (void)network.evaluate(position);
     if (!network.canUpdate(position)) return false;
 
-    Move move;
-    if (!parseUciMove(position, uci, move)) return false;
-    const Undo undo = makeMove(position, move);
+    prunex::Move move;
+    if (!prunex::parseUciMove(position, uci, move)) return false;
+    const prunex::Undo undo = prunex::makeMove(position, move);
     if (!network.canUpdate(position)) return false;
 
     Position rebuilt = position;
@@ -189,7 +189,7 @@ bool accumulatorMatchesRebuild(
     (void)network.evaluate(rebuilt);
     const bool childMatches = position.nnue.values == rebuilt.nnue.values;
 
-    undoMove(position, move, undo);
+    prunex::undoMove(position, move, undo);
     if (!network.canUpdate(position)) return false;
 
     Position rebuiltParent = position;
