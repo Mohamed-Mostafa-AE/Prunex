@@ -1,0 +1,80 @@
+name: Prunex internal fixed-position performance comparison
+
+on:
+  push:
+    branches: ['engine/stockfish-gap-rebuild-2026-11']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/benchmark/**'
+      - '.github/workflows/internal-performance.yml'
+  workflow_dispatch:
+    inputs:
+      depth:
+        description: 'Fixed search depth (1-10)'
+        required: true
+        default: '5'
+        type: string
+      runs:
+        description: 'Repeated runs per engine (3-20)'
+        required: true
+        default: '5'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-internal-performance
+  cancel-in-progress: false
+
+jobs:
+  fixed-suite-comparison:
+    name: Compare fixed-position search performance
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      BASELINE_SHA: 129829dd95672e83a347563526ae7b28ccf1ea63
+    steps:
+      - name: Check out candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+
+      - name: Build archived Prunex baseline
+        run: |
+          git worktree add --detach ../prunex-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-baseline -B ../prunex-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build ../prunex-baseline/build --target prunex --parallel 2
+
+      - name: Build current candidate
+        run: |
+          cmake -S . -B build-native -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-native --target prunex --parallel 2
+
+      - name: Run alternating fixed-position benchmarks
+        run: |
+          python3 tools/benchmark/compare_internal_bench.py \
+            --baseline ../prunex-baseline/build/prunex \
+            --candidate build-native/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --depth "${{ inputs.depth || '5' }}" \
+            --runs "${{ inputs.runs || '5' }}" \
+            --output internal-benchmark.json
+
+      - name: Upload internal benchmark evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-internal-performance-${{ github.run_number }}
+          path: internal-benchmark.json
+          if-no-files-found: error
+          retention-days: 90
