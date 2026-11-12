@@ -658,7 +658,7 @@ int main() {
 
     if(!sliderTableIndicesAgree()) return 98;
 
-    const std::array<const char*,6> evaluationPositions{{
+    const std::array<std::string_view,6> evaluationPositions{{
         START_FEN,
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
         "r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w - - 0 1",
@@ -666,7 +666,7 @@ int main() {
         "4k3/8/8/8/1b6/8/4r3/4K3 w - - 0 1",
         "7k/8/8/8/8/8/8/K7 w - - 0 1"
     }};
-    for(const char* fen:evaluationPositions) {
+    for(const std::string_view fen:evaluationPositions) {
         if(!loadFen(position,fen)
             ||!evaluationMapsMatchAttackReference(position)) return 129;
     }
