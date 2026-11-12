@@ -29,7 +29,7 @@ The experimental capture/continuation-history additions were removed after the f
 
 ## Fixed-position performance evidence
 
-GitHub Actions run [43200805957](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43200805957), candidate commit `6c282f3fc5fb571ab05b29caeb942e261b96ad`, compared the archived baseline and the current search on five fixed positions, with three repeated runs per variant:
+GitHub Actions run [43200805957](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43200805957), candidate commit `6c282f3fc5fb571ab05b29bc45f079611683b01c`, compared the archived baseline and the current search on five fixed positions, with three repeated runs per variant:
 
 | Measure | Archived baseline | Candidate |
 |---|---:|---:|
