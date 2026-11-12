@@ -17,6 +17,9 @@ def main() -> None:
     fen_white = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -"
     fen_black = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq -"
     assert len(module.normalize_fen(fen_white).split()) == 6
+    assert module.feature_position_id(fen_white) == module.feature_position_id(
+        fen_white.replace("KQkq", "-")
+    )
     assert module.normalize_fen("invalid") is None
 
     selected = module.select_deepest_cp({
@@ -37,6 +40,7 @@ def main() -> None:
         source = root / "sample.jsonl"
         records = [
             {"fen": fen_white, "evals": [{"depth": 30, "knodes": 2000, "pvs": [{"cp": 75}]}]},
+            {"fen": fen_white.replace("KQkq", "-"), "evals": [{"depth": 32, "knodes": 2400, "pvs": [{"cp": 80}]}]},
             {"fen": fen_black, "evals": [{"depth": 30, "knodes": 2000, "pvs": [{"cp": 75}]}]},
             {"fen": fen_white, "evals": [{"depth": 30, "knodes": 2000, "pvs": [{"cp": 75}]}]},
         ]
@@ -51,7 +55,7 @@ def main() -> None:
         )
         manifest = module.prepare(args)
         assert manifest["counters"]["positions_written"] == 2
-        assert manifest["counters"]["duplicates"] == 1
+        assert manifest["counters"]["duplicates"] == 2
         assert not list(output.glob("prunex-position-index-*"))
         rows = []
         for path in output.glob("positions-*.jsonl"):

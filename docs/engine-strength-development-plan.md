@@ -100,3 +100,11 @@ No further opponent tournament is automatically triggered by this branch. The ex
 The current HalfKP runtime now supports hidden widths up to 512 while keeping the existing default trainer width unchanged. Dense-layer integer dot products use runtime AVX2 dispatch on supported GCC/Clang x86 builds and retain an exact scalar fallback for other CPUs, MSVC and WebAssembly. The AVX2 kernel uses unsigned 8-bit activations and signed 8-bit weights; its pairwise products fit the signed 16-bit intermediate range, and the final accumulation remains 64-bit. Regression tests compare the dispatched result with the scalar reference across vector-aligned widths and tail lengths up to 1,025 elements.
 
 This is infrastructure for larger original Prunex networks, not a trained evaluator or a strength result. No 512-wide network has been trained or qualified, and the current CI fixture remains synthetic. The new kernel still needs a loaded-network benchmark on representative positions before its practical speedup can be reported. The existing handcrafted evaluator remains the default unless a Prunex network is explicitly loaded.
+
+## Training-pipeline audit corrections
+
+The original corpus split key used the first four FEN fields. The current HalfKP model consumes piece placement and side to move, but not castling rights or en-passant state. Treating those unused fields as part of the split key could place feature-identical positions in different splits. The importer and trainer now hash only piece placement plus active colour and deduplicate on that same identity.
+
+The trainer previously fake-quantized both complete embedding matrices and clipped both full matrices after every minibatch. That defeated much of the benefit of sparse embeddings. It now gathers the feature rows touched by a batch, quantizes those rows, sums them by bag, and clips only the unique feature rows updated by the sparse optimizers. Dense-layer clipping remains unchanged.
+
+Checkpoint selection now uses validation log loss. The best validation checkpoint is restored before the untouched test split is evaluated once and the selected model is exported. The CI test remains a deliberately tiny synthetic integration fixture; it verifies split identity, sparse-row clipping, training/export, native loading and numerical parity, not the quality of a production model.

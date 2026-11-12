@@ -20,7 +20,7 @@ import chess
 import zstandard
 
 
-IMPORTER_VERSION = "1.0.0"
+IMPORTER_VERSION = "1.1.0"
 SPLITS = ("train", "validation", "test")
 
 
@@ -84,6 +84,14 @@ def select_deepest_cp(record: dict, min_depth: int, min_knodes: int) -> tuple[in
     if not candidates:
         return None
     return max(candidates, key=lambda item: (item[0], item[1]))
+
+
+def feature_position_id(fen: str) -> str:
+    """Hash the fields represented by the current HalfKP input features."""
+    fields = fen.split()
+    if len(fields) < 2:
+        raise ValueError("FEN must contain piece placement and active colour")
+    return sha256_text(" ".join(fields[:2]))
 
 
 def split_for_position(position_hash: str, seed: str) -> str:
@@ -173,8 +181,7 @@ def prepare(args: argparse.Namespace) -> dict:
                     continue
                 depth, knodes, cp_white = evaluation
 
-                canonical = " ".join(fen.split()[:4])
-                position_hash = sha256_text(canonical)
+                position_hash = feature_position_id(fen)
                 inserted = index.execute(
                     "INSERT OR IGNORE INTO seen_positions(position_id) VALUES (?)",
                     (position_hash,),
@@ -265,7 +272,7 @@ def prepare(args: argparse.Namespace) -> dict:
             "minimum_knodes": args.min_knodes,
         },
         "split": {
-            "method": "SHA-256 position hash bucketing; duplicate positions share a split",
+            "method": "SHA-256 HalfKP input identity (piece placement + side to move); duplicate feature positions share a split",
             "seed": args.split_seed,
             "fractions": {"train": 0.80, "validation": 0.10, "test": 0.10},
             "counts": dict(split_counts),

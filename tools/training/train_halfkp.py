@@ -103,7 +103,7 @@ def verify_corpus(input_dir: Path) -> tuple[dict, str]:
     seed = split_info.get("seed")
     if not isinstance(seed, str) or not seed:
         raise ValueError("Corpus split seed is missing")
-    if split_info.get("method") != "SHA-256 position hash bucketing; duplicate positions share a split":
+    if split_info.get("method") != "SHA-256 HalfKP input identity (piece placement + side to move); duplicate feature positions share a split":
         raise ValueError("Unrecognized corpus split method")
 
     for split in ("train", "validation", "test"):
@@ -160,7 +160,7 @@ def read_examples(
             if not isinstance(fen, str):
                 raise ValueError(f"Missing FEN in {path}, line {line_number}")
             position_id = hashlib.sha256(
-                " ".join(fen.split()[:4]).encode("utf-8")
+                " ".join(fen.split()[:2]).encode("utf-8")
             ).hexdigest()
             if row.get("position_id") != position_id:
                 raise ValueError(f"Position hash mismatch in {path}, line {line_number}")
@@ -247,11 +247,11 @@ class PrunexHalfKP(nn.Module):
         self.hidden = hidden
         self.dense1_size = dense1
         self.dense2_size = dense2
-        self.feature_weights = nn.EmbeddingBag(
-            FEATURE_COUNT, hidden, mode="sum", sparse=True
+        self.feature_weights = nn.Embedding(
+            FEATURE_COUNT, hidden, sparse=True
         )
-        self.factorized_weights = nn.EmbeddingBag(
-            FACTOR_FEATURE_COUNT, hidden, mode="sum", sparse=True
+        self.factorized_weights = nn.Embedding(
+            FACTOR_FEATURE_COUNT, hidden, sparse=True
         )
         self.feature_bias = nn.Parameter(torch.full((hidden,), 0.10))
         self.dense1 = nn.Linear(hidden * 2, dense1)
@@ -270,29 +270,34 @@ class PrunexHalfKP(nn.Module):
     def forward(self, indices: Tensor, offsets: Tensor, stm_white: Tensor) -> Tensor:
         batch_size = stm_white.shape[0]
 
-        # A virtual P feature shares learning across all king-square buckets.
-        # Both tables are quantized separately so their integer rows can be
-        # added exactly when the trained model is coalesced for inference.
-        feature_weights = fake_quantize(
-            self.feature_weights.weight,
-            127, -FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT,
-        )
-        factorized_weights = fake_quantize(
-            self.factorized_weights.weight,
-            127, -FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT,
-        )
+        # Quantize only rows present in this batch. Quantizing the complete
+        # embedding matrices would turn sparse training into a dense scan.
         factor_indices = torch.remainder(indices, FACTOR_FEATURE_COUNT)
-        real_accumulators = F.embedding_bag(
-            indices, feature_weights, offsets, mode="sum", sparse=True
+        real_rows = fake_quantize(
+            self.feature_weights(indices),
+            127, -FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT,
         )
-        factor_accumulators = F.embedding_bag(
-            factor_indices, factorized_weights, offsets, mode="sum", sparse=True
+        factor_rows = fake_quantize(
+            self.factorized_weights(factor_indices),
+            127, -FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT,
         )
+
+        if indices.numel():
+            final_offset = offsets.new_tensor([indices.numel()])
+            bag_lengths = torch.diff(torch.cat((offsets, final_offset)))
+            feature_sums = torch.segment_reduce(
+                real_rows + factor_rows, reduce="sum", lengths=bag_lengths
+            )
+        else:
+            feature_sums = self.feature_weights.weight.new_zeros(
+                (offsets.numel(), self.hidden)
+            )
+
         feature_bias = fake_quantize(
             self.feature_bias, 127, -32768, 32767
         )
         accumulators = fake_quantize(
-            (real_accumulators + factor_accumulators + feature_bias).clamp(0.0, 1.0),
+            (feature_sums + feature_bias).clamp(0.0, 1.0),
             127, 0, 127,
         ).reshape(batch_size, 2, self.hidden)
 
@@ -342,11 +347,25 @@ class PrunexHalfKP(nn.Module):
         return combined.to(dtype=torch.float32) / 127.0
 
     @torch.no_grad()
-    def clamp_parameters(self) -> None:
-        # Keep the two feature tables within a combined signed-int8 range.
+    def clamp_parameters(
+        self,
+        feature_indices: Tensor,
+        factor_indices: Tensor,
+    ) -> None:
+        # Project only rows updated by the sparse optimizers. This avoids
+        # scanning the complete feature matrices after every minibatch.
         feature_limit = FEATURE_WEIGHT_LIMIT / 127.0
-        self.feature_weights.weight.clamp_(-feature_limit, feature_limit)
-        self.factorized_weights.weight.clamp_(-feature_limit, feature_limit)
+        feature_rows = torch.unique(feature_indices)
+        factor_rows = torch.unique(factor_indices)
+
+        updated_features = self.feature_weights.weight.index_select(0, feature_rows)
+        updated_features.clamp_(-feature_limit, feature_limit)
+        self.feature_weights.weight.index_copy_(0, feature_rows, updated_features)
+
+        updated_factors = self.factorized_weights.weight.index_select(0, factor_rows)
+        updated_factors.clamp_(-feature_limit, feature_limit)
+        self.factorized_weights.weight.index_copy_(0, factor_rows, updated_factors)
+
         self.dense1.weight.clamp_(-1.0, 1.0)
         self.dense2.weight.clamp_(-1.0, 1.0)
         self.output.weight.clamp_(-1.0, 1.0)
@@ -509,6 +528,9 @@ def train(args: argparse.Namespace) -> dict:
     history: list[dict] = []
     started = time.monotonic()
     global_step = 0
+    best_validation_loss = float("inf")
+    best_epoch = 0
+    best_model_state: dict[str, Tensor] | None = None
 
     for epoch in range(args.epochs):
         model.train()
@@ -528,7 +550,7 @@ def train(args: argparse.Namespace) -> dict:
             loss.backward()
             dense_optimizer.step()
             embedding_optimizer.step()
-            model.clamp_parameters()
+            model.clamp_parameters(indices, torch.remainder(indices, FACTOR_FEATURE_COUNT))
 
             epoch_loss += float(loss.detach().item()) * len(rows)
             epoch_positions += len(rows)
@@ -547,17 +569,31 @@ def train(args: argparse.Namespace) -> dict:
             args.validation_limit,
             split_seed,
         )
-        history.append({
+        epoch_report = {
             "epoch": epoch + 1,
             "training_positions": epoch_positions,
             "training_log_loss": epoch_loss / epoch_positions,
             "validation": validation,
-        })
-        print(json.dumps(history[-1]), flush=True)
+        }
+        history.append(epoch_report)
+        print(json.dumps(epoch_report), flush=True)
+
+        if validation["log_loss"] < best_validation_loss:
+            best_validation_loss = validation["log_loss"]
+            best_epoch = epoch + 1
+            best_model_state = {
+                name: parameter.detach().cpu().clone()
+                for name, parameter in model.state_dict().items()
+            }
+
         if args.max_steps and global_step >= args.max_steps:
             break
 
-    # The test split is evaluated only after all fitting decisions are over.
+    if best_model_state is None:
+        raise RuntimeError("Training did not produce a validation checkpoint")
+    model.load_state_dict(best_model_state)
+
+    # The test split is evaluated once after selecting the checkpoint by validation loss.
     test_metrics = validate(
         model, test_path, device, args.batch_size,
         args.score_scale, 0, split_seed
@@ -613,6 +649,8 @@ def train(args: argparse.Namespace) -> dict:
         "settings": {
             "epochs": args.epochs,
             "global_steps": global_step,
+            "best_validation_epoch": best_epoch,
+            "best_validation_log_loss": best_validation_loss,
             "batch_size": args.batch_size,
             "learning_rate": args.learning_rate,
             "score_scale": args.score_scale,
@@ -637,6 +675,7 @@ def train(args: argparse.Namespace) -> dict:
         "limitations": [
             "The model learns Stockfish teacher evaluations from the supplied Lichess corpus.",
             "Quantization-aware training uses straight-through fake quantization matching the native PRUNEXQ1 integer format.",
+            "The selected checkpoint minimizes validation log loss; the held-out test split is evaluated once after selection.",
             "Held-out evaluation loss is not a playing-strength rating.",
             "The exported network must pass native correctness, performance and paired-game tests before use.",
         ],

@@ -27,7 +27,7 @@ SEED = "prunex-halfkp-ci-fixture-v1"
 
 
 def position_id(fen: str) -> str:
-    return hashlib.sha256(" ".join(fen.split()[:4]).encode("utf-8")).hexdigest()
+    return hashlib.sha256(" ".join(fen.split()[:2]).encode("utf-8")).hexdigest()
 
 
 def split_name(identifier: str) -> str:
@@ -102,7 +102,7 @@ def make_fixture(directory: Path, count: int = 16) -> None:
             "score_schema_reference": "https://huggingface.co/datasets/Lichess/fishnet-evals",
         },
         "split": {
-            "method": "SHA-256 position hash bucketing; duplicate positions share a split",
+            "method": "SHA-256 HalfKP input identity (piece placement + side to move); duplicate feature positions share a split",
             "seed": SEED,
             "fractions": {"train": 0.80, "validation": 0.10, "test": 0.10},
             "counts": {key: len(value) for key, value in rows.items()},
@@ -139,6 +139,30 @@ def test_factorized_weights_are_shared_and_coalesced() -> None:
             )
 
 
+def test_sparse_clipping_only_touches_updated_rows() -> None:
+    model = TRAINER_MODULE.PrunexHalfKP(hidden=8, dense1=4, dense2=4)
+    real_limit = TRAINER_MODULE.FEATURE_WEIGHT_LIMIT / 127.0
+
+    with torch.no_grad():
+        model.feature_weights.weight[7].fill_(1.0)
+        model.feature_weights.weight[8].fill_(1.0)
+        model.factorized_weights.weight[9].fill_(1.0)
+        model.factorized_weights.weight[10].fill_(1.0)
+
+    model.clamp_parameters(
+        torch.tensor([7], dtype=torch.long),
+        torch.tensor([9], dtype=torch.long),
+    )
+
+    if torch.any(model.feature_weights.weight[7].abs() > real_limit):
+        raise AssertionError("Updated HalfKP row was not clipped")
+    if torch.any(model.factorized_weights.weight[9].abs() > real_limit):
+        raise AssertionError("Updated P row was not clipped")
+    if not torch.all(model.feature_weights.weight[8] == 1.0):
+        raise AssertionError("An untouched HalfKP row was modified")
+    if not torch.all(model.factorized_weights.weight[10] == 1.0):
+        raise AssertionError("An untouched P row was modified")
+
 def read_until(process: subprocess.Popen, prefix: str) -> list[str]:
     captured: list[str] = []
     assert process.stdout is not None
@@ -156,6 +180,7 @@ def main() -> int:
     if len(sys.argv) != 2:
         raise SystemExit("usage: test_halfkp_training.py PATH_TO_PRUNEX")
     test_factorized_weights_are_shared_and_coalesced()
+    test_sparse_clipping_only_touches_updated_rows()
 
     engine = Path(sys.argv[1]).resolve()
     if not engine.is_file():
