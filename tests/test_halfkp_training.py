@@ -114,6 +114,31 @@ def make_fixture(directory: Path, count: int = 16) -> None:
     )
 
 
+def test_factorized_weights_are_shared_and_coalesced() -> None:
+    model = TRAINER_MODULE.PrunexHalfKP(hidden=8, dense1=4, dense2=4)
+    factor_index = 17
+    selected_king_bucket = 9
+    selected_real_index = selected_king_bucket * 640 + factor_index
+
+    with torch.no_grad():
+        model.feature_weights.weight.zero_()
+        model.factorized_weights.weight.zero_()
+        model.factorized_weights.weight[factor_index, 0] = 32 / 127
+        model.feature_weights.weight[selected_real_index, 0] = 12 / 127
+
+    coalesced = model.coalesced_feature_weights()
+    integer_weights = torch.round(coalesced[:, 0] * 127).to(torch.int16)
+
+    for king_bucket in range(64):
+        expected = 32 + (12 if king_bucket == selected_king_bucket else 0)
+        actual = int(integer_weights[king_bucket * 640 + factor_index])
+        if actual != expected:
+            raise AssertionError(
+                "P factor was not coalesced into its HalfKP bucket: "
+                f"king bucket {king_bucket}, expected {expected}, got {actual}"
+            )
+
+
 def read_until(process: subprocess.Popen, prefix: str) -> list[str]:
     captured: list[str] = []
     assert process.stdout is not None
@@ -130,6 +155,8 @@ def read_until(process: subprocess.Popen, prefix: str) -> list[str]:
 def main() -> int:
     if len(sys.argv) != 2:
         raise SystemExit("usage: test_halfkp_training.py PATH_TO_PRUNEX")
+    test_factorized_weights_are_shared_and_coalesced()
+
     engine = Path(sys.argv[1]).resolve()
     if not engine.is_file():
         raise FileNotFoundError(engine)

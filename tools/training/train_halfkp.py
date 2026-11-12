@@ -23,6 +23,8 @@ from torch.nn import functional as F
 
 
 FEATURE_COUNT = 64 * 64 * 5 * 2
+FACTOR_FEATURE_COUNT = 64 * 5 * 2
+FEATURE_WEIGHT_LIMIT = 63
 NETWORK_MAGIC = b"PRUNEXQ1"
 NETWORK_VERSION = 1
 DEFAULT_SCORE_SCALE = 400.0
@@ -248,12 +250,16 @@ class PrunexHalfKP(nn.Module):
         self.feature_weights = nn.EmbeddingBag(
             FEATURE_COUNT, hidden, mode="sum", sparse=True
         )
+        self.factorized_weights = nn.EmbeddingBag(
+            FACTOR_FEATURE_COUNT, hidden, mode="sum", sparse=True
+        )
         self.feature_bias = nn.Parameter(torch.full((hidden,), 0.10))
         self.dense1 = nn.Linear(hidden * 2, dense1)
         self.dense2 = nn.Linear(dense1, dense2)
         self.output = nn.Linear(dense2, 1)
 
         nn.init.normal_(self.feature_weights.weight, mean=0.0, std=0.01)
+        nn.init.zeros_(self.factorized_weights.weight)
         nn.init.xavier_uniform_(self.dense1.weight)
         nn.init.zeros_(self.dense1.bias)
         nn.init.xavier_uniform_(self.dense2.weight)
@@ -264,18 +270,29 @@ class PrunexHalfKP(nn.Module):
     def forward(self, indices: Tensor, offsets: Tensor, stm_white: Tensor) -> Tensor:
         batch_size = stm_white.shape[0]
 
-        # The C++ runtime stores HalfKP rows as signed int8 values.
+        # A virtual P feature shares learning across all king-square buckets.
+        # Both tables are quantized separately so their integer rows can be
+        # added exactly when the trained model is coalesced for inference.
         feature_weights = fake_quantize(
-            self.feature_weights.weight, 127, -127, 127
+            self.feature_weights.weight,
+            127, -FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT,
         )
-        accumulators = F.embedding_bag(
+        factorized_weights = fake_quantize(
+            self.factorized_weights.weight,
+            127, -FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT,
+        )
+        factor_indices = torch.remainder(indices, FACTOR_FEATURE_COUNT)
+        real_accumulators = F.embedding_bag(
             indices, feature_weights, offsets, mode="sum", sparse=True
+        )
+        factor_accumulators = F.embedding_bag(
+            factor_indices, factorized_weights, offsets, mode="sum", sparse=True
         )
         feature_bias = fake_quantize(
             self.feature_bias, 127, -32768, 32767
         )
         accumulators = fake_quantize(
-            (accumulators + feature_bias).clamp(0.0, 1.0),
+            (real_accumulators + factor_accumulators + feature_bias).clamp(0.0, 1.0),
             127, 0, 127,
         ).reshape(batch_size, 2, self.hidden)
 
@@ -310,9 +327,26 @@ class PrunexHalfKP(nn.Module):
         return F.linear(layer2, output_weights, output_bias).squeeze(1)
 
     @torch.no_grad()
+    def coalesced_feature_weights(self) -> Tensor:
+        """Combine virtual P factors with real HalfKP rows for native inference."""
+        real = torch.round(
+            self.feature_weights.weight * 127
+        ).clamp(-FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT)
+        factors = torch.round(
+            self.factorized_weights.weight * 127
+        ).clamp(-FEATURE_WEIGHT_LIMIT, FEATURE_WEIGHT_LIMIT)
+        factor_index = torch.arange(
+            FEATURE_COUNT, device=factors.device
+        ).remainder(FACTOR_FEATURE_COUNT)
+        combined = real + factors.index_select(0, factor_index)
+        return combined.to(dtype=torch.float32) / 127.0
+
+    @torch.no_grad()
     def clamp_parameters(self) -> None:
-        # Keep weights inside the representable int8 interval after updates.
-        self.feature_weights.weight.clamp_(-1.0, 1.0)
+        # Keep the two feature tables within a combined signed-int8 range.
+        feature_limit = FEATURE_WEIGHT_LIMIT / 127.0
+        self.feature_weights.weight.clamp_(-feature_limit, feature_limit)
+        self.factorized_weights.weight.clamp_(-feature_limit, feature_limit)
         self.dense1.weight.clamp_(-1.0, 1.0)
         self.dense2.weight.clamp_(-1.0, 1.0)
         self.output.weight.clamp_(-1.0, 1.0)
@@ -389,7 +423,7 @@ def export_network(
                 float(score_scale),
             ))
             stream.write(quantized_array(
-                model.feature_weights.weight, 127, "<i1", -127, 127
+                model.coalesced_feature_weights(), 127, "<i1", -127, 127
             ))
             stream.write(quantized_array(
                 model.feature_bias, 127, "<i2", -32768, 32767
@@ -454,11 +488,19 @@ def train(args: argparse.Namespace) -> dict:
 
     model = PrunexHalfKP(args.hidden, args.dense1, args.dense2).to(device)
     embedding_optimizer = torch.optim.SparseAdam(
-        [model.feature_weights.weight], lr=args.learning_rate
+        [
+            model.feature_weights.weight,
+            model.factorized_weights.weight,
+        ],
+        lr=args.learning_rate,
     )
+    sparse_parameter_names = {
+        "feature_weights.weight",
+        "factorized_weights.weight",
+    }
     dense_parameters = [
         parameter for name, parameter in model.named_parameters()
-        if name != "feature_weights.weight"
+        if name not in sparse_parameter_names
     ]
     dense_optimizer = torch.optim.AdamW(
         dense_parameters, lr=args.learning_rate, weight_decay=1e-5
@@ -545,7 +587,7 @@ def train(args: argparse.Namespace) -> dict:
             "bytes": output_path.stat().st_size,
             "format_version": NETWORK_VERSION,
             "quantization": {
-                "feature_weights": "int8 / 127",
+                "feature_weights": "coalesced HalfKP and P factors; signed int8 / 127",
                 "feature_bias": "int16 / 127",
                 "dense_weights": "int8 / 127",
                 "dense_biases": "int32 / 16129",
@@ -577,6 +619,11 @@ def train(args: argparse.Namespace) -> dict:
             "seed": args.seed,
             "device": str(device),
             "torch_version": str(torch.__version__),
+            "factorization": {
+                "virtual_feature_set": "P",
+                "virtual_feature_count": FACTOR_FEATURE_COUNT,
+                "export": "P rows are added to each matching HalfKP row",
+            },
             "dimensions": {
                 "features": FEATURE_COUNT,
                 "hidden": model.hidden,
