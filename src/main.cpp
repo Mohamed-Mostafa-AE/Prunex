@@ -18,6 +18,11 @@
 #include <thread>
 #include <vector>
 
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
+#include <immintrin.h>
+#define PRUNEX_HAS_GNU_X86_INTRINSICS 1
+#endif
+
 namespace prunex {
 constexpr int INF = 32000;
 constexpr int MATE = 30000;
@@ -28,17 +33,73 @@ enum Color : int { WHITE=0, BLACK=1 };
 enum Castle : int { WKCA=1, WQCA=2, BKCA=4, BQCA=8 };
 
 struct Move { int from=-1, to=-1, promotion=EMPTY; bool enPassant=false, castle=false; };
+constexpr int MAX_PLY = 128;
+constexpr int MAX_QPLY = 18;
+constexpr std::size_t MAX_LEGAL_MOVES = 256;
+
+constexpr std::size_t NNUE_MAX_HIDDEN = 512;
+
+struct NnueAccumulator {
+    std::array<std::array<std::int32_t, NNUE_MAX_HIDDEN>, 2> values{};
+    std::uint64_t generation = 0;
+    bool valid = false;
+};
+
+struct MoveList {
+    Move* data = nullptr;
+    std::size_t count = 0;
+    int ply = 0;
+
+    Move* begin() const { return data; }
+    Move* end() const { return data + count; }
+    Move& front() const { return data[0]; }
+    std::size_t size() const { return count; }
+    bool empty() const { return count == 0; }
+    Move& operator[](std::size_t index) const { return data[index]; }
+    void push_back(const Move& move) {
+        if(count>=MAX_LEGAL_MOVES) {
+            throw std::runtime_error("legal move buffer capacity exceeded");
+        }
+        data[count++]=move;
+    }
+};
+
+struct ScoredMove { Move move; int score; };
+struct MoveScratch {
+    std::array<Move,MAX_LEGAL_MOVES> pseudo{};
+    std::array<Move,MAX_LEGAL_MOVES> legal{};
+    std::array<ScoredMove,MAX_LEGAL_MOVES> scored{};
+    std::array<std::size_t,MAX_LEGAL_MOVES> order{};
+    std::array<std::uint8_t,MAX_LEGAL_MOVES> stageByMove{};
+    std::array<std::size_t,6> stageOffsets{};
+    std::array<std::size_t,5> stageCursors{};
+    std::array<std::size_t,5> stageEnds{};
+    std::array<std::uint8_t,5> stageSorted{};
+    std::array<Move,MAX_LEGAL_MOVES> searched{};
+    std::size_t searchedCount=0;
+};
+std::array<MoveScratch,MAX_PLY> moveScratch{};
+
 struct Position {
     std::array<int,128> board{};
     std::array<std::array<std::uint64_t,7>,2> piecesBB{};
     std::array<std::uint64_t,2> occupancy{};
     int side=WHITE, castling=0, ep=-1, halfmove=0, fullmove=1;
     std::uint64_t key=0;
+    NnueAccumulator nnue{};
 };
+
+}  // namespace prunex
+
+#include "nnue.hpp"
+
+namespace prunex {
 
 struct Undo {
     int captured=EMPTY, castling=0, ep=-1, halfmove=0, fullmove=1;
     std::uint64_t key=0;
+    std::uint64_t nnueGeneration=0;
+    bool nnueWasValid=false;
 };
 
 struct ZobristKeys {
@@ -123,7 +184,7 @@ bool parseFenCounter(const std::string& token, int minimum, int& value) {
 }
 
 bool loadFen(Position& p, std::string_view fen) {
-    p=Position{};
+    Position parsed{};
     std::istringstream in{std::string(fen)};
     std::string placement, stm, rights, ep, halfmove, fullmove, extra;
     if(!(in>>placement>>stm>>rights>>ep>>halfmove>>fullmove)||(in>>extra)) return false;
@@ -143,14 +204,14 @@ bool loadFen(Position& p, std::string_view fen) {
         } else {
             int pc=charPiece(c);
             if(pc==EMPTY||file>=8) return false;
-            p.board[rank*16+file]=pc;
+            parsed.board[rank*16+file]=pc;
             ++file;
             previousDigit=false;
         }
     }
     if(rank!=0||file!=8) return false;
     if(stm!="w"&&stm!="b") return false;
-    p.side=stm=="w"?WHITE:BLACK;
+    parsed.side=stm=="w"?WHITE:BLACK;
     if(rights!="-") {
         for(char c:rights) {
             int bit=0;
@@ -159,25 +220,58 @@ bool loadFen(Position& p, std::string_view fen) {
             else if(c=='k') bit=BKCA;
             else if(c=='q') bit=BQCA;
             else return false;
-            if(p.castling&bit) return false;
-            p.castling|=bit;
+            if(parsed.castling&bit) return false;
+            parsed.castling|=bit;
         }
     }
-    p.ep=ep=="-"?-1:parseSquare(ep);
-    if(ep!="-"&&p.ep<0) return false;
-    if(p.ep>=0){
-        int expectedRank=p.side==WHITE?5:2;
-        int capturedSquare=p.ep+(p.side==WHITE?-16:16);
-        int originSquare=p.ep+(p.side==WHITE?16:-16);
-        if(rankOf(p.ep)!=expectedRank||p.board[p.ep]!=EMPTY||!onBoard(capturedSquare)||!onBoard(originSquare)) return false;
-        if(p.board[capturedSquare]!=makePiece(1,1-p.side)||p.board[originSquare]!=EMPTY) return false;
+    parsed.ep=ep=="-"?-1:parseSquare(ep);
+    if(ep!="-"&&parsed.ep<0) return false;
+    if(parsed.ep>=0){
+        int expectedRank=parsed.side==WHITE?5:2;
+        int capturedSquare=parsed.ep+(parsed.side==WHITE?-16:16);
+        int originSquare=parsed.ep+(parsed.side==WHITE?16:-16);
+        if(rankOf(parsed.ep)!=expectedRank||parsed.board[parsed.ep]!=EMPTY||!onBoard(capturedSquare)||!onBoard(originSquare)) return false;
+        if(parsed.board[capturedSquare]!=makePiece(1,1-parsed.side)||parsed.board[originSquare]!=EMPTY) return false;
     }
-    if(!parseFenCounter(halfmove,0,p.halfmove)||!parseFenCounter(fullmove,1,p.fullmove)) return false;
+    if(!parseFenCounter(halfmove,0,parsed.halfmove)||!parseFenCounter(fullmove,1,parsed.fullmove)) return false;
     int wk=0,bk=0;
-    for(int s=0;s<128;++s) if(onBoard(s)) { wk+=p.board[s]==WK; bk+=p.board[s]==BK; }
-    if(wk!=1||bk!=1) return false;
-    rebuildBitboards(p);
-    p.key=computePositionKey(p);
+    std::array<int,2> pawnCounts{};
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=parsed.board[square];
+        wk+=piece==WK;
+        bk+=piece==BK;
+        if(typeOf(piece)==1) {
+            if(rankOf(square)==0||rankOf(square)==7) return false;
+            ++pawnCounts[colorOf(piece)];
+        }
+    }
+    if(wk!=1||bk!=1||pawnCounts[WHITE]>8||pawnCounts[BLACK]>8) return false;
+
+    const int whiteKing=parseSquare("e1");
+    const int blackKing=parseSquare("e8");
+    if((parsed.castling&WKCA)
+       &&(parsed.board[whiteKing]!=WK||parsed.board[parseSquare("h1")]!=WR)) return false;
+    if((parsed.castling&WQCA)
+       &&(parsed.board[whiteKing]!=WK||parsed.board[parseSquare("a1")]!=WR)) return false;
+    if((parsed.castling&BKCA)
+       &&(parsed.board[blackKing]!=BK||parsed.board[parseSquare("h8")]!=BR)) return false;
+    if((parsed.castling&BQCA)
+       &&(parsed.board[blackKing]!=BK||parsed.board[parseSquare("a8")]!=BR)) return false;
+
+    int whiteKingSquare=-1;
+    int blackKingSquare=-1;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        if(parsed.board[square]==WK) whiteKingSquare=square;
+        if(parsed.board[square]==BK) blackKingSquare=square;
+    }
+    if(std::abs(fileOf(whiteKingSquare)-fileOf(blackKingSquare))<=1
+       &&std::abs(rankOf(whiteKingSquare)-rankOf(blackKingSquare))<=1) return false;
+
+    rebuildBitboards(parsed);
+    parsed.key=computePositionKey(parsed);
+    p=parsed;
     return true;
 }
 
@@ -249,10 +343,28 @@ std::uint64_t expandOccupancyIndex(std::uint32_t index,std::uint64_t mask) {
     return occupancy;
 }
 
-// Portable parallel-bit-extract: compresses the masked occupied squares into
-// a dense table index. A hardware BMI2 implementation can replace this
-// function later without changing the table format or attack semantics.
+// Use the hardware PEXT instruction when the running CPU supports BMI2.
+// The portable implementation remains available for older x86 processors,
+// WebAssembly, ARM, and compilers without per-function ISA targeting.
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
+__attribute__((target("bmi2")))
+std::uint32_t compressOccupancyBmi2(std::uint64_t occupied,std::uint64_t mask) {
+    return static_cast<std::uint32_t>(_pext_u64(occupied,mask));
+}
+
+bool supportsBmi2() {
+    static const bool supported=[] {
+        __builtin_cpu_init();
+        return __builtin_cpu_supports("bmi2");
+    }();
+    return supported;
+}
+#endif
+
 std::uint32_t compressOccupancy(std::uint64_t occupied,std::uint64_t mask) {
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
+    if(supportsBmi2()) return compressOccupancyBmi2(occupied,mask);
+#endif
     std::uint32_t index=0;
     unsigned outputBit=0;
     while(mask) {
@@ -342,15 +454,44 @@ bool inCheck(const Position& p,int color) {
     const int king=kingSquare(p,color);
     return king>=0&&attackersTo(p,king,1-color)!=0;
 }
-void addMove(std::vector<Move>& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false) {
+
+// En-passant state belongs in the position hash only when the side to move
+// has at least one legal capture. A target square alone is insufficient:
+// an adjacent pawn may be pinned and unable to capture without exposing its king.
+int hashableEnPassantSquare(const Position& position) {
+    const int target=position.ep;
+    if(!onBoard(target)) return -1;
+
+    const int capturingSide=position.side;
+    const int capturedSquare=target+(capturingSide==WHITE?-16:16);
+    const int capturedPawn=makePiece(1,1-capturingSide);
+    if(!onBoard(capturedSquare)||position.board[capturedSquare]!=capturedPawn)
+        return -1;
+
+    for(const int fileOffset:{-1,1}) {
+        const int source=capturedSquare+fileOffset;
+        if(!onBoard(source)
+           ||position.board[source]!=makePiece(1,capturingSide)) continue;
+
+        Position after=position;
+        removePositionPiece(after,source);
+        removePositionPiece(after,capturedSquare);
+        putPositionPiece(after,target,makePiece(1,capturingSide));
+        if(!inCheck(after,capturingSide)) return target;
+    }
+
+    return -1;
+}
+void addMove(MoveList& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false) {
  out.push_back({from,to,promo,ep,castle});
 }
-void addPawnMove(std::vector<Move>& out,int from,int to,int color,bool ep=false) {
+void addPawnMove(MoveList& out,int from,int to,int color,bool ep=false) {
  if(rankOf(to)==(color==WHITE?7:0)) for(int type:{5,4,3,2}) addMove(out,from,to,makePiece(type,color),ep);
  else addMove(out,from,to,EMPTY,ep);
 }
-std::vector<Move> pseudoMoves(const Position& p) {
- std::vector<Move> out; out.reserve(96);
+MoveList pseudoMoves(const Position& p,int ply=0,bool capturesOnly=false) {
+    const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
+    MoveList out{moveScratch[scratchPly].pseudo.data(),0,scratchPly};
  const int us=p.side, them=1-us, step=us==WHITE?16:-16;
  const std::uint64_t own=p.occupancy[us], occ=own|p.occupancy[them];
  auto pawns=p.piecesBB[us][1];
@@ -358,9 +499,10 @@ std::vector<Move> pseudoMoves(const Position& p) {
   int s=static_cast<int>(std::countr_zero(pawns)); pawns&=pawns-1;
   int from=square88From64(s), one=from+step;
   if(onBoard(one)&&p.board[one]==EMPTY) {
-   addPawnMove(out,from,one,us);
+   if(!capturesOnly||rankOf(one)==(us==WHITE?7:0)) addPawnMove(out,from,one,us);
    int two=one+step;
-   if(rankOf(from)==(us==WHITE?1:6)&&p.board[two]==EMPTY) addMove(out,from,two);
+   if(!capturesOnly&&rankOf(from)==(us==WHITE?1:6)&&p.board[two]==EMPTY)
+       addMove(out,from,two);
   }
   for(int df:{-1,1}) {
    int to=one+df; if(!onBoard(to)) continue;
@@ -373,7 +515,8 @@ std::vector<Move> pseudoMoves(const Position& p) {
   auto pieces=p.piecesBB[us][type];
   while(pieces) {
    int from64=static_cast<int>(std::countr_zero(pieces)); pieces&=pieces-1;
-   int from=square88From64(from64); auto targets=table[from64]&~own;
+   int from=square88From64(from64);
+   auto targets=table[from64]&(capturesOnly?p.occupancy[them]:~own);
    while(targets) {
     int to64=static_cast<int>(std::countr_zero(targets)); targets&=targets-1;
     int to=square88From64(to64), target=p.board[to];
@@ -390,7 +533,7 @@ std::vector<Move> pseudoMoves(const Position& p) {
    int from=square88From64(from64); std::uint64_t targets=0;
    if(diagonal) targets|=bishopAttacks(from64,occ);
    if(orthogonal) targets|=rookAttacks(from64,occ);
-   targets&=~own;
+   targets&=capturesOnly?p.occupancy[them]:~own;
    while(targets) {
     int to64=static_cast<int>(std::countr_zero(targets)); targets&=targets-1;
     int to=square88From64(to64), target=p.board[to];
@@ -401,7 +544,7 @@ std::vector<Move> pseudoMoves(const Position& p) {
  };
  sliders(3,true,false); sliders(4,false,true); sliders(5,true,true);
  const int king=us==WHITE?4:116, rook=makePiece(4,us);
- if(p.board[king]==makePiece(6,us)&&!inCheck(p,us)) {
+ if(!capturesOnly&&p.board[king]==makePiece(6,us)&&!inCheck(p,us)) {
   if(us==WHITE) {
    if((p.castling&WKCA)&&p.board[7]==rook&&p.board[5]==EMPTY&&p.board[6]==EMPTY&&
       !attacked(p,5,them)&&!attacked(p,6,them)) addMove(out,4,6,EMPTY,false,true);
@@ -422,14 +565,42 @@ Undo makeMove(Position& p,const Move& m) {
     const auto& keys=zobristKeys();
     const int movingPiece=p.board[m.from];
     const int placedPiece=m.promotion?m.promotion:movingPiece;
+    const int moverSide=p.side;
+    const int capturedSquare=m.enPassant
+        ?m.to+(p.side==WHITE?-16:16):m.to;
+    if(m.enPassant) undo.captured=p.board[capturedSquare];
+
+    const int rookFrom=m.castle?(m.to>m.from?m.from+3:m.from-4):-1;
+    const int rookTo=m.castle?(m.to>m.from?m.from+1:m.from-1):-1;
+    const int castlingRook=m.castle?p.board[rookFrom]:EMPTY;
+    if(m.castle&&castlingRook==EMPTY) {
+        throw std::logic_error("castling move has no rook");
+    }
+
+    const bool updateNnue=nnueNetwork.canUpdate(p);
+    undo.nnueWasValid=updateNnue;
+    undo.nnueGeneration=updateNnue?p.nnue.generation:0;
+    if(updateNnue) {
+        if(typeOf(movingPiece)!=6) {
+            nnueNetwork.removePieceFeature(p,movingPiece,m.from);
+        }
+        if(undo.captured!=EMPTY) {
+            nnueNetwork.removePieceFeature(p,undo.captured,capturedSquare);
+        }
+        if(m.castle) {
+            nnueNetwork.removePieceFeature(p,castlingRook,rookFrom);
+        }
+    } else {
+        p.nnue.valid=false;
+    }
 
     // Remove the old position state before changing pieces or rights.
     p.key^=keys.castling[p.castling];
-    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    const int previousHashedEp=hashableEnPassantSquare(p);
+    if(previousHashedEp>=0) p.key^=keys.enPassant[previousHashedEp];
 
     p.key^=keys.pieces[m.from][movingPiece];
     if(m.enPassant) {
-        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
         undo.captured=p.board[capturedSquare];
         if(undo.captured!=EMPTY) p.key^=keys.pieces[capturedSquare][undo.captured];
         removePositionPiece(p,capturedSquare);
@@ -443,16 +614,12 @@ Undo makeMove(Position& p,const Move& m) {
     p.key^=keys.pieces[m.to][placedPiece];
 
     if(m.castle) {
-        const int rookFrom=m.to>m.from?m.from+3:m.from-4;
-        const int rookTo=m.to>m.from?m.from+1:m.from-1;
-        const int rook=p.board[rookFrom];
-        if(rook==EMPTY) throw std::logic_error("castling move has no rook");
-        p.key^=keys.pieces[rookFrom][rook];
+        p.key^=keys.pieces[rookFrom][castlingRook];
         if(p.board[rookTo]!=EMPTY) p.key^=keys.pieces[rookTo][p.board[rookTo]];
         removePositionPiece(p,rookFrom);
         if(p.board[rookTo]!=EMPTY) removePositionPiece(p,rookTo);
-        putPositionPiece(p,rookTo,rook);
-        p.key^=keys.pieces[rookTo][rook];
+        putPositionPiece(p,rookTo,castlingRook);
+        p.key^=keys.pieces[rookTo][castlingRook];
     }
 
     if(movingPiece==WK) p.castling&=~(WKCA|WQCA);
@@ -464,40 +631,95 @@ Undo makeMove(Position& p,const Move& m) {
 
     p.ep=(typeOf(movingPiece)==1&&std::abs(m.to-m.from)==32)
         ?(m.to+m.from)/2:-1;
-    p.halfmove=(typeOf(movingPiece)==1||undo.captured!=EMPTY)?0:p.halfmove+1;
-    if(p.side==BLACK) ++p.fullmove;
+    if(typeOf(movingPiece)==1||undo.captured!=EMPTY) {
+        p.halfmove=0;
+    } else if(p.halfmove<std::numeric_limits<int>::max()) {
+        ++p.halfmove;
+    }
+    if(p.side==BLACK&&p.fullmove<std::numeric_limits<int>::max()) {
+        ++p.fullmove;
+    }
     p.side=1-p.side;
+
+    if(updateNnue) {
+        if(typeOf(movingPiece)!=6) {
+            nnueNetwork.addPieceFeature(p,placedPiece,m.to);
+        }
+        if(m.castle) {
+            nnueNetwork.addPieceFeature(p,castlingRook,rookTo);
+        }
+        if(typeOf(movingPiece)==6) {
+            nnueNetwork.refreshPerspective(p,moverSide);
+        }
+    }
 
     // Add the new rights, en-passant square and side-to-move key.
     p.key^=keys.castling[p.castling];
-    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    const int currentHashedEp=hashableEnPassantSquare(p);
+    if(currentHashedEp>=0) p.key^=keys.enPassant[currentHashedEp];
     p.key^=keys.side;
     return undo;
 }
 
 void undoMove(Position& p,const Move& m,const Undo& undo) {
-    p.side=1-p.side;
-    if(p.side==BLACK) --p.fullmove;
+    const int moverSide=1-p.side;
+    const int movedPiece=p.board[m.to];
+    const int originalMovingPiece=m.promotion?makePiece(1,moverSide):movedPiece;
+    const int capturedSquare=m.enPassant
+        ?m.to+(moverSide==WHITE?-16:16):m.to;
+    const int rookFrom=m.castle?(m.to>m.from?m.from+3:m.from-4):-1;
+    const int rookTo=m.castle?(m.to>m.from?m.from+1:m.from-1):-1;
+    const int rook=m.castle?p.board[rookTo]:EMPTY;
+
+    const bool updateNnue=undo.nnueWasValid
+        &&nnueNetwork.canUpdate(p)
+        &&p.nnue.generation==undo.nnueGeneration;
+    if(updateNnue) {
+        if(typeOf(movedPiece)!=6) {
+            nnueNetwork.removePieceFeature(p,movedPiece,m.to);
+        }
+        if(m.castle) {
+            nnueNetwork.removePieceFeature(p,rook,rookTo);
+        }
+    } else {
+        p.nnue.valid=false;
+    }
+
+    p.side=moverSide;
+    p.fullmove=undo.fullmove;
     p.castling=undo.castling;
     p.ep=undo.ep;
     p.halfmove=undo.halfmove;
 
-    const int movedPiece=p.board[m.to];
     removePositionPiece(p,m.to);
     if(m.castle) {
-        const int rookFrom=m.to>m.from?m.from+3:m.from-4;
-        const int rookTo=m.to>m.from?m.from+1:m.from-1;
-        const int rook=p.board[rookTo];
         removePositionPiece(p,rookTo);
         putPositionPiece(p,rookFrom,rook);
     }
-    putPositionPiece(p,m.from,m.promotion?makePiece(1,p.side):movedPiece);
+    putPositionPiece(p,m.from,originalMovingPiece);
     if(m.enPassant) {
-        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
         putPositionPiece(p,capturedSquare,undo.captured);
     } else if(undo.captured!=EMPTY) {
         putPositionPiece(p,m.to,undo.captured);
     }
+
+    if(updateNnue) {
+        if(typeOf(originalMovingPiece)!=6) {
+            nnueNetwork.addPieceFeature(p,originalMovingPiece,m.from);
+        }
+        if(undo.captured!=EMPTY) {
+            nnueNetwork.addPieceFeature(p,undo.captured,capturedSquare);
+        }
+        if(m.castle) {
+            nnueNetwork.addPieceFeature(p,rook,rookFrom);
+        }
+        if(typeOf(originalMovingPiece)==6) {
+            nnueNetwork.refreshPerspective(p,moverSide);
+        }
+        p.nnue.generation=undo.nnueGeneration;
+        p.nnue.valid=true;
+    }
+
     p.key=undo.key;
 }
 struct KingSafetyInfo {
@@ -576,50 +798,60 @@ KingSafetyInfo buildKingSafetyInfo(const Position& position,int color) {
     return info;
 }
 
-std::vector<Move> legalMoves(Position& position) {
-    const auto candidates=pseudoMoves(position);
-    std::vector<Move> legal;
-    legal.reserve(candidates.size());
+bool isLegalCandidate(Position& position,const Move& move,int movingSide,
+                       const KingSafetyInfo& kingSafety,int checkCount) {
+    const int movingPiece=position.board[move.from];
+    const bool kingMove=typeOf(movingPiece)==6;
+
+    // King moves and en-passant need an exact occupancy update. En-passant
+    // can uncover two lines because it removes a pawn away from the target.
+    if(kingMove||move.enPassant) {
+        const Undo undo=makeMove(position,move);
+        const bool safe=!inCheck(position,movingSide);
+        undoMove(position,move,undo);
+        return safe;
+    }
+
+    if(checkCount>1) return false;
+    const std::uint64_t destination=squareBit(move.to);
+    if(checkCount==1&&(kingSafety.evasionMask&destination)==0) return false;
+
+    const int from64=square64From88(move.from);
+    const std::uint64_t origin=squareBit(move.from);
+    return (kingSafety.pinned&origin)==0||
+        (kingSafety.pinRay[from64]&destination)!=0;
+}
+
+MoveList legalMoves(Position& position,int ply=0,bool capturesOnly=false) {
+    const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
+    const auto candidates=pseudoMoves(position,scratchPly,capturesOnly);
+    MoveList legal{moveScratch[scratchPly].legal.data(),0,scratchPly};
     const int movingSide=position.side;
     const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
     const int checkCount=std::popcount(kingSafety.checkers);
 
     for(const Move& move:candidates) {
-        const int movingPiece=position.board[move.from];
-        const bool kingMove=typeOf(movingPiece)==6;
-
-        // King moves and en-passant need an exact occupancy update: moving a
-        // king changes the attacked square, while en-passant can uncover two
-        // lines at once by removing a pawn from a different square.
-        if(kingMove||move.enPassant) {
-            const Undo undo=makeMove(position,move);
-            const bool safe=!inCheck(position,movingSide);
-            undoMove(position,move,undo);
-            if(safe) legal.push_back(move);
-            continue;
-        }
-
-        // A double check can only be answered by moving the king.
-        if(checkCount>1) continue;
-
-        const std::uint64_t destination=squareBit(move.to);
-        if(checkCount==1&&(kingSafety.evasionMask&destination)==0) continue;
-
-        const int from64=square64From88(move.from);
-        const std::uint64_t origin=squareBit(move.from);
-        if((kingSafety.pinned&origin)!=0&&
-           (kingSafety.pinRay[from64]&destination)==0) continue;
-
-        legal.push_back(move);
+        if(isLegalCandidate(position,move,movingSide,kingSafety,checkCount))
+            legal.push_back(move);
     }
     return legal;
+}
+
+bool hasAnyLegalMove(Position& position,int ply=0) {
+    const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
+    const auto candidates=pseudoMoves(position,scratchPly);
+    const int movingSide=position.side;
+    const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
+    const int checkCount=std::popcount(kingSafety.checkers);
+    for(const Move& move:candidates) {
+        if(isLegalCandidate(position,move,movingSide,kingSafety,checkCount)) return true;
+    }
+    return false;
 }
 
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
 bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move&m:legalMoves(p))if(moveUci(m)==text){result=m;return true;}return false;}
 
-constexpr int MAX_PLY = 128;
-constexpr int MAX_QPLY = 18;
 #ifndef PRUNEX_TT_BITS
 #define PRUNEX_TT_BITS 18
 #endif
@@ -806,7 +1038,8 @@ std::uint64_t computePositionKey(const Position& p) {
         if(piece!=EMPTY) key^=keys.pieces[square][piece];
     }
     key^=keys.castling[p.castling];
-    if(p.ep>=0) key^=keys.enPassant[p.ep];
+    const int hashedEp=hashableEnPassantSquare(p);
+    if(hashedEp>=0) key^=keys.enPassant[hashedEp];
     if(p.side==BLACK) key^=keys.side;
     return key;
 }
@@ -927,13 +1160,16 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
     return gains[0];
 }
 
-int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply) {
+int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply,
+                      int* exchangeOut=nullptr) {
+    if(exchangeOut) *exchangeOut=0;
     if(hashMove.from>=0&&sameMove(m,hashMove)) return 2000000;
     int score=0;
     if(m.promotion) score+=900000+MG_VALUE[typeOf(m.promotion)]*8;
     if(isCapture(p,m)) {
         const int victim=m.enPassant?makePiece(1,1-p.side):p.board[m.to];
         const int exchange=staticExchangeEvaluation(p,m);
+        if(exchangeOut) *exchangeOut=exchange;
         score+=1000000+(exchange>=0?200000:-200000)+exchange*16
             +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])];
         return score;
@@ -951,18 +1187,87 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
     return score+historyScores[p.side][m.from][m.to];
 }
 
-void orderMoves(const Position& p,std::vector<Move>& moves,const Move& hashMove,int ply) {
-    struct ScoredMove {
-        Move move;
-        int score;
-    };
-    constexpr std::size_t MAX_LEGAL_MOVES=256;
-    std::array<ScoredMove,MAX_LEGAL_MOVES> scored{};
+// Staged move selection: hash move, profitable captures/promotions,
+// killer/counter quiets, remaining quiets, then losing captures. Unlike the
+// previous eager full-list sort, the picker selects the next best candidate
+// only when the search actually asks for it, so beta cutoffs avoid ordering
+// work on moves that are never searched.
+class MovePicker {
+public:
+    MovePicker(const Position& position,MoveList moves,const Move& hashMove,int ply)
+        : moves_(moves),scratch_(moveScratch[moves.ply]) {
+        std::array<std::size_t,5> counts{};
+        scratch_.stageSorted.fill(0);
+        for(std::size_t index=0;index<moves_.size();++index) {
+            const Move& move=moves_[index];
+            int exchange=0;
+            const int score=moveOrderingScore(position,move,hashMove,ply,&exchange);
+            scratch_.scored[index]={move,score};
+            const bool capture=isCapture(position,move);
+            const bool promotion=move.promotion!=EMPTY;
+            std::uint8_t stage=4;
+            if(hashMove.from>=0&&sameMove(move,hashMove)) stage=0;
+            else if(promotion||(capture&&exchange>=0)) stage=1;
+            else if(!capture&&score>=780000) stage=2;
+            else if(!capture) stage=3;
+            scratch_.stageByMove[index]=stage;
+            ++counts[stage];
+        }
 
-    if(moves.size()>scored.size()) {
+        scratch_.stageOffsets[0]=0;
+        for(std::size_t stage=0;stage<5;++stage) {
+            scratch_.stageOffsets[stage+1]=scratch_.stageOffsets[stage]+counts[stage];
+            scratch_.stageCursors[stage]=scratch_.stageOffsets[stage];
+            scratch_.stageEnds[stage]=scratch_.stageOffsets[stage+1];
+        }
+
+        auto writePositions=scratch_.stageCursors;
+        for(std::size_t index=0;index<moves_.size();++index) {
+            const std::size_t stage=scratch_.stageByMove[index];
+            scratch_.order[writePositions[stage]++]=index;
+        }
+
+        // Stage ordering is deferred until that stage is first requested.
+        // A cutoff in the capture stage therefore avoids sorting killers,
+        // quiets and losing captures that the search never reaches.
+    }
+
+    Move next() {
+        while(stage_<5) {
+            if(!scratch_.stageSorted[stage_]) {
+                const auto first=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageOffsets[stage_]);
+                const auto last=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageEnds[stage_]);
+                std::sort(first,last,[&](std::size_t left,std::size_t right) {
+                    const auto& a=scratch_.scored[left];
+                    const auto& b=scratch_.scored[right];
+                    if(a.score!=b.score) return a.score>b.score;
+                    if(a.move.from!=b.move.from) return a.move.from<b.move.from;
+                    if(a.move.to!=b.move.to) return a.move.to<b.move.to;
+                    return a.move.promotion<b.move.promotion;
+                });
+                scratch_.stageSorted[stage_]=1;
+            }
+            if(scratch_.stageCursors[stage_]<scratch_.stageEnds[stage_]) {
+                const std::size_t index=scratch_.order[scratch_.stageCursors[stage_]++];
+                return scratch_.scored[index].move;
+            }
+            ++stage_;
+        }
+        return Move{};
+    }
+
+private:
+    MoveList moves_;
+    MoveScratch& scratch_;
+    std::size_t stage_=0;
+};
+
+void orderMoves(const Position& p,MoveList& moves,const Move& hashMove,int ply) {
+    if(moves.size()>MAX_LEGAL_MOVES) {
         throw std::runtime_error("legal move count exceeds the move-ordering buffer");
     }
 
+    auto& scored=moveScratch[moves.ply].scored;
     const std::size_t count=moves.size();
     for(std::size_t index=0;index<count;++index) {
         const Move& move=moves[index];
@@ -1097,7 +1402,9 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
     }
 }
 
-int evaluate(const Position& p) {
+int evaluate(Position& p) {
+    if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
+
     std::array<int,2> middle{};
     std::array<int,2> ending{};
     std::array<std::array<int,8>,2> pawnFiles{};
@@ -1278,28 +1585,32 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     const bool checked=inCheck(p,p.side);
     if((drawRule||insufficient)&&!checked) return 0;
 
-    // Reuse the pin/check-aware legal generator. The old qsearch path tested
-    // every pseudo-legal move by making it, even though the main search now
-    // has a faster bitboard legality filter.
-    const auto legal=legalMoves(p);
-    if(legal.empty()) return checked?-MATE+searchPly:0;
-    if(drawRule||insufficient) return 0;
-
-    std::vector<Move> moves;
-    moves.reserve(legal.size());
-    for(const Move& move:legal) {
-        if(checked||isCapture(p,move)||move.promotion) moves.push_back(move);
+    if(drawRule||insufficient) {
+        if(!checked) return 0;
+        return hasAnyLegalMove(p,searchPly)?0:-MATE+searchPly;
     }
 
-    if(!checked) {
+    MoveList moves;
+    if(checked) {
+        moves=legalMoves(p,searchPly);
+        if(moves.empty()) return -MATE+searchPly;
+    } else {
+        // Quiet moves cannot improve a stand-pat search. Generate only
+        // captures and promotions; test for stalemate separately when there
+        // are no such moves.
+        moves=legalMoves(p,searchPly,true);
+        if(moves.empty()) return hasAnyLegalMove(p,searchPly)?evaluate(p):0;
+
         const int stand=evaluate(p);
         if(stand>=beta) return stand;
         if(stand>alpha) alpha=stand;
-        if(qply>=MAX_QPLY||moves.empty()) return alpha;
+        if(qply>=MAX_QPLY) return alpha;
     }
 
-    orderMoves(p,moves,Move{},searchPly);
-    for(const Move& move:moves) {
+    MovePicker picker(p,moves,Move{},searchPly);
+    while(true) {
+        const Move move=picker.next();
+        if(move.from<0) break;
         const Undo undo=makeMove(p,move);
         const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
         undoMove(p,move,undo);
@@ -1312,7 +1623,8 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
 
 void makeNullMove(Position& p) {
     const auto& keys=zobristKeys();
-    if(p.ep>=0) p.key^=keys.enPassant[p.ep];
+    const int hashedEp=hashableEnPassantSquare(p);
+    if(hashedEp>=0) p.key^=keys.enPassant[hashedEp];
     p.ep=-1;
     p.side=1-p.side;
     p.key^=keys.side;
@@ -1345,7 +1657,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     const bool insufficient=isInsufficientMaterial(p);
     if(drawRule||insufficient) {
         if(!checked) return 0;
-        const auto evasions=legalMoves(p);
+        const auto evasions=legalMoves(p,ply);
         return evasions.empty()?-MATE+ply:0;
     }
     if(depth<=0) return quiescence(p,alpha,beta,0,ply);
@@ -1384,13 +1696,19 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(verification>=beta) return nullScore;
         }
     }
-    auto moves=legalMoves(p);
+    auto moves=legalMoves(p,ply);
     if(moves.empty()) return checked?-MATE+ply:0;
-    orderMoves(p,moves,hashMove,ply);
+    MovePicker picker(p,moves,hashMove,ply);
+    auto& nodeScratch=moveScratch[ply];
+    nodeScratch.searchedCount=0;
     int bestScore=-INF;
     Move bestMove=moves.front();
     int moveNumber=0;
-    for(const Move& m:moves) {
+    while(true) {
+        const Move m=picker.next();
+        if(m.from<0) break;
+        nodeScratch.searched[nodeScratch.searchedCount++]=m;
+        const int movingColor=p.side;
         const int movingPieceType=typeOf(p.board[m.from]);
         searchPathMoves[ply]=m;
         searchPathPieceTypes[ply]=movingPieceType;
@@ -1408,7 +1726,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 if(depth>=5&&moveNumber>=6) ++reduction;
                 if(depth>=8&&moveNumber>=12) ++reduction;
                 if(pvNode) --reduction;
-                const int history=historyScores[p.side][m.from][m.to];
+                const int history=historyScores[movingColor][m.from][m.to];
                 if(history>5000) --reduction;
                 else if(history<-5000) ++reduction;
                 reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
@@ -1427,27 +1745,26 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         if(score>alpha) alpha=score;
         if(alpha>=beta) {
             if(quiet&&ply<MAX_PLY) {
-                // Quiet moves that failed before the cutoff receive a modest
-                // history malus; the cutoff move receives the larger reward.
-                for(int previous=0;previous<moveNumber-1;++previous) {
-                    const Move& rejected=moves[previous];
+                const int historyBonus=std::min(2048,depth*depth*16);
+                const int historyMalus=std::min(1024,depth*depth*8);
+                for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
+                    const Move& rejected=nodeScratch.searched[previous];
                     if(isCapture(p,rejected)||rejected.promotion) continue;
-                    int& rejectedHistory=historyScores[p.side][rejected.from][rejected.to];
-                    rejectedHistory=std::max(-30000,rejectedHistory-depth*depth*8);
+                    int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
+                    rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
                 }
                 if(!sameMove(m,killerMoves[ply][0])) {
                     killerMoves[ply][1]=killerMoves[ply][0];
                     killerMoves[ply][0]=m;
                 }
-                int& history=historyScores[p.side][m.from][m.to];
-                history=std::min(30000,history+depth*depth*16);
+                int& history=historyScores[movingColor][m.from][m.to];
+                history=std::min(30000,history+historyBonus);
 
                 if(ply>0&&ply<MAX_PLY) {
                     const int previousType=searchPathPieceTypes[ply-1];
                     const Move& previous=searchPathMoves[ply-1];
-                    if(previousType>=1&&previousType<=6&&previous.to>=0) {
+                    if(previousType>=1&&previousType<=6&&previous.to>=0)
                         counterMoves[previousType][previous.to]=m;
-                    }
                 }
             }
             break;
@@ -1466,7 +1783,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
 }
 
 Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t nodeLimit=0) {
-    auto moves=legalMoves(p);
+    auto moves=legalMoves(p,0);
     if(moves.empty()) return {};
     searchTimeLimited=timeLimitMs>0;
     searchNodeLimit=nodeLimit;
@@ -1528,6 +1845,18 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         info<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best);
         emitLine(info.str());
     }
+    const auto finalElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now()-start).count();
+    if(nodeLimit>0) {
+        emitLine("info string node-limit "+std::to_string(nodes)+"/"+std::to_string(nodeLimit));
+    }
+    std::ostringstream finalInfo;
+    finalInfo<<"info string search-final nodes="<<nodes
+             <<" depth="<<completedSearchDepth
+             <<" elapsed_ms="<<finalElapsed
+             <<" tthits="<<ttHits
+             <<" node_limit="<<nodeLimit;
+    emitLine(finalInfo.str());
     searchTimeLimited=false;
     searchNodeLimit=0;
     return best;
@@ -1551,10 +1880,7 @@ void runBenchmark(int depth) {
             std::cerr<<"Invalid built-in benchmark position: "<<item.name<<"\n";
             continue;
         }
-        clearTranspositionTable();
-        historyScores={};
-        for(auto& pair:killerMoves) pair={Move{},Move{}};
-        searchAborted.store(false,std::memory_order_relaxed);
+        resetSearchState();
         Move best=findBestMove(position,depth);
         totalNodes+=nodes;
         std::cout<<"bench "<<item.name<<" bestmove "<<(best.from>=0?moveUci(best):"none")
@@ -1566,10 +1892,55 @@ void runBenchmark(int depth) {
     std::cout<<"bench-total nodes "<<totalNodes<<" time_ms "<<elapsed<<" nps "<<nps<<"\n";
 }
 
-std::uint64_t perft(Position& p,int depth){if(depth==0)return 1;auto moves=legalMoves(p);std::uint64_t n=0;for(const Move&m:moves){Position q=p;makeMove(q,m);n+=perft(q,depth-1);}return n;}
+std::uint64_t perft(Position& p,int depth,int ply=0){
+    if(depth==0) return 1;
+    auto moves=legalMoves(p,ply);
+    std::uint64_t n=0;
+    for(const Move& m:moves) {
+        Position q=p;
+        makeMove(q,m);
+        n+=perft(q,depth-1,ply+1);
+    }
+    return n;
+}
 
-void setPosition(Position& p,const std::string& command){std::istringstream in(command);std::string token;in>>token;in>>token;if(token=="startpos")loadFen(p,START_FEN);else if(token=="fen"){std::string fen,part;for(int i=0;i<6&&in>>part;++i){if(i)fen+=' ';fen+=part;}if(!loadFen(p,fen))loadFen(p,START_FEN);}else loadFen(p,START_FEN);
-    while(in>>token){if(token=="moves"){while(in>>token){Move m;if(parseUciMove(p,token,m))makeMove(p,m);else break;}break;}}
+bool setPosition(Position& position,std::string_view command) {
+    std::istringstream input{std::string(command)};
+    std::string commandName;
+    std::string positionKind;
+    if(!(input>>commandName>>positionKind)||commandName!="position") return false;
+
+    Position next{};
+    if(positionKind=="startpos") {
+        if(!loadFen(next,START_FEN)) return false;
+    } else if(positionKind=="fen") {
+        std::array<std::string,6> fenFields;
+        for(std::string& field:fenFields) {
+            if(!(input>>field)) return false;
+        }
+
+        std::string fen;
+        for(const std::string& field:fenFields) {
+            if(!fen.empty()) fen+=' ';
+            fen+=field;
+        }
+        if(!loadFen(next,fen)) return false;
+    } else {
+        return false;
+    }
+
+    std::string token;
+    if(input>>token) {
+        if(token!="moves") return false;
+        while(input>>token) {
+            Move move;
+            if(!parseUciMove(next,token,move)) return false;
+            makeMove(next,move);
+        }
+    }
+
+    position=std::move(next);
+    return true;
 }
 }
 
@@ -1609,7 +1980,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         if(!loadFen(pos,argv[2])){std::cerr<<"Invalid FEN\n";return 2;}
         if(!parseIntegerToken(argv[3],1,7,d)){std::cerr<<"Invalid depth (expected 1-7)\n";return 2;}
         std::uint64_t total=0;
-        for(const Move&m:legalMoves(pos)){Position q=pos;makeMove(q,m);auto n=perft(q,d-1);std::cout<<moveUci(m)<<": "<<n<<"\n";total+=n;}
+        for(const Move&m:legalMoves(pos,0)){Position q=pos;makeMove(q,m);auto n=perft(q,d-1,1);std::cout<<moveUci(m)<<": "<<n<<"\n";total+=n;}
         std::cout<<"Total: "<<total<<"\n";
         return 0;
     }
@@ -1624,6 +1995,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 "id author Prunex Project\n"
                 "option name Hash type spin default "+std::to_string(DEFAULT_HASH_MB)+" min 1 max 4096\n"
                 "option name Threads type spin default 1 min 1 max 1\n"
+                "option name EvalFile type string default none\n"
                 "option name Clear Hash type button\n"
                 "uciok"
             );
@@ -1653,25 +2025,34 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 int requestedThreads=0;
                 if(!parseIntegerToken(value,1,1,requestedThreads))
                     emitLine("info string this build supports Threads=1 only");
+            } else if(name=="EvalFile") {
+                if(value.empty()||value=="none") {
+                    nnueNetwork.clear();
+                    clearTranspositionTable();
+                    emitLine("info string using handcrafted evaluation");
+                } else if(nnueNetwork.load(value)) {
+                    clearTranspositionTable();
+                    emitLine("info string loaded Prunex NNUE evaluation");
+                } else {
+                    emitLine("info string could not load the requested evaluation file");
+                }
             }
         } else if(cmd=="isready"){
             emitLine("readyok");
         } else if(cmd=="ucinewgame"){
             stopAndJoin();
             loadFen(pos,START_FEN);
-            clearTranspositionTable();
-            historyScores={};
-            counterMoves={};
-            searchPathMoves.fill(Move{});
-            searchPathPieceTypes.fill(0);
-            for(auto& pair:killerMoves)pair={Move{},Move{}};
+            resetSearchState();
         } else if(cmd=="position"){
             stopAndJoin();
-            setPosition(pos,line);
+            if(!setPosition(pos,line)) {
+                emitLine("info string rejected invalid position command; previous position retained");
+            }
         } else if(cmd=="go"){
             stopAndJoin();
             int depth=5;
             bool depthSet=false;
+            bool infiniteSearch=false;
             int movesToGo=30;
             std::int64_t moveTime=-1,whiteTime=-1,blackTime=-1,whiteIncrement=0,blackIncrement=0;
             std::uint64_t nodeLimit=0;
@@ -1685,6 +2066,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             };
             while(in>>token){
                 if(token=="depth"){in>>depth;depthSet=true;}
+                else if(token=="infinite") infiniteSearch=true;
                 else if(token=="movetime") readTime(moveTime);
                 else if(token=="wtime") readTime(whiteTime);
                 else if(token=="btime") readTime(blackTime);
@@ -1712,16 +2094,22 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 }
             }
             if(moveTime==0) moveTime=1;
-            // Timed and node-limited searches must keep deepening until
-            // their resource limit is reached. A fixed depth-12 ceiling made
-            // movetime searches return early with unused time.
-            if(!depthSet&&(nodeLimit>0||moveTime>=0)) depth=MAX_PLY-1;
+            // Infinite search ignores every other stopping limit and runs
+            // until the GUI sends "stop".
+            if(infiniteSearch) {
+                depth=MAX_PLY-1;
+                moveTime=-1;
+                nodeLimit=0;
+            } else if(!depthSet&&(nodeLimit>0||moveTime>=0)) {
+                // Timed and node-limited searches keep deepening until their
+                // resource limit is reached instead of stopping at depth 12.
+                depth=MAX_PLY-1;
+            }
             const int searchDepth=std::clamp(depth,1,MAX_PLY-1);
             const Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);
             searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit]() mutable {
                 Move best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit);
-                if(nodeLimit>0) emitLine("info string node-limit "+std::to_string(nodes)+"/"+std::to_string(nodeLimit));
                 emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
             });
         } else if(cmd=="eval"){

@@ -1,8 +1,8 @@
-name: Prunex strength ladder — Stockfish 19 and Triumviratus 8.1
+name: Prunex strength ladder — Stockfish 19, Triumviratus, PlentyChess and Reckless
 
 on:
   push:
-    branches: ['feature/bitboard-position-foundation']
+    branches: ['feature/bitboard-position-foundation', 'engine/stockfish-gap-rebuild-2026-11']
     paths:
       - 'src/**'
       - 'tests/**'
@@ -26,12 +26,12 @@ permissions:
 
 concurrency:
   group: prunex-modern-strength-ladder
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   three-tier-strength-ladder:
     name: 100k nodes, 1M nodes, and timed search
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
       - name: Check out exact Prunex candidate commit
@@ -53,13 +53,16 @@ jobs:
           cmake --build build-native --target prunex --parallel 2
           printf 'uci\nisready\nquit\n' | build-native/prunex
 
-      - name: Build pinned official Stockfish 19
+      - name: Build pinned official Stockfish 19 for the runner CPU
         run: |
+          lscpu > runner-cpu.txt
+          cat runner-cpu.txt
+          grep -m 1 -q 'avx2' /proc/cpuinfo
           git clone --depth 1 --branch sf_19 https://github.com/official-stockfish/Stockfish.git stockfish-19
           STOCKFISH_SHA="$(git -C stockfish-19 rev-parse HEAD)"
           test "$STOCKFISH_SHA" = "edb0d9db6731067ec50ce619ff372b463bc4dd5d"
           echo "STOCKFISH_SOURCE_COMMIT=$STOCKFISH_SHA" >> "$GITHUB_ENV"
-          make -C stockfish-19/src -j2 build ARCH=x86-64
+          make -C stockfish-19/src -j2 build ARCH=native
           test -x stockfish-19/src/stockfish
 
       - name: Download official Triumviratus 8.1 AVX2-noPEXT release and NNUE
@@ -92,7 +95,35 @@ jobs:
           grep 'uciok' uci.txt
           grep 'readyok' uci.txt
 
-      - name: Run paired 3-tier ladder against both engines
+      - name: Download official PlentyChess 8.0.0 AVX2 release
+        run: |
+          mkdir -p opponents/plentychess-8.0.0
+          cd opponents/plentychess-8.0.0
+          curl --fail --location --retry 3 --retry-delay 2 \
+            https://github.com/Yoshie2000/PlentyChess/releases/download/b-v8.0.0/PlentyChess-8.0.0-linux-avx2 \
+            --output PlentyChess-8.0.0-linux-avx2
+          echo "bd3e811ee696cb602d716c48601b3298dd1944624d71ed6f1e1db86c0f0980ee  PlentyChess-8.0.0-linux-avx2" | sha256sum --check -
+          chmod +x PlentyChess-8.0.0-linux-avx2
+          printf 'uci\nisready\nquit\n' | ./PlentyChess-8.0.0-linux-avx2 | tee uci.txt
+          grep -i 'id name PlentyChess' uci.txt
+          grep 'uciok' uci.txt
+          grep 'readyok' uci.txt
+
+      - name: Download official Reckless 0.9.0 AVX2 release
+        run: |
+          mkdir -p opponents/reckless-0.9.0
+          cd opponents/reckless-0.9.0
+          curl --fail --location --retry 3 --retry-delay 2 \
+            https://github.com/codedeliveryservice/Reckless/releases/download/v0.9.0/reckless-linux-avx2 \
+            --output reckless-linux-avx2
+          echo "09ba1634faaffec55d237a7efecfb27d5152f6f1400f24dd63af9bde00a054f6  reckless-linux-avx2" | sha256sum --check -
+          chmod +x reckless-linux-avx2
+          printf 'uci\nisready\nquit\n' | ./reckless-linux-avx2 | tee uci.txt
+          grep -i 'id name Reckless' uci.txt
+          grep 'uciok' uci.txt
+          grep 'readyok' uci.txt
+
+      - name: Run paired 3-tier ladder against four engines
         env:
           PAIRS_INPUT: ${{ inputs.pairs }}
           MOVETIME_MS_INPUT: ${{ inputs.movetime_ms }}
@@ -106,7 +137,12 @@ jobs:
             --triumviratus-cwd opponents/triumviratus-8.1 \
             --candidate-commit "${GITHUB_SHA}" \
             --stockfish-source-commit "${STOCKFISH_SOURCE_COMMIT}" \
+            --stockfish-build-arch "native" \
             --triumviratus-release-commit "bd309e0673a5a851941f0c19d15b01cbaba4baa5" \
+            --plentychess opponents/plentychess-8.0.0/PlentyChess-8.0.0-linux-avx2 \
+            --plentychess-release-commit "50ad9f1b523063cbbbf599fe0547f42870fe2906" \
+            --reckless opponents/reckless-0.9.0/reckless-linux-avx2 \
+            --reckless-release-commit "0e92358f5acd66e5ac77b1bf558202e47c515435" \
             --pairs "$PAIRS" \
             --seed 20261112 \
             --hash-mb 256 \
@@ -138,5 +174,8 @@ jobs:
             strength-ladder-results/
             opponents/triumviratus-8.1/uci.txt
             opponents/triumviratus-8.1/ldd.txt
+            opponents/plentychess-8.0.0/uci.txt
+            opponents/reckless-0.9.0/uci.txt
+            runner-cpu.txt
           if-no-files-found: warn
           retention-days: 90

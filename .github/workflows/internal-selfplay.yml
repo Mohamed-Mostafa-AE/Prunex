@@ -1,0 +1,96 @@
+name: Prunex internal paired self-play
+
+on:
+  push:
+    branches: ['engine/stockfish-gap-rebuild-2026-11']
+    paths:
+      - 'src/**'
+      - 'tests/test_internal_selfplay.py'
+      - 'tools/strength-match/internal_selfplay.py'
+      - '.github/workflows/internal-selfplay.yml'
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: 'Paired opening positions (each played with colours swapped)'
+        required: true
+        default: '100'
+        type: string
+      nodes:
+        description: 'Equal node limit per move'
+        required: true
+        default: '100000'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-internal-selfplay
+  cancel-in-progress: false
+
+jobs:
+  paired-selfplay:
+    name: Compare current Prunex against archived Prunex
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      BASELINE_SHA: 129829dd95672e83a347563526ae7b28ccf1ea63
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install compiler and chess test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+          python3 -m pip install --user --disable-pip-version-check python-chess==1.999
+
+      - name: Build archived Prunex baseline
+        run: |
+          git worktree add --detach ../prunex-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-baseline -B ../prunex-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-baseline/build --target prunex --parallel 2
+
+      - name: Build current Prunex candidate
+        run: |
+          cmake -S . -B build-selfplay -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-selfplay --target prunex --parallel 2
+
+      - name: Test the paired match harness
+        run: python3 tests/test_internal_selfplay.py
+
+      - name: Run equal-node paired-colour internal match
+        env:
+          PAIRS_INPUT: ${{ inputs.pairs }}
+          NODES_INPUT: ${{ inputs.nodes }}
+        run: |
+          python3 tools/strength-match/internal_selfplay.py \
+            --baseline ../prunex-baseline/build/prunex \
+            --candidate build-selfplay/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --pairs "${PAIRS_INPUT:-100}" \
+            --nodes "${NODES_INPUT:-100000}" \
+            --hash-mb 128 --threads 1 --seed 20261112 --max-plies 240 \
+            --out internal-selfplay-results
+
+      - name: Create and verify evidence checksums
+        if: always()
+        run: |
+          if [ -d internal-selfplay-results ]; then
+            (cd internal-selfplay-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > internal-selfplay-results/SHA256SUMS.txt
+            (cd internal-selfplay-results && sha256sum --check SHA256SUMS.txt)
+          fi
+
+      - name: Upload games, telemetry, summary and manifest
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-internal-selfplay-${{ github.run_number }}
+          path: internal-selfplay-results/
+          if-no-files-found: warn
+          retention-days: 90

@@ -17,6 +17,7 @@ import json
 import math
 import platform
 import random
+import re
 import statistics
 import time
 from dataclasses import dataclass
@@ -101,16 +102,22 @@ def configure_engine(
     threads: int,
 ) -> dict[str, Any]:
     requested: dict[str, int] = {}
-    if "Hash" in engine.options:
-        option = engine.options["Hash"]
-        value = max(int(option.min or 1), min(hash_mb, int(option.max or hash_mb)))
-        requested["Hash"] = value
-    if "Threads" in engine.options:
-        option = engine.options["Threads"]
-        value = max(int(option.min or 1), min(threads, int(option.max or threads)))
-        requested["Threads"] = value
-    if requested:
-        engine.configure(requested)
+    for name, value in (("Hash", hash_mb), ("Threads", threads)):
+        if name not in engine.options:
+            raise RuntimeError(
+                f"{engine.id.get('name', 'Engine')} does not expose required UCI option {name}"
+            )
+        option = engine.options[name]
+        minimum = 1 if option.min is None else int(option.min)
+        maximum = value if option.max is None else int(option.max)
+        if not minimum <= value <= maximum:
+            raise RuntimeError(
+                f"{engine.id.get('name', 'Engine')} cannot accept {name}={value}; "
+                f"supported range is {minimum}..{maximum}"
+            )
+        requested[name] = value
+
+    engine.configure(requested)
     engine.ping()
     return requested
 
@@ -131,6 +138,26 @@ def score_from_outcome(board: chess.Board, candidate_color: chess.Color,
     if outcome.winner is None:
         return 0.5, outcome.termination.name
     return (1.0 if outcome.winner == candidate_color else 0.0), outcome.termination.name
+
+
+def parse_final_search_info(value: Any) -> dict[str, int] | None:
+    """Parse Prunex's final counters, emitted after the last completed depth."""
+    if not isinstance(value, str):
+        return None
+    match = re.search(
+        r"search-final\s+nodes=(\d+)\s+depth=(\d+)\s+elapsed_ms=(\d+)\s+tthits=(\d+)\s+node_limit=(\d+)",
+        value,
+    )
+    if match is None:
+        return None
+    nodes, depth, elapsed_ms, tt_hits, node_limit = map(int, match.groups())
+    return {
+        "nodes": nodes,
+        "depth": depth,
+        "elapsed_ms": elapsed_ms,
+        "tt_hits": tt_hits,
+        "node_limit": node_limit,
+    }
 
 
 def info_value(info: dict[str, Any], key: str) -> Any:
@@ -206,12 +233,22 @@ def play_one_game(
             )
 
         info = result.info or {}
-        nodes = info.get("nodes")
+        reported_nodes = info.get("nodes")
+        final_search = parse_final_search_info(info.get("string"))
+        nodes = (
+            final_search["nodes"]
+            if final_search is not None
+            else reported_nodes
+        )
         if isinstance(nodes, int) and nodes >= 0:
             nodes_total[engine_name] += nodes
         else:
             missing_node_counts[engine_name] += 1
-        depth = info.get("depth")
+        depth = (
+            final_search["depth"]
+            if final_search is not None
+            else info.get("depth")
+        )
         if isinstance(depth, int):
             depth_total[engine_name] += depth
 
@@ -239,6 +276,16 @@ def play_one_game(
             "uci": result.move.uci(),
             "san": san,
             "nodes": nodes,
+            "nodes_in_last_completed_info": reported_nodes,
+            "node_count_source": (
+                "final-search-info" if final_search is not None else "last-uci-info"
+            ),
+            "search_elapsed_ms": (
+                final_search["elapsed_ms"] if final_search is not None else None
+            ),
+            "search_tt_hits": (
+                final_search["tt_hits"] if final_search is not None else None
+            ),
             "depth": depth,
             "seldepth": info.get("seldepth"),
             "nps": info.get("nps"),
@@ -249,6 +296,7 @@ def play_one_game(
             "pv_uci": info_value(info, "pv"),
             "requested_node_limit": tier.node_limit,
             "requested_movetime_seconds": tier.movetime_seconds,
+            "final_search_info": info.get("string"),
         }
         telemetry_file.write(json.dumps(record, separators=(",", ":")) + "\n")
         telemetry_file.flush()
@@ -381,8 +429,13 @@ def main() -> None:
     parser.add_argument("--stockfish", required=True)
     parser.add_argument("--triumviratus", required=True)
     parser.add_argument("--triumviratus-cwd", required=True)
+    parser.add_argument("--plentychess", required=True)
+    parser.add_argument("--reckless", required=True)
     parser.add_argument("--stockfish-source-commit", required=True)
+    parser.add_argument("--stockfish-build-arch", required=True)
     parser.add_argument("--triumviratus-release-commit", required=True)
+    parser.add_argument("--plentychess-release-commit", required=True)
+    parser.add_argument("--reckless-release-commit", required=True)
     parser.add_argument("--candidate-commit", required=True)
     parser.add_argument("--pairs", type=int, default=12)
     parser.add_argument("--seed", type=int, default=20261112)
@@ -404,10 +457,12 @@ def main() -> None:
     stockfish_path = Path(args.stockfish).resolve()
     triumviratus_path = Path(args.triumviratus).resolve()
     triumviratus_cwd = Path(args.triumviratus_cwd).resolve()
+    plentychess_path = Path(args.plentychess).resolve()
+    reckless_path = Path(args.reckless).resolve()
     output = Path(args.out).resolve()
     output.mkdir(parents=True, exist_ok=True)
 
-    for path in (candidate_path, stockfish_path, triumviratus_path):
+    for path in (candidate_path, stockfish_path, triumviratus_path, plentychess_path, reckless_path):
         if not path.is_file():
             raise FileNotFoundError(path)
     if not triumviratus_cwd.is_dir():
@@ -417,6 +472,8 @@ def main() -> None:
     opponent_specs = [
         EngineSpec("Stockfish 19", stockfish_path, stockfish_path.parent),
         EngineSpec("Triumviratus 8.1", triumviratus_path, triumviratus_cwd),
+        EngineSpec("PlentyChess 8.0.0", plentychess_path, plentychess_path.parent),
+        EngineSpec("Reckless 0.9.0", reckless_path, reckless_path.parent),
     ]
     tiers = [
         Tier("nodes-100000", 100_000, None),
@@ -446,7 +503,10 @@ def main() -> None:
         manifest = {
             "candidate_commit": args.candidate_commit,
             "stockfish_source_commit": args.stockfish_source_commit,
+            "stockfish_build_arch": args.stockfish_build_arch,
             "triumviratus_release_commit": args.triumviratus_release_commit,
+            "plentychess_release_commit": args.plentychess_release_commit,
+            "reckless_release_commit": args.reckless_release_commit,
             "candidate": {
                 **candidate_identity,
                 "path": str(candidate_path),
@@ -478,10 +538,16 @@ def main() -> None:
                 str(spec.executable), timeout=180, cwd=str(spec.working_directory)
             ) as opponent:
                 identity = engine_identity(opponent)
-                if spec.label == "Stockfish 19" and "Stockfish" not in identity["name"]:
-                    raise RuntimeError(f"Unexpected Stockfish identity: {identity}")
-                if spec.label == "Triumviratus 8.1" and "Triumviratus" not in identity["name"]:
-                    raise RuntimeError(f"Unexpected Triumviratus identity: {identity}")
+                expected_identity = {
+                    "Stockfish 19": "Stockfish",
+                    "Triumviratus 8.1": "Triumviratus",
+                    "PlentyChess 8.0.0": "PlentyChess",
+                    "Reckless 0.9.0": "Reckless",
+                }[spec.label]
+                if expected_identity.casefold() not in identity["name"].casefold():
+                    raise RuntimeError(
+                        f"Unexpected {spec.label} identity: {identity}"
+                    )
                 options = configure_engine(opponent, args.hash_mb, args.threads)
                 manifest["opponents"].append({
                     "label": spec.label,
@@ -501,10 +567,8 @@ def main() -> None:
 
     report = {
         "candidate_commit": args.candidate_commit,
-        "opponents": [
-            "Stockfish 19",
-            "Triumviratus 8.1",
-        ],
+        "stockfish_build_arch": args.stockfish_build_arch,
+        "opponents": [spec.label for spec in opponent_specs],
         "pairs_per_tier_per_opponent": args.pairs,
         "total_games": sum(item["games"] for item in summaries),
         "elapsed_seconds": round(time.monotonic() - started, 2),

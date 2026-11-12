@@ -15,6 +15,7 @@ if(EMSCRIPTEN)
         "-sENVIRONMENT=web,worker,node"
         "-sALLOW_MEMORY_GROWTH=1"
         "-sNO_EXIT_RUNTIME=1"
+        "-sSTACK_SIZE=1048576"
         "--no-entry"
         "-sEXPORTED_FUNCTIONS=['_prunex_wasm_api_version','_prunex_wasm_evaluate_fen','_prunex_wasm_search_fen','_prunex_wasm_search_fen_timed','_prunex_wasm_search_depth','_prunex_wasm_nodes','_malloc','_free']"
         "-sEXPORTED_RUNTIME_METHODS=['cwrap','UTF8ToString','stringToUTF8','lengthBytesUTF8']"
@@ -122,6 +123,12 @@ if(BUILD_TESTING)
     target_compile_definitions(prunex_search_tests PRIVATE PRUNEX_TT_BITS=${PRUNEX_TT_BITS})
     target_link_libraries(prunex_search_tests PRIVATE Threads::Threads)
 
+    add_executable(prunex_nnue_tests tests/nnue_regression.cpp)
+    target_compile_features(prunex_nnue_tests PRIVATE cxx_std_20)
+    target_compile_definitions(prunex_nnue_tests PRIVATE PRUNEX_TT_BITS=${PRUNEX_TT_BITS})
+    target_link_libraries(prunex_nnue_tests PRIVATE Threads::Threads)
+    add_test(NAME nnue_network_file_validation COMMAND prunex_nnue_tests)
+
     add_executable(prunex_parity_reference tests/wasm_parity_reference.cpp)
     target_compile_features(prunex_parity_reference PRIVATE cxx_std_20)
     target_link_libraries(prunex_parity_reference PRIVATE Threads::Threads)
@@ -145,6 +152,8 @@ if(BUILD_TESTING)
     if(Python3_Interpreter_FOUND)
         add_test(NAME uci_nodes_limit COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/uci_nodes_limit.py $<TARGET_FILE:prunex>)
         set_tests_properties(uci_nodes_limit PROPERTIES TIMEOUT 60)
+        add_test(NAME uci_infinite_stop COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/uci_infinite_search.py $<TARGET_FILE:prunex>)
+        set_tests_properties(uci_infinite_stop PROPERTIES TIMEOUT 30)
     endif()
     add_test(NAME uci_movetime COMMAND ${CMAKE_COMMAND} -DENGINE=$<TARGET_FILE:prunex> -DSCENARIO=movetime -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/uci_timed_search.cmake)
     add_test(NAME uci_clock_time COMMAND ${CMAKE_COMMAND} -DENGINE=$<TARGET_FILE:prunex> -DSCENARIO=clock -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/uci_timed_search.cmake)
@@ -171,7 +180,9 @@ if(BUILD_TESTING)
     set(INVALID_FEN_WRONG_EP_RANK "4k3/8/8/3pP3/8/8/8/4K3 w - d4 0 1")
     set(INVALID_FEN_MISSING_EP_PAWN "4k3/8/8/4P3/8/8/8/4K3 w - d6 0 1")
     set(INVALID_FEN_OCCUPIED_EP_TARGET "4k3/8/3N4/3pP3/8/8/8/4K3 w - d6 0 1")
-    foreach(case IN ITEMS NONNUMERIC_HALFMOVE NONNUMERIC_FULLMOVE EXTRA_FIELD DUPLICATE_RIGHTS NEGATIVE_HALFMOVE ZERO_FULLMOVE OVERFLOW_HALFMOVE WRONG_EP_RANK MISSING_EP_PAWN OCCUPIED_EP_TARGET)
+    set(INVALID_FEN_PAWN_BACK_RANK "P7/8/4k3/8/8/8/8/4K3 w - - 0 1")
+    set(INVALID_FEN_CASTLING_WITHOUT_ROOK "4k3/8/8/8/8/8/8/4K3 w K - 0 1")
+    foreach(case IN ITEMS NONNUMERIC_HALFMOVE NONNUMERIC_FULLMOVE EXTRA_FIELD DUPLICATE_RIGHTS NEGATIVE_HALFMOVE ZERO_FULLMOVE OVERFLOW_HALFMOVE WRONG_EP_RANK MISSING_EP_PAWN OCCUPIED_EP_TARGET PAWN_BACK_RANK CASTLING_WITHOUT_ROOK)
         add_test(NAME invalid_fen_${case} COMMAND ${CMAKE_COMMAND}
             -DENGINE=$<TARGET_FILE:prunex>
             -DFEN=${INVALID_FEN_${case}}

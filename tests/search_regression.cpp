@@ -78,9 +78,125 @@ static bool attackMapsAgree(const prunex::Position& p) {
  return true;
 }
 
+static bool enPassantHashingMatchesLegalMoves() {
+    using namespace prunex;
+    Position noAdjacentPawn;
+    Position unusedTarget;
+    if(!loadFen(noAdjacentPawn,"4k3/8/8/3p4/8/8/8/4K3 w - - 0 1")
+       ||!loadFen(unusedTarget,"4k3/8/8/3p4/8/8/8/4K3 w - d6 0 1")
+       ||noAdjacentPawn.key!=unusedTarget.key) return false;
+
+    Position legalCapture;
+    Position noLegalCapture;
+    if(!loadFen(legalCapture,"4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
+       ||!loadFen(noLegalCapture,"4k3/8/8/3pP3/8/8/8/4K3 w - - 0 1")
+       ||legalCapture.key==noLegalCapture.key) return false;
+
+    Position pinnedPawn;
+    Position pinnedWithoutTarget;
+    if(!loadFen(pinnedPawn,"k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
+       ||!loadFen(pinnedWithoutTarget,"k3r3/8/8/3pP3/8/8/8/4K3 w - - 0 1")
+       ||pinnedPawn.key!=pinnedWithoutTarget.key) return false;
+
+    Position doublePush;
+    if(!loadFen(doublePush,"4k3/8/8/8/3p4/8/4P3/4K3 w - - 0 1"))
+        return false;
+    const std::uint64_t parentKey=doublePush.key;
+    Move move;
+    if(!parseUciMove(doublePush,"e2e4",move)) return false;
+    const Undo undo=makeMove(doublePush,move);
+    if(doublePush.key!=computePositionKey(doublePush)) return false;
+    Position withoutTarget=doublePush;
+    withoutTarget.ep=-1;
+    if(doublePush.key==computePositionKey(withoutTarget)) return false;
+    undoMove(doublePush,move,undo);
+    if(doublePush.key!=parentKey||doublePush.key!=computePositionKey(doublePush))
+        return false;
+
+    // Null moves clear the raw target but must only remove its hash component
+    // when an en-passant capture was actually legal.
+    makeNullMove(pinnedPawn);
+    if(pinnedPawn.key!=computePositionKey(pinnedPawn)) return false;
+    makeNullMove(legalCapture);
+    if(legalCapture.key!=computePositionKey(legalCapture)) return false;
+
+    return true;
+}
+
+static bool samePositionState(
+    const prunex::Position& left,
+    const prunex::Position& right
+) {
+    return left.board==right.board
+        &&left.piecesBB==right.piecesBB
+        &&left.occupancy==right.occupancy
+        &&left.side==right.side
+        &&left.castling==right.castling
+        &&left.ep==right.ep
+        &&left.halfmove==right.halfmove
+        &&left.fullmove==right.fullmove
+        &&left.key==right.key
+        &&left.nnue.values==right.nnue.values
+        &&left.nnue.generation==right.nnue.generation
+        &&left.nnue.valid==right.nnue.valid;
+}
+
+static bool positionCommandsAreTransactional() {
+    using namespace prunex;
+
+    Position position;
+    if(!loadFen(position,START_FEN)) return false;
+    if(!setPosition(position,"position startpos moves e2e4 e7e5")) return false;
+    const Position accepted=position;
+
+    if(setPosition(position,"position startpos moves e2e4 e7e5 e1e8")) return false;
+    if(!samePositionState(position,accepted)) return false;
+
+    if(setPosition(position,"position startpos unexpected")) return false;
+    if(!samePositionState(position,accepted)) return false;
+
+    if(setPosition(position,"position fen 4k3/8/8/8/8/8/8/4K3 w - -")) return false;
+    if(!samePositionState(position,accepted)) return false;
+
+    if(!setPosition(position,"position fen 4k3/8/8/8/8/8/8/4K3 w - - 0 1")) return false;
+    return position.key==computePositionKey(position)
+        &&position.side==WHITE
+        &&position.fullmove==1;
+}
+
+static bool moveCountersSaturateAndUndo() {
+    using namespace prunex;
+    constexpr int maximum=std::numeric_limits<int>::max();
+
+    Position halfmovePosition;
+    if(!loadFen(halfmovePosition,
+                "4k3/8/8/8/8/8/8/R3K3 w - - 2147483647 1")) return false;
+    const Position originalHalfmove=halfmovePosition;
+    Move move;
+    if(!parseUciMove(halfmovePosition,"a1a2",move)) return false;
+    const Undo halfmoveUndo=makeMove(halfmovePosition,move);
+    if(halfmovePosition.halfmove!=maximum||halfmovePosition.fullmove!=1) return false;
+    undoMove(halfmovePosition,move,halfmoveUndo);
+    if(!samePositionState(halfmovePosition,originalHalfmove)) return false;
+
+    Position fullmovePosition;
+    if(!loadFen(fullmovePosition,
+                "r3k3/8/8/8/8/8/8/4K3 b - - 0 2147483647")) return false;
+    const Position originalFullmove=fullmovePosition;
+    if(!parseUciMove(fullmovePosition,"a8a7",move)) return false;
+    const Undo fullmoveUndo=makeMove(fullmovePosition,move);
+    if(fullmovePosition.fullmove!=maximum||fullmovePosition.halfmove!=1) return false;
+    undoMove(fullmovePosition,move,fullmoveUndo);
+    return samePositionState(fullmovePosition,originalFullmove);
+}
+
 int main() {
     using namespace prunex;
     Position position;
+
+    if(!positionCommandsAreTransactional()) return 126;
+    if(!moveCountersSaturateAndUndo()) return 127;
+    if(!enPassantHashingMatchesLegalMoves()) return 125;
 
     if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 0 1")) return 1;
     nodes=0;
@@ -117,6 +233,15 @@ int main() {
         }
         return true;
     };
+
+    if(!loadFen(position,START_FEN)) return 120;
+    const Position beforeInvalidFen=position;
+    if(loadFen(position,"P7/8/4k3/8/8/8/8/4K3 w - - 0 1")) return 121;
+    if(position.board!=beforeInvalidFen.board||position.side!=beforeInvalidFen.side
+       ||position.castling!=beforeInvalidFen.castling||position.ep!=beforeInvalidFen.ep
+       ||position.key!=beforeInvalidFen.key) return 122;
+    if(loadFen(position,"4k3/8/8/8/8/8/8/4K3 w K - 0 1")) return 123;
+    if(position.board!=beforeInvalidFen.board||position.key!=beforeInvalidFen.key) return 124;
 
     if(!loadFen(position,START_FEN)||!attackMapsAgree(position)) return 88;
     if(!loadFen(position,"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")||
@@ -341,6 +466,32 @@ int main() {
            moveOrderingScore(position,ordered[index],counterCandidate,0)) return 86;
     }
 
+    // The staged picker must always take a legal transposition move first,
+    // then a profitable capture before an ordinary quiet move.
+    if(!loadFen(position,"7k/8/8/3q4/8/8/8/K2R4 w - - 0 1")) return 98;
+    auto tacticalMoves=legalMoves(position,0);
+    Move hashCandidate;
+    if(!parseUciMove(position,"a1b1",hashCandidate)) return 99;
+    MovePicker tacticalPicker(position,tacticalMoves,hashCandidate,0);
+    if(!sameMove(tacticalPicker.next(),hashCandidate)) return 100;
+    if(moveUci(tacticalPicker.next())!="d1d5") return 101;
+
+    // A countermove is staged ahead of ordinary quiet moves.
+    if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 102;
+    if(!parseUciMove(position,"g1f3",counterCandidate)) return 103;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+    counterMoves={};
+    searchPathMoves[0]={parseSquare("g8"),parseSquare("f6"),EMPTY,false,false};
+    searchPathPieceTypes[0]=2;
+    counterMoves[2][parseSquare("f6")]=counterCandidate;
+    auto counterMovesLegal=legalMoves(position,1);
+    MovePicker counterPicker(position,counterMovesLegal,Move{},1);
+    if(!sameMove(counterPicker.next(),counterCandidate)) return 104;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+    counterMoves={};
+
     const int originalHashSize=configuredHashMB;
     const std::size_t originalBucketCount=ttBucketCount;
     if(!resizeTranspositionTable(1)) return 93;
@@ -369,7 +520,30 @@ int main() {
     }};
     for(const char* fen:legalityFens) {
         if(!loadFen(position,fen)||!legalMoveSetsAgree(position)) return 92;
+
+        const auto allLegal=legalMoves(position,0);
+        const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
+        const auto tactical=legalMoves(position,0,true);
+        std::vector<Move> expectedTactical;
+        for(const Move& move:allMoves) {
+            if(isCapture(position,move)||move.promotion) expectedTactical.push_back(move);
+        }
+        if(tactical.size()!=expectedTactical.size()) return 111;
+        for(const Move& move:tactical) {
+            if(std::none_of(expectedTactical.begin(),expectedTactical.end(),
+                [&](const Move& expected){return sameMove(move,expected);})) return 112;
+        }
+        if(hasAnyLegalMove(position,0)!=!allMoves.empty()) return 113;
     }
+
+    // Quiescence must still recognise terminal positions after switching to
+    // capture-only move generation.
+    if(!loadFen(position,"7k/5Q2/6K1/8/8/8/8/8 b - - 0 1")) return 114;
+    resetSearchState();
+    if(quiescence(position,-INF,INF,0,0)!=0) return 115;
+    if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 0 1")) return 116;
+    resetSearchState();
+    if(quiescence(position,-INF,INF,0,0)!=-MATE) return 117;
 
     // Deterministic random legal play checks the optimized generator against
     // the slow oracle after every position transition.
@@ -377,6 +551,14 @@ int main() {
     std::mt19937 randomMoves(0x5052554EU);
     for(int ply=0;ply<160;++ply) {
         if(!legalMoveSetsAgree(position)) return 94;
+        const auto allLegal=legalMoves(position,0);
+        const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
+        const auto tactical=legalMoves(position,0,true);
+        std::size_t expectedTactical=0;
+        for(const Move& move:allMoves)
+            if(isCapture(position,move)||move.promotion) ++expectedTactical;
+        if(tactical.size()!=expectedTactical) return 118;
+        if(hasAnyLegalMove(position,0)!=!allMoves.empty()) return 119;
         auto moves=legalMoves(position);
         if(moves.empty()) break;
         const Move selected=moves[

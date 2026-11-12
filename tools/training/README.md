@@ -117,3 +117,89 @@ splits. The held-out test split is evaluated only after fitting. The report is
 diagnostic: it does not modify the C++ evaluator, produce engine weights, or
 change the separate browser review calibration. A better calibration score
 is not evidence of stronger play.
+
+
+## Prepare an NNUE teacher-evaluation corpus
+
+The Lichess Open Database publishes a CC0 position-evaluation archive containing
+FENs and Stockfish teacher evaluations. Download the `lichess_db_eval.jsonl.zst`
+archive from [database.lichess.org](https://database.lichess.org/). Keep the
+archive outside Git, retain its SHA-256, and record its download date.
+
+Run the streaming importer:
+
+```bash
+python tools/training/prepare_lichess_eval.py \
+  --input /data/lichess_db_eval.jsonl.zst \
+  --output-dir /data/prunex-corpus/lichess-eval-2026-11 \
+  --dataset-name lichess-eval-2026-11 \
+  --min-depth 16 \
+  --min-knodes 1000
+```
+
+The importer chooses the first PV from the deepest qualifying evaluation,
+skips mate-only labels, deduplicates identical positions before splitting,
+and writes train/validation/test JSONL plus a manifest. The public
+[Lichess fishnet-evals dataset card](https://huggingface.co/datasets/Lichess/fishnet-evals)
+defines the source centipawn score as White-relative; the importer converts
+it to side-to-move perspective using the FEN active colour. The manifest
+records the source archive hash, CC0 license, score-schema reference, teacher
+provenance, depth/node filters, output hashes, and filtering counters.
+
+The output labels are Stockfish teacher scores; using them trains a
+Prunex-owned model to reproduce a teacher signal. It does not, by itself,
+demonstrate better chess.
+
+Do not put the bulk corpus or trained weights in this repository. Keep the
+original archive, manifest, training configuration, checkpoint, exported
+model, and checksums together in versioned storage.
+
+
+## Train an original Prunex HalfKP network
+
+The native engine can load a Prunex-owned evaluation file through UCI's
+`EvalFile` option. The quantized format is defined by `src/nnue.hpp` and starts with the
+`PRUNEXQ1` header; it is not a Stockfish `.nnue` file and cannot load
+Stockfish network weights.
+
+Install the optional PyTorch dependency in addition to the base training tools:
+
+```bash
+python -m pip install -r tools/training/requirements-nnue.txt
+```
+
+Train from the licensed, White-relative Lichess corpus prepared above:
+
+```bash
+python tools/training/train_halfkp.py \
+  --input-dir /data/prunex-corpus/lichess-eval-2026-11 \
+  --output /data/prunex-models/prunex-halfkp-v1.nnue \
+  --device cuda \
+  --epochs 3 \
+  --batch-size 512
+```
+
+The initial network uses shared HalfKP piece/king features, two perspectives,
+and a compact dense head. Training applies straight-through fake quantization
+to feature weights, dense weights, biases and clipped activations so the model
+sees the same integer scales used by native inference. It is an original Prunex model implementation; the
+feature-set concept follows the publicly documented HalfKP design. The model
+is trained on Stockfish teacher centipawn evaluations, normalized to the
+side-to-move perspective. The trainer writes the native network, a PyTorch
+checkpoint, a training report and SHA-256 hashes. Keep all of those with the
+corpus manifest and training settings.
+
+The native engine keeps its handcrafted evaluator unless a valid Prunex
+network is explicitly selected:
+
+```text
+setoption name EvalFile value /path/to/prunex-halfkp-v1.nnue
+```
+
+To return to the handcrafted evaluator:
+
+```text
+setoption name EvalFile value none
+```
+
+The native evaluator uses quantized integer weights and activations, with a final centipawn scaling step. Each position now carries 32-bit HalfKP feature accumulators. Ordinary piece moves update only the affected feature rows; king moves rebuild the moved side's perspective; undo restores the parent cache; and an invalid or mismatched cache is rebuilt before evaluation. Regression tests compare incremental results against full rebuilds after quiet moves, captures, castling, en passant, promotions, both colours' king moves, and undo. SIMD kernels remain future work, and the implementation is still a prototype rather than a production-qualified NNUE. Do not make a strength claim from training loss alone; benchmark the loaded model and run paired-colour matches before enabling it in a release.

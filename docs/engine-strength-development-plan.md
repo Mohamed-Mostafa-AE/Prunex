@@ -1,92 +1,110 @@
-# Prunex engine-strength development plan
+# Prunex Engine-Strength Development Plan
 
 ## Objective
 
-Develop Prunex as Mohamed Mostafa's original, independently implemented C++ chess engine, built from scratch with its own architecture and implementation. The objective is to reach top-tier competitive playing strength through measurable, original engineering work. No external engine source, patches, implementation fragments, or weights are to be incorporated into Prunex.
+Develop Prunex through original search, move-generation, and evaluation work. The long-term target is competitiveness with Stockfish 19, with a clear intermediate goal of beating Stockfish 2.0 convincingly. Neither has been demonstrated by the current branch.
 
-The initial design constraint for this programme is a deterministic, handcrafted evaluation function. Search and evaluation improvements must be implemented as original Prunex code and validated through tests and controlled matches.
+All work remains isolated on `engine/stockfish-gap-rebuild-2026-11`. It is not merged into `main` or the frozen 0.8.0 release.
 
-## Current baseline
+## Diagnostic opponent baseline
 
-The current native engine is C++20 and includes:
+The archived 144-game candidate (`129829dd95672e83a347563526ae7b28ccf1ea63`) scored:
 
-- 0x88 mailbox position representation.
-- Pseudo-legal move generation with king-safety filtering.
-- FEN and UCI handling, castling, en passant, and promotions.
-- Zobrist position keys and a transposition table.
-- Iterative-deepening negamax with alpha-beta and principal-variation search.
-- Aspiration windows, SEE-based capture ordering, late-move reductions, killer/history heuristics, and quiescence search.
-- A handcrafted tapered middlegame/endgame evaluator.
-- Search-path repetition detection and fifty-move draw handling.
-- Insufficient-material detection and null-move pruning with verification at greater depths.
-- Native, Windows, and WebAssembly builds with regression and parity tests.
+- Stockfish 19: 1 win, 5 draws, 66 losses in 72 games (4.86%).
+- Triumviratus 8.1: 0 wins, 2 draws, 70 losses in 72 games (1.39%).
 
-This is the repository's documented baseline. Strength remains a measured engineering objective, not an assumed result.
+This is the result for that exact old candidate. It is not an Elo estimate and says nothing about later code until it is tested. The separate historical Stockfish 2.0 test did not complete 64 games; its latest recorded attempt stopped after nine games when the external engine exceeded the requested node budget by two nodes. It has no valid 64-game score.
 
-## Engineering sequence
+## Search and move-generation work on the isolated branch
 
-### 1. Establish a trustworthy baseline
+- Runtime BMI2 PEXT dispatch for slider attack indexing on supported x86 processors, with a portable fallback.
+- Fixed-size per-ply move-generation buffers in place of recursive heap-backed move vectors.
+- Staged move ordering, with ordering deferred until a phase is reached.
+- Capture-only legal move generation in quiescence, with separate terminal-position detection.
+- Corrected the LMR history lookup to use the side that made the move.
+- Final UCI search telemetry for total nodes, completed depth, elapsed time and TT hits.
+- Regression coverage for move generation, terminal positions, staged ordering, telemetry and portability.
 
-- Preserve a reproducible release build and record its source commit and executable SHA-256.
-- Run perft suites and add edge-case positions for legality, castling, en passant, promotions, repetition, and fifty-move handling.
-- Add tactical, quiet-position, endgame, and mate-search suites.
-- Record fixed-hardware nodes-per-second and fixed-time search results.
-- Create a match harness that retains PGNs, engine identities, options, seeds, time controls, and result summaries.
+The experimental capture/continuation-history additions were removed after the fixed-position ablation showed a loss of equal-node search depth. They are not part of the accepted search path.
 
-### 2. Improve the search core
+## Fixed-position performance evidence
 
-Evaluate and implement independently, with an isolated test for each change:
+GitHub Actions run [43241766591](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43241766591), candidate commit `ac198de7d34b4957d8f52e46f1b3d5dc342f4b1c`, compared the archived baseline and the current search on five fixed positions, with three repeated runs per variant:
 
-- A cache-friendly clustered transposition table with depth/age-aware replacement.
-- Incremental position hashing and carefully validated make/unmake state.
-- Further refine staged move generation and SEE integration; static-exchange evaluation is now used for capture ordering.
-- Refined history, continuation-history, killer, and countermove scoring.
-- Further tune null-move pruning; evaluate futility pruning, razoring, and refined late-move reductions.
-- Better aspiration-window management and principal-variation stability.
-- Search instrumentation for node types, cutoffs, reductions, re-searches, and transposition-table quality.
+| Measure | Archived baseline | Candidate |
+|---|---:|---:|
+| Median NPS, depth 5 | 520,676 | 1,036,597 |
+| Median elapsed time, depth 5 | 517 ms | 296 ms |
+| Median depth at 200,000 nodes | 6 | 6 |
+| Median time at 200,000 nodes | 341 ms | 181 ms |
 
-Selective pruning must be tested for tactical blind spots; more pruning is not automatically stronger.
+This is a measured throughput result for the search build. It is not a playing-strength result: the workflow explicitly ran no opponent games, the equal-node median depth remained 6, and the optional NNUE file was not loaded. The incremental NNUE cache, AVX2 inference and factorized trainer are therefore not responsible for this benchmark result; their performance still needs to be measured with a trained model loaded.
 
-### 3. Improve the evaluation function
+An earlier 40-pair / 80-game internal match against the archived Prunex build scored 28 wins, 29 draws and 23 losses (53.12%), with a paired 95% interval of 46.3%–60.0%. That result is inconclusive and is for an earlier candidate commit. A larger 100-pair run is tracked separately; its result must be read from the finished artifact before drawing conclusions.
 
-Keep the evaluator interpretable and handcrafted. Develop and test terms for:
+## Original Prunex HalfKP evaluator: prototype status
 
-- Piece mobility and safe mobility.
-- King safety, attack units, and open-file pressure.
-- Pawn structure, backward and isolated pawns, passed pawns, and pawn races.
-- Outposts, bishop pair, rook activity, seventh-rank pressure, and coordination.
-- Threats, hanging pieces, trapped pieces, and space.
-- Phase-aware king activity and specialized endgame knowledge.
+The branch now contains an original Prunex network file format, a HalfKP-style feature extractor, a PyTorch trainer and an optional UCI `EvalFile` loader:
 
-Use held-out positions and controlled matches when tuning parameters. Do not tune on the final test set.
+- `src/nnue.hpp`: bounded file loader and native inference for the Prunex network format. It is not compatible with Stockfish `.nnue` network files.
+- `tools/training/prepare_lichess_eval.py`: streams the Lichess evaluation export, validates positions, excludes mate-only labels, records source hashes and provenance, deduplicates position IDs using a disk-backed SQLite index, and creates hash-based train/validation/test splits.
+- `tools/training/train_halfkp.py`: trains an original HalfKP model with a virtual P-feature factorizer, coalesces the learned virtual rows into the real HalfKP rows, and exports a Prunex network, checkpoint and report.
+- `tests/test_halfkp_training.py`: end-to-end smoke test intended to train a small fixture, export the file, and load it in the native engine.
 
-### 4. Improve throughput and scalability
+The Lichess Open Database page reports 417,862,375 evaluated positions as of 2026-11-11, released under CC0. Its evaluations were produced by various Stockfish flavours, not exclusively Stockfish 19: https://database.lichess.org/. The training corpus is teacher data, not ground-truth optimal play.
 
-- Profile before optimizing; retain reproducible benchmark inputs.
-- Reduce allocation and copying in hot paths.
-- Evaluate compact move encoding and cache locality.
-- Add optional multi-threaded search only after single-thread correctness is stable.
-- Keep native and WebAssembly behaviour consistent, with explicit platform-specific limits.
+**Important limitations:** no full Lichess corpus has been imported for this project, no production-scale Prunex network has been trained, and no trained network has been shown to improve playing strength. The native inference path uses quantized integer weights and activations with a final centipawn scaling step. Both dense-layer dot products and incremental feature-row updates now have runtime-dispatched AVX2 implementations with exact scalar fallbacks. Each position now carries 32-bit HalfKP feature accumulators: ordinary piece moves update only the affected rows, while king moves rebuild the moved side's perspective. The cache is restored through undo and rebuilt when it is invalid or belongs to another loaded network. The trainer now uses a virtual P factorizer to share early learning across the 64 king-square buckets; the P weights are coalesced into the HalfKP rows during export, so the runtime format and inference feature count remain unchanged. The implementation is correctness-tested, but it is still a prototype without a strength-qualified trained model or the broader feature sets used by modern Stockfish. The UCI option continues to use the handcrafted evaluator until a model is explicitly loaded.
 
-### 5. Validate playing strength
+The initial training smoke test exposed a missing NumPy dependency in the export path; NumPy is now pinned. The corrected end-to-end CI run passed on the current candidate, including export, native loading, search startup, and Python/native evaluation parity on 16 synthetic held-out fixture positions. This validates the training/export/inference pipeline, not the quality of a production model.
 
-- Use balanced-color match pairs, randomized opening suites, fixed hardware, and fixed time controls.
-- Retain every PGN and machine-readable result.
-- Report sample size, score, confidence interval, opponent build identity, and exact Prunex commit.
-- Separate search throughput, tactical-suite results, and Elo estimates; none is a substitute for the others.
-- Set strength claims only from sufficiently large, reproducible match series with retained game records.
+## Remaining evaluation work
 
-## Code-quality standard
+To make the network competitive rather than merely loadable:
 
-Keep the implementation readable, maintainable, and consistent with the existing C++20 codebase. Use descriptive names, explain non-obvious invariants, keep search heuristics bounded, and add focused regression tests for every behavior change. Prefer measured improvements over speculative complexity.
+1. Import a recorded, appropriately sized CC0 teacher corpus and retain the archive hash and corpus manifest.
+2. Train on the full intended training split, use validation only for model selection, and report test metrics once on the untouched test split.
+3. Add quantization-aware training, integer inference, range checks and scalar/SIMD equivalence tests.
+4. Add SIMD inference kernels and compare them against the scalar implementation with exact integer-equivalence tests.
+5. Benchmark inference NPS and full-engine node throughput against the handcrafted evaluator.
+6. Run equal-resource, paired-colour self-play across multiple seeds. Keep the evaluator disabled by default until the network improves playing strength, not just teacher-score loss.
 
-## Release gates
+Stockfish's NNUE documentation explains the importance of sparse features, incremental accumulators and low-precision integer inference: https://official-stockfish.github.io/docs/nnue-pytorch-wiki/docs/nnue.html. Its Stockfish 19 release notes describe QAT and training on hundreds of billions of positions: https://github.com/official-stockfish/Stockfish/releases/tag/sf_19. These are research references, not source code or weights to copy.
 
-A strength-related release is not complete until:
+## Further search work
 
-1. Native regression and perft suites pass.
-2. Sanitizer and supported compiler builds pass.
-3. Native/WebAssembly parity passes.
-4. Fixed-position performance reports are attached.
-5. Controlled match data and PGNs are retained.
-6. Documentation describes only features present in the tested release.
+The search is still single-threaded and uses a hybrid mailbox/bitboard position representation. Further work should profile transposition-table layout/replacement, LMR/null-move/aspiration conditions, tactical stability, and move-ordering quality. Each change needs a fixed-position ablation and paired self-play evidence. Do not keep heuristics merely because they are common in other engines.
+
+## Internal qualification before an external match
+
+Before another Stockfish or Triumviratus match:
+
+- GCC, Clang, ASan/UBSan, Windows x64 and WebAssembly gates pass on the exact candidate commit.
+- Legal move/perft, make/undo, hashing, tactical, search-state and UCI regressions pass.
+- The actual evaluator file, if used, is trained, checked, hashed and recorded with its corpus manifest.
+- Fixed-position profiling reports final node counts, NPS, completed depth, time and TT usage.
+- Paired, equal-resource self-play against the archived Prunex baseline gives a repeatable improvement with a confidence interval that excludes no change.
+- The candidate and test protocol are frozen before any external match starts.
+
+These are prequalification gates, not proof of Stockfish 19 parity. Only a controlled external match can establish relative strength.
+
+## Provenance and licensing
+
+Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
+
+## Match policy
+
+No further opponent tournament is automatically triggered by this branch. The existing 144-game Stockfish 19/Triumviratus run stays archived as the diagnostic baseline. A new Stockfish 2.0 test must be a complete, reproducible paired-colour match with correct node accounting; Stockfish 19 parity needs its own separate and much larger evaluation.
+
+## NNUE inference capacity and SIMD work
+
+The current HalfKP runtime now supports hidden widths up to 512 while keeping the existing default trainer width unchanged. Dense-layer integer dot products use runtime AVX2 dispatch on supported GCC/Clang x86 builds and retain an exact scalar fallback for other CPUs, MSVC and WebAssembly. The AVX2 kernel uses unsigned 8-bit activations and signed 8-bit weights; its pairwise products fit the signed 16-bit intermediate range, and the final accumulation remains 64-bit. Regression tests compare the dispatched result with the scalar reference across vector-aligned widths and tail lengths up to 1,025 elements.
+
+This is infrastructure for larger original Prunex networks, not a trained evaluator or a strength result. No 512-wide network has been trained or qualified, and the current CI fixture remains synthetic. The new kernel still needs a loaded-network benchmark on representative positions before its practical speedup can be reported. The existing handcrafted evaluator remains the default unless a Prunex network is explicitly loaded.
+
+## Training-pipeline audit corrections
+
+The original corpus split key used the first four FEN fields. The current HalfKP model consumes piece placement and side to move, but not castling rights or en-passant state. Treating those unused fields as part of the split key could place feature-identical positions in different splits. The importer and trainer now hash only piece placement plus active colour and deduplicate on that same identity.
+
+The trainer previously fake-quantized both complete embedding matrices and clipped both full matrices after every minibatch. That defeated much of the benefit of sparse embeddings. It now gathers the feature rows touched by a batch, quantizes those rows, sums them by bag, and clips only the unique feature rows updated by the sparse optimizers. Dense-layer clipping remains unchanged.
+
+Checkpoint selection now uses validation log loss. The best validation checkpoint is restored before the untouched test split is evaluated once and the selected model is exported. The CI test remains a deliberately tiny synthetic integration fixture; it verifies split identity, sparse-row clipping, training/export, native loading and numerical parity, not the quality of a production model.
