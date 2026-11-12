@@ -38,6 +38,7 @@ def main() -> None:
         records = [
             {"fen": fen_white, "evals": [{"depth": 30, "knodes": 2000, "pvs": [{"cp": 75}]}]},
             {"fen": fen_black, "evals": [{"depth": 30, "knodes": 2000, "pvs": [{"cp": 75}]}]},
+            {"fen": fen_white, "evals": [{"depth": 30, "knodes": 2000, "pvs": [{"cp": 75}]}]},
         ]
         source.write_text("\n".join(json.dumps(row) for row in records) + "\n", encoding="utf-8")
         output = root / "out"
@@ -50,6 +51,8 @@ def main() -> None:
         )
         manifest = module.prepare(args)
         assert manifest["counters"]["positions_written"] == 2
+        assert manifest["counters"]["duplicates"] == 1
+        assert not list(output.glob("prunex-position-index-*"))
         rows = []
         for path in output.glob("positions-*.jsonl"):
             rows.extend(json.loads(line) for line in path.read_text(encoding="utf-8").splitlines())

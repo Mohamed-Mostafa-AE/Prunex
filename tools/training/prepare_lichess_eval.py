@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import os
+import sqlite3
 import tempfile
 from collections import Counter
 from datetime import datetime, timezone
@@ -120,8 +121,20 @@ def prepare(args: argparse.Namespace) -> dict:
         handles[split] = os.fdopen(fd, "w", encoding="utf-8", newline="\n")
 
     counters: Counter[str] = Counter()
-    seen: set[str] = set()
     split_counts: Counter[str] = Counter()
+    index_fd, index_name = tempfile.mkstemp(
+        prefix="prunex-position-index-", suffix=".sqlite3", dir=output
+    )
+    os.close(index_fd)
+    index_path = Path(index_name)
+    index = sqlite3.connect(index_path)
+    index.execute("PRAGMA journal_mode=OFF")
+    index.execute("PRAGMA synchronous=OFF")
+    index.execute("PRAGMA temp_store=FILE")
+    index.execute("PRAGMA cache_size=-65536")
+    index.execute(
+        "CREATE TABLE seen_positions (position_id TEXT PRIMARY KEY) WITHOUT ROWID"
+    )
     try:
         with open_jsonl(source) as records:
             for line_number, line in enumerate(records, start=1):
@@ -162,10 +175,13 @@ def prepare(args: argparse.Namespace) -> dict:
 
                 canonical = " ".join(fen.split()[:4])
                 position_hash = sha256_text(canonical)
-                if position_hash in seen:
+                inserted = index.execute(
+                    "INSERT OR IGNORE INTO seen_positions(position_id) VALUES (?)",
+                    (position_hash,),
+                )
+                if inserted.rowcount == 0:
                     counters["duplicates"] += 1
                     continue
-                seen.add(position_hash)
 
                 # Lichess scores are White-relative; normalize to the mover.
                 cp_side_to_move = cp_white if board.turn == chess.WHITE else -cp_white
@@ -199,12 +215,21 @@ def prepare(args: argparse.Namespace) -> dict:
                 )
                 counters["positions_written"] += 1
                 split_counts[split] += 1
+                if counters["records_read"] % 10_000 == 0:
+                    index.commit()
                 if args.max_positions and counters["positions_written"] >= args.max_positions:
                     counters["stopped_at_max_positions"] = 1
                     break
+        index.commit()
+    except Exception:
+        for temporary in temp_paths.values():
+            temporary.unlink(missing_ok=True)
+        raise
     finally:
         for handle in handles.values():
             handle.close()
+        index.close()
+        index_path.unlink(missing_ok=True)
 
     for split, target in targets.items():
         os.replace(temp_paths[split], target)
