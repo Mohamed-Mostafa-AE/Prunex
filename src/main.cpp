@@ -80,7 +80,11 @@ struct Position {
     std::uint64_t key=0;
 };
 
+}  // namespace prunex
+
 #include "nnue.hpp"
+
+namespace prunex {
 
 struct Undo {
     int captured=EMPTY, castling=0, ep=-1, halfmove=0, fullmove=1;
