@@ -61,7 +61,11 @@ struct MoveScratch {
     std::array<Move,MAX_LEGAL_MOVES> pseudo{};
     std::array<Move,MAX_LEGAL_MOVES> legal{};
     std::array<ScoredMove,MAX_LEGAL_MOVES> scored{};
-    std::array<std::uint8_t,MAX_LEGAL_MOVES> picked{};
+    std::array<std::size_t,MAX_LEGAL_MOVES> order{};
+    std::array<std::uint8_t,MAX_LEGAL_MOVES> stageByMove{};
+    std::array<std::size_t,6> stageOffsets{};
+    std::array<std::size_t,5> stageCursors{};
+    std::array<std::size_t,5> stageEnds{};
 };
 std::array<MoveScratch,MAX_PLY> moveScratch{};
 
@@ -1016,45 +1020,58 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
 class MovePicker {
 public:
     MovePicker(const Position& position,MoveList moves,const Move& hashMove,int ply)
-        : position_(position),moves_(moves),scratch_(moveScratch[moves.ply]),
-          hashMove_(hashMove),ply_(ply) {
-        scratch_.picked.fill(0);
+        : moves_(moves),scratch_(moveScratch[moves.ply]) {
+        std::array<std::size_t,5> counts{};
         for(std::size_t index=0;index<moves_.size();++index) {
             const Move& move=moves_[index];
             int exchange=0;
-            const int score=moveOrderingScore(position_,move,hashMove_,ply_,&exchange);
+            const int score=moveOrderingScore(position,move,hashMove,ply,&exchange);
             scratch_.scored[index]={move,score};
-            const bool capture=isCapture(position_,move);
+            const bool capture=isCapture(position,move);
             const bool promotion=move.promotion!=EMPTY;
-            if(hashMove_.from>=0&&sameMove(move,hashMove_)) {
-                stages_[index]=0;
-            } else if(promotion||(capture&&exchange>=0)) {
-                stages_[index]=1;
-            } else if(!capture&&score>=780000) {
-                stages_[index]=2;
-            } else if(!capture) {
-                stages_[index]=3;
-            } else {
-                stages_[index]=4;
-            }
+            std::uint8_t stage=4;
+            if(hashMove.from>=0&&sameMove(move,hashMove)) stage=0;
+            else if(promotion||(capture&&exchange>=0)) stage=1;
+            else if(!capture&&score>=780000) stage=2;
+            else if(!capture) stage=3;
+            scratch_.stageByMove[index]=stage;
+            ++counts[stage];
+        }
+
+        scratch_.stageOffsets[0]=0;
+        for(std::size_t stage=0;stage<5;++stage) {
+            scratch_.stageOffsets[stage+1]=scratch_.stageOffsets[stage]+counts[stage];
+            scratch_.stageCursors[stage]=scratch_.stageOffsets[stage];
+            scratch_.stageEnds[stage]=scratch_.stageOffsets[stage+1];
+        }
+
+        auto writePositions=scratch_.stageCursors;
+        for(std::size_t index=0;index<moves_.size();++index) {
+            const std::size_t stage=scratch_.stageByMove[index];
+            scratch_.order[writePositions[stage]++]=index;
+        }
+
+        // Sort only within the current stage. A beta cutoff can then return
+        // without paying to order any later stage, and next() is O(1).
+        for(std::size_t stage=0;stage<5;++stage) {
+            const auto first=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageOffsets[stage]);
+            const auto last=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageOffsets[stage+1]);
+            std::sort(first,last,[&](std::size_t left,std::size_t right) {
+                const auto& a=scratch_.scored[left];
+                const auto& b=scratch_.scored[right];
+                if(a.score!=b.score) return a.score>b.score;
+                if(a.move.from!=b.move.from) return a.move.from<b.move.from;
+                if(a.move.to!=b.move.to) return a.move.to<b.move.to;
+                return a.move.promotion<b.move.promotion;
+            });
         }
     }
 
     Move next() {
-        while(stage_<=4) {
-            std::size_t bestIndex=moves_.size();
-            int bestScore=-INF;
-            for(std::size_t index=0;index<moves_.size();++index) {
-                if(scratch_.picked[index]||stages_[index]!=stage_) continue;
-                const int score=scratch_.scored[index].score;
-                if(bestIndex==moves_.size()||score>bestScore) {
-                    bestIndex=index;
-                    bestScore=score;
-                }
-            }
-            if(bestIndex!=moves_.size()) {
-                scratch_.picked[bestIndex]=1;
-                return scratch_.scored[bestIndex].move;
+        while(stage_<5) {
+            if(scratch_.stageCursors[stage_]<scratch_.stageEnds[stage_]) {
+                const std::size_t index=scratch_.order[scratch_.stageCursors[stage_]++];
+                return scratch_.scored[index].move;
             }
             ++stage_;
         }
@@ -1062,13 +1079,9 @@ public:
     }
 
 private:
-    const Position& position_;
     MoveList moves_;
     MoveScratch& scratch_;
-    Move hashMove_;
-    int ply_;
-    int stage_=0;
-    std::array<std::uint8_t,MAX_LEGAL_MOVES> stages_{};
+    std::size_t stage_=0;
 };
 
 void orderMoves(const Position& p,MoveList& moves,const Move& hashMove,int ply) {
