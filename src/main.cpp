@@ -18,6 +18,11 @@
 #include <thread>
 #include <vector>
 
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
+#include <immintrin.h>
+#define PRUNEX_RUNTIME_BMI2_DISPATCH 1
+#endif
+
 namespace prunex {
 constexpr int INF = 32000;
 constexpr int MATE = 30000;
@@ -249,10 +254,28 @@ std::uint64_t expandOccupancyIndex(std::uint32_t index,std::uint64_t mask) {
     return occupancy;
 }
 
-// Portable parallel-bit-extract: compresses the masked occupied squares into
-// a dense table index. A hardware BMI2 implementation can replace this
-// function later without changing the table format or attack semantics.
+// Use the hardware PEXT instruction when the running CPU supports BMI2.
+// The portable implementation remains available for older x86 processors,
+// WebAssembly, ARM, and compilers without per-function ISA targeting.
+#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+__attribute__((target("bmi2")))
+std::uint32_t compressOccupancyBmi2(std::uint64_t occupied,std::uint64_t mask) {
+    return static_cast<std::uint32_t>(_pext_u64(occupied,mask));
+}
+
+bool supportsBmi2() {
+    static const bool supported=[] {
+        __builtin_cpu_init();
+        return __builtin_cpu_supports("bmi2");
+    }();
+    return supported;
+}
+#endif
+
 std::uint32_t compressOccupancy(std::uint64_t occupied,std::uint64_t mask) {
+#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+    if(supportsBmi2()) return compressOccupancyBmi2(occupied,mask);
+#endif
     std::uint32_t index=0;
     unsigned outputBit=0;
     while(mask) {
@@ -1528,6 +1551,15 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         info<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best);
         emitLine(info.str());
     }
+    const auto finalElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now()-start).count();
+    std::ostringstream finalInfo;
+    finalInfo<<"info string search-final nodes="<<nodes
+             <<" depth="<<completedSearchDepth
+             <<" elapsed_ms="<<finalElapsed
+             <<" tthits="<<ttHits
+             <<" node_limit="<<nodeLimit;
+    emitLine(finalInfo.str());
     searchTimeLimited=false;
     searchNodeLimit=0;
     return best;
@@ -1721,7 +1753,6 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             searchAborted.store(false,std::memory_order_relaxed);
             searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit]() mutable {
                 Move best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit);
-                if(nodeLimit>0) emitLine("info string node-limit "+std::to_string(nodes)+"/"+std::to_string(nodeLimit));
                 emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
             });
         } else if(cmd=="eval"){
