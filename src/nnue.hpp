@@ -219,9 +219,7 @@ private:
         const std::size_t offset =
             static_cast<std::size_t>(featureIndex) * hidden_;
         for (std::uint32_t index = 0; index < hidden_; ++index) {
-            accumulator[index] = static_cast<std::int16_t>(
-                accumulator[index] + featureWeights_[offset + index]
-            );
+            accumulator[index] += featureWeights_[offset + index];
         }
     }
 
