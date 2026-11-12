@@ -80,6 +80,8 @@ struct Position {
     std::uint64_t key=0;
 };
 
+#include "nnue.hpp"
+
 struct Undo {
     int captured=EMPTY, castling=0, ep=-1, halfmove=0, fullmove=1;
     std::uint64_t key=0;
@@ -1245,6 +1247,8 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
 }
 
 int evaluate(const Position& p) {
+    if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
+
     std::array<int,2> middle{};
     std::array<int,2> ending{};
     std::array<std::array<int,8>,2> pawnFiles{};
@@ -1799,6 +1803,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 "id author Prunex Project\n"
                 "option name Hash type spin default "+std::to_string(DEFAULT_HASH_MB)+" min 1 max 4096\n"
                 "option name Threads type spin default 1 min 1 max 1\n"
+                "option name EvalFile type string default none\n"
                 "option name Clear Hash type button\n"
                 "uciok"
             );
@@ -1828,6 +1833,17 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 int requestedThreads=0;
                 if(!parseIntegerToken(value,1,1,requestedThreads))
                     emitLine("info string this build supports Threads=1 only");
+            } else if(name=="EvalFile") {
+                if(value.empty()||value=="none") {
+                    nnueNetwork.clear();
+                    clearTranspositionTable();
+                    emitLine("info string using handcrafted evaluation");
+                } else if(nnueNetwork.load(value)) {
+                    clearTranspositionTable();
+                    emitLine("info string loaded Prunex NNUE evaluation");
+                } else {
+                    emitLine("info string could not load the requested evaluation file");
+                }
             }
         } else if(cmd=="isready"){
             emitLine("readyok");
