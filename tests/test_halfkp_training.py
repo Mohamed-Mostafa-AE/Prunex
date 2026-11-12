@@ -190,6 +190,33 @@ def test_malformed_manifests_are_rejected(corpus: Path) -> None:
         manifest_path.write_text(valid_text, encoding="utf-8")
 
 
+def test_existing_training_artifacts_are_preserved(
+    corpus: Path,
+    work: Path,
+) -> None:
+    output = work / "partial-run.nnue"
+    checkpoint = output.with_suffix(".nnue.pt")
+    checkpoint.write_bytes(b"existing checkpoint")
+
+    arguments = [
+        "--input-dir", str(corpus),
+        "--output", str(output),
+        "--device", "cpu",
+    ]
+    parsed = TRAINER_MODULE.build_parser().parse_args(arguments)
+    try:
+        TRAINER_MODULE.train(parsed)
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError("Existing checkpoint was silently overwritten")
+
+    if checkpoint.read_bytes() != b"existing checkpoint":
+        raise AssertionError("Existing checkpoint contents were modified")
+    if output.exists():
+        raise AssertionError("A new network was written despite the output collision")
+
+
 def test_invalid_training_settings_are_rejected(
     corpus: Path,
     work: Path,
@@ -246,6 +273,7 @@ def main() -> int:
         corpus.mkdir()
         make_fixture(corpus)
         test_malformed_manifests_are_rejected(corpus)
+        test_existing_training_artifacts_are_preserved(corpus, work)
         test_invalid_training_settings_are_rejected(corpus, work)
 
         network = work / "prunex-ci-halfkp.nnue"

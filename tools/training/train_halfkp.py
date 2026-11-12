@@ -508,8 +508,15 @@ def train(args: argparse.Namespace) -> dict:
         raise ValueError("Maximum training steps cannot be negative")
     if not math.isfinite(args.score_scale) or not 50 <= args.score_scale <= 2000:
         raise ValueError("Score scale must be finite and between 50 and 2000")
-    if output_path.exists() and not args.overwrite:
-        raise FileExistsError(f"Output exists; pass --overwrite to replace: {output_path}")
+    existing_outputs = [
+        path for path in (output_path, checkpoint_path, report_path)
+        if path.exists()
+    ]
+    if existing_outputs and not args.overwrite:
+        paths = ", ".join(str(path) for path in existing_outputs)
+        raise FileExistsError(
+            f"Training outputs already exist; pass --overwrite to replace: {paths}"
+        )
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
