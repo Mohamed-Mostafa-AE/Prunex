@@ -1,0 +1,96 @@
+name: Prunex pruning ablation match
+
+on:
+  push:
+    branches: ['engine/search-profile-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tools/strength-match/internal_selfplay.py'
+      - '.github/workflows/pruning-ablation.yml'
+  workflow_dispatch:
+    inputs:
+      pairs:
+        description: 'Paired openings (each played with both colours)'
+        required: true
+        default: '100'
+        type: string
+      nodes:
+        description: 'Equal node limit per move'
+        required: true
+        default: '100000'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-pruning-ablation
+  cancel-in-progress: false
+
+jobs:
+  paired-pruning-match:
+    name: Compare shallow pruning against the pre-pruning build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      BASELINE_SHA: fe742d1118828dd29a21c805ff44f198045d9d37
+    steps:
+      - name: Check out the candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install build and match dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+          python3 -m pip install --user --disable-pip-version-check python-chess==1.999
+
+      - name: Build the pre-pruning baseline
+        run: |
+          git worktree add --detach ../prunex-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-baseline -B ../prunex-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-baseline/build --target prunex --parallel 2
+
+      - name: Build the pruning candidate
+        run: |
+          cmake -S . -B build-pruning -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-pruning --target prunex --parallel 2
+
+      - name: Verify the match harness
+        run: python3 tests/test_internal_selfplay.py
+
+      - name: Run paired-colour equal-node comparison
+        env:
+          PAIRS_INPUT: ${{ inputs.pairs }}
+          NODES_INPUT: ${{ inputs.nodes }}
+        run: |
+          python3 tools/strength-match/internal_selfplay.py \
+            --baseline ../prunex-baseline/build/prunex \
+            --candidate build-pruning/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --pairs "${PAIRS_INPUT:-100}" \
+            --nodes "${NODES_INPUT:-100000}" \
+            --hash-mb 128 --threads 1 --seed 20261113 --max-plies 240 \
+            --out pruning-ablation-results
+
+      - name: Create and verify evidence checksums
+        if: always()
+        run: |
+          if [ -d pruning-ablation-results ]; then
+            (cd pruning-ablation-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > pruning-ablation-results/SHA256SUMS.txt
+            (cd pruning-ablation-results && sha256sum --check SHA256SUMS.txt)
+          fi
+
+      - name: Upload PGN, telemetry, summary and manifest
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-pruning-ablation-${{ github.run_number }}
+          path: pruning-ablation-results/
+          if-no-files-found: warn
+          retention-days: 90
