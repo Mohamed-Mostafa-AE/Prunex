@@ -33,6 +33,36 @@ enum Color : int { WHITE=0, BLACK=1 };
 enum Castle : int { WKCA=1, WQCA=2, BKCA=4, BQCA=8 };
 
 struct Move { int from=-1, to=-1, promotion=EMPTY; bool enPassant=false, castle=false; };
+constexpr int MAX_PLY = 128;
+constexpr int MAX_QPLY = 18;
+constexpr std::size_t MAX_LEGAL_MOVES = 256;
+
+struct MoveList {
+    Move* data = nullptr;
+    std::size_t count = 0;
+    int ply = 0;
+
+    Move* begin() const { return data; }
+    Move* end() const { return data + count; }
+    std::size_t size() const { return count; }
+    bool empty() const { return count == 0; }
+    Move& operator[](std::size_t index) const { return data[index]; }
+    void push_back(const Move& move) {
+        if(count>=MAX_LEGAL_MOVES) {
+            throw std::runtime_error("legal move buffer capacity exceeded");
+        }
+        data[count++]=move;
+    }
+};
+
+struct ScoredMove { Move move; int score; };
+struct MoveScratch {
+    std::array<Move,MAX_LEGAL_MOVES> pseudo{};
+    std::array<Move,MAX_LEGAL_MOVES> legal{};
+    std::array<ScoredMove,MAX_LEGAL_MOVES> scored{};
+};
+std::array<MoveScratch,MAX_PLY> moveScratch{};
+
 struct Position {
     std::array<int,128> board{};
     std::array<std::array<std::uint64_t,7>,2> piecesBB{};
@@ -365,15 +395,16 @@ bool inCheck(const Position& p,int color) {
     const int king=kingSquare(p,color);
     return king>=0&&attackersTo(p,king,1-color)!=0;
 }
-void addMove(std::vector<Move>& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false) {
+void addMove(MoveList& out,int from,int to,int promo=EMPTY,bool ep=false,bool castle=false) {
  out.push_back({from,to,promo,ep,castle});
 }
-void addPawnMove(std::vector<Move>& out,int from,int to,int color,bool ep=false) {
+void addPawnMove(MoveList& out,int from,int to,int color,bool ep=false) {
  if(rankOf(to)==(color==WHITE?7:0)) for(int type:{5,4,3,2}) addMove(out,from,to,makePiece(type,color),ep);
  else addMove(out,from,to,EMPTY,ep);
 }
-std::vector<Move> pseudoMoves(const Position& p) {
- std::vector<Move> out; out.reserve(96);
+MoveList pseudoMoves(const Position& p,int ply=0) {
+    const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
+    MoveList out{moveScratch[scratchPly].pseudo.data(),0,scratchPly};
  const int us=p.side, them=1-us, step=us==WHITE?16:-16;
  const std::uint64_t own=p.occupancy[us], occ=own|p.occupancy[them];
  auto pawns=p.piecesBB[us][1];
@@ -599,10 +630,10 @@ KingSafetyInfo buildKingSafetyInfo(const Position& position,int color) {
     return info;
 }
 
-std::vector<Move> legalMoves(Position& position) {
-    const auto candidates=pseudoMoves(position);
-    std::vector<Move> legal;
-    legal.reserve(candidates.size());
+MoveList legalMoves(Position& position,int ply=0) {
+    const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
+    const auto candidates=pseudoMoves(position,scratchPly);
+    MoveList legal{moveScratch[scratchPly].legal.data(),0,scratchPly};
     const int movingSide=position.side;
     const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
     const int checkCount=std::popcount(kingSafety.checkers);
@@ -641,8 +672,6 @@ std::vector<Move> legalMoves(Position& position) {
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
 bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move&m:legalMoves(p))if(moveUci(m)==text){result=m;return true;}return false;}
 
-constexpr int MAX_PLY = 128;
-constexpr int MAX_QPLY = 18;
 #ifndef PRUNEX_TT_BITS
 #define PRUNEX_TT_BITS 18
 #endif
@@ -974,18 +1003,12 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
     return score+historyScores[p.side][m.from][m.to];
 }
 
-void orderMoves(const Position& p,std::vector<Move>& moves,const Move& hashMove,int ply) {
-    struct ScoredMove {
-        Move move;
-        int score;
-    };
-    constexpr std::size_t MAX_LEGAL_MOVES=256;
-    std::array<ScoredMove,MAX_LEGAL_MOVES> scored{};
-
-    if(moves.size()>scored.size()) {
+void orderMoves(const Position& p,MoveList& moves,const Move& hashMove,int ply) {
+    if(moves.size()>MAX_LEGAL_MOVES) {
         throw std::runtime_error("legal move count exceeds the move-ordering buffer");
     }
 
+    auto& scored=moveScratch[moves.ply].scored;
     const std::size_t count=moves.size();
     for(std::size_t index=0;index<count;++index) {
         const Move& move=moves[index];
@@ -1304,12 +1327,13 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     // Reuse the pin/check-aware legal generator. The old qsearch path tested
     // every pseudo-legal move by making it, even though the main search now
     // has a faster bitboard legality filter.
-    const auto legal=legalMoves(p);
+    const auto legal=legalMoves(p,searchPly);
     if(legal.empty()) return checked?-MATE+searchPly:0;
     if(drawRule||insufficient) return 0;
 
-    std::vector<Move> moves;
-    moves.reserve(legal.size());
+    // Filter captures and promotions in the same per-ply buffer. Compaction
+    // is safe because the destination never advances beyond the current item.
+    MoveList moves{legal.data,0,legal.ply};
     for(const Move& move:legal) {
         if(checked||isCapture(p,move)||move.promotion) moves.push_back(move);
     }
@@ -1368,7 +1392,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     const bool insufficient=isInsufficientMaterial(p);
     if(drawRule||insufficient) {
         if(!checked) return 0;
-        const auto evasions=legalMoves(p);
+        const auto evasions=legalMoves(p,ply);
         return evasions.empty()?-MATE+ply:0;
     }
     if(depth<=0) return quiescence(p,alpha,beta,0,ply);
@@ -1407,7 +1431,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(verification>=beta) return nullScore;
         }
     }
-    auto moves=legalMoves(p);
+    auto moves=legalMoves(p,ply);
     if(moves.empty()) return checked?-MATE+ply:0;
     orderMoves(p,moves,hashMove,ply);
     int bestScore=-INF;
@@ -1489,7 +1513,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
 }
 
 Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t nodeLimit=0) {
-    auto moves=legalMoves(p);
+    auto moves=legalMoves(p,0);
     if(moves.empty()) return {};
     searchTimeLimited=timeLimitMs>0;
     searchNodeLimit=nodeLimit;
@@ -1601,7 +1625,17 @@ void runBenchmark(int depth) {
     std::cout<<"bench-total nodes "<<totalNodes<<" time_ms "<<elapsed<<" nps "<<nps<<"\n";
 }
 
-std::uint64_t perft(Position& p,int depth){if(depth==0)return 1;auto moves=legalMoves(p);std::uint64_t n=0;for(const Move&m:moves){Position q=p;makeMove(q,m);n+=perft(q,depth-1);}return n;}
+std::uint64_t perft(Position& p,int depth,int ply=0){
+    if(depth==0) return 1;
+    auto moves=legalMoves(p,ply);
+    std::uint64_t n=0;
+    for(const Move& m:moves) {
+        Position q=p;
+        makeMove(q,m);
+        n+=perft(q,depth-1,ply+1);
+    }
+    return n;
+}
 
 void setPosition(Position& p,const std::string& command){std::istringstream in(command);std::string token;in>>token;in>>token;if(token=="startpos")loadFen(p,START_FEN);else if(token=="fen"){std::string fen,part;for(int i=0;i<6&&in>>part;++i){if(i)fen+=' ';fen+=part;}if(!loadFen(p,fen))loadFen(p,START_FEN);}else loadFen(p,START_FEN);
     while(in>>token){if(token=="moves"){while(in>>token){Move m;if(parseUciMove(p,token,m))makeMove(p,m);else break;}break;}}
@@ -1644,7 +1678,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         if(!loadFen(pos,argv[2])){std::cerr<<"Invalid FEN\n";return 2;}
         if(!parseIntegerToken(argv[3],1,7,d)){std::cerr<<"Invalid depth (expected 1-7)\n";return 2;}
         std::uint64_t total=0;
-        for(const Move&m:legalMoves(pos)){Position q=pos;makeMove(q,m);auto n=perft(q,d-1);std::cout<<moveUci(m)<<": "<<n<<"\n";total+=n;}
+        for(const Move&m:legalMoves(pos,0)){Position q=pos;makeMove(q,m);auto n=perft(q,d-1,1);std::cout<<moveUci(m)<<": "<<n<<"\n";total+=n;}
         std::cout<<"Total: "<<total<<"\n";
         return 0;
     }
