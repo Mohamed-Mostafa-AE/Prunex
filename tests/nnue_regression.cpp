@@ -244,8 +244,7 @@ int main() {
     }
 
 
-    NnueNetwork incrementalNetwork;
-    if (!incrementalNetwork.load(incrementalPath.string())) return 19;
+    if (!nnueNetwork.load(incrementalPath.string())) return 19;
 
     const std::string castleFen =
         "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
@@ -260,13 +259,13 @@ int main() {
     const std::string blackMoveFen =
         "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
 
-    if (!accumulatorMatchesRebuild(incrementalNetwork, START_FEN, "e2e4")) return 20;
-    if (!accumulatorMatchesRebuild(incrementalNetwork, captureFen, "c3d4")) return 21;
-    if (!accumulatorMatchesRebuild(incrementalNetwork, kingMoveFen, "e1d1")) return 22;
-    if (!accumulatorMatchesRebuild(incrementalNetwork, castleFen, "e1g1")) return 23;
-    if (!accumulatorMatchesRebuild(incrementalNetwork, epFen, "e5d6")) return 24;
-    if (!accumulatorMatchesRebuild(incrementalNetwork, promotionFen, "a7a8q")) return 25;
-    if (!accumulatorMatchesRebuild(incrementalNetwork, blackMoveFen, "e7e5")) return 26;
+    if (!accumulatorMatchesRebuild(nnueNetwork, START_FEN, "e2e4")) return 20;
+    if (!accumulatorMatchesRebuild(nnueNetwork, captureFen, "c3d4")) return 21;
+    if (!accumulatorMatchesRebuild(nnueNetwork, kingMoveFen, "e1d1")) return 22;
+    if (!accumulatorMatchesRebuild(nnueNetwork, castleFen, "e1g1")) return 23;
+    if (!accumulatorMatchesRebuild(nnueNetwork, epFen, "e5d6")) return 24;
+    if (!accumulatorMatchesRebuild(nnueNetwork, promotionFen, "a7a8q")) return 25;
+    if (!accumulatorMatchesRebuild(nnueNetwork, blackMoveFen, "e7e5")) return 26;
 
     if (network.evaluate(position) != 400) return 9;
 
@@ -275,6 +274,7 @@ int main() {
     if (network.load(truncatedPath.string())) return 12;
     if (!network.loaded() || network.evaluate(position) != 400) return 13;
 
+    nnueNetwork.clear();
     network.clear();
     if (network.loaded()) return 14;
 
