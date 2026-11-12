@@ -421,7 +421,30 @@ int main() {
     }};
     for(const char* fen:legalityFens) {
         if(!loadFen(position,fen)||!legalMoveSetsAgree(position)) return 92;
+
+        const auto allLegal=legalMoves(position,0);
+        const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
+        const auto tactical=legalMoves(position,0,true);
+        std::vector<Move> expectedTactical;
+        for(const Move& move:allMoves) {
+            if(isCapture(position,move)||move.promotion) expectedTactical.push_back(move);
+        }
+        if(tactical.size()!=expectedTactical.size()) return 111;
+        for(const Move& move:tactical) {
+            if(std::none_of(expectedTactical.begin(),expectedTactical.end(),
+                [&](const Move& expected){return sameMove(move,expected);})) return 112;
+        }
+        if(hasAnyLegalMove(position,0)!=!allMoves.empty()) return 113;
     }
+
+    // Quiescence must still recognise terminal positions after switching to
+    // capture-only move generation.
+    if(!loadFen(position,"7k/5Q2/6K1/8/8/8/8/8 b - - 0 1")) return 114;
+    resetSearchState();
+    if(quiescence(position,-INF,INF,0,0)!=0) return 115;
+    if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 0 1")) return 116;
+    resetSearchState();
+    if(quiescence(position,-INF,INF,0,0)!=-MATE) return 117;
 
     // Deterministic random legal play checks the optimized generator against
     // the slow oracle after every position transition.
@@ -429,6 +452,14 @@ int main() {
     std::mt19937 randomMoves(0x5052554EU);
     for(int ply=0;ply<160;++ply) {
         if(!legalMoveSetsAgree(position)) return 94;
+        const auto allLegal=legalMoves(position,0);
+        const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
+        const auto tactical=legalMoves(position,0,true);
+        std::size_t expectedTactical=0;
+        for(const Move& move:allMoves)
+            if(isCapture(position,move)||move.promotion) ++expectedTactical;
+        if(tactical.size()!=expectedTactical) return 118;
+        if(hasAnyLegalMove(position,0)!=!allMoves.empty()) return 119;
         auto moves=legalMoves(position);
         if(moves.empty()) break;
         const Move selected=moves[
