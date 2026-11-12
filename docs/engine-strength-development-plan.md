@@ -1,92 +1,95 @@
-# Prunex engine-strength development plan
+# Prunex Engine-Strength Development Plan
 
 ## Objective
 
-Develop Prunex as Mohamed Mostafa's original, independently implemented C++ chess engine, built from scratch with its own architecture and implementation. The objective is to reach top-tier competitive playing strength through measurable, original engineering work. No external engine source, patches, implementation fragments, or weights are to be incorporated into Prunex.
+Develop Prunex through independently implemented search, move-generation, and evaluation improvements. Stockfish 19 parity is the long-term target, not a present claim or rating estimate.
 
-The initial design constraint for this programme is a deterministic, handcrafted evaluation function. Search and evaluation improvements must be implemented as original Prunex code and validated through tests and controlled matches.
+This work is isolated on `engine/stockfish-gap-rebuild-2026-11`, separate from `main` and the frozen 0.8.0 release.
 
-## Current baseline
+## Diagnostic baseline
 
-The current native engine is C++20 and includes:
+The archived 144-game run tested candidate commit `129829dd95672e83a347563526ae7b28ccf1ea63`:
 
-- 0x88 mailbox position representation.
-- Pseudo-legal move generation with king-safety filtering.
-- FEN and UCI handling, castling, en passant, and promotions.
-- Zobrist position keys and a transposition table.
-- Iterative-deepening negamax with alpha-beta and principal-variation search.
-- Aspiration windows, SEE-based capture ordering, late-move reductions, killer/history heuristics, and quiescence search.
-- A handcrafted tapered middlegame/endgame evaluator.
-- Search-path repetition detection and fifty-move draw handling.
-- Insufficient-material detection and null-move pruning with verification at greater depths.
-- Native, Windows, and WebAssembly builds with regression and parity tests.
+- Stockfish 19: 1 win, 5 draws, 66 losses in 72 games.
+- Triumviratus 8.1: 0 wins, 2 draws, 70 losses in 72 games.
 
-This is the repository's documented baseline. Strength remains a measured engineering objective, not an assumed result.
+This is a diagnostic result for that exact candidate, not an Elo estimate and not evidence about this development branch. It remains the baseline. No further opponent tournament is being run during this phase.
 
-## Engineering sequence
+## Audit findings
 
-### 1. Establish a trustworthy baseline
+The engine already has iterative deepening, alpha-beta/PVS, aspiration windows, Zobrist hashing, a transposition table, SEE capture ordering, killer/history/counter moves, null-move pruning, late-move reductions and quiescence.
 
-- Preserve a reproducible release build and record its source commit and executable SHA-256.
-- Run perft suites and add edge-case positions for legality, castling, en passant, promotions, repetition, and fifty-move handling.
-- Add tactical, quiet-position, endgame, and mate-search suites.
-- Record fixed-hardware nodes-per-second and fixed-time search results.
-- Create a match harness that retains PGNs, engine identities, options, seeds, time controls, and result summaries.
+The major limitations are:
+- A hybrid 0x88 mailbox/bitboard position representation.
+- No runtime BMI2 path in the original slider-occupancy indexing.
+- Heap-backed recursive move lists and eager full-list sorting.
+- A handcrafted tapered evaluator, with no trained neural evaluator or NNUE inference path.
+- Single-threaded search.
 
-### 2. Improve the search core
+## Changes on the isolated branch
 
-Evaluate and implement independently, with an isolated test for each change:
+- Runtime BMI2 PEXT dispatch for supported x86 CPUs, with a portable fallback.
+- Accurate final UCI search counters (nodes, completed depth, elapsed time, TT hits).
+- Telemetry now distinguishes final counters from the previous completed-iteration snapshot.
+- Fixed per-ply pseudo-legal/legal move buffers; no recursive heap move vectors.
+- Quiescence no longer allocates a separate capture list.
+- Staged move selection: TT move, profitable captures/promotions, killer/counter quiets, other quiets, losing captures.
+- Fixed the LMR history lookup to use the side that made the candidate move.
+- Added telemetry-parser and staged-picker regression tests.
 
-- A cache-friendly clustered transposition table with depth/age-aware replacement.
-- Incremental position hashing and carefully validated make/unmake state.
-- Further refine staged move generation and SEE integration; static-exchange evaluation is now used for capture ordering.
-- Refined history, continuation-history, killer, and countermove scoring.
-- Further tune null-move pruning; evaluate futility pruning, razoring, and refined late-move reductions.
-- Better aspiration-window management and principal-variation stability.
-- Search instrumentation for node types, cutoffs, reductions, re-searches, and transposition-table quality.
+These are foundations, not a demonstrated Elo gain. The exact candidate must pass correctness and performance checks.
 
-Selective pruning must be tested for tactical blind spots; more pruning is not automatically stronger.
+## Search work still required
 
-### 3. Improve the evaluation function
+- Profile staged selection against the previous Prunex commit on fixed positions.
+- Revisit TT layout, replacement policy and hash usage.
+- Add capture and continuation/correction histories with regression coverage.
+- Tune LMR, null-move pruning, aspiration windows and quiescence only from reproducible profiling, tactical tests and paired self-play.
+- Profile completed depth, nodes, NPS and elapsed time on fixed test positions.
 
-Keep the evaluator interpretable and handcrafted. Develop and test terms for:
+No Stockfish or other engine source should be copied into Prunex. Public algorithms may be studied and independently implemented.
 
-- Piece mobility and safe mobility.
-- King safety, attack units, and open-file pressure.
-- Pawn structure, backward and isolated pawns, passed pawns, and pawn races.
-- Outposts, bishop pair, rook activity, seventh-rank pressure, and coordination.
-- Threats, hanging pieces, trapped pieces, and space.
-- Phase-aware king activity and specialized endgame knowledge.
+## Original NNUE-style evaluator
 
-Use held-out positions and controlled matches when tuning parameters. Do not tune on the final test set.
+The handcrafted evaluator is a major ceiling against modern engines. Prunex needs its own feature design, trainer, inference implementation and weights.
 
-### 4. Improve throughput and scalability
+The official NNUE documentation explains three key principles: sparse active features, incremental updates when only a few inputs change, and low-precision integer inference. A suitable first Prunex design should include:
 
-- Profile before optimizing; retain reproducible benchmark inputs.
-- Reduce allocation and copying in hot paths.
-- Evaluate compact move encoding and cache locality.
-- Add optional multi-threaded search only after single-thread correctness is stable.
-- Keep native and WebAssembly behaviour consistent, with explicit platform-specific limits.
+1. A versioned king-conditioned piece-square feature map.
+2. Two perspective accumulators, with explicit refresh rules when either perspective's king moves.
+3. Correct incremental make/undo deltas for captures, promotions, en-passant and castling.
+4. A portable scalar integer inference path first; SIMD only after exact equivalence tests.
+5. A bounded, versioned model format with checksums and deterministic loader tests.
+6. A reproducible trainer with fixed seeds, dataset manifests, train/validation splits, WDL/score calibration, checkpoints and export tests.
+7. Prunex self-play positions and search labels, with provenance and license records for every external data source.
 
-### 5. Validate playing strength
+An untrained or randomly initialized network is not an improvement. The handcrafted evaluator must not be replaced until a trained checkpoint improves paired self-play at equal resources.
 
-- Use balanced-color match pairs, randomized opening suites, fixed hardware, and fixed time controls.
-- Retain every PGN and machine-readable result.
-- Report sample size, score, confidence interval, opponent build identity, and exact Prunex commit.
-- Separate search throughput, tactical-suite results, and Elo estimates; none is a substitute for the others.
-- Set strength claims only from sufficiently large, reproducible match series with retained game records.
+## Internal qualification gates
 
-## Code-quality standard
+Before another external-engine match:
 
-Keep the implementation readable, maintainable, and consistent with the existing C++20 codebase. Use descriptive names, explain non-obvious invariants, keep search heuristics bounded, and add focused regression tests for every behavior change. Prefer measured improvements over speculative complexity.
+- All legal-move/perft, make/undo, hash, tactical, search-state and UCI tests pass.
+- GCC, Clang, sanitizers, Windows and WebAssembly checks pass on the exact commit.
+- No unresolved tactical or state-restoration regression remains.
+- Fixed-position benchmarks report final nodes, NPS, completed depth, elapsed time and TT usage.
+- Paired equal-resource self-play shows statistically meaningful improvement over the archived Prunex baseline.
+- Network checkpoint, build flags and SHA-256 checksums are frozen and recorded.
 
-## Release gates
+These are prequalification gates, not proof of Stockfish 19 parity. Only controlled external matches can establish relative strength.
 
-A strength-related release is not complete until:
+## Research references
 
-1. Native regression and perft suites pass.
-2. Sanitizer and supported compiler builds pass.
-3. Native/WebAssembly parity passes.
-4. Fixed-position performance reports are attached.
-5. Controlled match data and PGNs are retained.
-6. Documentation describes only features present in the tested release.
+For study and independent implementation, not copying:
+
+- [Stockfish NNUE documentation](https://official-stockfish.github.io/docs/nnue-pytorch-wiki/docs/nnue.html) — sparse features, accumulators, quantization, inference and training.
+- [Stockfish NNUE architecture history](https://official-stockfish.github.io/docs/nnue-pytorch-wiki/docs/nnue_architecture_history.html) — examples of architecture evolution.
+- [Stockfish sf_19 search](https://github.com/official-stockfish/Stockfish/blob/sf_19/src/search.cpp) — search organization and history mechanisms.
+- [PlentyChess](https://github.com/Yoshie2000/PlentyChess) — a public example of modern NNUE and large-scale self-play.
+- [Improving](https://www.chessprogramming.org/Improving) and [Late Move Reductions](https://www.chessprogramming.org/Late_Move_Reduction) — heuristic background.
+
+The reference projects and models have their own licenses. Prunex is MIT-licensed; no GPL-licensed source or weights may be silently absorbed. Record provenance for all Prunex source, training data and model weights.
+
+## Match policy
+
+No Stockfish 2.0, Stockfish 19, Triumviratus or other opponent tournament is triggered from this branch. The 144-game run remains the diagnostic baseline. Another ladder stage requires a separately reviewed candidate, passing internal qualification evidence and an explicit go-ahead.
