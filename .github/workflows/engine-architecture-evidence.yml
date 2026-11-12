@@ -1,0 +1,106 @@
+name: Prunex architecture runtime evidence
+
+on:
+  push:
+    branches: ['feature/prunex-engine-architecture-visual']
+    paths:
+      - 'src/main.cpp'
+      - 'CMakeLists.txt'
+      - 'tools/engine-architecture/**'
+      - 'tools/visualize_engine_architecture.py'
+      - '.github/workflows/engine-architecture-evidence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prunex-strength-ladder-evidence-archive
+  cancel-in-progress: false
+
+jobs:
+  build-and-probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out the exact source commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+
+      - name: Configure the native engine
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPRUNEX_TT_BITS=22
+
+      - name: Compile Prunex
+        run: cmake --build build --parallel 2
+
+      - name: Run native regression and perft tests
+        run: |
+          ctest --test-dir build --output-on-failure \
+            | tee ctest-architecture.log
+
+      - name: Generate an executable UCI transcript
+        run: |
+          mkdir -p architecture-evidence
+          python3 tools/engine-architecture/uci_probe.py \
+            --engine build/prunex \
+            --commit "$GITHUB_SHA" \
+            --compiler "$(g++ --version | head -n 1)" \
+            --cmake-version "$(cmake --version | head -n 1)" \
+            --tt-bits 22 \
+            --out architecture-evidence/uci-probe.txt
+          cp ctest-architecture.log architecture-evidence/
+          (
+            cd architecture-evidence
+            sha256sum uci-probe.txt uci-probe.json ctest-architecture.log > SHA256SUMS.txt
+            sha256sum --check SHA256SUMS.txt
+          )
+
+      - name: Upload probe transcript and test log
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prunex-architecture-probe-${{ github.run_number }}
+          path: architecture-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Save runtime evidence permanently on strength-ladder-progress
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin refs/heads/strength-ladder-progress:refs/remotes/origin/strength-ladder-progress
+          WORKTREE="$RUNNER_TEMP/strength-ladder-progress"
+          git worktree add "$WORKTREE" origin/strength-ladder-progress
+          DEST="progress/architecture-probes/$SOURCE_COMMIT/run-$RUN_ID"
+          mkdir -p "$WORKTREE/$DEST"
+          cp -a architecture-evidence/. "$WORKTREE/$DEST/"
+          cat > "$WORKTREE/$DEST/README.md" <<EOF
+          # Prunex native UCI probe
+
+          - Source commit: $SOURCE_COMMIT
+          - Workflow run: [$RUN_NUMBER](https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN_ID)
+          - Transcript: [uci-probe.txt](uci-probe.txt)
+          - Metadata: [uci-probe.json](uci-probe.json)
+          - Native tests: [ctest-architecture.log](ctest-architecture.log)
+
+          The transcript is captured directly from the executable built from the source commit above.
+          EOF
+          (
+            cd "$WORKTREE/$DEST"
+            sha256sum uci-probe.txt uci-probe.json ctest-architecture.log > SHA256SUMS.txt
+            sha256sum --check SHA256SUMS.txt
+          )
+          git -C "$WORKTREE" add "$DEST"
+          git -C "$WORKTREE" commit -m "Archive Prunex UCI probe $RUN_NUMBER"
+          git -C "$WORKTREE" push origin HEAD:refs/heads/strength-ladder-progress
