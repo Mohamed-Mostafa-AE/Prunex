@@ -203,7 +203,10 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
             pawns&=pawns-1;
             expectedPawnAttacks[color]|=PAWN_ATTACKS[color][square];
         }
-        if(maps.pawnAttacks[color]!=expectedPawnAttacks[color]) return false;
+        if(maps.pawnAttacks[color]!=expectedPawnAttacks[color]) {
+            std::cerr<<"pawn attack map mismatch, color "<<color<<"\\n";
+            return false;
+        }
 
         int expectedMiddle=0;
         int expectedEnding=0;
@@ -219,7 +222,11 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
             const int reference=static_cast<int>(
                 std::popcount(attackersTo(position,square88,color))
             );
-            if(actual!=reference) return false;
+            if(actual!=reference) {
+                std::cerr<<"attack count mismatch, color "<<color<<" square "<<square64
+                    <<" actual "<<actual<<" reference "<<reference<<"\\n";
+                return false;
+            }
         }
 
         for(int type=2;type<=5;++type) {
@@ -243,7 +250,12 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
             }
         }
         if(maps.mobilityMiddle[color]!=expectedMiddle
-            ||maps.mobilityEnding[color]!=expectedEnding) return false;
+            ||maps.mobilityEnding[color]!=expectedEnding) {
+            std::cerr<<"mobility mismatch, color "<<color<<" actual "
+                <<maps.mobilityMiddle[color]<<"/"<<maps.mobilityEnding[color]
+                <<" reference "<<expectedMiddle<<"/"<<expectedEnding<<"\\n";
+            return false;
+        }
 
         const int enemyKing=kingSquare(position,1-color);
         int attackedSquares=0;
@@ -265,7 +277,12 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
         if(attackedSquares>=2&&attackUnits>=3)
             expectedPressure=std::min(36,attackedSquares*2+attackUnits*2);
         if(maps.kingPressureMiddle[color]!=expectedPressure
-            ||maps.kingPressureEnding[color]!=expectedPressure/3) return false;
+            ||maps.kingPressureEnding[color]!=expectedPressure/3) {
+            std::cerr<<"king pressure mismatch, color "<<color<<" actual "
+                <<maps.kingPressureMiddle[color]<<"/"<<maps.kingPressureEnding[color]
+                <<" reference "<<expectedPressure<<"/"<<expectedPressure/3<<"\\n";
+            return false;
+        }
     }
     return true;
 }
@@ -666,9 +683,16 @@ int main() {
         "4k3/8/8/8/1b6/8/4r3/4K3 w - - 0 1",
         "7k/8/8/8/8/8/8/K7 w - - 0 1"
     }};
-    for(const std::string_view fen:evaluationPositions) {
-        if(!loadFen(position,fen)
-            ||!evaluationMapsMatchAttackReference(position)) return 129;
+    for(std::size_t index=0;index<evaluationPositions.size();++index) {
+        const std::string_view fen=evaluationPositions[index];
+        if(!loadFen(position,fen)) {
+            std::cerr<<"invalid evaluation test FEN "<<index<<"\\n";
+            return 129;
+        }
+        if(!evaluationMapsMatchAttackReference(position)) {
+            std::cerr<<"evaluation map fixture failed: "<<index<<"\\n";
+            return 129;
+        }
     }
 
     return 0;
