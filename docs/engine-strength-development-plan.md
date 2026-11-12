@@ -29,17 +29,17 @@ The experimental capture/continuation-history additions were removed after the f
 
 ## Fixed-position performance evidence
 
-GitHub Actions run [43200805957](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43200805957), candidate commit `6c282f3fc5fb571ab05b29bc45f079611683b01c`, compared the archived baseline and the current search on five fixed positions, with three repeated runs per variant:
+GitHub Actions run [43227602993](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43227602993), candidate commit `d40529248ddce0075450eadb42934e30fee78182`, compared the archived baseline and the current search on five fixed positions, with three repeated runs per variant:
 
 | Measure | Archived baseline | Candidate |
 |---|---:|---:|
-| Median NPS, depth 5 | 406,631 | 827,043 |
-| Median elapsed time, depth 5 | 662 ms | 371 ms |
-| Median nodes, depth 5 | 269,190 | 306,833 |
+| Median NPS, depth 5 | 527,823 | 1,072,842 |
+| Median elapsed time, depth 5 | 510 ms | 286 ms |
+| Median nodes, depth 5 | 269,190 | 269,164 |
 | Median depth at 200,000 nodes | 6 | 6 |
-| Median time at 200,000 nodes | 433 ms | 231 ms |
+| Median time at 200,000 nodes | 340 ms | 174 ms |
 
-This is a measured search-throughput improvement. Both builds reached the same median depth at the equal-node cap. It does not show better move choice, greater playing strength, or any rating gain.
+This is a measured throughput result for the search build. It is not a playing-strength result: the workflow explicitly ran no opponent games, the equal-node median depth remained 6, and the optional NNUE file was not loaded. The incremental NNUE cache is therefore not responsible for this benchmark result; its own performance still needs to be measured with a trained model loaded.
 
 An earlier 40-pair / 80-game internal match against the archived Prunex build scored 28 wins, 29 draws and 23 losses (53.12%), with a paired 95% interval of 46.3%–60.0%. That result is inconclusive and is for an earlier candidate commit. A larger 100-pair run is tracked separately; its result must be read from the finished artifact before drawing conclusions.
 
@@ -54,9 +54,9 @@ The branch now contains an original Prunex network file format, a HalfKP-style f
 
 The Lichess Open Database page reports 417,862,375 evaluated positions as of 2026-11-11, released under CC0. Its evaluations were produced by various Stockfish flavours, not exclusively Stockfish 19: https://database.lichess.org/. The training corpus is teacher data, not ground-truth optimal play.
 
-**Important limitations:** no full Lichess corpus has been imported for this project, no production-scale Prunex network has been trained, and no trained network has been shown to improve playing strength. The current inference path uses float32 and rebuilds both feature accumulators for each evaluation. It is a research prototype, not a production-speed NNUE implementation. The UCI option defaults to the existing handcrafted evaluator until a model is explicitly loaded.
+**Important limitations:** no full Lichess corpus has been imported for this project, no production-scale Prunex network has been trained, and no trained network has been shown to improve playing strength. The native inference path uses quantized integer weights and activations with a final centipawn scaling step. Each position now carries 32-bit HalfKP feature accumulators: ordinary piece moves update only the affected rows, while king moves rebuild the moved side's perspective. The cache is restored through undo and rebuilt when it is invalid or belongs to another loaded network. The implementation is correctness-tested, but it is still a prototype: SIMD kernels and a strength-qualified trained model are not present. The UCI option continues to use the handcrafted evaluator until a model is explicitly loaded.
 
-The first training smoke test exposed a missing NumPy dependency in the export path. NumPy has now been pinned in `requirements-nnue.txt`; the corrected end-to-end CI run must pass before the training path is considered integrated.
+The initial training smoke test exposed a missing NumPy dependency in the export path; NumPy is now pinned. The corrected end-to-end CI run passed on the current candidate, including export, native loading, search startup, and Python/native evaluation parity on 16 synthetic held-out fixture positions. This validates the training/export/inference pipeline, not the quality of a production model.
 
 ## Remaining evaluation work
 
@@ -65,7 +65,7 @@ To make the network competitive rather than merely loadable:
 1. Import a recorded, appropriately sized CC0 teacher corpus and retain the archive hash and corpus manifest.
 2. Train on the full intended training split, use validation only for model selection, and report test metrics once on the untouched test split.
 3. Add quantization-aware training, integer inference, range checks and scalar/SIMD equivalence tests.
-4. Implement incremental HalfKP accumulator updates for make/undo, including captures, promotions, en-passant, castling and king moves.
+4. Add SIMD inference kernels and compare them against the scalar implementation with exact integer-equivalence tests.
 5. Benchmark inference NPS and full-engine node throughput against the handcrafted evaluator.
 6. Run equal-resource, paired-colour self-play across multiple seeds. Keep the evaluator disabled by default until the network improves playing strength, not just teacher-score loss.
 

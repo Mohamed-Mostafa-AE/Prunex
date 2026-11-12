@@ -202,10 +202,4 @@ To return to the handcrafted evaluator:
 setoption name EvalFile value none
 ```
 
-The native evaluator uses integer inference with int8 weights and quantized
-activations, but it currently rebuilds both feature accumulators for every
-evaluation. Incremental accumulator updates and SIMD kernels remain future
-performance work; this is still a prototype rather than a production NNUE
-implementation. Do not make a strength claim from training loss alone; benchmark
-evaluation speed and run paired-colour matches before enabling a network in
-a release.
+The native evaluator uses quantized integer weights and activations, with a final centipawn scaling step. Each position now carries 32-bit HalfKP feature accumulators. Ordinary piece moves update only the affected feature rows; king moves rebuild the moved side's perspective; undo restores the parent cache; and an invalid or mismatched cache is rebuilt before evaluation. Regression tests compare incremental results against full rebuilds after quiet moves, captures, castling, en passant, promotions, both colours' king moves, and undo. SIMD kernels remain future work, and the implementation is still a prototype rather than a production-qualified NNUE. Do not make a strength claim from training loss alone; benchmark the loaded model and run paired-colour matches before enabling it in a release.
