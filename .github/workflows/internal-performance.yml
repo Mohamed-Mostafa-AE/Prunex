@@ -52,35 +52,53 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
 
-      - name: Build archived Prunex baseline
+      - name: Build the archived baseline and search checkpoints
+        env:
+          MOVE_BUFFER_SHA: 878aea7000f1e9adb549784bbee2d6641adf6e63
+          STAGED_PICKER_SHA: 91a0dd706332fe866fce1fe1ff637ebdab409d02
+          HISTORY_SHA: 8a3d936c6e84953c786e28ec9f983b2c8e9783f6
+          TACTICAL_QSEARCH_SHA: 240269bd6ed1c4dd8b131122c99b072022c4706f
         run: |
-          git worktree add --detach ../prunex-baseline "$BASELINE_SHA"
-          cmake -S ../prunex-baseline -B ../prunex-baseline/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build ../prunex-baseline/build --target prunex --parallel 2
+          set -euo pipefail
+          build_variant() {
+            label="$1"
+            sha="$2"
+            directory="../prunex-$label"
+            git worktree add --detach "$directory" "$sha"
+            cmake -S "$directory" -B "$directory/build" -G Ninja -DCMAKE_BUILD_TYPE=Release
+            cmake --build "$directory/build" --target prunex --parallel 2
+            printf '%s\t%s\t%s\n' "$label" "$sha" "$directory/build/prunex" >> variants.tsv
+          }
+          : > variants.tsv
+          build_variant baseline "$BASELINE_SHA"
+          build_variant move-buffer "$MOVE_BUFFER_SHA"
+          build_variant staged-picker "$STAGED_PICKER_SHA"
+          build_variant histories "$HISTORY_SHA"
+          build_variant tactical-qsearch "$TACTICAL_QSEARCH_SHA"
+          build_variant current "$GITHUB_SHA"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          variants = []
+          for line in Path("variants.tsv").read_text().splitlines():
+              label, commit, binary = line.split("\t")
+              variants.append({"label": label, "commit": commit, "binary": binary})
+          Path("search-variants.json").write_text(json.dumps(variants, indent=2) + "\n")
+          PY
 
-      - name: Build current candidate
+      - name: Run fixed-depth and equal-node search ablation
         run: |
-          cmake -S . -B build-native -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-native --target prunex --parallel 2
-
-      - name: Run alternating fixed-position benchmarks
-        run: |
-          python3 tools/benchmark/compare_internal_bench.py \
-            --baseline ../prunex-baseline/build/prunex \
-            --candidate build-native/prunex \
-            --baseline-commit "$BASELINE_SHA" \
-            --candidate-commit "$GITHUB_SHA" \
+          python3 tools/benchmark/compare_search_ablation.py \
+            --variants search-variants.json \
             --depth "${{ inputs.depth || '5' }}" \
-            --runs "${{ inputs.runs || '5' }}" \
+            --runs "${{ inputs.runs || '3' }}" \
             --node-budget "${{ inputs.node_budget || '200000' }}" \
-            --output internal-benchmark.json
+            --output search-ablation.json
 
       - name: Upload internal benchmark evidence
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
-          name: prunex-internal-performance-${{ github.run_number }}
-          path: internal-benchmark.json
+          name: prunex-search-ablation-${{ github.run_number }}
+          path: search-ablation.json
           if-no-files-found: error
           retention-days: 90
