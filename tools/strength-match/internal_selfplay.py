@@ -164,6 +164,7 @@ def play_game(
     game.headers["Threads"] = "1"
 
     token = ("prunex-internal", pair_index, leg_index)
+    node = game
     ply = 0
     nodes_by_engine = {"candidate": 0, "baseline": 0}
     max_nodes_seen = {"candidate": 0, "baseline": 0}
@@ -218,8 +219,8 @@ def play_game(
         }, separators=(",", ":")) + "\n")
         telemetry_file.flush()
 
+        node = node.add_variation(result.move)
         board.push(result.move)
-        game.add_main_variation(result.move)
         ply += 1
 
     outcome = board.outcome(claim_draw=True)
