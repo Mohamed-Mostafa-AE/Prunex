@@ -17,6 +17,7 @@ import json
 import math
 import platform
 import random
+import re
 import statistics
 import time
 from dataclasses import dataclass
@@ -133,6 +134,26 @@ def score_from_outcome(board: chess.Board, candidate_color: chess.Color,
     return (1.0 if outcome.winner == candidate_color else 0.0), outcome.termination.name
 
 
+def parse_final_search_info(value: Any) -> dict[str, int] | None:
+    """Parse Prunex's final counters, emitted after the last completed depth."""
+    if not isinstance(value, str):
+        return None
+    match = re.search(
+        r"search-final\\s+nodes=(\\d+)\\s+depth=(\\d+)\\s+elapsed_ms=(\\d+)\\s+tthits=(\\d+)\\s+node_limit=(\\d+)",
+        value,
+    )
+    if match is None:
+        return None
+    nodes, depth, elapsed_ms, tt_hits, node_limit = map(int, match.groups())
+    return {
+        "nodes": nodes,
+        "depth": depth,
+        "elapsed_ms": elapsed_ms,
+        "tt_hits": tt_hits,
+        "node_limit": node_limit,
+    }
+
+
 def info_value(info: dict[str, Any], key: str) -> Any:
     value = info.get(key)
     if key == "pv" and value:
@@ -206,12 +227,22 @@ def play_one_game(
             )
 
         info = result.info or {}
-        nodes = info.get("nodes")
+        reported_nodes = info.get("nodes")
+        final_search = parse_final_search_info(info.get("string"))
+        nodes = (
+            final_search["nodes"]
+            if final_search is not None
+            else reported_nodes
+        )
         if isinstance(nodes, int) and nodes >= 0:
             nodes_total[engine_name] += nodes
         else:
             missing_node_counts[engine_name] += 1
-        depth = info.get("depth")
+        depth = (
+            final_search["depth"]
+            if final_search is not None
+            else info.get("depth")
+        )
         if isinstance(depth, int):
             depth_total[engine_name] += depth
 
@@ -239,6 +270,16 @@ def play_one_game(
             "uci": result.move.uci(),
             "san": san,
             "nodes": nodes,
+            "nodes_in_last_completed_info": reported_nodes,
+            "node_count_source": (
+                "final-search-info" if final_search is not None else "last-uci-info"
+            ),
+            "search_elapsed_ms": (
+                final_search["elapsed_ms"] if final_search is not None else None
+            ),
+            "search_tt_hits": (
+                final_search["tt_hits"] if final_search is not None else None
+            ),
             "depth": depth,
             "seldepth": info.get("seldepth"),
             "nps": info.get("nps"),
@@ -249,6 +290,7 @@ def play_one_game(
             "pv_uci": info_value(info, "pv"),
             "requested_node_limit": tier.node_limit,
             "requested_movetime_seconds": tier.movetime_seconds,
+            "final_search_info": info.get("string"),
         }
         telemetry_file.write(json.dumps(record, separators=(",", ":")) + "\n")
         telemetry_file.flush()
