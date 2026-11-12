@@ -1686,26 +1686,28 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
     }
 
-    const int staticEval=evaluate(p);
     const bool safeForForwardPruning=!pvNode&&!checked
         &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
-
-    // At shallow non-PV nodes, a position that is already comfortably above
-    // beta is unlikely to need a full search. Keep the margin deliberately
-    // wide and avoid positions where null-move assumptions are unreliable.
+    int staticEval=0;
     if(safeForForwardPruning&&depth<=6) {
-        const int margin=120+70*depth;
-        if(staticEval-margin>=beta) return staticEval-margin;
-    }
+        staticEval=evaluate(p);
 
-    // When static evaluation is far below alpha, a shallow quiescence search
-    // is a cheap test for a tactical resource before expanding the full tree.
-    if(safeForForwardPruning&&depth<=2) {
-        const int razorMargin=170+90*depth;
-        if(staticEval+razorMargin<=alpha) {
-            const int razorScore=quiescence(p,alpha,beta,0,ply);
-            if(searchAborted.load(std::memory_order_relaxed)) return 0;
-            if(razorScore<=alpha) return razorScore;
+        // Keep a wide margin at shallow nodes. The legal-move check preserves
+        // exact stalemate handling when this shortcut would otherwise fire.
+        const int margin=120+70*depth;
+        if(staticEval-margin>=beta) {
+            return hasAnyLegalMove(p,ply)?staticEval-margin:0;
+        }
+
+        // A shallow quiescence search can disprove a very low static score
+        // before the engine expands the full move tree.
+        if(depth<=2) {
+            const int razorMargin=170+90*depth;
+            if(staticEval+razorMargin<=alpha) {
+                const int razorScore=quiescence(p,alpha,beta,0,ply);
+                if(searchAborted.load(std::memory_order_relaxed)) return 0;
+                if(razorScore<=alpha) return razorScore;
+            }
         }
     }
 
