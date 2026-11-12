@@ -534,7 +534,7 @@ def train(args: argparse.Namespace) -> dict:
         },
         "score_scale": args.score_scale,
         "seed": args.seed,
-        "torch_version": torch.__version__,
+        "torch_version": str(torch.__version__),
     }, checkpoint_path)
 
     report = {
@@ -576,7 +576,7 @@ def train(args: argparse.Namespace) -> dict:
             "score_scale": args.score_scale,
             "seed": args.seed,
             "device": str(device),
-            "torch_version": torch.__version__,
+            "torch_version": str(torch.__version__),
             "dimensions": {
                 "features": FEATURE_COUNT,
                 "hidden": model.hidden,
