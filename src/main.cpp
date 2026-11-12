@@ -721,6 +721,12 @@ std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
 std::array<std::array<std::array<std::array<int,7>,128>,7>,2> captureHistoryScores{};
 std::array<std::array<std::array<std::array<std::int16_t,128>,7>,128>,7> continuationHistoryScores{};
+void clearContinuationHistoryScores() {
+    for(auto& previousType:continuationHistoryScores)
+        for(auto& previousSquare:previousType)
+            for(auto& currentType:previousSquare)
+                currentType.fill(0);
+}
 std::uint64_t nodes=0;
 int lastSearchScore=0;
 int completedSearchDepth=0;
@@ -804,7 +810,7 @@ void resetSearchState() {
     counterMoves={};
     historyScores={};
     captureHistoryScores={};
-    continuationHistoryScores={};
+    clearContinuationHistoryScores();
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
     lastSearchScore=0;
