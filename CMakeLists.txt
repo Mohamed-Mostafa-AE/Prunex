@@ -122,6 +122,12 @@ if(BUILD_TESTING)
     target_compile_definitions(prunex_search_tests PRIVATE PRUNEX_TT_BITS=${PRUNEX_TT_BITS})
     target_link_libraries(prunex_search_tests PRIVATE Threads::Threads)
 
+    add_executable(prunex_nnue_tests tests/nnue_regression.cpp)
+    target_compile_features(prunex_nnue_tests PRIVATE cxx_std_20)
+    target_compile_definitions(prunex_nnue_tests PRIVATE PRUNEX_TT_BITS=${PRUNEX_TT_BITS})
+    target_link_libraries(prunex_nnue_tests PRIVATE Threads::Threads)
+    add_test(NAME nnue_network_file_validation COMMAND prunex_nnue_tests)
+
     add_executable(prunex_parity_reference tests/wasm_parity_reference.cpp)
     target_compile_features(prunex_parity_reference PRIVATE cxx_std_20)
     target_link_libraries(prunex_parity_reference PRIVATE Threads::Threads)
