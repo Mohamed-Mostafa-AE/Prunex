@@ -236,7 +236,9 @@ int main() {
         return 16;
     }
 
-    const int overflowScore = overflowNetwork.evaluate(position);
+    Position overflowPosition;
+    if (!loadFen(overflowPosition, START_FEN)) return 27;
+    const int overflowScore = overflowNetwork.evaluate(overflowPosition);
     if (overflowScore != 400) {
         std::cerr << "NNUE accumulator overflow regression: expected 400, got "
                   << overflowScore << '\n';
@@ -258,6 +260,8 @@ int main() {
         "4k2r/8/8/8/8/8/8/R3K3 w - - 0 1";
     const std::string blackMoveFen =
         "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+    const std::string blackKingMoveFen =
+        "4k3/8/8/8/8/8/4P3/4K3 b - - 0 1";
 
     if (!accumulatorMatchesRebuild(nnueNetwork, START_FEN, "e2e4")) return 20;
     if (!accumulatorMatchesRebuild(nnueNetwork, captureFen, "c3d4")) return 21;
@@ -266,6 +270,7 @@ int main() {
     if (!accumulatorMatchesRebuild(nnueNetwork, epFen, "e5d6")) return 24;
     if (!accumulatorMatchesRebuild(nnueNetwork, promotionFen, "a7a8q")) return 25;
     if (!accumulatorMatchesRebuild(nnueNetwork, blackMoveFen, "e7e5")) return 26;
+    if (!accumulatorMatchesRebuild(nnueNetwork, blackKingMoveFen, "e8d8")) return 28;
 
     if (network.evaluate(position) != 400) return 9;
 
