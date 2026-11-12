@@ -44,7 +44,7 @@ def main() -> None:
         import argparse
         args = argparse.Namespace(
             input=source, output_dir=output, dataset_name="test-fixture",
-            source_url="https://database.lichess.org/", score_pov="white",
+            source_url="https://database.lichess.org/",
             split_seed="unit-test", min_depth=1, min_knodes=0, max_abs_cp=2000,
             max_positions=0, downloaded_at=None, overwrite=False,
         )

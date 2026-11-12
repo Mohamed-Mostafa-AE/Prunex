@@ -101,9 +101,6 @@ def prepare(args: argparse.Namespace) -> dict:
         raise FileNotFoundError(source)
     if not args.dataset_name.strip():
         raise ValueError("dataset name is required")
-    if args.score_pov not in ("white", "side-to-move"):
-        raise ValueError("score perspective must be 'white' or 'side-to-move'")
-
     output.mkdir(parents=True, exist_ok=True)
     targets = {split: output / f"positions-{split}.jsonl" for split in SPLITS}
     manifest_path = output / "corpus-manifest.json"
@@ -170,10 +167,8 @@ def prepare(args: argparse.Namespace) -> dict:
                     continue
                 seen.add(position_hash)
 
-                if args.score_pov == "white":
-                    cp_side_to_move = cp_white if board.turn == chess.WHITE else -cp_white
-                else:
-                    cp_side_to_move = cp_white
+                # Lichess scores are White-relative; normalize to the mover.
+                cp_side_to_move = cp_white if board.turn == chess.WHITE else -cp_white
                 cp_side_to_move = max(
                     -args.max_abs_cp, min(args.max_abs_cp, cp_side_to_move)
                 )
@@ -187,7 +182,7 @@ def prepare(args: argparse.Namespace) -> dict:
                     "score_cp": cp_side_to_move,
                     "score_perspective": "side-to-move",
                     "source_score_cp": cp_white,
-                    "source_score_perspective": args.score_pov,
+                    "source_score_perspective": "white",
                     "teacher_depth": depth,
                     "teacher_knodes": knodes,
                     "source": {
@@ -232,11 +227,12 @@ def prepare(args: argparse.Namespace) -> dict:
             "downloaded_at": args.downloaded_at or None,
             "license": "CC0-1.0",
             "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "score_schema_reference": "https://huggingface.co/datasets/Lichess/fishnet-evals",
             "teacher": "Stockfish analyses supplied by Lichess; underlying engine versions vary",
         },
         "label_definition": {
             "source_field": "evals[deepest depth].pvs[0].cp",
-            "source_perspective": args.score_pov,
+            "source_perspective": "white",
             "model_perspective": "side-to-move",
             "mate_labels": "excluded",
             "clipping_cp": args.max_abs_cp,
@@ -267,7 +263,6 @@ def main() -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--dataset-name", required=True)
     parser.add_argument("--source-url", default="https://database.lichess.org/")
-    parser.add_argument("--score-pov", choices=("white", "side-to-move"), required=True)
     parser.add_argument("--split-seed", default="prunex-halfkp-v1")
     parser.add_argument("--min-depth", type=int, default=16)
     parser.add_argument("--min-knodes", type=int, default=1000)
