@@ -142,7 +142,9 @@ public:
             accumulator[index] = featureBias_[index];
         }
 
-        const int kingSquare = static_cast<int>(std::countr_zero(kingBits));
+        const int rawKingSquare = static_cast<int>(std::countr_zero(kingBits));
+        const int kingSquare = perspective == WHITE
+            ? rawKingSquare : rawKingSquare ^ 56;
         for (int color = WHITE; color <= BLACK; ++color) {
             for (int type = 1; type <= 5; ++type) {
                 std::uint64_t pieces = position.piecesBB[color][type];
