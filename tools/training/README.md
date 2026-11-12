@@ -117,3 +117,40 @@ splits. The held-out test split is evaluated only after fitting. The report is
 diagnostic: it does not modify the C++ evaluator, produce engine weights, or
 change the separate browser review calibration. A better calibration score
 is not evidence of stronger play.
+
+
+## Prepare an NNUE teacher-evaluation corpus
+
+The Lichess Open Database publishes a CC0 position-evaluation archive containing
+FENs and Stockfish teacher evaluations. Download the `lichess_db_eval.jsonl.zst`
+archive from [database.lichess.org](https://database.lichess.org/). Keep the
+archive outside Git, retain its SHA-256, and record its download date.
+
+Run the streaming importer:
+
+```bash
+python tools/training/prepare_lichess_eval.py \
+  --input /data/lichess_db_eval.jsonl.zst \
+  --output-dir /data/prunex-corpus/lichess-eval-2026-11 \
+  --dataset-name lichess-eval-2026-11 \
+  --score-pov white \
+  --min-depth 16 \
+  --min-knodes 1000
+```
+
+The importer chooses the first PV from the deepest qualifying evaluation,
+skips mate-only labels, deduplicates identical positions before splitting,
+and writes train/validation/test JSONL plus a manifest. The manifest records
+the source archive hash, CC0 license, teacher provenance, score perspective,
+depth/node filters, output hashes, and all filtering counters.
+
+`--score-pov` is deliberately required. The importer converts the chosen
+source score to side-to-move perspective using the FEN active colour. Verify
+the chosen perspective against the exact Lichess export version used for the
+run before training. The output labels are Stockfish teacher scores; using
+them trains a Prunex-owned model to reproduce a teacher signal. It does not,
+by itself, demonstrate better chess.
+
+Do not put the bulk corpus or trained weights in this repository. Keep the
+original archive, manifest, training configuration, checkpoint, exported
+model, and checksums together in versioned storage.

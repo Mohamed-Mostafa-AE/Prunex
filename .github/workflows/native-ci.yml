@@ -58,10 +58,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Install Python chess parser dependency
-        run: python3 -m pip install --user --disable-pip-version-check python-chess
+      - name: Install Python data-tool dependencies
+        run: python3 -m pip install --user --disable-pip-version-check python-chess zstandard
       - name: Verify final UCI search counters are parsed exactly
         run: python3 tests/test_modern_strength_ladder_telemetry.py
+      - name: Verify internal paired self-play harness
+        run: python3 tests/test_internal_selfplay.py
+      - name: Verify licensed Lichess evaluation importer
+        run: python3 tools/training/tests/test_lichess_eval.py
 
   sanitizers:
     name: GCC AddressSanitizer and UndefinedBehaviorSanitizer
