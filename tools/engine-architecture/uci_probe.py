@@ -78,6 +78,9 @@ class UciProbe:
         self.send(f"position {position}")
         self.send(f"go depth {depth}")
         lines = self.read_until("bestmove ", timeout=120.0)
+        bestmove = next(line for line in lines if line.startswith("bestmove "))
+        if bestmove.split()[-1] in {"0000", "(none)"}:
+            raise RuntimeError(f"{label}: the engine returned no legal best move.")
         info_lines = [line for line in lines if line.startswith("info depth ")]
         if not info_lines:
             raise RuntimeError(f"{label}: no completed search-iteration info was emitted.")
