@@ -20,6 +20,11 @@ on:
         required: true
         default: '5'
         type: string
+      node_budget:
+        description: 'UCI node cap per position (10000-5000000)'
+        required: true
+        default: '200000'
+        type: string
 
 permissions:
   contents: read
@@ -69,6 +74,7 @@ jobs:
             --candidate-commit "$GITHUB_SHA" \
             --depth "${{ inputs.depth || '5' }}" \
             --runs "${{ inputs.runs || '5' }}" \
+            --node-budget "${{ inputs.node_budget || '200000' }}" \
             --output internal-benchmark.json
 
       - name: Upload internal benchmark evidence
