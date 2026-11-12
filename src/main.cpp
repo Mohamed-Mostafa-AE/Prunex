@@ -1944,6 +1944,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             stopAndJoin();
             int depth=5;
             bool depthSet=false;
+            bool infiniteSearch=false;
             int movesToGo=30;
             std::int64_t moveTime=-1,whiteTime=-1,blackTime=-1,whiteIncrement=0,blackIncrement=0;
             std::uint64_t nodeLimit=0;
@@ -1957,6 +1958,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             };
             while(in>>token){
                 if(token=="depth"){in>>depth;depthSet=true;}
+                else if(token=="infinite") infiniteSearch=true;
                 else if(token=="movetime") readTime(moveTime);
                 else if(token=="wtime") readTime(whiteTime);
                 else if(token=="btime") readTime(blackTime);
@@ -1987,7 +1989,8 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             // Timed and node-limited searches must keep deepening until
             // their resource limit is reached. A fixed depth-12 ceiling made
             // movetime searches return early with unused time.
-            if(!depthSet&&(nodeLimit>0||moveTime>=0)) depth=MAX_PLY-1;
+            if(infiniteSearch&&!depthSet) depth=MAX_PLY-1;
+            else if(!depthSet&&(nodeLimit>0||moveTime>=0)) depth=MAX_PLY-1;
             const int searchDepth=std::clamp(depth,1,MAX_PLY-1);
             const Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);
