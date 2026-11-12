@@ -44,6 +44,7 @@ struct MoveList {
 
     Move* begin() const { return data; }
     Move* end() const { return data + count; }
+    Move& front() const { return data[0]; }
     std::size_t size() const { return count; }
     bool empty() const { return count == 0; }
     Move& operator[](std::size_t index) const { return data[index]; }
