@@ -1654,6 +1654,35 @@ bool hasNullMoveMaterial(const Position& p) {
     return std::popcount(pieces[2]|pieces[3])>=2;
 }
 
+int lateMoveReduction(int depth,int moveNumber) {
+    using ReductionTable = std::array<
+        std::array<std::uint8_t,MAX_LEGAL_MOVES+1>,
+        MAX_PLY+1
+    >;
+    static const ReductionTable reductions=[] {
+        ReductionTable table{};
+        for(int searchDepth=1;searchDepth<=MAX_PLY;++searchDepth) {
+            for(std::size_t searched=1;searched<=MAX_LEGAL_MOVES;++searched) {
+                const double raw=std::log(static_cast<double>(searchDepth))
+                    *std::log(static_cast<double>(searched))/2.0;
+                const int reduction=std::clamp(
+                    static_cast<int>(raw+0.5),0,std::max(0,searchDepth-2)
+                );
+                table[searchDepth][searched]=static_cast<std::uint8_t>(reduction);
+            }
+        }
+        return table;
+    }();
+
+    const int boundedDepth=std::clamp(depth,1,MAX_PLY);
+    const int boundedMove=std::clamp(
+        moveNumber,1,static_cast<int>(MAX_LEGAL_MOVES)
+    );
+    return static_cast<int>(
+        reductions[boundedDepth][static_cast<std::size_t>(boundedMove)]
+    );
+}
+
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
@@ -1756,14 +1785,16 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         } else {
             int reduction=0;
             if(!checked&&!givesCheck&&quiet&&depth>=3&&moveNumber>=3) {
-                reduction=1;
-                if(depth>=5&&moveNumber>=6) ++reduction;
-                if(depth>=8&&moveNumber>=12) ++reduction;
+                reduction=lateMoveReduction(depth,moveNumber+1);
                 if(pvNode) --reduction;
+
                 const int history=historyScores[movingColor][m.from][m.to];
                 if(history>5000) --reduction;
                 else if(history<-5000) ++reduction;
-                reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
+
+                reduction=std::clamp(
+                    reduction,0,std::max(0,childDepth-1)
+                );
             }
             score=-negamax(p,childDepth-reduction,-alpha-1,-alpha,ply+1,false);
             if(score>alpha&&reduction>0) score=-negamax(p,childDepth,-alpha-1,-alpha,ply+1,false);

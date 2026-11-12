@@ -703,5 +703,18 @@ int main() {
         }
     }
 
+    // LMR should increase smoothly with both search depth and move count.
+    if(lateMoveReduction(2,32)!=0) return 130;
+    for(int searchDepth=3;searchDepth<=10;++searchDepth) {
+        int previousReduction=0;
+        for(int moveNumber=1;moveNumber<=64;++moveNumber) {
+            const int reduction=lateMoveReduction(searchDepth,moveNumber);
+            if(reduction<previousReduction
+                ||reduction>std::max(0,searchDepth-2)) return 131;
+            previousReduction=reduction;
+        }
+    }
+    if(lateMoveReduction(8,12)<=lateMoveReduction(5,6)) return 132;
+
     return 0;
 }
