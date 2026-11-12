@@ -341,6 +341,32 @@ int main() {
            moveOrderingScore(position,ordered[index],counterCandidate,0)) return 86;
     }
 
+    // The staged picker must always take a legal transposition move first,
+    // then a profitable capture before an ordinary quiet move.
+    if(!loadFen(position,"7k/8/8/3q4/8/8/8/K2R4 w - - 0 1")) return 98;
+    auto tacticalMoves=legalMoves(position,0);
+    Move hashCandidate;
+    if(!parseUciMove(position,"a1b1",hashCandidate)) return 99;
+    MovePicker tacticalPicker(position,tacticalMoves,hashCandidate,0);
+    if(!sameMove(tacticalPicker.next(),hashCandidate)) return 100;
+    if(moveUci(tacticalPicker.next())!="d1d5") return 101;
+
+    // A countermove is staged ahead of ordinary quiet moves.
+    if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 102;
+    if(!parseUciMove(position,"g1f3",counterCandidate)) return 103;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+    counterMoves={};
+    searchPathMoves[0]={parseSquare("g8"),parseSquare("f6"),EMPTY,false,false};
+    searchPathPieceTypes[0]=2;
+    counterMoves[2][parseSquare("f6")]=counterCandidate;
+    auto counterMovesLegal=legalMoves(position,1);
+    MovePicker counterPicker(position,counterMovesLegal,Move{},1);
+    if(!sameMove(counterPicker.next(),counterCandidate)) return 104;
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes.fill(0);
+    counterMoves={};
+
     const int originalHashSize=configuredHashMB;
     const std::size_t originalBucketCount=ttBucketCount;
     if(!resizeTranspositionTable(1)) return 93;
