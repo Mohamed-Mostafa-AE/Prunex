@@ -1554,7 +1554,9 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     const auto finalElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now()-start).count();
     std::ostringstream finalInfo;
-    finalInfo<<"info string search-final nodes="<<nodes
+    if(nodeLimit>0) finalInfo<<"info string node-limit "<<nodes<<"/"<<nodeLimit<<" ";
+    else finalInfo<<"info string ";
+    finalInfo<<"search-final nodes="<<nodes
              <<" depth="<<completedSearchDepth
              <<" elapsed_ms="<<finalElapsed
              <<" tthits="<<ttHits
