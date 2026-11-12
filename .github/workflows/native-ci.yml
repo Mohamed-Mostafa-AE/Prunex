@@ -6,12 +6,14 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      - 'tools/training/**'
       - 'CMakeLists.txt'
       - '.github/workflows/native-ci.yml'
   pull_request:
     paths:
       - 'src/**'
       - 'tests/**'
+      - 'tools/training/**'
       - 'CMakeLists.txt'
       - '.github/workflows/native-ci.yml'
   workflow_dispatch:
@@ -66,6 +68,27 @@ jobs:
         run: python3 tests/test_internal_selfplay.py
       - name: Verify licensed Lichess evaluation importer
         run: python3 tools/training/tests/test_lichess_eval.py
+
+  nnue-training-smoke:
+    name: Train, export and load a Prunex HalfKP network
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install compiler and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+          python3 -m pip install --user --disable-pip-version-check python-chess==1.999
+          python3 -m pip install --user --disable-pip-version-check -r tools/training/requirements-nnue.txt
+      - name: Build the native engine
+        run: |
+          cmake -S . -B build-nnue -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-nnue --target prunex --parallel 2
+      - name: Train a small deterministic fixture and load it in the native engine
+        run: python3 tests/test_halfkp_training.py build-nnue/prunex
 
   sanitizers:
     name: GCC AddressSanitizer and UndefinedBehaviorSanitizer
