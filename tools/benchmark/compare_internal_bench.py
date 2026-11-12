@@ -9,6 +9,7 @@ import platform
 import re
 import statistics
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +30,11 @@ FEN_POSITIONS = [
     ("open-position", "r2q1rk1/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w - - 0 1"),
 ]
 INFO_RE = re.compile(
-    r"^info depth (?P<depth>\d+) score cp (?P<score>-?\d+) nodes (?P<nodes>\d+)"
+    r"^info depth (?P<depth>\d+) score cp (?P<score>-?\d+) "
+    r"nodes (?P<nodes>\d+) .*?tthits (?P<tthits>\d+)"
+)
+NODE_LIMIT_RE = re.compile(
+    r"^info string node-limit (?P<nodes>\d+)/(?P<node_limit>\d+)"
 )
 FINAL_RE = re.compile(
     r"search-final nodes=(?P<nodes>\d+) depth=(?P<depth>\d+) "
@@ -120,8 +125,11 @@ def run_node_suite(executable: Path, node_budget: int) -> dict[str, Any]:
 
             info_depth = 0
             info_score_cp: int | None = None
+            info_tt_hits = 0
             final: dict[str, int] | None = None
+            legacy_node_limit: dict[str, int] | None = None
             bestmove = None
+            search_started = time.perf_counter()
             while bestmove is None:
                 if process.stdout is None:
                     raise RuntimeError("Engine stdout is unavailable")
@@ -137,15 +145,34 @@ def run_node_suite(executable: Path, node_budget: int) -> dict[str, Any]:
                 if info_match:
                     info_depth = int(info_match.group("depth"))
                     info_score_cp = int(info_match.group("score"))
+                    info_tt_hits = int(info_match.group("tthits"))
                 final_match = FINAL_RE.search(stripped)
                 if final_match:
                     final = {key: int(value) for key, value in final_match.groupdict().items()}
+                limit_match = NODE_LIMIT_RE.match(stripped)
+                if limit_match:
+                    legacy_node_limit = {
+                        key: int(value) for key, value in limit_match.groupdict().items()
+                    }
                 if stripped.startswith("bestmove "):
                     bestmove = stripped.split()[1]
 
+            wall_elapsed_ms = round((time.perf_counter() - search_started) * 1000)
+            summary_source = "search-final-info"
+            if final is None and legacy_node_limit is not None:
+                # The archived baseline predates the detailed final summary.
+                # Preserve its explicit node cap and use host wall time for timing.
+                final = {
+                    "nodes": legacy_node_limit["nodes"],
+                    "depth": info_depth,
+                    "time_ms": wall_elapsed_ms,
+                    "tthits": info_tt_hits,
+                    "node_limit": legacy_node_limit["node_limit"],
+                }
+                summary_source = "legacy-node-limit-plus-host-time"
             if final is None:
                 raise RuntimeError(
-                    f"Missing final search summary for {name}:\n"
+                    f"Missing final and legacy node-limit summaries for {name}:\n"
                     + "".join(transcript[-80:])
                 )
             if final["nodes"] > node_budget:
@@ -161,7 +188,9 @@ def run_node_suite(executable: Path, node_budget: int) -> dict[str, Any]:
                 "score_cp_side_to_move": info_score_cp,
                 "nodes": final["nodes"],
                 "elapsed_ms": final["time_ms"],
+                "wall_elapsed_ms": wall_elapsed_ms,
                 "tt_hits": final["tthits"],
+                "summary_source": summary_source,
                 "requested_node_budget": final["node_limit"],
             })
 
