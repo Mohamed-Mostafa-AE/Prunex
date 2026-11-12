@@ -411,7 +411,7 @@ void addPawnMove(MoveList& out,int from,int to,int color,bool ep=false) {
  if(rankOf(to)==(color==WHITE?7:0)) for(int type:{5,4,3,2}) addMove(out,from,to,makePiece(type,color),ep);
  else addMove(out,from,to,EMPTY,ep);
 }
-MoveList pseudoMoves(const Position& p,int ply=0) {
+MoveList pseudoMoves(const Position& p,int ply=0,bool capturesOnly=false) {
     const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
     MoveList out{moveScratch[scratchPly].pseudo.data(),0,scratchPly};
  const int us=p.side, them=1-us, step=us==WHITE?16:-16;
@@ -421,9 +421,10 @@ MoveList pseudoMoves(const Position& p,int ply=0) {
   int s=static_cast<int>(std::countr_zero(pawns)); pawns&=pawns-1;
   int from=square88From64(s), one=from+step;
   if(onBoard(one)&&p.board[one]==EMPTY) {
-   addPawnMove(out,from,one,us);
+   if(!capturesOnly||rankOf(one)==(us==WHITE?7:0)) addPawnMove(out,from,one,us);
    int two=one+step;
-   if(rankOf(from)==(us==WHITE?1:6)&&p.board[two]==EMPTY) addMove(out,from,two);
+   if(!capturesOnly&&rankOf(from)==(us==WHITE?1:6)&&p.board[two]==EMPTY)
+       addMove(out,from,two);
   }
   for(int df:{-1,1}) {
    int to=one+df; if(!onBoard(to)) continue;
@@ -436,7 +437,8 @@ MoveList pseudoMoves(const Position& p,int ply=0) {
   auto pieces=p.piecesBB[us][type];
   while(pieces) {
    int from64=static_cast<int>(std::countr_zero(pieces)); pieces&=pieces-1;
-   int from=square88From64(from64); auto targets=table[from64]&~own;
+   int from=square88From64(from64);
+   auto targets=table[from64]&(capturesOnly?p.occupancy[them]:~own);
    while(targets) {
     int to64=static_cast<int>(std::countr_zero(targets)); targets&=targets-1;
     int to=square88From64(to64), target=p.board[to];
@@ -453,7 +455,7 @@ MoveList pseudoMoves(const Position& p,int ply=0) {
    int from=square88From64(from64); std::uint64_t targets=0;
    if(diagonal) targets|=bishopAttacks(from64,occ);
    if(orthogonal) targets|=rookAttacks(from64,occ);
-   targets&=~own;
+   targets&=capturesOnly?p.occupancy[them]:~own;
    while(targets) {
     int to64=static_cast<int>(std::countr_zero(targets)); targets&=targets-1;
     int to=square88From64(to64), target=p.board[to];
@@ -464,7 +466,7 @@ MoveList pseudoMoves(const Position& p,int ply=0) {
  };
  sliders(3,true,false); sliders(4,false,true); sliders(5,true,true);
  const int king=us==WHITE?4:116, rook=makePiece(4,us);
- if(p.board[king]==makePiece(6,us)&&!inCheck(p,us)) {
+ if(!capturesOnly&&p.board[king]==makePiece(6,us)&&!inCheck(p,us)) {
   if(us==WHITE) {
    if((p.castling&WKCA)&&p.board[7]==rook&&p.board[5]==EMPTY&&p.board[6]==EMPTY&&
       !attacked(p,5,them)&&!attacked(p,6,them)) addMove(out,4,6,EMPTY,false,true);
@@ -639,43 +641,55 @@ KingSafetyInfo buildKingSafetyInfo(const Position& position,int color) {
     return info;
 }
 
-MoveList legalMoves(Position& position,int ply=0) {
+bool isLegalCandidate(Position& position,const Move& move,int movingSide,
+                       const KingSafetyInfo& kingSafety,int checkCount) {
+    const int movingPiece=position.board[move.from];
+    const bool kingMove=typeOf(movingPiece)==6;
+
+    // King moves and en-passant need an exact occupancy update. En-passant
+    // can uncover two lines because it removes a pawn away from the target.
+    if(kingMove||move.enPassant) {
+        const Undo undo=makeMove(position,move);
+        const bool safe=!inCheck(position,movingSide);
+        undoMove(position,move,undo);
+        return safe;
+    }
+
+    if(checkCount>1) return false;
+    const std::uint64_t destination=squareBit(move.to);
+    if(checkCount==1&&(kingSafety.evasionMask&destination)==0) return false;
+
+    const int from64=square64From88(move.from);
+    const std::uint64_t origin=squareBit(move.from);
+    return (kingSafety.pinned&origin)==0||
+        (kingSafety.pinRay[from64]&destination)!=0;
+}
+
+MoveList legalMoves(Position& position,int ply=0,bool capturesOnly=false) {
     const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
-    const auto candidates=pseudoMoves(position,scratchPly);
+    const auto candidates=pseudoMoves(position,scratchPly,capturesOnly);
     MoveList legal{moveScratch[scratchPly].legal.data(),0,scratchPly};
     const int movingSide=position.side;
     const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
     const int checkCount=std::popcount(kingSafety.checkers);
 
     for(const Move& move:candidates) {
-        const int movingPiece=position.board[move.from];
-        const bool kingMove=typeOf(movingPiece)==6;
-
-        // King moves and en-passant need an exact occupancy update: moving a
-        // king changes the attacked square, while en-passant can uncover two
-        // lines at once by removing a pawn from a different square.
-        if(kingMove||move.enPassant) {
-            const Undo undo=makeMove(position,move);
-            const bool safe=!inCheck(position,movingSide);
-            undoMove(position,move,undo);
-            if(safe) legal.push_back(move);
-            continue;
-        }
-
-        // A double check can only be answered by moving the king.
-        if(checkCount>1) continue;
-
-        const std::uint64_t destination=squareBit(move.to);
-        if(checkCount==1&&(kingSafety.evasionMask&destination)==0) continue;
-
-        const int from64=square64From88(move.from);
-        const std::uint64_t origin=squareBit(move.from);
-        if((kingSafety.pinned&origin)!=0&&
-           (kingSafety.pinRay[from64]&destination)==0) continue;
-
-        legal.push_back(move);
+        if(isLegalCandidate(position,move,movingSide,kingSafety,checkCount))
+            legal.push_back(move);
     }
     return legal;
+}
+
+bool hasAnyLegalMove(Position& position,int ply=0) {
+    const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
+    const auto candidates=pseudoMoves(position,scratchPly);
+    const int movingSide=position.side;
+    const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
+    const int checkCount=std::popcount(kingSafety.checkers);
+    for(const Move& move:candidates) {
+        if(isLegalCandidate(position,move,movingSide,kingSafety,checkCount)) return true;
+    }
+    return false;
 }
 
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
@@ -1431,25 +1445,26 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     const bool checked=inCheck(p,p.side);
     if((drawRule||insufficient)&&!checked) return 0;
 
-    // Reuse the pin/check-aware legal generator. The old qsearch path tested
-    // every pseudo-legal move by making it, even though the main search now
-    // has a faster bitboard legality filter.
-    const auto legal=legalMoves(p,searchPly);
-    if(legal.empty()) return checked?-MATE+searchPly:0;
-    if(drawRule||insufficient) return 0;
-
-    // Filter captures and promotions in the same per-ply buffer. Compaction
-    // is safe because the destination never advances beyond the current item.
-    MoveList moves{legal.data,0,legal.ply};
-    for(const Move& move:legal) {
-        if(checked||isCapture(p,move)||move.promotion) moves.push_back(move);
+    if(drawRule||insufficient) {
+        if(!checked) return 0;
+        return hasAnyLegalMove(p,searchPly)?0:-MATE+searchPly;
     }
 
-    if(!checked) {
+    MoveList moves;
+    if(checked) {
+        moves=legalMoves(p,searchPly);
+        if(moves.empty()) return -MATE+searchPly;
+    } else {
+        // Quiet moves cannot improve a stand-pat search. Generate only
+        // captures and promotions; test for stalemate separately when there
+        // are no such moves.
+        moves=legalMoves(p,searchPly,true);
+        if(moves.empty()) return hasAnyLegalMove(p,searchPly)?evaluate(p):0;
+
         const int stand=evaluate(p);
         if(stand>=beta) return stand;
         if(stand>alpha) alpha=stand;
-        if(qply>=MAX_QPLY||moves.empty()) return alpha;
+        if(qply>=MAX_QPLY) return alpha;
     }
 
     MovePicker picker(p,moves,Move{},searchPly);
