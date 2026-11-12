@@ -66,6 +66,7 @@ struct MoveScratch {
     std::array<std::size_t,6> stageOffsets{};
     std::array<std::size_t,5> stageCursors{};
     std::array<std::size_t,5> stageEnds{};
+    std::array<std::uint8_t,5> stageSorted{};
 };
 std::array<MoveScratch,MAX_PLY> moveScratch{};
 
@@ -1022,6 +1023,7 @@ public:
     MovePicker(const Position& position,MoveList moves,const Move& hashMove,int ply)
         : moves_(moves),scratch_(moveScratch[moves.ply]) {
         std::array<std::size_t,5> counts{};
+        scratch_.stageSorted.fill(0);
         for(std::size_t index=0;index<moves_.size();++index) {
             const Move& move=moves_[index];
             int exchange=0;
@@ -1051,24 +1053,26 @@ public:
             scratch_.order[writePositions[stage]++]=index;
         }
 
-        // Sort only within the current stage. A beta cutoff can then return
-        // without paying to order any later stage, and next() is O(1).
-        for(std::size_t stage=0;stage<5;++stage) {
-            const auto first=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageOffsets[stage]);
-            const auto last=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageOffsets[stage+1]);
-            std::sort(first,last,[&](std::size_t left,std::size_t right) {
-                const auto& a=scratch_.scored[left];
-                const auto& b=scratch_.scored[right];
-                if(a.score!=b.score) return a.score>b.score;
-                if(a.move.from!=b.move.from) return a.move.from<b.move.from;
-                if(a.move.to!=b.move.to) return a.move.to<b.move.to;
-                return a.move.promotion<b.move.promotion;
-            });
-        }
+        // Stage ordering is deferred until that stage is first requested.
+        // A cutoff in the capture stage therefore avoids sorting killers,
+        // quiets and losing captures that the search never reaches.
     }
 
     Move next() {
         while(stage_<5) {
+            if(!scratch_.stageSorted[stage_]) {
+                const auto first=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageOffsets[stage_]);
+                const auto last=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageEnds[stage_]);
+                std::sort(first,last,[&](std::size_t left,std::size_t right) {
+                    const auto& a=scratch_.scored[left];
+                    const auto& b=scratch_.scored[right];
+                    if(a.score!=b.score) return a.score>b.score;
+                    if(a.move.from!=b.move.from) return a.move.from<b.move.from;
+                    if(a.move.to!=b.move.to) return a.move.to<b.move.to;
+                    return a.move.promotion<b.move.promotion;
+                });
+                scratch_.stageSorted[stage_]=1;
+            }
             if(scratch_.stageCursors[stage_]<scratch_.stageEnds[stage_]) {
                 const std::size_t index=scratch_.order[scratch_.stageCursors[stage_]++];
                 return scratch_.scored[index].move;
