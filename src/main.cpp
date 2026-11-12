@@ -20,7 +20,7 @@
 
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 #include <immintrin.h>
-#define PRUNEX_RUNTIME_BMI2_DISPATCH 1
+#define PRUNEX_HAS_GNU_X86_INTRINSICS 1
 #endif
 
 namespace prunex {
@@ -346,7 +346,7 @@ std::uint64_t expandOccupancyIndex(std::uint32_t index,std::uint64_t mask) {
 // Use the hardware PEXT instruction when the running CPU supports BMI2.
 // The portable implementation remains available for older x86 processors,
 // WebAssembly, ARM, and compilers without per-function ISA targeting.
-#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
 __attribute__((target("bmi2")))
 std::uint32_t compressOccupancyBmi2(std::uint64_t occupied,std::uint64_t mask) {
     return static_cast<std::uint32_t>(_pext_u64(occupied,mask));
@@ -362,7 +362,7 @@ bool supportsBmi2() {
 #endif
 
 std::uint32_t compressOccupancy(std::uint64_t occupied,std::uint64_t mask) {
-#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
     if(supportsBmi2()) return compressOccupancyBmi2(occupied,mask);
 #endif
     std::uint32_t index=0;

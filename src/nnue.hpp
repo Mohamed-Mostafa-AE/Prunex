@@ -26,7 +26,7 @@ inline std::int64_t dotProductScalar(
     return sum;
 }
 
-#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
 __attribute__((target("avx2")))
 inline std::int64_t dotProductAvx2(
     const std::int8_t* weights,
@@ -82,7 +82,7 @@ inline std::int64_t dotProduct(
     const std::uint8_t* activations,
     std::size_t count
 ) noexcept {
-#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
     if (avx2Available()) return dotProductAvx2(weights, activations, count);
 #endif
     return dotProductScalar(weights, activations, count);
@@ -99,7 +99,7 @@ inline void addScaledInt8RowScalar(
     }
 }
 
-#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
 __attribute__((target("avx2")))
 inline void addScaledInt8RowAvx2(
     std::int32_t* accumulator,
@@ -137,7 +137,7 @@ inline void addScaledInt8Row(
     std::size_t count,
     int direction
 ) noexcept {
-#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+#if defined(PRUNEX_HAS_GNU_X86_INTRINSICS)
     if (avx2Available()) {
         addScaledInt8RowAvx2(accumulator, weights, count, direction);
         return;
