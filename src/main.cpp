@@ -1760,10 +1760,7 @@ void runBenchmark(int depth) {
             std::cerr<<"Invalid built-in benchmark position: "<<item.name<<"\n";
             continue;
         }
-        clearTranspositionTable();
-        historyScores={};
-        for(auto& pair:killerMoves) pair={Move{},Move{}};
-        searchAborted.store(false,std::memory_order_relaxed);
+        resetSearchState();
         Move best=findBestMove(position,depth);
         totalNodes+=nodes;
         std::cout<<"bench "<<item.name<<" bestmove "<<(best.from>=0?moveUci(best):"none")
@@ -1878,12 +1875,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         } else if(cmd=="ucinewgame"){
             stopAndJoin();
             loadFen(pos,START_FEN);
-            clearTranspositionTable();
-            historyScores={};
-            counterMoves={};
-            searchPathMoves.fill(Move{});
-            searchPathPieceTypes.fill(0);
-            for(auto& pair:killerMoves)pair={Move{},Move{}};
+            resetSearchState();
         } else if(cmd=="position"){
             stopAndJoin();
             setPosition(pos,line);
