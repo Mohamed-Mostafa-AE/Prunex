@@ -16,13 +16,14 @@ from pathlib import Path
 from typing import Iterator
 
 import chess
+import numpy as np
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
 
 FEATURE_COUNT = 64 * 64 * 5 * 2
-NETWORK_MAGIC = b"PRUNEXN1"
+NETWORK_MAGIC = b"PRUNEXQ1"
 NETWORK_VERSION = 1
 DEFAULT_SCORE_SCALE = 400.0
 
@@ -222,8 +223,19 @@ def collate(
     return index_tensor, offset_tensor, stm_tensor, score_tensor
 
 
+def fake_quantize(
+    values: Tensor,
+    scale: int,
+    minimum: int,
+    maximum: int,
+) -> Tensor:
+    """Straight-through fake quantization used during training."""
+    quantized = torch.clamp(torch.round(values * scale), minimum, maximum) / scale
+    return values + (quantized - values).detach()
+
+
 class PrunexHalfKP(nn.Module):
-    """Shared HalfKP feature transformer with a compact side-to-move head."""
+    """Prunex HalfKP network trained with the same quantization as native inference."""
 
     def __init__(self, hidden: int = 128, dense1: int = 32, dense2: int = 16):
         super().__init__()
@@ -251,9 +263,21 @@ class PrunexHalfKP(nn.Module):
 
     def forward(self, indices: Tensor, offsets: Tensor, stm_white: Tensor) -> Tensor:
         batch_size = stm_white.shape[0]
-        accumulators = self.feature_weights(indices, offsets)
-        accumulators = accumulators + self.feature_bias
-        accumulators = accumulators.clamp(0.0, 1.0).reshape(batch_size, 2, self.hidden)
+
+        # The C++ runtime stores HalfKP rows as signed int8 values.
+        feature_weights = fake_quantize(
+            self.feature_weights.weight, 127, -127, 127
+        )
+        accumulators = F.embedding_bag(
+            indices, feature_weights, offsets, mode="sum", sparse=True
+        )
+        feature_bias = fake_quantize(
+            self.feature_bias, 127, -32768, 32767
+        )
+        accumulators = fake_quantize(
+            (accumulators + feature_bias).clamp(0.0, 1.0),
+            127, 0, 127,
+        ).reshape(batch_size, 2, self.hidden)
 
         white = accumulators[:, 0, :]
         black = accumulators[:, 1, :]
@@ -261,9 +285,37 @@ class PrunexHalfKP(nn.Module):
         second = torch.where(stm_white.unsqueeze(1), black, white)
         combined = torch.cat((first, second), dim=1)
 
-        layer1 = self.dense1(combined).clamp(0.0, 1.0)
-        layer2 = self.dense2(layer1).clamp(0.0, 1.0)
-        return self.output(layer2).squeeze(1)
+        dense1_weights = fake_quantize(self.dense1.weight, 127, -127, 127)
+        dense1_bias = fake_quantize(
+            self.dense1.bias, 16129, -2147483648, 2147483647
+        )
+        layer1 = fake_quantize(
+            F.linear(combined, dense1_weights, dense1_bias).clamp(0.0, 1.0),
+            127, 0, 127,
+        )
+
+        dense2_weights = fake_quantize(self.dense2.weight, 127, -127, 127)
+        dense2_bias = fake_quantize(
+            self.dense2.bias, 16129, -2147483648, 2147483647
+        )
+        layer2 = fake_quantize(
+            F.linear(layer1, dense2_weights, dense2_bias).clamp(0.0, 1.0),
+            127, 0, 127,
+        )
+
+        output_weights = fake_quantize(self.output.weight, 127, -127, 127)
+        output_bias = fake_quantize(
+            self.output.bias, 16129, -2147483648, 2147483647
+        )
+        return F.linear(layer2, output_weights, output_bias).squeeze(1)
+
+    @torch.no_grad()
+    def clamp_parameters(self) -> None:
+        # Keep weights inside the representable int8 interval after updates.
+        self.feature_weights.weight.clamp_(-1.0, 1.0)
+        self.dense1.weight.clamp_(-1.0, 1.0)
+        self.dense2.weight.clamp_(-1.0, 1.0)
+        self.output.weight.clamp_(-1.0, 1.0)
 
 
 def target_probability(score_cp: Tensor, score_scale: float) -> Tensor:
@@ -305,9 +357,10 @@ def validate(
     return {"positions": count, "brier_score": squared_error / count, "log_loss": log_loss / count}
 
 
-def write_tensor(stream, tensor: Tensor) -> None:
-    array = tensor.detach().to(device="cpu", dtype=torch.float32).contiguous().numpy()
-    stream.write(array.astype("<f4", copy=False).tobytes(order="C"))
+def quantized_array(tensor: Tensor, scale: int, dtype: str, minimum: int, maximum: int) -> bytes:
+    values = tensor.detach().to(device="cpu", dtype=torch.float32).contiguous().numpy()
+    quantized = np.rint(values * scale).clip(minimum, maximum)
+    return quantized.astype(dtype, copy=False).tobytes(order="C")
 
 
 def export_network(
@@ -315,7 +368,7 @@ def export_network(
     output_path: Path,
     score_scale: float,
 ) -> str:
-    """Write the float32 inference file consumed by src/nnue.hpp."""
+    """Write the integer PRUNEXQ1 model consumed by src/nnue.hpp."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary_name = tempfile.mkstemp(
         prefix=output_path.name + ".", suffix=".tmp", dir=output_path.parent
@@ -335,14 +388,30 @@ def export_network(
                 model.dense2_size,
                 float(score_scale),
             ))
-            write_tensor(stream, model.feature_weights.weight)
-            write_tensor(stream, model.feature_bias)
-            write_tensor(stream, model.dense1.weight)
-            write_tensor(stream, model.dense1.bias)
-            write_tensor(stream, model.dense2.weight)
-            write_tensor(stream, model.dense2.bias)
-            write_tensor(stream, model.output.weight)
-            write_tensor(stream, model.output.bias)
+            stream.write(quantized_array(
+                model.feature_weights.weight, 127, "<i1", -127, 127
+            ))
+            stream.write(quantized_array(
+                model.feature_bias, 127, "<i2", -32768, 32767
+            ))
+            stream.write(quantized_array(
+                model.dense1.weight, 127, "<i1", -127, 127
+            ))
+            stream.write(quantized_array(
+                model.dense1.bias, 16129, "<i4", -2147483648, 2147483647
+            ))
+            stream.write(quantized_array(
+                model.dense2.weight, 127, "<i1", -127, 127
+            ))
+            stream.write(quantized_array(
+                model.dense2.bias, 16129, "<i4", -2147483648, 2147483647
+            ))
+            stream.write(quantized_array(
+                model.output.weight, 127, "<i1", -127, 127
+            ))
+            stream.write(quantized_array(
+                model.output.bias, 16129, "<i4", -2147483648, 2147483647
+            ))
         os.replace(temporary, output_path)
     except Exception:
         temporary.unlink(missing_ok=True)
@@ -417,6 +486,7 @@ def train(args: argparse.Namespace) -> dict:
             loss.backward()
             dense_optimizer.step()
             embedding_optimizer.step()
+            model.clamp_parameters()
 
             epoch_loss += float(loss.detach().item()) * len(rows)
             epoch_positions += len(rows)
@@ -454,7 +524,7 @@ def train(args: argparse.Namespace) -> dict:
     network_hash = export_network(model, output_path, args.score_scale)
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({
-        "format": "prunex-halfkp-v1",
+        "format": "prunex-halfkp-qat-v1",
         "model": model.state_dict(),
         "dimensions": {
             "features": FEATURE_COUNT,
@@ -474,6 +544,13 @@ def train(args: argparse.Namespace) -> dict:
             "sha256": network_hash,
             "bytes": output_path.stat().st_size,
             "format_version": NETWORK_VERSION,
+            "quantization": {
+                "feature_weights": "int8 / 127",
+                "feature_bias": "int16 / 127",
+                "dense_weights": "int8 / 127",
+                "dense_biases": "int32 / 16129",
+                "activations": "uint7-compatible signed int8 scale 127",
+            },
         },
         "checkpoint": {
             "path": str(checkpoint_path),
@@ -512,6 +589,7 @@ def train(args: argparse.Namespace) -> dict:
         "elapsed_seconds": round(time.monotonic() - started, 2),
         "limitations": [
             "The model learns Stockfish teacher evaluations from the supplied Lichess corpus.",
+            "Quantization-aware training uses straight-through fake quantization matching the native PRUNEXQ1 integer format.",
             "Held-out evaluation loss is not a playing-strength rating.",
             "The exported network must pass native correctness, performance and paired-game tests before use.",
         ],
