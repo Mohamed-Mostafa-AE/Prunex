@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
+import math
 import random
 import subprocess
 import sys
@@ -12,9 +14,15 @@ import tempfile
 from pathlib import Path
 
 import chess
+import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 TRAINER = ROOT / "tools" / "training" / "train_halfkp.py"
+TRAINER_SPEC = importlib.util.spec_from_file_location("prunex_halfkp_trainer", TRAINER)
+if TRAINER_SPEC is None or TRAINER_SPEC.loader is None:
+    raise RuntimeError("Could not load the Prunex HalfKP trainer module")
+TRAINER_MODULE = importlib.util.module_from_spec(TRAINER_SPEC)
+TRAINER_SPEC.loader.exec_module(TRAINER_MODULE)
 SEED = "prunex-halfkp-ci-fixture-v1"
 
 
@@ -160,6 +168,47 @@ def main() -> int:
         if network.read_bytes()[:8] != b"PRUNEXQ1":
             raise AssertionError("Export does not use the Prunex network format")
 
+        checkpoint = torch.load(
+            network.with_suffix(".nnue.pt"),
+            map_location="cpu",
+            weights_only=True,
+        )
+        dimensions = checkpoint["dimensions"]
+        model = TRAINER_MODULE.PrunexHalfKP(
+            hidden=dimensions["hidden"],
+            dense1=dimensions["dense1"],
+            dense2=dimensions["dense2"],
+        )
+        model.load_state_dict(checkpoint["model"])
+        model.eval()
+
+        held_out_rows = [
+            json.loads(line)
+            for line in (corpus / "positions-test.jsonl").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            if line.strip()
+        ]
+        if len(held_out_rows) != 16:
+            raise AssertionError("Expected 16 held-out positions for inference parity")
+
+        expected_scores: list[tuple[str, int]] = []
+        with torch.no_grad():
+            for row in held_out_rows:
+                white, black, stm_white = TRAINER_MODULE.halfkp_features(row["fen"])
+                indices, offsets, stm, _ = TRAINER_MODULE.collate(
+                    [(white, black, stm_white, row["score_cp"])],
+                    torch.device("cpu"),
+                )
+                logit = float(model(indices, offsets, stm)[0].item())
+                centipawns = logit * float(checkpoint["score_scale"])
+                expected = (
+                    math.floor(centipawns + 0.5)
+                    if centipawns >= 0
+                    else math.ceil(centipawns - 0.5)
+                )
+                expected_scores.append((row["fen"], expected))
+
         process = subprocess.Popen(
             [str(engine)],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -179,6 +228,33 @@ def main() -> int:
             ready = read_until(process, "readyok")
             if not any("loaded Prunex NNUE evaluation" in line for line in ready):
                 raise AssertionError(f"Native engine rejected the exported model: {ready}")
+
+            for fen, expected in expected_scores:
+                send(f"position fen {fen}")
+                send("eval")
+                evaluation = read_until(
+                    process, "info string static evaluation cp "
+                )
+                line = next(
+                    (
+                        item for item in evaluation
+                        if item.startswith("info string static evaluation cp ")
+                    ),
+                    None,
+                )
+                if line is None:
+                    raise AssertionError(
+                        f"Native engine did not report an evaluation for {fen}: "
+                        f"{evaluation}"
+                    )
+                actual = int(line.rsplit(" ", 1)[1])
+                if abs(actual - expected) > 1:
+                    raise AssertionError(
+                        "Python/native NNUE mismatch: "
+                        f"expected {expected} cp, received {actual} cp "
+                        f"for {fen}"
+                    )
+
             send("position startpos")
             send("go depth 2")
             search = read_until(process, "bestmove ")
@@ -195,7 +271,9 @@ def main() -> int:
                 process.kill()
                 process.wait(timeout=5)
 
-    print("HalfKP training/export/native-load smoke test: passed")
+    print(
+        "HalfKP training/export/native-load and Python/native inference parity: passed"
+    )
     return 0
 
 
