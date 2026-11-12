@@ -1327,33 +1327,23 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
         }
     };
 
-    // Attack maps are constructed from the piece bitboards. Slider rays
-    // include the first occupied square, matching the board attack semantics.
+    // Pawn attacks are needed to score safe mobility, so build them first.
+    // This also fills the pawn contribution to the general attack map.
     for(int color=WHITE;color<=BLACK;++color) {
-        for(int type=1;type<=6;++type) {
-            std::uint64_t pieces=p.piecesBB[color][type];
-            while(pieces) {
-                const int square=static_cast<int>(std::countr_zero(pieces));
-                pieces&=pieces-1;
-                std::uint64_t targets=0;
-                if(type==1) {
-                    targets=PAWN_ATTACKS[color][square];
-                    maps.pawnAttacks[color]|=targets;
-                } else if(type==2) targets=KNIGHT_ATTACKS[square];
-                else if(type==3) targets=bishopAttacks(square,occupied);
-                else if(type==4) targets=rookAttacks(square,occupied);
-                else if(type==5)
-                    targets=bishopAttacks(square,occupied)|rookAttacks(square,occupied);
-                else targets=KING_ATTACKS[square];
-                markTargets(color,targets);
-            }
+        std::uint64_t pawns=p.piecesBB[color][1];
+        while(pawns) {
+            const int square=static_cast<int>(std::countr_zero(pawns));
+            pawns&=pawns-1;
+            const std::uint64_t targets=PAWN_ATTACKS[color][square];
+            maps.pawnAttacks[color]|=targets;
+            markTargets(color,targets);
         }
     }
 
-    // Safe mobility excludes friendly-occupied squares and enemy pawn
-    // attacks. Bit counts avoid repeatedly tracing mailbox rays.
+    // Calculate each non-pawn attack set once. The same bitboard supplies
+    // both the attack map and the safe-mobility count.
     for(int color=WHITE;color<=BLACK;++color) {
-        for(int type=2;type<=5;++type) {
+        for(int type=2;type<=6;++type) {
             std::uint64_t pieces=p.piecesBB[color][type];
             while(pieces) {
                 const int square=static_cast<int>(std::countr_zero(pieces));
@@ -1362,14 +1352,20 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
                 if(type==2) targets=KNIGHT_ATTACKS[square];
                 else if(type==3) targets=bishopAttacks(square,occupied);
                 else if(type==4) targets=rookAttacks(square,occupied);
-                else targets=bishopAttacks(square,occupied)|rookAttacks(square,occupied);
+                else if(type==5)
+                    targets=bishopAttacks(square,occupied)|rookAttacks(square,occupied);
+                else targets=KING_ATTACKS[square];
 
-                targets&=~p.occupancy[color];
-                targets&=~maps.pawnAttacks[1-color];
-                const int safeMoves=static_cast<int>(std::popcount(targets));
-                const int bounded=std::min(safeMoves,mobilityCap[type]);
-                maps.mobilityMiddle[color]+=bounded*mobilityMiddleWeight[type];
-                maps.mobilityEnding[color]+=bounded*mobilityEndingWeight[type];
+                markTargets(color,targets);
+
+                if(type<=5) {
+                    std::uint64_t safeTargets=targets&~p.occupancy[color]
+                        &~maps.pawnAttacks[1-color];
+                    const int safeMoves=static_cast<int>(std::popcount(safeTargets));
+                    const int bounded=std::min(safeMoves,mobilityCap[type]);
+                    maps.mobilityMiddle[color]+=bounded*mobilityMiddleWeight[type];
+                    maps.mobilityEnding[color]+=bounded*mobilityEndingWeight[type];
+                }
             }
         }
     }
@@ -1401,7 +1397,6 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
         }
     }
 }
-
 int evaluate(Position& p) {
     if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
 

@@ -190,6 +190,86 @@ static bool moveCountersSaturateAndUndo() {
     return samePositionState(fullmovePosition,originalFullmove);
 }
 
+static bool evaluationMapsMatchAttackReference(prunex::Position position) {
+    using namespace prunex;
+    EvaluationMaps maps;
+    buildEvaluationMaps(position,maps);
+
+    std::array<std::uint64_t,2> expectedPawnAttacks{};
+    for(int color=WHITE;color<=BLACK;++color) {
+        std::uint64_t pawns=position.piecesBB[color][1];
+        while(pawns) {
+            const int square=static_cast<int>(std::countr_zero(pawns));
+            pawns&=pawns-1;
+            expectedPawnAttacks[color]|=PAWN_ATTACKS[color][square];
+        }
+        if(maps.pawnAttacks[color]!=expectedPawnAttacks[color]) return false;
+
+        int expectedMiddle=0;
+        int expectedEnding=0;
+        constexpr std::array<int,7> middleWeight{0,0,4,3,2,1,0};
+        constexpr std::array<int,7> endingWeight{0,0,3,3,2,1,0};
+        constexpr std::array<int,7> cap{0,0,8,13,14,27,0};
+        const std::uint64_t occupied=position.occupancy[WHITE]
+            |position.occupancy[BLACK];
+
+        for(int square64=0;square64<64;++square64) {
+            const int square88=square88From64(square64);
+            const int actual=maps.attacks[color][square64];
+            const int reference=static_cast<int>(
+                std::popcount(attackersTo(position,square88,color))
+            );
+            if(actual!=reference) return false;
+        }
+
+        for(int type=2;type<=5;++type) {
+            std::uint64_t pieces=position.piecesBB[color][type];
+            while(pieces) {
+                const int square=static_cast<int>(std::countr_zero(pieces));
+                pieces&=pieces-1;
+                std::uint64_t targets=0;
+                if(type==2) targets=KNIGHT_ATTACKS[square];
+                else if(type==3) targets=bishopAttacks(square,occupied);
+                else if(type==4) targets=rookAttacks(square,occupied);
+                else targets=bishopAttacks(square,occupied)
+                    |rookAttacks(square,occupied);
+                targets&=~position.occupancy[color];
+                targets&=~expectedPawnAttacks[1-color];
+                const int bounded=std::min(
+                    static_cast<int>(std::popcount(targets)),cap[type]
+                );
+                expectedMiddle+=bounded*middleWeight[type];
+                expectedEnding+=bounded*endingWeight[type];
+            }
+        }
+        if(maps.mobilityMiddle[color]!=expectedMiddle
+            ||maps.mobilityEnding[color]!=expectedEnding) return false;
+
+        const int enemyKing=kingSquare(position,1-color);
+        int attackedSquares=0;
+        int attackUnits=0;
+        for(int rankStep=-1;rankStep<=1;++rankStep) {
+            for(int fileStep=-1;fileStep<=1;++fileStep) {
+                if(rankStep==0&&fileStep==0) continue;
+                const int target=enemyKing+rankStep*16+fileStep;
+                if(!onBoard(target)) continue;
+                const int count=static_cast<int>(
+                    std::popcount(attackersTo(position,target,color))
+                );
+                if(count==0) continue;
+                ++attackedSquares;
+                attackUnits+=std::min(2,count);
+            }
+        }
+        int expectedPressure=0;
+        if(attackedSquares>=2&&attackUnits>=3)
+            expectedPressure=std::min(36,attackedSquares*2+attackUnits*2);
+        if(maps.kingPressureMiddle[color]!=expectedPressure
+            ||maps.kingPressureEnding[color]!=expectedPressure/3) return false;
+    }
+    return true;
+}
+
 int main() {
     using namespace prunex;
     Position position;
@@ -577,6 +657,19 @@ int main() {
     if(searchTimeLimited||searchNodeLimit!=0) return 97;
 
     if(!sliderTableIndicesAgree()) return 98;
+
+    const std::array<const char*,6> evaluationPositions{{
+        START_FEN,
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w - - 0 1",
+        "7k/8/8/3pP3/8/8/8/K7 w - d6 0 1",
+        "4k3/8/8/8/1b6/8/4r3/4K3 w - - 0 1",
+        "7k/8/8/8/8/8/8/K7 w - - 0 1"
+    }};
+    for(const char* fen:evaluationPositions) {
+        if(!loadFen(position,fen)
+            ||!evaluationMapsMatchAttackReference(position)) return 129;
+    }
 
     return 0;
 }
