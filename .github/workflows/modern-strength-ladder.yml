@@ -26,7 +26,7 @@ permissions:
 
 concurrency:
   group: prunex-modern-strength-ladder
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   three-tier-strength-ladder:
@@ -53,13 +53,16 @@ jobs:
           cmake --build build-native --target prunex --parallel 2
           printf 'uci\nisready\nquit\n' | build-native/prunex
 
-      - name: Build pinned official Stockfish 19
+      - name: Build pinned official Stockfish 19 for the runner CPU
         run: |
+          lscpu > runner-cpu.txt
+          cat runner-cpu.txt
+          grep -m 1 -q 'avx2' /proc/cpuinfo
           git clone --depth 1 --branch sf_19 https://github.com/official-stockfish/Stockfish.git stockfish-19
           STOCKFISH_SHA="$(git -C stockfish-19 rev-parse HEAD)"
           test "$STOCKFISH_SHA" = "edb0d9db6731067ec50ce619ff372b463bc4dd5d"
           echo "STOCKFISH_SOURCE_COMMIT=$STOCKFISH_SHA" >> "$GITHUB_ENV"
-          make -C stockfish-19/src -j2 build ARCH=x86-64
+          make -C stockfish-19/src -j2 build ARCH=native
           test -x stockfish-19/src/stockfish
 
       - name: Download official Triumviratus 8.1 AVX2-noPEXT release and NNUE
@@ -134,6 +137,7 @@ jobs:
             --triumviratus-cwd opponents/triumviratus-8.1 \
             --candidate-commit "${GITHUB_SHA}" \
             --stockfish-source-commit "${STOCKFISH_SOURCE_COMMIT}" \
+            --stockfish-build-arch "native" \
             --triumviratus-release-commit "bd309e0673a5a851941f0c19d15b01cbaba4baa5" \
             --plentychess opponents/plentychess-8.0.0/PlentyChess-8.0.0-linux-avx2 \
             --plentychess-release-commit "50ad9f1b523063cbbbf599fe0547f42870fe2906" \
@@ -172,5 +176,6 @@ jobs:
             opponents/triumviratus-8.1/ldd.txt
             opponents/plentychess-8.0.0/uci.txt
             opponents/reckless-0.9.0/uci.txt
+            runner-cpu.txt
           if-no-files-found: warn
           retention-days: 90

@@ -432,6 +432,7 @@ def main() -> None:
     parser.add_argument("--plentychess", required=True)
     parser.add_argument("--reckless", required=True)
     parser.add_argument("--stockfish-source-commit", required=True)
+    parser.add_argument("--stockfish-build-arch", required=True)
     parser.add_argument("--triumviratus-release-commit", required=True)
     parser.add_argument("--plentychess-release-commit", required=True)
     parser.add_argument("--reckless-release-commit", required=True)
@@ -502,6 +503,7 @@ def main() -> None:
         manifest = {
             "candidate_commit": args.candidate_commit,
             "stockfish_source_commit": args.stockfish_source_commit,
+            "stockfish_build_arch": args.stockfish_build_arch,
             "triumviratus_release_commit": args.triumviratus_release_commit,
             "plentychess_release_commit": args.plentychess_release_commit,
             "reckless_release_commit": args.reckless_release_commit,
@@ -565,6 +567,7 @@ def main() -> None:
 
     report = {
         "candidate_commit": args.candidate_commit,
+        "stockfish_build_arch": args.stockfish_build_arch,
         "opponents": [spec.label for spec in opponent_specs],
         "pairs_per_tier_per_opponent": args.pairs,
         "total_games": sum(item["games"] for item in summaries),
