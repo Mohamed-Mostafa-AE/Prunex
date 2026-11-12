@@ -15,6 +15,7 @@ if(EMSCRIPTEN)
         "-sENVIRONMENT=web,worker,node"
         "-sALLOW_MEMORY_GROWTH=1"
         "-sNO_EXIT_RUNTIME=1"
+        "-sSTACK_SIZE=1048576"
         "--no-entry"
         "-sEXPORTED_FUNCTIONS=['_prunex_wasm_api_version','_prunex_wasm_evaluate_fen','_prunex_wasm_search_fen','_prunex_wasm_search_fen_timed','_prunex_wasm_search_depth','_prunex_wasm_nodes','_malloc','_free']"
         "-sEXPORTED_RUNTIME_METHODS=['cwrap','UTF8ToString','stringToUTF8','lengthBytesUTF8']"
