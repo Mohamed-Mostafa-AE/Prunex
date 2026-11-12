@@ -21,12 +21,13 @@ jobs:
   profile-native-search:
     name: Profile release search on the runner CPU
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 60
     steps:
       - name: Check out the exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Install compiler, profiler and build tools
         run: |
@@ -59,6 +60,32 @@ jobs:
             -DPRUNEX_NATIVE_TUNING=ON
           cmake --build build-tests --parallel 2
           ctest --test-dir build-tests --output-on-failure
+
+      - name: Compare the candidate with the exact pre-change engine
+        env:
+          BASELINE_SHA: 6f54db028ea82dd7fefd77e75e5fe03524ac774e
+        run: |
+          set -euo pipefail
+          git worktree add --detach ../prunex-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-baseline -B ../prunex-baseline/build-native -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPRUNEX_TT_BITS=22 \
+            -DCMAKE_CXX_FLAGS="-march=native -mtune=native"
+          cmake --build ../prunex-baseline/build-native --target prunex --parallel 2
+          cmake -S . -B build-compare -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPRUNEX_TT_BITS=22 \
+            -DPRUNEX_NATIVE_TUNING=ON
+          cmake --build build-compare --target prunex --parallel 2
+          python3 tools/benchmark/compare_internal_bench.py \
+            --baseline ../prunex-baseline/build-native/prunex \
+            --candidate build-compare/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --depth 6 \
+            --runs 5 \
+            --node-budget 200000 \
+            --output profile-output/baseline-comparison.json
 
       - name: Profile fixed search positions
         run: |
