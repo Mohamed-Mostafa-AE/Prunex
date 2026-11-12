@@ -711,10 +711,15 @@ def main() -> int:
     except (OSError, ValueError, RuntimeError, struct.error) as exc:
         raise SystemExit(f"NNUE training failed: {exc}") from exc
 
+    best_epoch = report["settings"]["best_validation_epoch"]
     print(json.dumps({
         "network": report["network"],
         "settings": report["settings"],
-        "final_validation": report["history"][-1]["validation"],
+        "selected_checkpoint": {
+            "epoch": best_epoch,
+            "validation": report["history"][best_epoch - 1]["validation"],
+        },
+        "held_out_test": report["held_out_test"],
         "report": str(Path(args.output).with_suffix(Path(args.output).suffix + ".json")),
     }, indent=2))
     return 0

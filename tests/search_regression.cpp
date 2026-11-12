@@ -123,10 +123,79 @@ static bool enPassantHashingMatchesLegalMoves() {
     return true;
 }
 
+static bool samePositionState(
+    const prunex::Position& left,
+    const prunex::Position& right
+) {
+    return left.board==right.board
+        &&left.piecesBB==right.piecesBB
+        &&left.occupancy==right.occupancy
+        &&left.side==right.side
+        &&left.castling==right.castling
+        &&left.ep==right.ep
+        &&left.halfmove==right.halfmove
+        &&left.fullmove==right.fullmove
+        &&left.key==right.key
+        &&left.nnue.values==right.nnue.values
+        &&left.nnue.generation==right.nnue.generation
+        &&left.nnue.valid==right.nnue.valid;
+}
+
+static bool positionCommandsAreTransactional() {
+    using namespace prunex;
+
+    Position position;
+    if(!loadFen(position,START_FEN)) return false;
+    if(!setPosition(position,"position startpos moves e2e4 e7e5")) return false;
+    const Position accepted=position;
+
+    if(setPosition(position,"position startpos moves e2e4 e7e5 e1e8")) return false;
+    if(!samePositionState(position,accepted)) return false;
+
+    if(setPosition(position,"position startpos unexpected")) return false;
+    if(!samePositionState(position,accepted)) return false;
+
+    if(setPosition(position,"position fen 4k3/8/8/8/8/8/8/4K3 w - -")) return false;
+    if(!samePositionState(position,accepted)) return false;
+
+    if(!setPosition(position,"position fen 4k3/8/8/8/8/8/8/4K3 w - - 0 1")) return false;
+    return position.key==computePositionKey(position)
+        &&position.side==WHITE
+        &&position.fullmove==1;
+}
+
+static bool moveCountersSaturateAndUndo() {
+    using namespace prunex;
+    constexpr int maximum=std::numeric_limits<int>::max();
+
+    Position halfmovePosition;
+    if(!loadFen(halfmovePosition,
+                "4k3/8/8/8/8/8/8/R3K3 w - - 2147483647 1")) return false;
+    const Position originalHalfmove=halfmovePosition;
+    Move move;
+    if(!parseUciMove(halfmovePosition,"a1a2",move)) return false;
+    const Undo halfmoveUndo=makeMove(halfmovePosition,move);
+    if(halfmovePosition.halfmove!=maximum||halfmovePosition.fullmove!=1) return false;
+    undoMove(halfmovePosition,move,halfmoveUndo);
+    if(!samePositionState(halfmovePosition,originalHalfmove)) return false;
+
+    Position fullmovePosition;
+    if(!loadFen(fullmovePosition,
+                "r3k3/8/8/8/8/8/8/4K3 b - - 0 2147483647")) return false;
+    const Position originalFullmove=fullmovePosition;
+    if(!parseUciMove(fullmovePosition,"a8a7",move)) return false;
+    const Undo fullmoveUndo=makeMove(fullmovePosition,move);
+    if(fullmovePosition.fullmove!=maximum||fullmovePosition.halfmove!=1) return false;
+    undoMove(fullmovePosition,move,fullmoveUndo);
+    return samePositionState(fullmovePosition,originalFullmove);
+}
+
 int main() {
     using namespace prunex;
     Position position;
 
+    if(!positionCommandsAreTransactional()) return 126;
+    if(!moveCountersSaturateAndUndo()) return 127;
     if(!enPassantHashingMatchesLegalMoves()) return 125;
 
     if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 0 1")) return 1;

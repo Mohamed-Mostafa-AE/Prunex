@@ -631,8 +631,14 @@ Undo makeMove(Position& p,const Move& m) {
 
     p.ep=(typeOf(movingPiece)==1&&std::abs(m.to-m.from)==32)
         ?(m.to+m.from)/2:-1;
-    p.halfmove=(typeOf(movingPiece)==1||undo.captured!=EMPTY)?0:p.halfmove+1;
-    if(p.side==BLACK) ++p.fullmove;
+    if(typeOf(movingPiece)==1||undo.captured!=EMPTY) {
+        p.halfmove=0;
+    } else if(p.halfmove<std::numeric_limits<int>::max()) {
+        ++p.halfmove;
+    }
+    if(p.side==BLACK&&p.fullmove<std::numeric_limits<int>::max()) {
+        ++p.fullmove;
+    }
     p.side=1-p.side;
 
     if(updateNnue) {
@@ -680,7 +686,7 @@ void undoMove(Position& p,const Move& m,const Undo& undo) {
     }
 
     p.side=moverSide;
-    if(p.side==BLACK) --p.fullmove;
+    p.fullmove=undo.fullmove;
     p.castling=undo.castling;
     p.ep=undo.ep;
     p.halfmove=undo.halfmove;
@@ -1898,8 +1904,43 @@ std::uint64_t perft(Position& p,int depth,int ply=0){
     return n;
 }
 
-void setPosition(Position& p,const std::string& command){std::istringstream in(command);std::string token;in>>token;in>>token;if(token=="startpos")loadFen(p,START_FEN);else if(token=="fen"){std::string fen,part;for(int i=0;i<6&&in>>part;++i){if(i)fen+=' ';fen+=part;}if(!loadFen(p,fen))loadFen(p,START_FEN);}else loadFen(p,START_FEN);
-    while(in>>token){if(token=="moves"){while(in>>token){Move m;if(parseUciMove(p,token,m))makeMove(p,m);else break;}break;}}
+bool setPosition(Position& position,std::string_view command) {
+    std::istringstream input{std::string(command)};
+    std::string commandName;
+    std::string positionKind;
+    if(!(input>>commandName>>positionKind)||commandName!="position") return false;
+
+    Position next{};
+    if(positionKind=="startpos") {
+        if(!loadFen(next,START_FEN)) return false;
+    } else if(positionKind=="fen") {
+        std::array<std::string,6> fenFields;
+        for(std::string& field:fenFields) {
+            if(!(input>>field)) return false;
+        }
+
+        std::string fen;
+        for(const std::string& field:fenFields) {
+            if(!fen.empty()) fen+=' ';
+            fen+=field;
+        }
+        if(!loadFen(next,fen)) return false;
+    } else {
+        return false;
+    }
+
+    std::string token;
+    if(input>>token) {
+        if(token!="moves") return false;
+        while(input>>token) {
+            Move move;
+            if(!parseUciMove(next,token,move)) return false;
+            makeMove(next,move);
+        }
+    }
+
+    position=std::move(next);
+    return true;
 }
 }
 
@@ -2004,7 +2045,9 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             resetSearchState();
         } else if(cmd=="position"){
             stopAndJoin();
-            setPosition(pos,line);
+            if(!setPosition(pos,line)) {
+                emitLine("info string rejected invalid position command; previous position retained");
+            }
         } else if(cmd=="go"){
             stopAndJoin();
             int depth=5;
