@@ -1317,6 +1317,11 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
     constexpr std::array<int,7> mobilityEndingWeight{0,0,3,3,2,1,0};
     constexpr std::array<int,7> mobilityCap{0,0,8,13,14,27,0};
     const std::uint64_t occupied=p.occupancy[WHITE]|p.occupancy[BLACK];
+    std::array<std::uint64_t,2> kingZones{};
+    for(int color=WHITE;color<=BLACK;++color) {
+        const int enemyKing=kingSquare(p,1-color);
+        if(enemyKing>=0) kingZones[color]=KING_ATTACKS[square64From88(enemyKing)];
+    }
 
     auto markTargets=[&](int color,std::uint64_t targets) {
         while(targets) {
@@ -1336,7 +1341,7 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
             pawns&=pawns-1;
             const std::uint64_t targets=PAWN_ATTACKS[color][square];
             maps.pawnAttacks[color]|=targets;
-            markTargets(color,targets);
+            markTargets(color,targets&kingZones[color]);
         }
     }
 
@@ -1356,7 +1361,7 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
                     targets=bishopAttacks(square,occupied)|rookAttacks(square,occupied);
                 else targets=KING_ATTACKS[square];
 
-                markTargets(color,targets);
+                markTargets(color,targets&kingZones[color]);
 
                 if(type<=5) {
                     std::uint64_t safeTargets=targets&~p.occupancy[color]

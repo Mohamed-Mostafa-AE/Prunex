@@ -218,15 +218,22 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
         const std::uint64_t occupied=position.occupancy[WHITE]
             |position.occupancy[BLACK];
 
-        for(int square64=0;square64<64;++square64) {
+        const int enemyKing=kingSquare(position,1-color);
+        const std::uint64_t kingZone=enemyKing>=0
+            ?KING_ATTACKS[square64From88(enemyKing)]:0;
+        std::uint64_t zoneSquares=kingZone;
+        while(zoneSquares) {
+            const int square64=static_cast<int>(std::countr_zero(zoneSquares));
+            zoneSquares&=zoneSquares-1;
             const int square88=square88From64(square64);
             const int actual=maps.attacks[color][square64];
             const int reference=static_cast<int>(
                 std::popcount(attackersTo(position,square88,color))
             );
             if(actual!=reference) {
-                std::cerr<<"attack count mismatch, color "<<color<<" square "<<square64
-                    <<" actual "<<actual<<" reference "<<reference<<"\\n";
+                std::cerr<<"king-zone attack count mismatch, color "<<color
+                    <<" square "<<square64<<" actual "<<actual
+                    <<" reference "<<reference<<"\\n";
                 return false;
             }
         }
@@ -259,7 +266,6 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
             return false;
         }
 
-        const int enemyKing=kingSquare(position,1-color);
         int attackedSquares=0;
         int attackUnits=0;
         for(int rankStep=-1;rankStep<=1;++rankStep) {
