@@ -47,6 +47,7 @@ jobs:
 
       - name: Run native regression and perft tests
         run: |
+          set -o pipefail
           ctest --test-dir build --output-on-failure \
             | tee ctest-architecture.log
 
@@ -63,7 +64,7 @@ jobs:
           cp ctest-architecture.log architecture-evidence/
           (
             cd architecture-evidence
-            sha256sum uci-probe.txt uci-probe.json ctest-architecture.log > SHA256SUMS.txt
+            find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
             sha256sum --check SHA256SUMS.txt
           )
 
@@ -103,7 +104,7 @@ jobs:
           EOF
           (
             cd "$WORKTREE/$DEST"
-            sha256sum uci-probe.txt uci-probe.json ctest-architecture.log > SHA256SUMS.txt
+            find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
             sha256sum --check SHA256SUMS.txt
           )
           git -C "$WORKTREE" add "$DEST"
