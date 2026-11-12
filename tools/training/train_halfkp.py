@@ -93,9 +93,19 @@ def verify_corpus(input_dir: Path) -> tuple[dict, str]:
     except json.JSONDecodeError as exc:
         raise ValueError("Corpus manifest is not valid JSON") from exc
 
-    source = manifest.get("source", {})
-    split_info = manifest.get("split", {})
-    outputs = manifest.get("outputs", {})
+    if not isinstance(manifest, dict):
+        raise ValueError("Corpus manifest root must be a JSON object")
+
+    source = manifest.get("source")
+    split_info = manifest.get("split")
+    outputs = manifest.get("outputs")
+    if not isinstance(source, dict):
+        raise ValueError("Corpus manifest source must be a JSON object")
+    if not isinstance(split_info, dict):
+        raise ValueError("Corpus manifest split must be a JSON object")
+    if not isinstance(outputs, dict):
+        raise ValueError("Corpus manifest outputs must be a JSON object")
+
     if source.get("license") != "CC0-1.0":
         raise ValueError("This training pipeline currently accepts only the declared CC0 Lichess corpus")
     if source.get("score_schema_reference") != "https://huggingface.co/datasets/Lichess/fishnet-evals":
@@ -485,12 +495,19 @@ def train(args: argparse.Namespace) -> dict:
     manifest, split_seed = verify_corpus(input_dir)
     if not train_path.is_file() or not validation_path.is_file() or not test_path.is_file():
         raise FileNotFoundError("Training, validation and test JSONL splits must all exist")
-    if args.epochs < 1 or args.batch_size < 1 or args.learning_rate <= 0:
-        raise ValueError("Epochs, batch size and learning rate must be positive")
+    if (
+        args.epochs < 1
+        or args.batch_size < 1
+        or not math.isfinite(args.learning_rate)
+        or args.learning_rate <= 0
+    ):
+        raise ValueError("Epochs and batch size must be positive; learning rate must be finite and positive")
     if args.train_limit < 0 or args.validation_limit < 0:
         raise ValueError("Position limits cannot be negative")
-    if args.score_scale < 50 or args.score_scale > 2000:
-        raise ValueError("Score scale must be between 50 and 2000")
+    if args.max_steps < 0:
+        raise ValueError("Maximum training steps cannot be negative")
+    if not math.isfinite(args.score_scale) or not 50 <= args.score_scale <= 2000:
+        raise ValueError("Score scale must be finite and between 50 and 2000")
     if output_path.exists() and not args.overwrite:
         raise FileExistsError(f"Output exists; pass --overwrite to replace: {output_path}")
 

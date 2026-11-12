@@ -163,6 +163,60 @@ def test_sparse_clipping_only_touches_updated_rows() -> None:
     if not torch.all(model.factorized_weights.weight[10] == 1.0):
         raise AssertionError("An untouched P row was modified")
 
+def test_malformed_manifests_are_rejected(corpus: Path) -> None:
+    manifest_path = corpus / "corpus-manifest.json"
+    valid_text = manifest_path.read_text(encoding="utf-8")
+    valid_manifest = json.loads(valid_text)
+
+    malformed = []
+    malformed.append([])
+    for field in ("source", "split", "outputs"):
+        candidate = json.loads(valid_text)
+        candidate[field] = []
+        malformed.append(candidate)
+
+    try:
+        for value in malformed:
+            manifest_path.write_text(json.dumps(value), encoding="utf-8")
+            try:
+                TRAINER_MODULE.verify_corpus(corpus)
+            except ValueError:
+                continue
+            raise AssertionError(
+                "Malformed corpus manifest was accepted: "
+                + json.dumps(value)
+            )
+    finally:
+        manifest_path.write_text(valid_text, encoding="utf-8")
+
+
+def test_invalid_training_settings_are_rejected(
+    corpus: Path,
+    work: Path,
+) -> None:
+    cases = (
+        ("--learning-rate", "nan"),
+        ("--learning-rate", "inf"),
+        ("--score-scale", "nan"),
+        ("--max-steps", "-1"),
+    )
+    for index, (option, value) in enumerate(cases):
+        arguments = [
+            "--input-dir", str(corpus),
+            "--output", str(work / f"invalid-settings-{index}.nnue"),
+            "--device", "cpu",
+            option, value,
+        ]
+        parsed = TRAINER_MODULE.build_parser().parse_args(arguments)
+        try:
+            TRAINER_MODULE.train(parsed)
+        except ValueError:
+            continue
+        raise AssertionError(
+            f"Invalid training setting was accepted: {option} {value}"
+        )
+
+
 def read_until(process: subprocess.Popen, prefix: str) -> list[str]:
     captured: list[str] = []
     assert process.stdout is not None
@@ -191,6 +245,8 @@ def main() -> int:
         corpus = work / "corpus"
         corpus.mkdir()
         make_fixture(corpus)
+        test_malformed_manifests_are_rejected(corpus)
+        test_invalid_training_settings_are_rejected(corpus, work)
 
         network = work / "prunex-ci-halfkp.nnue"
         subprocess.run([
