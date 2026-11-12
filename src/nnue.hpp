@@ -117,8 +117,8 @@ public:
         const int whiteKing = static_cast<int>(std::countr_zero(whiteKingBits));
         const int blackKing = static_cast<int>(std::countr_zero(blackKingBits)) ^ 56;
 
-        std::array<std::int16_t, MAX_HIDDEN> whiteAccumulator{};
-        std::array<std::int16_t, MAX_HIDDEN> blackAccumulator{};
+        std::array<std::int32_t, MAX_HIDDEN> whiteAccumulator{};
+        std::array<std::int32_t, MAX_HIDDEN> blackAccumulator{};
         for (std::uint32_t index = 0; index < hidden_; ++index) {
             whiteAccumulator[index] = featureBias_[index];
             blackAccumulator[index] = featureBias_[index];
@@ -198,7 +198,7 @@ private:
             + (pieceType * 2 + relativeColor + kingSquare * 10) * 64;
     }
 
-    static std::int32_t clipActivation(std::int16_t value) noexcept {
+    static std::int32_t clipActivation(std::int32_t value) noexcept {
         return std::clamp<std::int32_t>(value, 0, 127);
     }
 
@@ -214,7 +214,7 @@ private:
         return static_cast<std::size_t>(hidden_) * 2;
     }
 
-    void addFeature(std::array<std::int16_t, MAX_HIDDEN>& accumulator,
+    void addFeature(std::array<std::int32_t, MAX_HIDDEN>& accumulator,
                     int featureIndex) const noexcept {
         const std::size_t offset =
             static_cast<std::size_t>(featureIndex) * hidden_;
