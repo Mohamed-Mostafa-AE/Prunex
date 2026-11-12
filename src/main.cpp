@@ -1439,6 +1439,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     Move bestMove=moves.front();
     int moveNumber=0;
     for(const Move& m:moves) {
+        const int movingColor=p.side;
         const int movingPieceType=typeOf(p.board[m.from]);
         searchPathMoves[ply]=m;
         searchPathPieceTypes[ply]=movingPieceType;
@@ -1456,7 +1457,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 if(depth>=5&&moveNumber>=6) ++reduction;
                 if(depth>=8&&moveNumber>=12) ++reduction;
                 if(pvNode) --reduction;
-                const int history=historyScores[p.side][m.from][m.to];
+                const int history=historyScores[movingColor][m.from][m.to];
                 if(history>5000) --reduction;
                 else if(history<-5000) ++reduction;
                 reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
