@@ -198,10 +198,44 @@ bool accumulatorMatchesRebuild(
     return childMatches && position.nnue.values == rebuiltParent.nnue.values;
 }
 
+bool dotProductsMatchScalar() {
+    constexpr std::array<std::size_t, 21> sizes{
+        0, 1, 7, 31, 32, 33, 63, 64, 65, 127, 128,
+        129, 255, 256, 257, 511, 512, 513, 1023, 1024, 1025
+    };
+    std::array<std::int8_t, 1025> weights{};
+    std::array<std::uint8_t, 1025> activations{};
+
+    for (const std::size_t size : sizes) {
+        for (std::size_t index = 0; index < size; ++index) {
+            const int weight = static_cast<int>((index * 73 + size * 19) % 255) - 127;
+            weights[index] = static_cast<std::int8_t>(weight);
+            activations[index] = static_cast<std::uint8_t>(
+                (index * 29 + size * 11) % 128
+            );
+        }
+
+        const auto expected = prunex::nnue_detail::dotProductScalar(
+            weights.data(), activations.data(), size
+        );
+        const auto actual = prunex::nnue_detail::dotProduct(
+            weights.data(), activations.data(), size
+        );
+        if (actual != expected) {
+            std::cerr << "NNUE SIMD dot-product mismatch at width " << size
+                      << ": expected " << expected << ", got " << actual << '\n';
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 int main() {
     using namespace prunex;
+
+    if (!dotProductsMatchScalar()) return 35;
 
     const auto directory = std::filesystem::temp_directory_path();
     const auto validPath = directory / "prunex-qat-regression.nnue";

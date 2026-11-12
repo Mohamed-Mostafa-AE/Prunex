@@ -95,3 +95,9 @@ Prunex engine source and network format are original project work. The offline t
 ## Match policy
 
 No further opponent tournament is automatically triggered by this branch. The existing 144-game Stockfish 19/Triumviratus run stays archived as the diagnostic baseline. A new Stockfish 2.0 test must be a complete, reproducible paired-colour match with correct node accounting; Stockfish 19 parity needs its own separate and much larger evaluation.
+
+## NNUE inference capacity and SIMD work
+
+The current HalfKP runtime now supports hidden widths up to 512 while keeping the existing default trainer width unchanged. Dense-layer integer dot products use runtime AVX2 dispatch on supported GCC/Clang x86 builds and retain an exact scalar fallback for other CPUs, MSVC and WebAssembly. The AVX2 kernel uses unsigned 8-bit activations and signed 8-bit weights; its pairwise products fit the signed 16-bit intermediate range, and the final accumulation remains 64-bit. Regression tests compare the dispatched result with the scalar reference across vector-aligned widths and tail lengths up to 1,025 elements.
+
+This is infrastructure for larger original Prunex networks, not a trained evaluator or a strength result. No 512-wide network has been trained or qualified, and the current CI fixture remains synthetic. The new kernel still needs a loaded-network benchmark on representative positions before its practical speedup can be reported. The existing handcrafted evaluator remains the default unless a Prunex network is explicitly loaded.

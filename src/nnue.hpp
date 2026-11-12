@@ -12,6 +12,84 @@
 
 namespace prunex {
 
+namespace nnue_detail {
+
+inline std::int64_t dotProductScalar(
+    const std::int8_t* weights,
+    const std::uint8_t* activations,
+    std::size_t count
+) noexcept {
+    std::int64_t sum = 0;
+    for (std::size_t index = 0; index < count; ++index) {
+        sum += static_cast<std::int64_t>(weights[index]) * activations[index];
+    }
+    return sum;
+}
+
+#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+__attribute__((target("avx2")))
+inline std::int64_t dotProductAvx2(
+    const std::int8_t* weights,
+    const std::uint8_t* activations,
+    std::size_t count
+) noexcept {
+    const __m256i pairOnes = _mm256_set1_epi16(1);
+    __m256i accumulated = _mm256_setzero_si256();
+    std::size_t index = 0;
+
+    for (; index + 32 <= count; index += 32) {
+        const auto activationBlock = _mm256_loadu_si256(
+            reinterpret_cast<const __m256i*>(activations + index)
+        );
+        const auto weightBlock = _mm256_loadu_si256(
+            reinterpret_cast<const __m256i*>(weights + index)
+        );
+        const __m256i products16 = _mm256_maddubs_epi16(
+            activationBlock, weightBlock
+        );
+        const __m256i products32 = _mm256_madd_epi16(
+            products16, pairOnes
+        );
+        accumulated = _mm256_add_epi32(accumulated, products32);
+    }
+
+    alignas(32) std::array<std::int32_t, 8> lanes{};
+    _mm256_store_si256(reinterpret_cast<__m256i*>(lanes.data()), accumulated);
+
+    std::int64_t sum = 0;
+    for (const std::int32_t lane : lanes) sum += lane;
+    for (; index < count; ++index) {
+        sum += static_cast<std::int64_t>(weights[index]) * activations[index];
+    }
+    return sum;
+}
+
+inline bool avx2Available() noexcept {
+    static const bool supported = [] {
+        __builtin_cpu_init();
+        return __builtin_cpu_supports("avx2");
+    }();
+    return supported;
+}
+#else
+inline bool avx2Available() noexcept {
+    return false;
+}
+#endif
+
+inline std::int64_t dotProduct(
+    const std::int8_t* weights,
+    const std::uint8_t* activations,
+    std::size_t count
+) noexcept {
+#if defined(PRUNEX_RUNTIME_BMI2_DISPATCH)
+    if (avx2Available()) return dotProductAvx2(weights, activations, count);
+#endif
+    return dotProductScalar(weights, activations, count);
+}
+
+}  // namespace nnue_detail
+
 class NnueNetwork {
 public:
     static constexpr std::uint32_t FEATURE_COUNT = 40960;
@@ -180,41 +258,42 @@ public:
             return 0;
         }
 
-        std::array<std::int32_t, MAX_HIDDEN * 2> input{};
+        std::array<std::uint8_t, MAX_HIDDEN * 2> input{};
         const auto& firstPerspective = position.nnue.values[position.side];
         const auto& secondPerspective = position.nnue.values[1 - position.side];
         for (std::uint32_t index = 0; index < hidden_; ++index) {
-            input[index] = clipActivation(firstPerspective[index]);
-            input[hidden_ + index] = clipActivation(secondPerspective[index]);
+            input[index] = static_cast<std::uint8_t>(
+                clipActivation(firstPerspective[index])
+            );
+            input[hidden_ + index] = static_cast<std::uint8_t>(
+                clipActivation(secondPerspective[index])
+            );
         }
 
-        std::array<std::int32_t, MAX_DENSE> firstLayer{};
+        std::array<std::uint8_t, MAX_DENSE> firstLayer{};
         for (std::uint32_t row = 0; row < dense1_; ++row) {
-            std::int64_t value = dense1Bias_[row];
             const std::size_t offset = static_cast<std::size_t>(row) * inputWidth();
-            for (std::uint32_t column = 0; column < hidden_ * 2; ++column) {
-                value += static_cast<std::int64_t>(dense1Weights_[offset + column])
-                    * input[column];
-            }
-            firstLayer[row] = clipDense(value);
+            const std::int64_t value = dense1Bias_[row]
+                + nnue_detail::dotProduct(
+                    dense1Weights_.data() + offset, input.data(), inputWidth()
+                );
+            firstLayer[row] = static_cast<std::uint8_t>(clipDense(value));
         }
 
-        std::array<std::int32_t, MAX_DENSE> secondLayer{};
+        std::array<std::uint8_t, MAX_DENSE> secondLayer{};
         for (std::uint32_t row = 0; row < dense2_; ++row) {
-            std::int64_t value = dense2Bias_[row];
             const std::size_t offset = static_cast<std::size_t>(row) * dense1_;
-            for (std::uint32_t column = 0; column < dense1_; ++column) {
-                value += static_cast<std::int64_t>(dense2Weights_[offset + column])
-                    * firstLayer[column];
-            }
-            secondLayer[row] = clipDense(value);
+            const std::int64_t value = dense2Bias_[row]
+                + nnue_detail::dotProduct(
+                    dense2Weights_.data() + offset, firstLayer.data(), dense1_
+                );
+            secondLayer[row] = static_cast<std::uint8_t>(clipDense(value));
         }
 
-        std::int64_t output = outputBias_;
-        for (std::uint32_t index = 0; index < dense2_; ++index) {
-            output += static_cast<std::int64_t>(outputWeights_[index])
-                * secondLayer[index];
-        }
+        const std::int64_t output = outputBias_
+            + nnue_detail::dotProduct(
+                outputWeights_.data(), secondLayer.data(), dense2_
+            );
 
         const double score = static_cast<double>(output) * scoreScale_
             / static_cast<double>(DENSE_SCALE);

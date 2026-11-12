@@ -37,7 +37,7 @@ constexpr int MAX_PLY = 128;
 constexpr int MAX_QPLY = 18;
 constexpr std::size_t MAX_LEGAL_MOVES = 256;
 
-constexpr std::size_t NNUE_MAX_HIDDEN = 256;
+constexpr std::size_t NNUE_MAX_HIDDEN = 512;
 
 struct NnueAccumulator {
     std::array<std::array<std::int32_t, NNUE_MAX_HIDDEN>, 2> values{};

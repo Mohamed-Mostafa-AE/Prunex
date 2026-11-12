@@ -239,7 +239,7 @@ class PrunexHalfKP(nn.Module):
 
     def __init__(self, hidden: int = 128, dense1: int = 32, dense2: int = 16):
         super().__init__()
-        if not 8 <= hidden <= 256 or not 4 <= dense1 <= 128 or not 4 <= dense2 <= 128:
+        if not 8 <= hidden <= 512 or not 4 <= dense1 <= 128 or not 4 <= dense2 <= 128:
             raise ValueError("Network dimensions are outside the supported range")
 
         self.hidden = hidden
