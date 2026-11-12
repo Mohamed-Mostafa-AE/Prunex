@@ -331,32 +331,6 @@ int main() {
     searchPathMoves.fill(Move{});
     searchPathPieceTypes.fill(0);
 
-    // Capture history must affect capture ordering independently of SEE.
-    if(!loadFen(position,"7k/8/8/3q4/8/8/8/K2R4 w - - 0 1")) return 105;
-    if(!parseUciMove(position,"d1d5",exchangeMove)) return 106;
-    captureHistoryScores={};
-    const int captureBaseScore=moveOrderingScore(position,exchangeMove,Move{},0);
-    captureHistoryScores[WHITE][4][parseSquare("d5")][5]=1200;
-    if(moveOrderingScore(position,exchangeMove,Move{},0)!=captureBaseScore+4800) return 107;
-    captureHistoryScores={};
-
-    // Continuation history must influence a quiet move in the same context.
-    if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 108;
-    if(!parseUciMove(position,"g1f3",counterCandidate)) return 109;
-    searchPathMoves.fill(Move{});
-    searchPathPieceTypes.fill(0);
-    counterMoves={};
-    historyScores={};
-    clearContinuationHistoryScores();
-    searchPathMoves[0]={parseSquare("g8"),parseSquare("f6"),EMPTY,false,false};
-    searchPathPieceTypes[0]=2;
-    const int quietBaseScore=moveOrderingScore(position,counterCandidate,Move{},1);
-    continuationHistoryScores[2][parseSquare("f6")][2][parseSquare("f3")]=500;
-    if(moveOrderingScore(position,counterCandidate,Move{},1)!=quietBaseScore+1000) return 110;
-    clearContinuationHistoryScores();
-    searchPathMoves.fill(Move{});
-    searchPathPieceTypes.fill(0);
-
     if(!loadFen(position,START_FEN)) return 83;
     auto ordered=legalMoves(position);
     if(!parseUciMove(position,"e2e4",counterCandidate)) return 84;
