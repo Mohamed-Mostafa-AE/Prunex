@@ -139,7 +139,7 @@ def parse_final_search_info(value: Any) -> dict[str, int] | None:
     if not isinstance(value, str):
         return None
     match = re.search(
-        r"search-final\\s+nodes=(\\d+)\\s+depth=(\\d+)\\s+elapsed_ms=(\\d+)\\s+tthits=(\\d+)\\s+node_limit=(\\d+)",
+        r"search-final\s+nodes=(\d+)\s+depth=(\d+)\s+elapsed_ms=(\d+)\s+tthits=(\d+)\s+node_limit=(\d+)",
         value,
     )
     if match is None:
