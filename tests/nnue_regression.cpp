@@ -184,7 +184,7 @@ bool accumulatorMatchesRebuild(
     const prunex::Undo undo = prunex::makeMove(position, move);
     if (!network.canUpdate(position)) return false;
 
-    Position rebuilt = position;
+    prunex::Position rebuilt = position;
     rebuilt.nnue.valid = false;
     (void)network.evaluate(rebuilt);
     const bool childMatches = position.nnue.values == rebuilt.nnue.values;
@@ -192,7 +192,7 @@ bool accumulatorMatchesRebuild(
     prunex::undoMove(position, move, undo);
     if (!network.canUpdate(position)) return false;
 
-    Position rebuiltParent = position;
+    prunex::Position rebuiltParent = position;
     rebuiltParent.nnue.valid = false;
     (void)network.evaluate(rebuiltParent);
     return childMatches && position.nnue.values == rebuiltParent.nnue.values;
@@ -232,14 +232,14 @@ int main() {
 
     NnueNetwork overflowNetwork;
     if (!overflowNetwork.load(overflowPath.string())) {
-        std::cerr << "NNUE overflow fixture could not be loaded\\n";
+        std::cerr << "NNUE overflow fixture could not be loaded\n";
         return 16;
     }
 
     const int overflowScore = overflowNetwork.evaluate(position);
     if (overflowScore != 400) {
         std::cerr << "NNUE accumulator overflow regression: expected 400, got "
-                  << overflowScore << '\\n';
+                  << overflowScore << '\n';
         return 17;
     }
 
