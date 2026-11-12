@@ -38,6 +38,19 @@ endif()
 add_executable(prunex src/main.cpp)
 target_compile_features(prunex PRIVATE cxx_std_20)
 target_compile_definitions(prunex PRIVATE PRUNEX_TT_BITS=${PRUNEX_TT_BITS})
+
+option(PRUNEX_NATIVE_TUNING
+    "Tune the native engine for the CPU compiling it (binary is not portable)" OFF)
+if(PRUNEX_NATIVE_TUNING)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT EMSCRIPTEN)
+        target_compile_options(prunex PRIVATE -march=native -mtune=native)
+        message(STATUS "Prunex native CPU tuning enabled for this build host")
+    else()
+        message(FATAL_ERROR
+            "PRUNEX_NATIVE_TUNING is supported only for native GCC/Clang builds")
+    endif()
+endif()
+
 target_link_libraries(prunex PRIVATE Threads::Threads)
 message(STATUS "Prunex transposition-table entries: 2^${PRUNEX_TT_BITS}")
 

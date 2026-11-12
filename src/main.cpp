@@ -1317,6 +1317,11 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
     constexpr std::array<int,7> mobilityEndingWeight{0,0,3,3,2,1,0};
     constexpr std::array<int,7> mobilityCap{0,0,8,13,14,27,0};
     const std::uint64_t occupied=p.occupancy[WHITE]|p.occupancy[BLACK];
+    std::array<std::uint64_t,2> kingZones{};
+    for(int color=WHITE;color<=BLACK;++color) {
+        const int enemyKing=kingSquare(p,1-color);
+        if(enemyKing>=0) kingZones[color]=KING_ATTACKS[square64From88(enemyKing)];
+    }
 
     auto markTargets=[&](int color,std::uint64_t targets) {
         while(targets) {
@@ -1327,33 +1332,23 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
         }
     };
 
-    // Attack maps are constructed from the piece bitboards. Slider rays
-    // include the first occupied square, matching the board attack semantics.
+    // Pawn attacks are needed to score safe mobility, so build them first.
+    // This also fills the pawn contribution to the general attack map.
     for(int color=WHITE;color<=BLACK;++color) {
-        for(int type=1;type<=6;++type) {
-            std::uint64_t pieces=p.piecesBB[color][type];
-            while(pieces) {
-                const int square=static_cast<int>(std::countr_zero(pieces));
-                pieces&=pieces-1;
-                std::uint64_t targets=0;
-                if(type==1) {
-                    targets=PAWN_ATTACKS[color][square];
-                    maps.pawnAttacks[color]|=targets;
-                } else if(type==2) targets=KNIGHT_ATTACKS[square];
-                else if(type==3) targets=bishopAttacks(square,occupied);
-                else if(type==4) targets=rookAttacks(square,occupied);
-                else if(type==5)
-                    targets=bishopAttacks(square,occupied)|rookAttacks(square,occupied);
-                else targets=KING_ATTACKS[square];
-                markTargets(color,targets);
-            }
+        std::uint64_t pawns=p.piecesBB[color][1];
+        while(pawns) {
+            const int square=static_cast<int>(std::countr_zero(pawns));
+            pawns&=pawns-1;
+            const std::uint64_t targets=PAWN_ATTACKS[color][square];
+            maps.pawnAttacks[color]|=targets;
+            markTargets(color,targets&kingZones[color]);
         }
     }
 
-    // Safe mobility excludes friendly-occupied squares and enemy pawn
-    // attacks. Bit counts avoid repeatedly tracing mailbox rays.
+    // Calculate each non-pawn attack set once. The same bitboard supplies
+    // both the attack map and the safe-mobility count.
     for(int color=WHITE;color<=BLACK;++color) {
-        for(int type=2;type<=5;++type) {
+        for(int type=2;type<=6;++type) {
             std::uint64_t pieces=p.piecesBB[color][type];
             while(pieces) {
                 const int square=static_cast<int>(std::countr_zero(pieces));
@@ -1362,14 +1357,20 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
                 if(type==2) targets=KNIGHT_ATTACKS[square];
                 else if(type==3) targets=bishopAttacks(square,occupied);
                 else if(type==4) targets=rookAttacks(square,occupied);
-                else targets=bishopAttacks(square,occupied)|rookAttacks(square,occupied);
+                else if(type==5)
+                    targets=bishopAttacks(square,occupied)|rookAttacks(square,occupied);
+                else targets=KING_ATTACKS[square];
 
-                targets&=~p.occupancy[color];
-                targets&=~maps.pawnAttacks[1-color];
-                const int safeMoves=static_cast<int>(std::popcount(targets));
-                const int bounded=std::min(safeMoves,mobilityCap[type]);
-                maps.mobilityMiddle[color]+=bounded*mobilityMiddleWeight[type];
-                maps.mobilityEnding[color]+=bounded*mobilityEndingWeight[type];
+                markTargets(color,targets&kingZones[color]);
+
+                if(type<=5) {
+                    std::uint64_t safeTargets=targets&~p.occupancy[color]
+                        &~maps.pawnAttacks[1-color];
+                    const int safeMoves=static_cast<int>(std::popcount(safeTargets));
+                    const int bounded=std::min(safeMoves,mobilityCap[type]);
+                    maps.mobilityMiddle[color]+=bounded*mobilityMiddleWeight[type];
+                    maps.mobilityEnding[color]+=bounded*mobilityEndingWeight[type];
+                }
             }
         }
     }
@@ -1401,7 +1402,6 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
         }
     }
 }
-
 int evaluate(Position& p) {
     if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
 
@@ -1611,6 +1611,14 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     while(true) {
         const Move move=picker.next();
         if(move.from<0) break;
+
+        // Quiescence should follow captures that can change the evaluation,
+        // not exchanges that lose material without compensation.
+        if(!checked&&!move.promotion&&isCapture(p,move)
+            &&staticExchangeEvaluation(p,move)<-80) {
+            continue;
+        }
+
         const Undo undo=makeMove(p,move);
         const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
         undoMove(p,move,undo);
@@ -1677,6 +1685,32 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(entry.bound==TT_UPPER&&ttScore<=alpha) return ttScore;
         }
     }
+
+    const bool safeForForwardPruning=!pvNode&&!checked
+        &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
+    int staticEval=0;
+    if(safeForForwardPruning&&depth<=6) {
+        staticEval=evaluate(p);
+
+        // Keep a wide margin at shallow nodes. The legal-move check preserves
+        // exact stalemate handling when this shortcut would otherwise fire.
+        const int margin=120+70*depth;
+        if(staticEval-margin>=beta) {
+            return hasAnyLegalMove(p,ply)?staticEval-margin:0;
+        }
+
+        // A shallow quiescence search can disprove a very low static score
+        // before the engine expands the full move tree.
+        if(depth<=2) {
+            const int razorMargin=170+90*depth;
+            if(staticEval+razorMargin<=alpha) {
+                const int razorScore=quiescence(p,alpha,beta,0,ply);
+                if(searchAborted.load(std::memory_order_relaxed)) return 0;
+                if(razorScore<=alpha) return razorScore;
+            }
+        }
+    }
+
     if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
         Position nullPosition=p;
         makeNullMove(nullPosition);
