@@ -3,10 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <bit>
-#include <cmath>
 #include <cstdint>
 #include <fstream>
-#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,6 +17,10 @@ public:
     static constexpr std::uint32_t FILE_VERSION = 1;
     static constexpr std::uint32_t MAX_HIDDEN = 256;
     static constexpr std::uint32_t MAX_DENSE = 128;
+    static constexpr std::int64_t ACTIVATION_SCALE = 127;
+    static constexpr std::int64_t WEIGHT_SCALE = 127;
+    static constexpr std::int64_t DENSE_SCALE =
+        ACTIVATION_SCALE * WEIGHT_SCALE;
 
     bool loaded() const noexcept {
         return loaded_;
@@ -37,7 +39,7 @@ public:
         dense2Weights_.clear();
         dense2Bias_.clear();
         outputWeights_.clear();
-        outputBias_ = 0.0F;
+        outputBias_ = 0;
     }
 
     bool load(const std::string& path) {
@@ -61,7 +63,7 @@ public:
         input.read(reinterpret_cast<char*>(&scoreScale), sizeof(scoreScale));
 
         constexpr std::array<char, 8> expectedMagic{
-            'P', 'R', 'U', 'N', 'E', 'X', 'N', '1'
+            'P', 'R', 'U', 'N', 'E', 'X', 'Q', '1'
         };
         if (!input || magic != expectedMagic || version != FILE_VERSION
             || featureCount != FEATURE_COUNT
@@ -80,30 +82,22 @@ public:
         replacement.scoreScale_ = scoreScale;
 
         const std::size_t inputWidth = static_cast<std::size_t>(hidden) * 2;
-        if (!readFloats(input, replacement.featureWeights_,
+        if (!readValues(input, replacement.featureWeights_,
                         static_cast<std::size_t>(FEATURE_COUNT) * hidden)
-            || !readFloats(input, replacement.featureBias_, hidden)
-            || !readFloats(input, replacement.dense1Weights_,
+            || !readValues(input, replacement.featureBias_, hidden)
+            || !readValues(input, replacement.dense1Weights_,
                            static_cast<std::size_t>(dense1) * inputWidth)
-            || !readFloats(input, replacement.dense1Bias_, dense1)
-            || !readFloats(input, replacement.dense2Weights_,
+            || !readValues(input, replacement.dense1Bias_, dense1)
+            || !readValues(input, replacement.dense2Weights_,
                            static_cast<std::size_t>(dense2) * dense1)
-            || !readFloats(input, replacement.dense2Bias_, dense2)
-            || !readFloats(input, replacement.outputWeights_, dense2)) {
+            || !readValues(input, replacement.dense2Bias_, dense2)
+            || !readValues(input, replacement.outputWeights_, dense2)) {
             return false;
         }
 
         input.read(reinterpret_cast<char*>(&replacement.outputBias_),
                    sizeof(replacement.outputBias_));
-        if (!input || input.peek() != std::char_traits<char>::eof()
-            || !std::isfinite(replacement.outputBias_)
-            || !allFinite(replacement.featureWeights_)
-            || !allFinite(replacement.featureBias_)
-            || !allFinite(replacement.dense1Weights_)
-            || !allFinite(replacement.dense1Bias_)
-            || !allFinite(replacement.dense2Weights_)
-            || !allFinite(replacement.dense2Bias_)
-            || !allFinite(replacement.outputWeights_)) {
+        if (!input || input.peek() != std::char_traits<char>::eof()) {
             return false;
         }
 
@@ -122,8 +116,8 @@ public:
         const int whiteKing = static_cast<int>(std::countr_zero(whiteKingBits));
         const int blackKing = static_cast<int>(std::countr_zero(blackKingBits)) ^ 56;
 
-        std::array<float, MAX_HIDDEN> whiteAccumulator{};
-        std::array<float, MAX_HIDDEN> blackAccumulator{};
+        std::array<std::int16_t, MAX_HIDDEN> whiteAccumulator{};
+        std::array<std::int16_t, MAX_HIDDEN> blackAccumulator{};
         for (std::uint32_t index = 0; index < hidden_; ++index) {
             whiteAccumulator[index] = featureBias_[index];
             blackAccumulator[index] = featureBias_[index];
@@ -137,57 +131,63 @@ public:
                     pieces &= pieces - 1;
 
                     const int whitePieceColor = color == WHITE ? 0 : 1;
-                    const int whiteFeature = halfKpIndex(
-                        whiteKing, square, type - 1, whitePieceColor
+                    addFeature(
+                        whiteAccumulator,
+                        halfKpIndex(whiteKing, square, type - 1, whitePieceColor)
                     );
-                    addFeature(whiteAccumulator, whiteFeature);
 
                     const int blackPieceColor = color == BLACK ? 0 : 1;
-                    const int blackFeature = halfKpIndex(
-                        blackKing, square ^ 56, type - 1, blackPieceColor
+                    addFeature(
+                        blackAccumulator,
+                        halfKpIndex(blackKing, square ^ 56, type - 1, blackPieceColor)
                     );
-                    addFeature(blackAccumulator, blackFeature);
                 }
             }
         }
 
-        std::array<float, MAX_HIDDEN * 2> input{};
+        std::array<std::int32_t, MAX_HIDDEN * 2> input{};
         const auto& firstPerspective =
             position.side == WHITE ? whiteAccumulator : blackAccumulator;
         const auto& secondPerspective =
             position.side == WHITE ? blackAccumulator : whiteAccumulator;
         for (std::uint32_t index = 0; index < hidden_; ++index) {
-            input[index] = clip(firstPerspective[index]);
-            input[hidden_ + index] = clip(secondPerspective[index]);
+            input[index] = clipActivation(firstPerspective[index]);
+            input[hidden_ + index] = clipActivation(secondPerspective[index]);
         }
 
-        std::array<float, MAX_DENSE> firstLayer{};
+        std::array<std::int32_t, MAX_DENSE> firstLayer{};
         for (std::uint32_t row = 0; row < dense1_; ++row) {
-            float value = dense1Bias_[row];
-            const std::size_t offset = static_cast<std::size_t>(row) * hidden_ * 2;
+            std::int64_t value = dense1Bias_[row];
+            const std::size_t offset = static_cast<std::size_t>(row) * inputWidth();
             for (std::uint32_t column = 0; column < hidden_ * 2; ++column) {
-                value += dense1Weights_[offset + column] * input[column];
+                value += static_cast<std::int64_t>(dense1Weights_[offset + column])
+                    * input[column];
             }
-            firstLayer[row] = clip(value);
+            firstLayer[row] = clipDense(value);
         }
 
-        std::array<float, MAX_DENSE> secondLayer{};
+        std::array<std::int32_t, MAX_DENSE> secondLayer{};
         for (std::uint32_t row = 0; row < dense2_; ++row) {
-            float value = dense2Bias_[row];
+            std::int64_t value = dense2Bias_[row];
             const std::size_t offset = static_cast<std::size_t>(row) * dense1_;
             for (std::uint32_t column = 0; column < dense1_; ++column) {
-                value += dense2Weights_[offset + column] * firstLayer[column];
+                value += static_cast<std::int64_t>(dense2Weights_[offset + column])
+                    * firstLayer[column];
             }
-            secondLayer[row] = clip(value);
+            secondLayer[row] = clipDense(value);
         }
 
-        float score = outputBias_;
+        std::int64_t output = outputBias_;
         for (std::uint32_t index = 0; index < dense2_; ++index) {
-            score += outputWeights_[index] * secondLayer[index];
+            output += static_cast<std::int64_t>(outputWeights_[index])
+                * secondLayer[index];
         }
 
-        const float bounded = std::clamp(score * scoreScale_, -20000.0F, 20000.0F);
-        return static_cast<int>(std::lround(bounded));
+        const double score = static_cast<double>(output) * scoreScale_
+            / static_cast<double>(DENSE_SCALE);
+        return static_cast<int>(std::clamp(
+            std::llround(score), -20000LL, 20000LL
+        ));
     }
 
 private:
@@ -197,30 +197,40 @@ private:
             + (pieceType * 2 + relativeColor + kingSquare * 10) * 64;
     }
 
-    static float clip(float value) noexcept {
-        return std::clamp(value, 0.0F, 1.0F);
+    static std::int32_t clipActivation(std::int16_t value) noexcept {
+        return std::clamp<std::int32_t>(value, 0, 127);
     }
 
-    void addFeature(std::array<float, MAX_HIDDEN>& accumulator,
+    static std::int32_t clipDense(std::int64_t value) noexcept {
+        if (value <= 0) return 0;
+        if (value >= DENSE_SCALE) return 127;
+        return static_cast<std::int32_t>(
+            (value + ACTIVATION_SCALE / 2) / ACTIVATION_SCALE
+        );
+    }
+
+    std::size_t inputWidth() const noexcept {
+        return static_cast<std::size_t>(hidden_) * 2;
+    }
+
+    void addFeature(std::array<std::int16_t, MAX_HIDDEN>& accumulator,
                     int featureIndex) const noexcept {
         const std::size_t offset =
             static_cast<std::size_t>(featureIndex) * hidden_;
         for (std::uint32_t index = 0; index < hidden_; ++index) {
-            accumulator[index] += featureWeights_[offset + index];
+            accumulator[index] = static_cast<std::int16_t>(
+                accumulator[index] + featureWeights_[offset + index]
+            );
         }
     }
 
-    static bool readFloats(std::ifstream& input, std::vector<float>& values,
+    template<typename Value>
+    static bool readValues(std::ifstream& input, std::vector<Value>& values,
                            std::size_t count) {
         values.resize(count);
-        const auto bytes = static_cast<std::streamsize>(count * sizeof(float));
+        const auto bytes = static_cast<std::streamsize>(count * sizeof(Value));
         input.read(reinterpret_cast<char*>(values.data()), bytes);
         return static_cast<bool>(input);
-    }
-
-    static bool allFinite(const std::vector<float>& values) noexcept {
-        return std::all_of(values.begin(), values.end(),
-                           [](float value) { return std::isfinite(value); });
     }
 
     bool loaded_ = false;
@@ -228,14 +238,14 @@ private:
     std::uint32_t dense1_ = 0;
     std::uint32_t dense2_ = 0;
     float scoreScale_ = 400.0F;
-    std::vector<float> featureWeights_;
-    std::vector<float> featureBias_;
-    std::vector<float> dense1Weights_;
-    std::vector<float> dense1Bias_;
-    std::vector<float> dense2Weights_;
-    std::vector<float> dense2Bias_;
-    std::vector<float> outputWeights_;
-    float outputBias_ = 0.0F;
+    std::vector<std::int8_t> featureWeights_;
+    std::vector<std::int16_t> featureBias_;
+    std::vector<std::int8_t> dense1Weights_;
+    std::vector<std::int32_t> dense1Bias_;
+    std::vector<std::int8_t> dense2Weights_;
+    std::vector<std::int32_t> dense2Bias_;
+    std::vector<std::int8_t> outputWeights_;
+    std::int32_t outputBias_ = 0;
 };
 
 NnueNetwork nnueNetwork;
