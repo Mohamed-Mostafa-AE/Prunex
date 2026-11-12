@@ -37,6 +37,14 @@ constexpr int MAX_PLY = 128;
 constexpr int MAX_QPLY = 18;
 constexpr std::size_t MAX_LEGAL_MOVES = 256;
 
+constexpr std::size_t NNUE_MAX_HIDDEN = 256;
+
+struct NnueAccumulator {
+    std::array<std::array<std::int32_t, NNUE_MAX_HIDDEN>, 2> values{};
+    std::uint64_t generation = 0;
+    bool valid = false;
+};
+
 struct MoveList {
     Move* data = nullptr;
     std::size_t count = 0;
@@ -78,6 +86,7 @@ struct Position {
     std::array<std::uint64_t,2> occupancy{};
     int side=WHITE, castling=0, ep=-1, halfmove=0, fullmove=1;
     std::uint64_t key=0;
+    NnueAccumulator nnue{};
 };
 
 }  // namespace prunex
@@ -89,6 +98,8 @@ namespace prunex {
 struct Undo {
     int captured=EMPTY, castling=0, ep=-1, halfmove=0, fullmove=1;
     std::uint64_t key=0;
+    std::uint64_t nnueGeneration=0;
+    bool nnueWasValid=false;
 };
 
 struct ZobristKeys {
@@ -493,6 +504,34 @@ Undo makeMove(Position& p,const Move& m) {
     const auto& keys=zobristKeys();
     const int movingPiece=p.board[m.from];
     const int placedPiece=m.promotion?m.promotion:movingPiece;
+    const int moverSide=p.side;
+    const int capturedSquare=m.enPassant
+        ?m.to+(p.side==WHITE?-16:16):m.to;
+    if(m.enPassant) undo.captured=p.board[capturedSquare];
+
+    const int rookFrom=m.castle?(m.to>m.from?m.from+3:m.from-4):-1;
+    const int rookTo=m.castle?(m.to>m.from?m.from+1:m.from-1):-1;
+    const int castlingRook=m.castle?p.board[rookFrom]:EMPTY;
+    if(m.castle&&castlingRook==EMPTY) {
+        throw std::logic_error("castling move has no rook");
+    }
+
+    const bool updateNnue=nnueNetwork.canUpdate(p);
+    undo.nnueWasValid=updateNnue;
+    undo.nnueGeneration=updateNnue?p.nnue.generation:0;
+    if(updateNnue) {
+        if(typeOf(movingPiece)!=6) {
+            nnueNetwork.removePieceFeature(p,movingPiece,m.from);
+        }
+        if(undo.captured!=EMPTY) {
+            nnueNetwork.removePieceFeature(p,undo.captured,capturedSquare);
+        }
+        if(m.castle) {
+            nnueNetwork.removePieceFeature(p,castlingRook,rookFrom);
+        }
+    } else {
+        p.nnue.valid=false;
+    }
 
     // Remove the old position state before changing pieces or rights.
     p.key^=keys.castling[p.castling];
@@ -500,7 +539,6 @@ Undo makeMove(Position& p,const Move& m) {
 
     p.key^=keys.pieces[m.from][movingPiece];
     if(m.enPassant) {
-        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
         undo.captured=p.board[capturedSquare];
         if(undo.captured!=EMPTY) p.key^=keys.pieces[capturedSquare][undo.captured];
         removePositionPiece(p,capturedSquare);
@@ -514,16 +552,12 @@ Undo makeMove(Position& p,const Move& m) {
     p.key^=keys.pieces[m.to][placedPiece];
 
     if(m.castle) {
-        const int rookFrom=m.to>m.from?m.from+3:m.from-4;
-        const int rookTo=m.to>m.from?m.from+1:m.from-1;
-        const int rook=p.board[rookFrom];
-        if(rook==EMPTY) throw std::logic_error("castling move has no rook");
-        p.key^=keys.pieces[rookFrom][rook];
+        p.key^=keys.pieces[rookFrom][castlingRook];
         if(p.board[rookTo]!=EMPTY) p.key^=keys.pieces[rookTo][p.board[rookTo]];
         removePositionPiece(p,rookFrom);
         if(p.board[rookTo]!=EMPTY) removePositionPiece(p,rookTo);
-        putPositionPiece(p,rookTo,rook);
-        p.key^=keys.pieces[rookTo][rook];
+        putPositionPiece(p,rookTo,castlingRook);
+        p.key^=keys.pieces[rookTo][castlingRook];
     }
 
     if(movingPiece==WK) p.castling&=~(WKCA|WQCA);
@@ -539,6 +573,18 @@ Undo makeMove(Position& p,const Move& m) {
     if(p.side==BLACK) ++p.fullmove;
     p.side=1-p.side;
 
+    if(updateNnue) {
+        if(typeOf(movingPiece)!=6) {
+            nnueNetwork.addPieceFeature(p,placedPiece,m.to);
+        }
+        if(m.castle) {
+            nnueNetwork.addPieceFeature(p,castlingRook,rookTo);
+        }
+        if(typeOf(movingPiece)==6) {
+            nnueNetwork.refreshPerspective(p,moverSide);
+        }
+    }
+
     // Add the new rights, en-passant square and side-to-move key.
     p.key^=keys.castling[p.castling];
     if(p.ep>=0) p.key^=keys.enPassant[p.ep];
@@ -547,28 +593,64 @@ Undo makeMove(Position& p,const Move& m) {
 }
 
 void undoMove(Position& p,const Move& m,const Undo& undo) {
-    p.side=1-p.side;
+    const int moverSide=1-p.side;
+    const int movedPiece=p.board[m.to];
+    const int originalMovingPiece=m.promotion?makePiece(1,moverSide):movedPiece;
+    const int capturedSquare=m.enPassant
+        ?m.to+(moverSide==WHITE?-16:16):m.to;
+    const int rookFrom=m.castle?(m.to>m.from?m.from+3:m.from-4):-1;
+    const int rookTo=m.castle?(m.to>m.from?m.from+1:m.from-1):-1;
+    const int rook=m.castle?p.board[rookTo]:EMPTY;
+
+    const bool updateNnue=undo.nnueWasValid
+        &&nnueNetwork.canUpdate(p)
+        &&p.nnue.generation==undo.nnueGeneration;
+    if(updateNnue) {
+        if(typeOf(movedPiece)!=6) {
+            nnueNetwork.removePieceFeature(p,movedPiece,m.to);
+        }
+        if(m.castle) {
+            nnueNetwork.removePieceFeature(p,rook,rookTo);
+        }
+    } else {
+        p.nnue.valid=false;
+    }
+
+    p.side=moverSide;
     if(p.side==BLACK) --p.fullmove;
     p.castling=undo.castling;
     p.ep=undo.ep;
     p.halfmove=undo.halfmove;
 
-    const int movedPiece=p.board[m.to];
     removePositionPiece(p,m.to);
     if(m.castle) {
-        const int rookFrom=m.to>m.from?m.from+3:m.from-4;
-        const int rookTo=m.to>m.from?m.from+1:m.from-1;
-        const int rook=p.board[rookTo];
         removePositionPiece(p,rookTo);
         putPositionPiece(p,rookFrom,rook);
     }
-    putPositionPiece(p,m.from,m.promotion?makePiece(1,p.side):movedPiece);
+    putPositionPiece(p,m.from,originalMovingPiece);
     if(m.enPassant) {
-        const int capturedSquare=m.to+(p.side==WHITE?-16:16);
         putPositionPiece(p,capturedSquare,undo.captured);
     } else if(undo.captured!=EMPTY) {
         putPositionPiece(p,m.to,undo.captured);
     }
+
+    if(updateNnue) {
+        if(typeOf(originalMovingPiece)!=6) {
+            nnueNetwork.addPieceFeature(p,originalMovingPiece,m.from);
+        }
+        if(undo.captured!=EMPTY) {
+            nnueNetwork.addPieceFeature(p,undo.captured,capturedSquare);
+        }
+        if(m.castle) {
+            nnueNetwork.addPieceFeature(p,rook,rookFrom);
+        }
+        if(typeOf(originalMovingPiece)==6) {
+            nnueNetwork.refreshPerspective(p,moverSide);
+        }
+        p.nnue.generation=undo.nnueGeneration;
+        p.nnue.valid=true;
+    }
+
     p.key=undo.key;
 }
 struct KingSafetyInfo {
@@ -1250,7 +1332,7 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
     }
 }
 
-int evaluate(const Position& p) {
+int evaluate(Position& p) {
     if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
 
     std::array<int,2> middle{};
