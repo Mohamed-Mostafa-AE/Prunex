@@ -158,8 +158,9 @@ model, and checksums together in versioned storage.
 ## Train an original Prunex HalfKP network
 
 The native engine can load a Prunex-owned evaluation file through UCI's
-`EvalFile` option. The format is defined by `src/nnue.hpp`; it is not a
-Stockfish `.nnue` file and cannot load Stockfish network weights.
+`EvalFile` option. The quantized format is defined by `src/nnue.hpp` and starts with the
+`PRUNEXQ1` header; it is not a Stockfish `.nnue` file and cannot load
+Stockfish network weights.
 
 Install the optional PyTorch dependency in addition to the base training tools:
 
@@ -179,7 +180,9 @@ python tools/training/train_halfkp.py \
 ```
 
 The initial network uses shared HalfKP piece/king features, two perspectives,
-and a compact dense head. It is an original Prunex model implementation; the
+and a compact dense head. Training applies straight-through fake quantization
+to feature weights, dense weights, biases and clipped activations so the model
+sees the same integer scales used by native inference. It is an original Prunex model implementation; the
 feature-set concept follows the publicly documented HalfKP design. The model
 is trained on Stockfish teacher centipawn evaluations, normalized to the
 side-to-move perspective. The trainer writes the native network, a PyTorch
@@ -199,9 +202,10 @@ To return to the handcrafted evaluator:
 setoption name EvalFile value none
 ```
 
-This first implementation recomputes the feature accumulators for each
-evaluation and is intended for controlled experiments. It is not yet the
-optimized incremental, quantized inference path expected from a production
-NNUE engine. Do not make a strength claim from training loss alone; benchmark
+The native evaluator uses integer inference with int8 weights and quantized
+activations, but it currently rebuilds both feature accumulators for every
+evaluation. Incremental accumulator updates and SIMD kernels remain future
+performance work; this is still a prototype rather than a production NNUE
+implementation. Do not make a strength claim from training loss alone; benchmark
 evaluation speed and run paired-colour matches before enabling a network in
 a release.

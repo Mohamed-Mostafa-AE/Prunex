@@ -157,7 +157,7 @@ def main() -> int:
             raise AssertionError("Training step limit was not respected")
         if not network.with_suffix(".nnue.pt").is_file():
             raise AssertionError("PyTorch checkpoint was not written")
-        if network.read_bytes()[:8] != b"PRUNEXN1":
+        if network.read_bytes()[:8] != b"PRUNEXQ1":
             raise AssertionError("Export does not use the Prunex network format")
 
         process = subprocess.Popen(

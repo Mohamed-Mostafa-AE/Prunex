@@ -11,14 +11,22 @@
 
 namespace {
 
-bool writeNetworkFile(const std::filesystem::path& path, bool complete) {
+template<typename Value>
+bool writeZeros(std::ofstream& output, std::size_t count) {
+    const Value zero{};
+    for (std::size_t index = 0; index < count; ++index) {
+        output.write(reinterpret_cast<const char*>(&zero), sizeof(zero));
+        if (!output) return false;
+    }
+    return true;
+}
+
+bool writeNetworkFile(const std::filesystem::path& path, bool validMagic) {
     std::ofstream output(path, std::ios::binary);
     if (!output) return false;
 
-    std::array<char, 8> magic{
-        'P', 'R', 'U', 'N', 'E', 'X', 'N', '1'
-    };
-    if (!complete) magic[0] = 'X';
+    std::array<char, 8> magic{'P', 'R', 'U', 'N', 'E', 'X', 'Q', '1'};
+    if (!validMagic) magic[0] = 'X';
     constexpr std::uint32_t version = 1;
     constexpr std::uint32_t features = 40960;
     constexpr std::uint32_t hidden = 8;
@@ -34,23 +42,18 @@ bool writeNetworkFile(const std::filesystem::path& path, bool complete) {
     output.write(reinterpret_cast<const char*>(&dense2), sizeof(dense2));
     output.write(reinterpret_cast<const char*>(&scale), sizeof(scale));
 
-    const std::array<std::size_t, 7> counts{
-        static_cast<std::size_t>(features) * hidden,
-        hidden,
-        static_cast<std::size_t>(dense1) * hidden * 2,
-        dense1,
-        static_cast<std::size_t>(dense2) * dense1,
-        dense2,
-        dense2
-    };
-    const float zero = 0.0F;
-    for (std::size_t count : counts) {
-        for (std::size_t index = 0; index < count; ++index) {
-            output.write(reinterpret_cast<const char*>(&zero), sizeof(zero));
-        }
+    if (!writeZeros<std::int8_t>(output, static_cast<std::size_t>(features) * hidden)
+        || !writeZeros<std::int16_t>(output, hidden)
+        || !writeZeros<std::int8_t>(output, static_cast<std::size_t>(dense1) * hidden * 2)
+        || !writeZeros<std::int32_t>(output, dense1)
+        || !writeZeros<std::int8_t>(output, static_cast<std::size_t>(dense2) * dense1)
+        || !writeZeros<std::int32_t>(output, dense2)
+        || !writeZeros<std::int8_t>(output, dense2)) {
+        return false;
     }
 
-    output.write(reinterpret_cast<const char*>(&zero), sizeof(zero));
+    const std::int32_t outputBias = validMagic ? 16129 : 0;
+    output.write(reinterpret_cast<const char*>(&outputBias), sizeof(outputBias));
     output.close();
     return static_cast<bool>(output);
 }
@@ -61,41 +64,40 @@ int main() {
     using namespace prunex;
 
     const auto directory = std::filesystem::temp_directory_path();
-    const auto validPath = directory / "prunex-nnue-regression.nnue";
-    const auto invalidPath = directory / "prunex-nnue-regression-invalid.nnue";
-    const auto truncatedPath = directory / "prunex-nnue-regression-truncated.nnue";
+    const auto validPath = directory / "prunex-qat-regression.nnue";
+    const auto invalidPath = directory / "prunex-qat-regression-invalid.nnue";
+    const auto truncatedPath = directory / "prunex-qat-regression-truncated.nnue";
 
-    if (!writeNetworkFile(validPath, true)) { std::cerr << "NNUE regression check 1 failed\\n"; return 1; }
-    if (!writeNetworkFile(invalidPath, false)) { std::cerr << "NNUE regression check 2 failed\\n"; return 2; }
-    if (!writeNetworkFile(truncatedPath, true)) { std::cerr << "NNUE regression check 3 failed\\n"; return 3; }
+    if (!writeNetworkFile(validPath, true)) return 1;
+    if (!writeNetworkFile(invalidPath, false)) return 2;
+    if (!writeNetworkFile(truncatedPath, true)) return 3;
 
     {
         std::ofstream output(truncatedPath, std::ios::binary | std::ios::trunc);
-        if (!output) { std::cerr << "NNUE regression check 4 failed\\n"; return 4; }
-        output.write("PRUNEX", 6);
+        if (!output) return 4;
+        output.write("PRUNEXQ", 7);
     }
 
     NnueNetwork network;
-    if (network.loaded()) { std::cerr << "NNUE regression check 5 failed\\n"; return 5; }
-    if (!network.load(validPath.string())) { std::cerr << "NNUE regression check 6 failed\\n"; return 6; }
-    if (!network.loaded()) { std::cerr << "NNUE regression check 7 failed\\n"; return 7; }
+    if (network.loaded()) return 5;
+    if (!network.load(validPath.string())) return 6;
+    if (!network.loaded()) return 7;
 
     Position position;
-    if (!loadFen(position, START_FEN)) { std::cerr << "NNUE regression check 8 failed\\n"; return 8; }
-    if (network.evaluate(position) != 0) { std::cerr << "NNUE regression check 9 failed\\n"; return 9; }
+    if (!loadFen(position, START_FEN)) return 8;
+    if (network.evaluate(position) != 400) return 9;
 
-    if (network.load(invalidPath.string())) { std::cerr << "NNUE regression check 10 failed\\n"; return 10; }
-    if (!network.loaded() || network.evaluate(position) != 0) { std::cerr << "NNUE regression check 11 failed\\n"; return 11; }
-    if (network.load(truncatedPath.string())) { std::cerr << "NNUE regression check 12 failed\\n"; return 12; }
-    if (!network.loaded()) { std::cerr << "NNUE regression check 13 failed\\n"; return 13; }
+    if (network.load(invalidPath.string())) return 10;
+    if (!network.loaded() || network.evaluate(position) != 400) return 11;
+    if (network.load(truncatedPath.string())) return 12;
+    if (!network.loaded() || network.evaluate(position) != 400) return 13;
 
     network.clear();
-    if (network.loaded()) { std::cerr << "NNUE regression check 14 failed\\n"; return 14; }
+    if (network.loaded()) return 14;
 
     std::error_code error;
     std::filesystem::remove(validPath, error);
     std::filesystem::remove(invalidPath, error);
     std::filesystem::remove(truncatedPath, error);
-
     return 0;
 }
