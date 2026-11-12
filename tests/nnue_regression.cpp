@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <string>
 
 #define main prunex_console_entry
@@ -152,8 +153,17 @@ int main() {
     if (!loadFen(position, START_FEN)) return 8;
 
     NnueNetwork overflowNetwork;
-    if (!overflowNetwork.load(overflowPath.string())) return 16;
-    if (overflowNetwork.evaluate(position) != 400) return 17;
+    if (!overflowNetwork.load(overflowPath.string())) {
+        std::cerr << "NNUE overflow fixture could not be loaded\\n";
+        return 16;
+    }
+
+    const int overflowScore = overflowNetwork.evaluate(position);
+    if (overflowScore != 400) {
+        std::cerr << "NNUE accumulator overflow regression: expected 400, got "
+                  << overflowScore << '\\n';
+        return 17;
+    }
 
     if (network.evaluate(position) != 400) return 9;
 
