@@ -102,16 +102,22 @@ def configure_engine(
     threads: int,
 ) -> dict[str, Any]:
     requested: dict[str, int] = {}
-    if "Hash" in engine.options:
-        option = engine.options["Hash"]
-        value = max(int(option.min or 1), min(hash_mb, int(option.max or hash_mb)))
-        requested["Hash"] = value
-    if "Threads" in engine.options:
-        option = engine.options["Threads"]
-        value = max(int(option.min or 1), min(threads, int(option.max or threads)))
-        requested["Threads"] = value
-    if requested:
-        engine.configure(requested)
+    for name, value in (("Hash", hash_mb), ("Threads", threads)):
+        if name not in engine.options:
+            raise RuntimeError(
+                f"{engine.id.get('name', 'Engine')} does not expose required UCI option {name}"
+            )
+        option = engine.options[name]
+        minimum = 1 if option.min is None else int(option.min)
+        maximum = value if option.max is None else int(option.max)
+        if not minimum <= value <= maximum:
+            raise RuntimeError(
+                f"{engine.id.get('name', 'Engine')} cannot accept {name}={value}; "
+                f"supported range is {minimum}..{maximum}"
+            )
+        requested[name] = value
+
+    engine.configure(requested)
     engine.ping()
     return requested
 
@@ -423,8 +429,12 @@ def main() -> None:
     parser.add_argument("--stockfish", required=True)
     parser.add_argument("--triumviratus", required=True)
     parser.add_argument("--triumviratus-cwd", required=True)
+    parser.add_argument("--plentychess", required=True)
+    parser.add_argument("--reckless", required=True)
     parser.add_argument("--stockfish-source-commit", required=True)
     parser.add_argument("--triumviratus-release-commit", required=True)
+    parser.add_argument("--plentychess-release-commit", required=True)
+    parser.add_argument("--reckless-release-commit", required=True)
     parser.add_argument("--candidate-commit", required=True)
     parser.add_argument("--pairs", type=int, default=12)
     parser.add_argument("--seed", type=int, default=20261112)
@@ -446,10 +456,12 @@ def main() -> None:
     stockfish_path = Path(args.stockfish).resolve()
     triumviratus_path = Path(args.triumviratus).resolve()
     triumviratus_cwd = Path(args.triumviratus_cwd).resolve()
+    plentychess_path = Path(args.plentychess).resolve()
+    reckless_path = Path(args.reckless).resolve()
     output = Path(args.out).resolve()
     output.mkdir(parents=True, exist_ok=True)
 
-    for path in (candidate_path, stockfish_path, triumviratus_path):
+    for path in (candidate_path, stockfish_path, triumviratus_path, plentychess_path, reckless_path):
         if not path.is_file():
             raise FileNotFoundError(path)
     if not triumviratus_cwd.is_dir():
@@ -459,6 +471,8 @@ def main() -> None:
     opponent_specs = [
         EngineSpec("Stockfish 19", stockfish_path, stockfish_path.parent),
         EngineSpec("Triumviratus 8.1", triumviratus_path, triumviratus_cwd),
+        EngineSpec("PlentyChess 8.0.0", plentychess_path, plentychess_path.parent),
+        EngineSpec("Reckless 0.9.0", reckless_path, reckless_path.parent),
     ]
     tiers = [
         Tier("nodes-100000", 100_000, None),
@@ -489,6 +503,8 @@ def main() -> None:
             "candidate_commit": args.candidate_commit,
             "stockfish_source_commit": args.stockfish_source_commit,
             "triumviratus_release_commit": args.triumviratus_release_commit,
+            "plentychess_release_commit": args.plentychess_release_commit,
+            "reckless_release_commit": args.reckless_release_commit,
             "candidate": {
                 **candidate_identity,
                 "path": str(candidate_path),
@@ -520,10 +536,16 @@ def main() -> None:
                 str(spec.executable), timeout=180, cwd=str(spec.working_directory)
             ) as opponent:
                 identity = engine_identity(opponent)
-                if spec.label == "Stockfish 19" and "Stockfish" not in identity["name"]:
-                    raise RuntimeError(f"Unexpected Stockfish identity: {identity}")
-                if spec.label == "Triumviratus 8.1" and "Triumviratus" not in identity["name"]:
-                    raise RuntimeError(f"Unexpected Triumviratus identity: {identity}")
+                expected_identity = {
+                    "Stockfish 19": "Stockfish",
+                    "Triumviratus 8.1": "Triumviratus",
+                    "PlentyChess 8.0.0": "PlentyChess",
+                    "Reckless 0.9.0": "Reckless",
+                }[spec.label]
+                if expected_identity.casefold() not in identity["name"].casefold():
+                    raise RuntimeError(
+                        f"Unexpected {spec.label} identity: {identity}"
+                    )
                 options = configure_engine(opponent, args.hash_mb, args.threads)
                 manifest["opponents"].append({
                     "label": spec.label,
@@ -543,10 +565,7 @@ def main() -> None:
 
     report = {
         "candidate_commit": args.candidate_commit,
-        "opponents": [
-            "Stockfish 19",
-            "Triumviratus 8.1",
-        ],
+        "opponents": [spec.label for spec in opponent_specs],
         "pairs_per_tier_per_opponent": args.pairs,
         "total_games": sum(item["games"] for item in summaries),
         "elapsed_seconds": round(time.monotonic() - started, 2),
