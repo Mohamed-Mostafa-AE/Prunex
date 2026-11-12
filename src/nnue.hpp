@@ -250,22 +250,6 @@ private:
         return (square88 >> 4) * 8 + (square88 & 7);
     }
 
-    static std::int32_t clipActivation(std::int32_t value) noexcept {
-        return std::clamp<std::int32_t>(value, 0, 127);
-    }
-
-    static std::int32_t clipDense(std::int64_t value) noexcept {
-        if (value <= 0) return 0;
-        if (value >= DENSE_SCALE) return 127;
-        return static_cast<std::int32_t>(
-            (value + ACTIVATION_SCALE / 2) / ACTIVATION_SCALE
-        );
-    }
-
-    std::size_t inputWidth() const noexcept {
-        return static_cast<std::size_t>(hidden_) * 2;
-    }
-
     void updateFeature(
         std::array<std::int32_t, NNUE_MAX_HIDDEN>& accumulator,
         int featureIndex,
@@ -286,7 +270,7 @@ private:
         int direction
     ) const noexcept {
         if (!canUpdate(position) || piece == EMPTY) return;
-        const int pieceType = typeOf(piece);
+        const int pieceType = (piece - 1) % 6 + 1;
         if (pieceType == 6) return;
 
         const std::uint64_t whiteKingBits = position.piecesBB[WHITE][6];
@@ -294,7 +278,7 @@ private:
         if (whiteKingBits == 0 || blackKingBits == 0) return;
 
         const int square = square64FromMailbox(square88);
-        const int color = colorOf(piece);
+        const int color = piece <= WK ? WHITE : BLACK;
         const int whiteKing = static_cast<int>(std::countr_zero(whiteKingBits));
         const int blackKing = static_cast<int>(std::countr_zero(blackKingBits)) ^ 56;
 
