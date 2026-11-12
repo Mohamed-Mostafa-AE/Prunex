@@ -153,3 +153,55 @@ demonstrate better chess.
 Do not put the bulk corpus or trained weights in this repository. Keep the
 original archive, manifest, training configuration, checkpoint, exported
 model, and checksums together in versioned storage.
+
+
+## Train an original Prunex HalfKP network
+
+The native engine can load a Prunex-owned evaluation file through UCI's
+`EvalFile` option. The format is defined by `src/nnue.hpp`; it is not a
+Stockfish `.nnue` file and cannot load Stockfish network weights.
+
+Install the optional PyTorch dependency in addition to the base training tools:
+
+```bash
+python -m pip install -r tools/training/requirements-nnue.txt
+```
+
+Train from the licensed, White-relative Lichess corpus prepared above:
+
+```bash
+python tools/training/train_halfkp.py \
+  --input-dir /data/prunex-corpus/lichess-eval-2026-11 \
+  --output /data/prunex-models/prunex-halfkp-v1.nnue \
+  --device cuda \
+  --epochs 3 \
+  --batch-size 512
+```
+
+The initial network uses shared HalfKP piece/king features, two perspectives,
+and a compact dense head. It is an original Prunex model implementation; the
+feature-set concept follows the publicly documented HalfKP design. The model
+is trained on Stockfish teacher centipawn evaluations, normalized to the
+side-to-move perspective. The trainer writes the native network, a PyTorch
+checkpoint, a training report and SHA-256 hashes. Keep all of those with the
+corpus manifest and training settings.
+
+The native engine keeps its handcrafted evaluator unless a valid Prunex
+network is explicitly selected:
+
+```text
+setoption name EvalFile value /path/to/prunex-halfkp-v1.nnue
+```
+
+To return to the handcrafted evaluator:
+
+```text
+setoption name EvalFile value none
+```
+
+This first implementation recomputes the feature accumulators for each
+evaluation and is intended for controlled experiments. It is not yet the
+optimized incremental, quantized inference path expected from a production
+NNUE engine. Do not make a strength claim from training loss alone; benchmark
+evaluation speed and run paired-colour matches before enabling a network in
+a release.
