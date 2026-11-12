@@ -2019,11 +2019,17 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 }
             }
             if(moveTime==0) moveTime=1;
-            // Timed and node-limited searches must keep deepening until
-            // their resource limit is reached. A fixed depth-12 ceiling made
-            // movetime searches return early with unused time.
-            if(infiniteSearch&&!depthSet) depth=MAX_PLY-1;
-            else if(!depthSet&&(nodeLimit>0||moveTime>=0)) depth=MAX_PLY-1;
+            // Infinite search ignores every other stopping limit and runs
+            // until the GUI sends "stop".
+            if(infiniteSearch) {
+                depth=MAX_PLY-1;
+                moveTime=-1;
+                nodeLimit=0;
+            } else if(!depthSet&&(nodeLimit>0||moveTime>=0)) {
+                // Timed and node-limited searches keep deepening until their
+                // resource limit is reached instead of stopping at depth 12.
+                depth=MAX_PLY-1;
+            }
             const int searchDepth=std::clamp(depth,1,MAX_PLY-1);
             const Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);

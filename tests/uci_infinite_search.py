@@ -66,7 +66,7 @@ def main() -> int:
         send("isready")
         wait_for("readyok", 5.0)
         send("position startpos")
-        send("go infinite")
+        send("go infinite depth 1 nodes 1 movetime 1")
 
         # A normal depth-5 search finishes quickly on this position. A genuine
         # infinite search must still be running when this observation window ends.
