@@ -26,6 +26,11 @@ jobs:
       - name: Check out the exact source commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Verify generated architecture SVG and probe script syntax
+        run: |
+          python3 tools/visualize_engine_architecture.py --check
+          python3 -m py_compile tools/engine-architecture/uci_probe.py
+
       - name: Install compiler and build tools
         run: |
           sudo apt-get update
