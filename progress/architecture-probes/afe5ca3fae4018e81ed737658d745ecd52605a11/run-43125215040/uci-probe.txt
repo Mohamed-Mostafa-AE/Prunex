@@ -1,0 +1,49 @@
+PRUNEX NATIVE UCI PROBE
+======================
+UTC timestamp: 2026-11-12T00:11:54+00:00
+Source commit: afe5ca3fae4018e81ed737658d745ecd52605a11
+Engine executable: build/prunex
+Engine SHA-256: d7622906386ad87af332a0aab8ea981202137cf9834189eeffb9863e387a079d
+Build configuration: CMake Release, PRUNEX_TT_BITS=22
+Compiler: g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+CMake: cmake version 3.31.6
+
+The lines below are captured directly from the compiled executable.
+The diagram is conceptual; this transcript records actual UCI responses.
+The current engine's PV output is its root best move, not a full PV line.
+
+UCI TRANSCRIPT
+--------------
+> uci
+< id name Prunex 0.8.0
+< id author Prunex Project
+< option name Hash type spin default 160 min 1 max 4096
+< option name Threads type spin default 1 min 1 max 1
+< option name Clear Hash type button
+< uciok
+> isready
+< readyok
+
+# Initial position — depth 8
+> position startpos
+> go depth 8
+< info depth 1 score cp 44 nodes 22 nps 0 tthits 0 hashfull 0 pv b1c3
+< info depth 2 score cp 0 nodes 106 nps 0 tthits 1 hashfull 0 pv b1c3
+< info depth 3 score cp 44 nodes 674 nps 0 tthits 44 hashfull 0 pv b1c3
+< info depth 4 score cp 0 nodes 3025 nps 1008333 tthits 592 hashfull 0 pv b1c3
+< info depth 5 score cp 19 nodes 3844 nps 961000 tthits 684 hashfull 0 pv b1c3
+< info depth 6 score cp 0 nodes 12385 nps 774062 tthits 1418 hashfull 1 pv b1c3
+< info depth 7 score cp 29 nodes 31702 nps 720500 tthits 2244 hashfull 2 pv b1c3
+< info depth 8 score cp 7 nodes 106833 nps 684826 tthits 6116 hashfull 2 pv b1c3
+< bestmove b1c3
+
+# Kiwipete tactical / move-generation position — depth 6
+> position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1
+> go depth 6
+< info depth 1 score cp 65 nodes 1755 nps 585000 tthits 0 hashfull 0 pv e2a6
+< info depth 2 score cp 65 nodes 4939 nps 548777 tthits 1 hashfull 0 pv e2a6
+< info depth 3 score cp 16 nodes 17752 nps 493111 tthits 149 hashfull 0 pv e2a6
+< info depth 4 score cp 16 nodes 48655 nps 491464 tthits 650 hashfull 0 pv e2a6
+< info depth 5 score cp -35 nodes 137417 nps 496090 tthits 5566 hashfull 0 pv e2a6
+< info depth 6 score cp -35 nodes 220218 nps 502780 tthits 9107 hashfull 0 pv e2a6
+< bestmove e2a6
