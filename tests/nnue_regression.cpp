@@ -15,9 +15,10 @@ bool writeNetworkFile(const std::filesystem::path& path, bool complete) {
     std::ofstream output(path, std::ios::binary);
     if (!output) return false;
 
-    constexpr std::array<char, 8> magic{
+    std::array<char, 8> magic{
         'P', 'R', 'U', 'N', 'E', 'X', 'N', '1'
     };
+    if (!complete) magic[0] = 'X';
     constexpr std::uint32_t version = 1;
     constexpr std::uint32_t features = 40960;
     constexpr std::uint32_t hidden = 8;
@@ -50,7 +51,6 @@ bool writeNetworkFile(const std::filesystem::path& path, bool complete) {
     }
 
     output.write(reinterpret_cast<const char*>(&zero), sizeof(zero));
-    if (!complete) return false;
     output.close();
     return static_cast<bool>(output);
 }
