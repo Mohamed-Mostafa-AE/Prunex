@@ -347,13 +347,13 @@ int main() {
     searchPathPieceTypes.fill(0);
     counterMoves={};
     historyScores={};
-    continuationHistoryScores={};
+    clearContinuationHistoryScores();
     searchPathMoves[0]={parseSquare("g8"),parseSquare("f6"),EMPTY,false,false};
     searchPathPieceTypes[0]=2;
     const int quietBaseScore=moveOrderingScore(position,counterCandidate,Move{},1);
     continuationHistoryScores[2][parseSquare("f6")][2][parseSquare("f3")]=500;
     if(moveOrderingScore(position,counterCandidate,Move{},1)!=quietBaseScore+1000) return 110;
-    continuationHistoryScores={};
+    clearContinuationHistoryScores();
     searchPathMoves.fill(Move{});
     searchPathPieceTypes.fill(0);
 
