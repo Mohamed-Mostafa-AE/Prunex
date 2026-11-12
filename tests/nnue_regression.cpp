@@ -65,32 +65,32 @@ int main() {
     const auto invalidPath = directory / "prunex-nnue-regression-invalid.nnue";
     const auto truncatedPath = directory / "prunex-nnue-regression-truncated.nnue";
 
-    if (!writeNetworkFile(validPath, true)) return 1;
-    if (!writeNetworkFile(invalidPath, false)) return 2;
-    if (!writeNetworkFile(truncatedPath, true)) return 3;
+    if (!writeNetworkFile(validPath, true)) { std::cerr << "NNUE regression check 1 failed\\n"; return 1; }
+    if (!writeNetworkFile(invalidPath, false)) { std::cerr << "NNUE regression check 2 failed\\n"; return 2; }
+    if (!writeNetworkFile(truncatedPath, true)) { std::cerr << "NNUE regression check 3 failed\\n"; return 3; }
 
     {
         std::ofstream output(truncatedPath, std::ios::binary | std::ios::trunc);
-        if (!output) return 4;
+        if (!output) { std::cerr << "NNUE regression check 4 failed\\n"; return 4; }
         output.write("PRUNEX", 6);
     }
 
     NnueNetwork network;
-    if (network.loaded()) return 5;
-    if (!network.load(validPath.string())) return 6;
-    if (!network.loaded()) return 7;
+    if (network.loaded()) { std::cerr << "NNUE regression check 5 failed\\n"; return 5; }
+    if (!network.load(validPath.string())) { std::cerr << "NNUE regression check 6 failed\\n"; return 6; }
+    if (!network.loaded()) { std::cerr << "NNUE regression check 7 failed\\n"; return 7; }
 
     Position position;
-    if (!loadFen(position, START_FEN)) return 8;
-    if (network.evaluate(position) != 0) return 9;
+    if (!loadFen(position, START_FEN)) { std::cerr << "NNUE regression check 8 failed\\n"; return 8; }
+    if (network.evaluate(position) != 0) { std::cerr << "NNUE regression check 9 failed\\n"; return 9; }
 
-    if (network.load(invalidPath.string())) return 10;
-    if (!network.loaded() || network.evaluate(position) != 0) return 11;
-    if (network.load(truncatedPath.string())) return 12;
-    if (!network.loaded()) return 13;
+    if (network.load(invalidPath.string())) { std::cerr << "NNUE regression check 10 failed\\n"; return 10; }
+    if (!network.loaded() || network.evaluate(position) != 0) { std::cerr << "NNUE regression check 11 failed\\n"; return 11; }
+    if (network.load(truncatedPath.string())) { std::cerr << "NNUE regression check 12 failed\\n"; return 12; }
+    if (!network.loaded()) { std::cerr << "NNUE regression check 13 failed\\n"; return 13; }
 
     network.clear();
-    if (network.loaded()) return 14;
+    if (network.loaded()) { std::cerr << "NNUE regression check 14 failed\\n"; return 14; }
 
     std::error_code error;
     std::filesystem::remove(validPath, error);
