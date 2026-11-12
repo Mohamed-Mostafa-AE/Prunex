@@ -70,7 +70,60 @@ def halfkp_features(fen: str) -> tuple[list[int], list[int], bool]:
     )
 
 
-def read_examples(path: Path, limit: int = 0) -> Iterator[tuple[list[int], list[int], bool, int]]:
+def split_for_position(position_id: str, seed: str) -> str:
+    bucket = int(hashlib.sha256((seed + ":" + position_id).encode("utf-8")).hexdigest()[:16], 16) % 10_000
+    if bucket < 8_000:
+        return "train"
+    if bucket < 9_000:
+        return "validation"
+    return "test"
+
+
+def verify_corpus(input_dir: Path) -> tuple[dict, str]:
+    """Validate the importer manifest and output hashes before training."""
+    manifest_path = input_dir / "corpus-manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"Corpus manifest is missing: {manifest_path}")
+
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Corpus manifest is not valid JSON") from exc
+
+    source = manifest.get("source", {})
+    split_info = manifest.get("split", {})
+    outputs = manifest.get("outputs", {})
+    if source.get("license") != "CC0-1.0":
+        raise ValueError("This training pipeline currently accepts only the declared CC0 Lichess corpus")
+    if source.get("score_schema_reference") != "https://huggingface.co/datasets/Lichess/fishnet-evals":
+        raise ValueError("Unrecognized teacher-score schema reference")
+    seed = split_info.get("seed")
+    if not isinstance(seed, str) or not seed:
+        raise ValueError("Corpus split seed is missing")
+    if split_info.get("method") != "SHA-256 position hash bucketing; duplicate positions share a split":
+        raise ValueError("Unrecognized corpus split method")
+
+    for split in ("train", "validation", "test"):
+        expected_name = f"positions-{split}.jsonl"
+        entry = outputs.get(split)
+        path = input_dir / expected_name
+        if not isinstance(entry, dict) or entry.get("file") != expected_name:
+            raise ValueError(f"Corpus manifest does not describe {expected_name}")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        if entry.get("bytes") != path.stat().st_size:
+            raise ValueError(f"Corpus size does not match manifest: {expected_name}")
+        if entry.get("sha256") != sha256_file(path):
+            raise ValueError(f"Corpus SHA-256 does not match manifest: {expected_name}")
+
+    return manifest, seed
+
+
+def read_examples(
+    path: Path,
+    split_seed: str,
+    limit: int = 0,
+) -> Iterator[tuple[list[int], list[int], bool, int]]:
     if not path.is_file():
         raise FileNotFoundError(path)
 
@@ -86,15 +139,32 @@ def read_examples(path: Path, limit: int = 0) -> Iterator[tuple[list[int], list[
 
             if not isinstance(row, dict) or row.get("label_kind") != "teacher_centipawn_evaluation":
                 raise ValueError(f"Unexpected row schema in {path}, line {line_number}")
-            if row.get("split") != path.stem.removeprefix("positions-"):
+            split = path.stem.removeprefix("positions-")
+            if row.get("split") != split:
                 raise ValueError(f"Unexpected data split in {path}, line {line_number}")
+            if row.get("schema_version") != 1:
+                raise ValueError(f"Unsupported row schema in {path}, line {line_number}")
             if row.get("score_perspective") != "side-to-move":
                 raise ValueError(f"Score perspective mismatch in {path}, line {line_number}")
+            source = row.get("source")
+            if not isinstance(source, dict) or source.get("license") != "CC0-1.0":
+                raise ValueError(f"Unverified source license in {path}, line {line_number}")
             score = row.get("score_cp")
             if isinstance(score, bool) or not isinstance(score, int):
                 raise ValueError(f"Invalid score in {path}, line {line_number}")
 
-            white, black, white_to_move = halfkp_features(row["fen"])
+            fen = row.get("fen")
+            if not isinstance(fen, str):
+                raise ValueError(f"Missing FEN in {path}, line {line_number}")
+            position_id = hashlib.sha256(
+                " ".join(fen.split()[:4]).encode("utf-8")
+            ).hexdigest()
+            if row.get("position_id") != position_id:
+                raise ValueError(f"Position hash mismatch in {path}, line {line_number}")
+            if split_for_position(position_id, split_seed) != split:
+                raise ValueError(f"Position assigned to the wrong data split in {path}, line {line_number}")
+
+            white, black, white_to_move = halfkp_features(fen)
             yield white, black, white_to_move, score
             yielded += 1
             if limit and yielded >= limit:
@@ -106,6 +176,7 @@ def batches(
     batch_size: int,
     seed: int,
     limit: int,
+    split_seed: str,
     shuffle_buffer_batches: int = 8,
 ) -> Iterator[list[tuple[list[int], list[int], bool, int]]]:
     """Shuffle bounded blocks so training does not require loading the corpus."""
@@ -113,7 +184,7 @@ def batches(
     buffer: list[tuple[list[int], list[int], bool, int]] = []
     block_size = batch_size * shuffle_buffer_batches
 
-    for example in read_examples(path, limit):
+    for example in read_examples(path, split_seed, limit):
         buffer.append(example)
         if len(buffer) >= block_size:
             rng.shuffle(buffer)
@@ -206,6 +277,7 @@ def validate(
     batch_size: int,
     score_scale: float,
     limit: int,
+    split_seed: str,
 ) -> dict[str, float]:
     model.eval()
     squared_error = 0.0
@@ -214,7 +286,9 @@ def validate(
     epsilon = 1e-7
 
     with torch.no_grad():
-        for rows in batches(path, batch_size, 71, limit, shuffle_buffer_batches=1):
+        for rows in batches(
+            path, batch_size, 71, limit, split_seed, shuffle_buffer_batches=1
+        ):
             indices, offsets, stm, scores = collate(rows, device)
             logits = model(indices, offsets, stm)
             target = target_probability(scores, score_scale)
@@ -281,12 +355,14 @@ def train(args: argparse.Namespace) -> dict:
     input_dir = Path(args.input_dir).expanduser().resolve()
     train_path = input_dir / "positions-train.jsonl"
     validation_path = input_dir / "positions-validation.jsonl"
+    test_path = input_dir / "positions-test.jsonl"
     output_path = Path(args.output).expanduser().resolve()
     checkpoint_path = output_path.with_suffix(output_path.suffix + ".pt")
     report_path = output_path.with_suffix(output_path.suffix + ".json")
 
-    if not train_path.is_file() or not validation_path.is_file():
-        raise FileNotFoundError("Training and validation JSONL splits must both exist")
+    manifest, split_seed = verify_corpus(input_dir)
+    if not train_path.is_file() or not validation_path.is_file() or not test_path.is_file():
+        raise FileNotFoundError("Training, validation and test JSONL splits must all exist")
     if args.epochs < 1 or args.batch_size < 1 or args.learning_rate <= 0:
         raise ValueError("Epochs, batch size and learning rate must be positive")
     if args.train_limit < 0 or args.validation_limit < 0:
@@ -329,12 +405,12 @@ def train(args: argparse.Namespace) -> dict:
         epoch_positions = 0
 
         for rows in batches(
-            train_path, args.batch_size, args.seed + epoch, args.train_limit
+            train_path, args.batch_size, args.seed + epoch, args.train_limit, split_seed
         ):
             indices, offsets, stm, scores = collate(rows, device)
             target = target_probability(scores, args.score_scale)
             logits = model(indices, offsets, stm)
-            loss = F.mse_loss(torch.sigmoid(logits), target)
+            loss = F.binary_cross_entropy_with_logits(logits, target)
 
             embedding_optimizer.zero_grad(set_to_none=True)
             dense_optimizer.zero_grad(set_to_none=True)
@@ -357,17 +433,23 @@ def train(args: argparse.Namespace) -> dict:
             args.batch_size,
             args.score_scale,
             args.validation_limit,
+            split_seed,
         )
         history.append({
             "epoch": epoch + 1,
             "training_positions": epoch_positions,
-            "training_brier_loss": epoch_loss / epoch_positions,
+            "training_log_loss": epoch_loss / epoch_positions,
             "validation": validation,
         })
         print(json.dumps(history[-1]), flush=True)
         if args.max_steps and global_step >= args.max_steps:
             break
 
+    # The test split is evaluated only after all fitting decisions are over.
+    test_metrics = validate(
+        model, test_path, device, args.batch_size,
+        args.score_scale, 0, split_seed
+    )
     model = model.to("cpu").eval()
     network_hash = export_network(model, output_path, args.score_scale)
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -403,10 +485,11 @@ def train(args: argparse.Namespace) -> dict:
             "train_sha256": sha256_file(train_path),
             "validation_path": str(validation_path),
             "validation_sha256": sha256_file(validation_path),
-            "corpus_manifest_sha256": (
-                sha256_file(input_dir / "corpus-manifest.json")
-                if (input_dir / "corpus-manifest.json").is_file() else None
-            ),
+            "test_path": str(test_path),
+            "test_sha256": sha256_file(test_path),
+            "corpus_manifest_sha256": sha256_file(input_dir / "corpus-manifest.json"),
+            "corpus_manifest": manifest,
+
         },
         "settings": {
             "epochs": args.epochs,
@@ -425,6 +508,7 @@ def train(args: argparse.Namespace) -> dict:
             },
         },
         "history": history,
+        "held_out_test": test_metrics,
         "elapsed_seconds": round(time.monotonic() - started, 2),
         "limitations": [
             "The model learns Stockfish teacher evaluations from the supplied Lichess corpus.",
