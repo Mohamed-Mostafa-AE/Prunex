@@ -1234,8 +1234,7 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
 }
 
 int captureHistoryScore(const Position& position,const Move& move) {
-    if(!isCapture(position,move)||move.from<0||move.from>=128
-       ||move.to<0||move.to>=128) return 0;
+    if(!onBoard(move.from)||!onBoard(move.to)||!isCapture(position,move)) return 0;
     const int movingType=typeOf(position.board[move.from]);
     const int capturedType=move.enPassant?1:typeOf(position.board[move.to]);
     if(movingType<1||movingType>6||capturedType<1||capturedType>6) return 0;
@@ -1243,8 +1242,7 @@ int captureHistoryScore(const Position& position,const Move& move) {
 }
 
 void updateCaptureHistory(const Position& position,const Move& move,int bonus) {
-    if(!isCapture(position,move)||move.from<0||move.from>=128
-       ||move.to<0||move.to>=128) return;
+    if(!onBoard(move.from)||!onBoard(move.to)||!isCapture(position,move)) return;
     const int movingType=typeOf(position.board[move.from]);
     const int capturedType=move.enPassant?1:typeOf(position.board[move.to]);
     if(movingType<1||movingType>6||capturedType<1||capturedType>6) return;
