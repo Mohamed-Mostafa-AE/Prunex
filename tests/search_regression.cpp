@@ -683,6 +683,23 @@ int main() {
     if(!sameMove(tacticalPicker.next(),hashCandidate)) return 100;
     if(moveUci(tacticalPicker.next())!="d1d5") return 101;
 
+    if(!loadFen(position,START_FEN)) return 150;
+    auto quietMoves=legalMoves(position,0);
+    Move e4,d4,c4;
+    if(!parseUciMove(position,"e2e4",e4)
+        ||!parseUciMove(position,"d2d4",d4)
+        ||!parseUciMove(position,"c2c4",c4)) return 151;
+    historyScores[WHITE][e4.from][e4.to]=300;
+    historyScores[WHITE][d4.from][d4.to]=200;
+    historyScores[WHITE][c4.from][c4.to]=100;
+    MovePicker partialPicker(position,quietMoves,Move{},0);
+    if(!sameMove(partialPicker.next(),e4)
+        ||!sameMove(partialPicker.next(),d4)
+        ||!sameMove(partialPicker.next(),c4)) return 152;
+    historyScores[WHITE][e4.from][e4.to]=0;
+    historyScores[WHITE][d4.from][d4.to]=0;
+    historyScores[WHITE][c4.from][c4.to]=0;
+
     // A countermove is staged ahead of ordinary quiet moves.
     if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 102;
     if(!parseUciMove(position,"g1f3",counterCandidate)) return 103;
