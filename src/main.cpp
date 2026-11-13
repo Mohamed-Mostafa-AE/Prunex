@@ -35,6 +35,7 @@ enum Castle : int { WKCA=1, WQCA=2, BKCA=4, BQCA=8 };
 struct Move { int from=-1, to=-1, promotion=EMPTY; bool enPassant=false, castle=false; };
 constexpr int MAX_PLY = 128;
 constexpr int MAX_QPLY = 18;
+constexpr std::size_t CONTINUATION_HISTORY_SIZE = 6U * 64U * 6U * 64U;
 constexpr std::size_t MAX_LEGAL_MOVES = 256;
 
 constexpr std::size_t NNUE_MAX_HIDDEN = 512;
@@ -892,6 +893,7 @@ std::array<int, MAX_PLY> searchPathPieceTypes{};
 std::array<std::array<Move, 128>, 7> counterMoves{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
+std::array<int, CONTINUATION_HISTORY_SIZE> continuationHistory{};
 std::uint64_t nodes=0;
 int lastSearchScore=0;
 int completedSearchDepth=0;
@@ -974,6 +976,7 @@ void resetSearchState() {
     searchPathPieceTypes.fill(0);
     counterMoves={};
     historyScores={};
+    continuationHistory.fill(0);
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
     lastSearchScore=0;
@@ -1191,6 +1194,50 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
     return gains[0];
 }
 
+std::size_t continuationHistoryIndex(
+    int previousPieceType,int previousTo,int currentPieceType,int currentTo
+) {
+    if(previousPieceType<1||previousPieceType>6
+       ||currentPieceType<1||currentPieceType>6
+       ||!onBoard(previousTo)||!onBoard(currentTo)) return CONTINUATION_HISTORY_SIZE;
+    const std::size_t previousSquare=static_cast<std::size_t>(square64From88(previousTo));
+    const std::size_t currentSquare=static_cast<std::size_t>(square64From88(currentTo));
+    return (((static_cast<std::size_t>(previousPieceType-1)*64+previousSquare)*6
+        +static_cast<std::size_t>(currentPieceType-1))*64)+currentSquare;
+}
+
+int continuationHistoryValue(
+    int previousPieceType,int previousTo,int currentPieceType,int currentTo
+) {
+    const std::size_t index=continuationHistoryIndex(
+        previousPieceType,previousTo,currentPieceType,currentTo
+    );
+    return index<CONTINUATION_HISTORY_SIZE?continuationHistory[index]:0;
+}
+
+void updateContinuationHistory(
+    int previousPieceType,int previousTo,int currentPieceType,int currentTo,int bonus
+) {
+    const std::size_t index=continuationHistoryIndex(
+        previousPieceType,previousTo,currentPieceType,currentTo
+    );
+    if(index>=CONTINUATION_HISTORY_SIZE) return;
+    int& value=continuationHistory[index];
+    const long long updated=static_cast<long long>(value)+bonus;
+    value=static_cast<int>(std::clamp(updated,-30000LL,30000LL));
+}
+
+int continuationHistoryScore(const Position& position,const Move& move,int ply) {
+    if(ply<=0||ply>=MAX_PLY) return 0;
+    const Move& previous=searchPathMoves[ply-1];
+    const int previousType=searchPathPieceTypes[ply-1];
+    if(previousType<1||previousType>6||previous.to<0
+       ||position.board[move.from]==EMPTY) return 0;
+    return continuationHistoryValue(
+        previousType,previous.to,typeOf(position.board[move.from]),move.to
+    );
+}
+
 int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply,
                       int* exchangeOut=nullptr) {
     if(exchangeOut) *exchangeOut=0;
@@ -1215,7 +1262,8 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
         if(previousType>=1&&previousType<=6&&previous.to>=0&&
            sameMove(m,counterMoves[previousType][previous.to])) return 780000;
     }
-    return score+historyScores[p.side][m.from][m.to];
+    return score+historyScores[p.side][m.from][m.to]
+        +continuationHistoryScore(p,m,ply)/2;
 }
 
 // Staged move selection: hash move, profitable captures/promotions,
@@ -1859,11 +1907,19 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(quiet&&ply<MAX_PLY) {
                 const int historyBonus=std::min(2048,depth*depth*16);
                 const int historyMalus=std::min(1024,depth*depth*8);
+                const Move& precedingMove=ply>0?searchPathMoves[ply-1]:Move{};
+                const int precedingType=ply>0?searchPathPieceTypes[ply-1]:0;
                 for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
                     const Move& rejected=nodeScratch.searched[previous];
                     if(isCapture(p,rejected)||rejected.promotion) continue;
                     int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
                     rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
+                    if(precedingType>=1&&precedingType<=6&&precedingMove.to>=0) {
+                        updateContinuationHistory(
+                            precedingType,precedingMove.to,
+                            typeOf(p.board[rejected.from]),rejected.to,-historyMalus
+                        );
+                    }
                 }
                 if(!sameMove(m,killerMoves[ply][0])) {
                     killerMoves[ply][1]=killerMoves[ply][0];
@@ -1871,6 +1927,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 }
                 int& quietHistory=historyScores[movingColor][m.from][m.to];
                 quietHistory=std::min(30000,quietHistory+historyBonus);
+                if(precedingType>=1&&precedingType<=6&&precedingMove.to>=0) {
+                    updateContinuationHistory(
+                        precedingType,precedingMove.to,movingPieceType,m.to,historyBonus
+                    );
+                }
 
                 if(ply>0&&ply<MAX_PLY) {
                     const int previousType=searchPathPieceTypes[ply-1];
@@ -1904,6 +1965,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     if(ttGeneration==0) ++ttGeneration;
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     for(auto& side:historyScores) for(auto& from:side) for(int& value:from) value/=2;
+    for(int& value:continuationHistory) value/=2;
     nodes=0;
     ttHits=0;
     searchPathKeys.fill(0);
