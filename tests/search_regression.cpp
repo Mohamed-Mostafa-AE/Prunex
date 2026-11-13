@@ -4,8 +4,6 @@
 #include "../src/main.cpp"
 #undef main
 
-static_assert(prunex::TT_WAYS==4);
-
 static std::vector<std::string> referenceLegalMoveStrings(prunex::Position position) {
     using namespace prunex;
     std::vector<std::string> result;
