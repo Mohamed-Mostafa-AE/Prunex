@@ -166,7 +166,8 @@ static int referenceStaticExchangeEvaluation(
 
 static bool exchangeEvaluationsAgree(const prunex::Position& position) {
     using namespace prunex;
-    for(const Move& move:legalMoves(position)) {
+    Position workingPosition=position;
+    for(const Move& move:legalMoves(workingPosition)) {
         if(!isCapture(position,move)) continue;
         const int actual=staticExchangeEvaluation(position,move);
         const int expected=referenceStaticExchangeEvaluation(position,move);
