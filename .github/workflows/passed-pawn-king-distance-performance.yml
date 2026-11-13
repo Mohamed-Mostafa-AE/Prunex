@@ -1,0 +1,59 @@
+name: Prunex passed-pawn king-race performance
+
+on:
+  push:
+    branches: ['engine/passed-pawn-king-distance-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/benchmark/compare_internal_bench.py'
+      - '.github/workflows/passed-pawn-king-distance-performance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-passed-pawn-king-distance-performance
+  cancel-in-progress: false
+
+jobs:
+  fixed-suite-comparison:
+    name: Compare passer king-race evaluation cost
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      BASELINE_SHA: c19df7176896a32756377309de84af071f8111bd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+      - name: Build baseline and candidate
+        run: |
+          git worktree add --detach ../prunex-passer-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-passer-baseline -B ../prunex-passer-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-passer-baseline/build --target prunex --parallel 2
+          cmake -S . -B build-passer -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-passer --target prunex --parallel 2
+      - name: Run repeated fixed-position and equal-node comparisons
+        run: |
+          python3 tools/benchmark/compare_internal_bench.py \
+            --baseline ../prunex-passer-baseline/build/prunex \
+            --candidate build-passer/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --depth 6 --runs 5 --node-budget 200000 \
+            --output passed-pawn-king-distance-performance.json
+      - name: Upload benchmark evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-passed-pawn-king-distance-performance-${{ github.run_number }}
+          path: passed-pawn-king-distance-performance.json
+          if-no-files-found: error
+          retention-days: 90

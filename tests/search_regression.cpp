@@ -556,6 +556,18 @@ int main() {
     int separatedPawns=evaluate(position);
     if(connectedPawns<=separatedPawns) return 21;
 
+    if(!loadFen(position,"k7/8/8/4P3/4K3/8/8/8 w - - 0 1")) return 153;
+    const int supportedPasser=evaluate(position);
+    if(!loadFen(position,"k7/8/8/4P3/8/8/8/4K3 w - - 0 1")) return 154;
+    const int unsupportedPasser=evaluate(position);
+    if(supportedPasser<=unsupportedPasser+20) return 155;
+
+    if(!loadFen(position,"k7/8/8/4P3/8/8/8/4K3 w - - 0 1")) return 156;
+    const int distantEnemyKing=evaluate(position);
+    if(!loadFen(position,"8/8/4k3/4P3/8/8/8/4K3 w - - 0 1")) return 157;
+    const int blockingEnemyKing=evaluate(position);
+    if(distantEnemyKing<=blockingEnemyKing+20) return 158;
+
     if(!loadFen(position,"r6k/8/8/8/8/8/3PPP2/4K3 w - - 0 1")) return 22;
     int shelteredKing=evaluate(position);
     if(!loadFen(position,"r6k/8/8/8/8/8/PPP5/4K3 w - - 0 1")) return 23;

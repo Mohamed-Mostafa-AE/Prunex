@@ -1318,6 +1318,14 @@ void orderMoves(const Position& p,MoveList& moves,const Move& hashMove,int ply) 
     }
 }
 
+int kingDistance(int first,int second) {
+    if(!onBoard(first)||!onBoard(second)) return 7;
+    return std::max(
+        std::abs(fileOf(first)-fileOf(second)),
+        std::abs(rankOf(first)-rankOf(second))
+    );
+}
+
 bool isPassedPawn(const Position& p,int square,int color) {
     if(!onBoard(square)||p.board[square]!=makePiece(1,color)) return false;
     const int file=fileOf(square);
@@ -1515,6 +1523,12 @@ int evaluate(Position& p) {
                 constexpr std::array<int,8> bonus{0,5,10,18,30,48,78,0};
                 middle[color]+=bonus[relativeRank];
                 ending[color]+=bonus[relativeRank]*2;
+
+                const int ownKing=kingSquare(p,color);
+                const int enemyKing=kingSquare(p,1-color);
+                const int kingRace=kingDistance(enemyKing,square)
+                    -kingDistance(ownKing,square);
+                ending[color]+=kingRace*(relativeRank+1)*2;
             }
 
             // Reward connected pawn chains without counting a pair twice.
