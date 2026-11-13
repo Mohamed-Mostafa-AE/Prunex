@@ -507,10 +507,20 @@ int main() {
     shallowEntry.bound=TT_LOWER;
     shallowEntry.generation=ttGeneration;
 
-    const std::uint64_t thirdKey=clusterBaseKey+2*ttBucketCount;
-    TTEntry& replacement=probeTranspositionTable(thirdKey,tableHit);
+    for(std::size_t way=2;way<TT_WAYS;++way) {
+        const std::uint64_t key=clusterBaseKey+way*ttBucketCount;
+        TTEntry& entry=probeTranspositionTable(key,tableHit);
+        if(tableHit||&entry==&deepEntry||&entry==&shallowEntry) return 77;
+        entry.key=key;
+        entry.depth=8+static_cast<int>(way);
+        entry.bound=TT_LOWER;
+        entry.generation=ttGeneration;
+    }
+
+    const std::uint64_t replacementKey=clusterBaseKey+TT_WAYS*ttBucketCount;
+    TTEntry& replacement=probeTranspositionTable(replacementKey,tableHit);
     if(tableHit||replacement.key!=shallowKey) return 77;
-    replacement.key=thirdKey;
+    replacement.key=replacementKey;
     replacement.depth=5;
     replacement.bound=TT_UPPER;
     replacement.generation=ttGeneration;
