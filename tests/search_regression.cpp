@@ -228,7 +228,7 @@ static bool movePickerExchangeScoresAgree(const prunex::Position& position) {
         if(picker.exchangeScore()!=expected) {
             std::cerr<<"cached SEE mismatch for "<<moveUci(move)
                 <<": cached "<<picker.exchangeScore()
-                <<", expected "<<expected<<'\\n';
+                <<", expected "<<expected<<'\n';
             return false;
         }
     }
