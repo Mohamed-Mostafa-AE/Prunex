@@ -1820,7 +1820,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             pvNode,checked,givesCheck,quiet,depth,moveIndex,priorMoveHistory
         )||(safeForForwardPruning&&shouldPruneFutilityQuiet(
             pvNode,checked,givesCheck,quiet,depth,moveIndex,
-            history,staticEval,alpha
+            priorMoveHistory,staticEval,alpha
         ))) {
             undoMove(p,m,undo);
             continue;
