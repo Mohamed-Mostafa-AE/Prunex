@@ -163,6 +163,7 @@ def test_fast_halfkp_extractor_matches_reference() -> None:
         "8/8/8/8/8/8/8/4K2k x - - 0 1",
         "8/8/8/8/8/8/8/4K3 w - - 0 1",
         "8/8/8/8/8/8/8/4K1kk w - - 0 1",
+        "4k3/44/8/8/8/8/8/4K3 w - - 0 1",
         "8/8/8/8/8/8/8/4K3/8 w - - 0 1",
     )
     for fen in malformed:
