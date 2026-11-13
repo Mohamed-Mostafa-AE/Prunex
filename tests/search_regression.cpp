@@ -417,11 +417,30 @@ static bool continuationHistoryIsBounded() {
         &&continuationHistoryScore(1,3,128)==0;
 }
 
+static bool captureHistoryIsBounded() {
+    using namespace prunex;
+    clearCaptureHistoryScores();
+    Position position;
+    if(!loadFen(position,"4k3/8/8/3p4/8/8/3R4/4K3 w - - 0 1")) return false;
+    Move capture;
+    if(!parseUciMove(position,"d2d5",capture)) return false;
+    if(captureHistoryScore(position,capture)!=0) return false;
+    updateCaptureHistory(position,capture,2048);
+    if(captureHistoryScore(position,capture)!=2048) return false;
+    updateCaptureHistory(position,capture,40000);
+    if(captureHistoryScore(position,capture)!=30000) return false;
+    updateCaptureHistory(position,capture,-60000);
+    if(captureHistoryScore(position,capture)!=-30000) return false;
+    Move invalid{};
+    return captureHistoryScore(position,invalid)==0;
+}
+
 int main() {
     using namespace prunex;
     Position position;
 
     if(!continuationHistoryIsBounded()) return 153;
+    if(!captureHistoryIsBounded()) return 154;
 
     if(!positionCommandsAreTransactional()) return 126;
     if(!moveCountersSaturateAndUndo()) return 127;
