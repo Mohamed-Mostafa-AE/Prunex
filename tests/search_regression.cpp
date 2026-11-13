@@ -194,7 +194,17 @@ static bool movePickerExchangeScoresAgree(prunex::Position position) {
             ?staticExchangeEvaluation(position,move):0;
         if(picker.lastExchange()!=expected) return false;
     }
-    return returned==moves.size();
+    if(returned!=moves.size()) return false;
+
+    for(const Move& hashMove:moves) {
+        if(!isCapture(position,hashMove)) continue;
+        MovePicker hashPicker(position,moves,hashMove,0);
+        if(!sameMove(hashPicker.next(),hashMove)) return false;
+        if(hashPicker.lastExchange()!=staticExchangeEvaluation(position,hashMove))
+            return false;
+        break;
+    }
+    return true;
 }
 
 static bool enPassantHashingMatchesLegalMoves() {
