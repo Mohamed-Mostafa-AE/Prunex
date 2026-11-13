@@ -838,5 +838,14 @@ int main() {
     if(shouldPruneLosingCapture(false,false,false,true,true,3,2,-400)) return 148;
     if(shouldPruneLosingCapture(false,false,false,true,false,6,2,-1000)) return 149;
 
+    if(!shouldTryProbCut(false,false,true,5,200,0)) return 156;
+    if(shouldTryProbCut(true,false,true,5,200,0)) return 157;
+    if(shouldTryProbCut(false,true,true,5,200,0)) return 158;
+    if(shouldTryProbCut(false,false,false,5,200,0)) return 159;
+    if(shouldTryProbCut(false,false,true,4,200,0)) return 160;
+    if(shouldTryProbCut(false,false,true,5,MATE-199,INF)) return 161;
+    if(shouldTryProbCut(false,false,true,5,-MATE+199,INF)) return 162;
+    if(probCutMargin(5)!=160||probCutMargin(10)!=200) return 163;
+
     return 0;
 }
