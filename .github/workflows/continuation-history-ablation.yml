@@ -58,7 +58,7 @@ jobs:
         run: |
           cmake -S . -B build-ablation -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
-          cmake --build build-ablation --target prunex --parallel 2
+          cmake --build build-ablation --parallel 2
 
       - name: Run native regression suite
         run: |
