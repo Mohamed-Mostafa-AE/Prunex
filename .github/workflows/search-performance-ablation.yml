@@ -1,0 +1,64 @@
+name: Prunex exchange-evaluation performance comparison
+
+on:
+  push:
+    branches: ['engine/see-lightweight-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/benchmark/compare_internal_bench.py'
+      - '.github/workflows/search-performance-ablation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-see-performance
+  cancel-in-progress: false
+
+jobs:
+  fixed-suite-comparison:
+    name: Compare exchange evaluator cost
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      BASELINE_SHA: 0475a6f2b35743b175e4d44feb975764f37ff35d
+    steps:
+      - name: Check out the candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+
+      - name: Build the baseline and candidate
+        run: |
+          git worktree add --detach ../prunex-see-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-see-baseline -B ../prunex-see-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-see-baseline/build --target prunex --parallel 2
+          cmake -S . -B build-see -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-see --target prunex --parallel 2
+
+      - name: Run repeated fixed-position and equal-node comparisons
+        run: |
+          python3 tools/benchmark/compare_internal_bench.py \
+            --baseline ../prunex-see-baseline/build/prunex \
+            --candidate build-see/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --depth 6 --runs 5 --node-budget 200000 \
+            --output search-performance-results.json
+
+      - name: Upload benchmark evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-see-performance-${{ github.run_number }}
+          path: search-performance-results.json
+          if-no-files-found: error
+          retention-days: 90
