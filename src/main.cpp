@@ -890,7 +890,7 @@ struct TTEntry {
     std::uint64_t key=0;
     std::uint32_t bestMove=TT_NO_MOVE;
     std::int32_t score=0;
-    std::int16_t depth=-1;
+    std::int32_t depth=-1;
     std::uint8_t bound=TT_NONE;
     std::uint8_t generation=0;
 };
