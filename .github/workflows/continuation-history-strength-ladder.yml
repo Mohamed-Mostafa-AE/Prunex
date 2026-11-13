@@ -7,7 +7,7 @@ on:
       - 'src/**'
       - 'tests/**'
       - 'tools/strength-match/modern_strength_ladder.py'
-      - '.github/workflows/modern-strength-ladder.yml'
+      - '.github/workflows/continuation-history-strength-ladder.yml'
   workflow_dispatch:
     inputs:
       pairs:
