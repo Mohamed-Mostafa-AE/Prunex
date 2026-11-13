@@ -866,16 +866,46 @@ constexpr std::array<int, 7> EG_VALUE{0, 120, 315, 350, 525, 930, 0};
 
 enum Bound : std::uint8_t { TT_NONE, TT_EXACT, TT_LOWER, TT_UPPER };
 
+constexpr std::uint16_t TT_NO_MOVE=0xFFFFU;
+
 struct TTEntry {
     std::uint64_t key=0;
-    Move best{};
-    int score=0;
-    int depth=-1;
+    std::uint16_t bestMove=TT_NO_MOVE;
+    std::int16_t score=0;
+    std::int8_t depth=-1;
     std::uint8_t bound=TT_NONE;
     std::uint8_t generation=0;
 };
+static_assert(sizeof(TTEntry)==16);
 
+std::uint16_t packTranspositionMove(const Move& move) noexcept {
+    if(!onBoard(move.from)||!onBoard(move.to)) return TT_NO_MOVE;
+    const auto from=static_cast<std::uint16_t>(square64From88(move.from));
+    const auto to=static_cast<std::uint16_t>(square64From88(move.to));
+    const auto promotion=static_cast<std::uint16_t>(
+        move.promotion==EMPTY?0:typeOf(move.promotion)
+    );
+    return static_cast<std::uint16_t>(from|(to<<6U)|(promotion<<12U));
+}
 
+Move unpackTranspositionMove(
+    const Position& position,std::uint16_t packed
+) noexcept {
+    if(packed==TT_NO_MOVE) return Move{};
+
+    const int from64=packed&0x3FU;
+    const int to64=(packed>>6U)&0x3FU;
+    const int promotionType=(packed>>12U)&0x07U;
+    const int from=square88From64(from64);
+    const int to=square88From64(to64);
+    const int movingPiece=position.board[from];
+    const int promotion=promotionType==0
+        ?EMPTY:makePiece(promotionType,position.side);
+    const bool enPassant=typeOf(movingPiece)==1&&to==position.ep;
+    const bool castle=typeOf(movingPiece)==6
+        &&(to-from==2||from-to==2);
+    return Move{from,to,promotion,enPassant,castle};
+}
 
 using TTCluster = std::array<TTEntry, TT_WAYS>;
 constexpr std::size_t MEBIBYTE=1024U*1024U;
@@ -1737,7 +1767,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     Move hashMove{};
     if(ttFound) {
         ++ttHits;
-        hashMove=entry.best;
+        hashMove=unpackTranspositionMove(p,entry.bestMove);
         if(entry.depth>=depth) {
             int ttScore=scoreFromTable(entry.score,ply);
             if(entry.bound==TT_EXACT) return ttScore;
@@ -1886,9 +1916,9 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
     if(!ttFound||entry.key!=key||entry.generation!=ttGeneration||depth>=entry.depth) {
         entry.key=key;
-        entry.best=bestMove;
-        entry.score=scoreToTable(bestScore,ply);
-        entry.depth=depth;
+        entry.bestMove=packTranspositionMove(bestMove);
+        entry.score=static_cast<std::int16_t>(std::clamp(scoreToTable(bestScore,ply),-32768,32767));
+        entry.depth=static_cast<std::int8_t>(std::clamp(depth,-128,127));
         entry.bound=bound;
         entry.generation=ttGeneration;
     }
@@ -1936,7 +1966,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
             if(searchAborted.load(std::memory_order_relaxed)) break;
             bool rootFound=false;
             TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
-            if(rootFound&&rootEntry.best.from>=0) best=rootEntry.best;
+            if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
             if(score<=alpha&&alpha>-INF) {
                 window=std::min(INF,window*2);
                 alpha=window==INF?-INF:std::max(-INF,previousScore-window);
