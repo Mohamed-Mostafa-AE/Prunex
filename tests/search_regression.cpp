@@ -399,7 +399,7 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
 
 static bool continuationHistoryIsBounded() {
     using namespace prunex;
-    continuationHistoryScores={};
+    clearContinuationHistoryScores();
     searchPathPieceTypes.fill(0);
     searchPathMoves.fill(Move{});
     searchPathPieceTypes[0]=2;
