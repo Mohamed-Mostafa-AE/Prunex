@@ -81,15 +81,23 @@ try {
   }
   [PrunexSmokeInput]::Click($window, 376, 588)
   [PrunexSmokeInput]::Click($window, 376, 436)
-  Start-Sleep -Milliseconds 20
-  $process.Refresh()
-  $searchTitle = $process.MainWindowTitle
+  $searchDeadline = (Get-Date).AddSeconds(5)
+  $searchTitle = ""
+  do {
+    $process.Refresh()
+    $searchTitle = $process.MainWindowTitle
+    if ($searchTitle -match "Prunex is thinking|White to move \| 2 plies") {
+      break
+    }
+    Start-Sleep -Milliseconds 20
+  } while ((Get-Date) -lt $searchDeadline)
+
   if ($searchTitle -match "Prunex is thinking") {
     Write-Host "Deep search entered the thinking state: $searchTitle"
   } elseif ($searchTitle -match "White to move \| 2 plies") {
     Write-Host "Search completed before the polling window; checking stale-result handling."
   } else {
-    throw "Unexpected GUI state before New Game: '$searchTitle'."
+    throw "Search did not start or complete as expected. Last title: '$searchTitle'."
   }
 
   [PrunexSmokeInput]::Click($window, 789, 425)
