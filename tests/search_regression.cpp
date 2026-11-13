@@ -48,6 +48,42 @@ static bool legalMoveSetsAgree(prunex::Position position) {
     return actual==referenceLegalMoveStrings(position)&&bitboardsConsistent(position);
 }
 
+static bool referenceIsInsufficientMaterial(const prunex::Position& p) {
+    using namespace prunex;
+    int minorCount=0;
+    int bishopColor=-1;
+    bool bishopsOnly=true;
+    for(int square=0;square<128;++square) {
+        if(!onBoard(square)) continue;
+        const int piece=p.board[square];
+        if(piece==EMPTY||typeOf(piece)==6) continue;
+        const int type=typeOf(piece);
+        if(type==1||type==4||type==5) return false;
+        if(type==2) {
+            ++minorCount;
+            bishopsOnly=false;
+        } else if(type==3) {
+            ++minorCount;
+            const int squareColor=(fileOf(square)+rankOf(square))&1;
+            if(bishopColor<0) bishopColor=squareColor;
+            else if(bishopColor!=squareColor) bishopsOnly=false;
+        }
+    }
+    return minorCount<=1||(bishopsOnly&&bishopColor>=0);
+}
+
+static bool insufficientMaterialMatchesReference(const prunex::Position& p) {
+    const bool actual=prunex::isInsufficientMaterial(p);
+    const bool expected=referenceIsInsufficientMaterial(p);
+    if(actual!=expected) {
+        std::cerr<<"insufficient-material mismatch: actual "<<actual
+            <<" reference "<<expected<<'\\n';
+        return false;
+    }
+    return true;
+}
+
+
 static bool attackedMailboxReference(const prunex::Position& p,int target,int by) {
  using namespace prunex;
  constexpr int nd[8]={-33,-31,-18,-14,14,18,31,33};
@@ -405,6 +441,25 @@ int main() {
     if(!moveCountersSaturateAndUndo()) return 127;
     if(!enPassantHashingMatchesLegalMoves()) return 125;
 
+    struct MaterialFixture { const char* fen; bool insufficient; };
+    const std::array<MaterialFixture,10> materialFixtures{{
+        {"7k/8/8/8/8/8/8/K7 w - - 0 1",true},
+        {"7k/8/8/8/8/8/8/KB6 w - - 0 1",true},
+        {"7k/8/8/8/8/8/8/KN6 w - - 0 1",true},
+        {"7k/8/8/8/8/2B5/8/K1B5 w - - 0 1",true},
+        {"7k/8/8/8/3b4/8/8/K1B5 w - - 0 1",true},
+        {"7k/8/8/8/4b3/8/8/K1B5 w - - 0 1",false},
+        {"7k/5n2/8/8/8/8/8/1N2K3 w - - 0 1",false},
+        {"7k/5n2/8/8/8/8/2B5/4K3 w - - 0 1",false},
+        {"7k/8/8/8/8/8/P7/K7 w - - 0 1",false},
+        {"7k/8/8/8/8/8/8/KR6 w - - 0 1",false}
+    }};
+    for(const auto& fixture:materialFixtures) {
+        if(!loadFen(position,fixture.fen)
+            ||isInsufficientMaterial(position)!=fixture.insufficient
+            ||!insufficientMaterialMatchesReference(position)) return 152;
+    }
+
     if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 0 1")) return 1;
     nodes=0;
     int mate=quiescence(position,-INF,INF,0,7);
@@ -760,6 +815,7 @@ int main() {
     for(int ply=0;ply<160;++ply) {
         if(!legalMoveSetsAgree(position)) return 94;
         if(!exchangeEvaluationsAgree(position)) return 151;
+        if(!insufficientMaterialMatchesReference(position)) return 153;
         const auto allLegal=legalMoves(position,0);
         const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
         const auto tactical=legalMoves(position,0,true);
