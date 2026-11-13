@@ -412,9 +412,13 @@ static bool continuationHistoryIsBounded() {
     if(continuationHistoryScore(1,3,35)!=30000) return false;
     updateContinuationHistory(1,3,35,-60000);
     if(continuationHistoryScore(1,3,35)!=-30000) return false;
-    return continuationHistoryScore(0,3,35)==0
+    const bool valid=continuationHistoryScore(0,3,35)==0
         &&continuationHistoryScore(1,0,35)==0
         &&continuationHistoryScore(1,3,128)==0;
+    clearContinuationHistoryScores();
+    searchPathPieceTypes.fill(0);
+    searchPathMoves.fill(Move{});
+    return valid;
 }
 
 static bool captureHistoryIsBounded() {
@@ -432,7 +436,9 @@ static bool captureHistoryIsBounded() {
     updateCaptureHistory(position,capture,-60000);
     if(captureHistoryScore(position,capture)!=-30000) return false;
     Move invalid{};
-    return captureHistoryScore(position,invalid)==0;
+    const bool valid=captureHistoryScore(position,invalid)==0;
+    clearCaptureHistoryScores();
+    return valid;
 }
 
 int main() {
