@@ -889,6 +889,8 @@ int configuredHashMB=DEFAULT_HASH_MB;
 std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
 std::array<Move, MAX_PLY> searchPathMoves{};
 std::array<int, MAX_PLY> searchPathPieceTypes{};
+std::array<int, MAX_PLY> searchPathStaticEvaluations{};
+std::array<bool, MAX_PLY> searchPathStaticEvalValid{};
 std::array<std::array<Move, 128>, 7> counterMoves{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
@@ -1776,10 +1778,23 @@ bool shouldPruneLosingCapture(
     return exchange < -80*depth;
 }
 
+int lateMoveReduction(int depth,int moveNumber,bool pvNode,bool improving,int history) {
+    if(depth<3||moveNumber<3) return 0;
+    const double raw=0.75+std::log(static_cast<double>(depth))
+        *std::log(static_cast<double>(moveNumber))/2.25;
+    int reduction=static_cast<int>(raw);
+    if(pvNode) --reduction;
+    if(improving) --reduction;
+    if(history>7000) --reduction;
+    else if(history<-7000) ++reduction;
+    return std::clamp(reduction,0,std::max(0,depth-2));
+}
+
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
     bool checked=inCheck(p,p.side);
+    searchPathStaticEvalValid[ply]=false;
     if(checked) ++depth;
     const std::uint64_t key=positionKey(p);
     searchPathKeys[ply]=key;
@@ -1811,8 +1826,13 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     const bool safeForForwardPruning=!pvNode&&!checked
         &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
     int staticEval=0;
+    bool improving=false;
     if(safeForForwardPruning&&depth<=6) {
         staticEval=evaluate(p);
+        if(ply>=2&&searchPathStaticEvalValid[ply-2])
+            improving=staticEval>searchPathStaticEvaluations[ply-2];
+        searchPathStaticEvaluations[ply]=staticEval;
+        searchPathStaticEvalValid[ply]=true;
 
         // Keep a wide margin at shallow nodes. The legal-move check preserves
         // exact stalemate handling when this shortcut would otherwise fire.
@@ -1898,15 +1918,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode);
         } else {
             int reduction=0;
-            if(!checked&&!givesCheck&&quiet&&depth>=3&&moveNumber>=3) {
-                reduction=1;
-                if(depth>=5&&moveNumber>=6) ++reduction;
-                if(depth>=8&&moveNumber>=12) ++reduction;
-                if(pvNode) --reduction;
+            if(!checked&&!givesCheck&&quiet) {
                 const int lmrHistory=priorMoveHistory+priorContinuationHistory;
-                if(lmrHistory>7000) --reduction;
-                else if(lmrHistory<-7000) ++reduction;
-                reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
+                reduction=lateMoveReduction(
+                    depth,moveNumber,pvNode,improving,lmrHistory);
+                reduction=std::min(reduction,std::max(0,childDepth-1));
             }
             score=-negamax(p,childDepth-reduction,-alpha-1,-alpha,ply+1,false);
             if(score>alpha&&reduction>0) score=-negamax(p,childDepth,-alpha-1,-alpha,ply+1,false);
@@ -1995,6 +2011,8 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     searchPathKeys.fill(0);
     searchPathMoves.fill(Move{});
     searchPathPieceTypes.fill(0);
+    searchPathStaticEvaluations.fill(0);
+    searchPathStaticEvalValid.fill(false);
     completedSearchDepth=0;
     lastSearchScore=evaluate(p);
     Move best=moves.front();
