@@ -78,6 +78,107 @@ static bool attackMapsAgree(const prunex::Position& p) {
  return true;
 }
 
+static int referenceLeastValuableAttacker(
+    const prunex::Position& position,int target,int color
+) {
+    using namespace prunex;
+    if(!onBoard(target)) return -1;
+    const int target64=square64From88(target);
+    const std::uint64_t occupied=position.occupancy[WHITE]
+        |position.occupancy[BLACK];
+    for(int type=1;type<=6;++type) {
+        std::uint64_t attackers=0;
+        if(type==1)
+            attackers=PAWN_ATTACKS[1-color][target64]&position.piecesBB[color][1];
+        else if(type==2)
+            attackers=KNIGHT_ATTACKS[target64]&position.piecesBB[color][2];
+        else if(type==3)
+            attackers=bishopAttacks(target64,occupied)&position.piecesBB[color][3];
+        else if(type==4)
+            attackers=rookAttacks(target64,occupied)&position.piecesBB[color][4];
+        else if(type==5) {
+            attackers=(bishopAttacks(target64,occupied)
+                |rookAttacks(target64,occupied))&position.piecesBB[color][5];
+        } else {
+            attackers=KING_ATTACKS[target64]&position.piecesBB[color][6];
+        }
+        if(attackers)
+            return square88From64(static_cast<int>(std::countr_zero(attackers)));
+    }
+    return -1;
+}
+
+static int referenceStaticExchangeEvaluation(
+    const prunex::Position& original,const prunex::Move& move
+) {
+    using namespace prunex;
+    if(!isCapture(original,move)) return 0;
+    Position position=original;
+    const int target=move.to;
+    const int capturedSquare=move.enPassant
+        ?target+(original.side==WHITE?-16:16):target;
+    const int captured=position.board[capturedSquare];
+    const int moving=position.board[move.from];
+    if(captured==EMPTY||moving==EMPTY) return 0;
+
+    std::array<int,32> gains{};
+    int occupant=move.promotion?move.promotion:moving;
+    gains[0]=MG_VALUE[typeOf(captured)];
+    if(move.promotion)
+        gains[0]+=MG_VALUE[typeOf(move.promotion)]-MG_VALUE[1];
+
+    removePositionPiece(position,move.from);
+    removePositionPiece(position,capturedSquare);
+    removePositionPiece(position,target);
+    putPositionPiece(position,target,occupant);
+    int side=1-original.side;
+    int depth=0;
+    while(depth<30) {
+        const int attackerSquare=referenceLeastValuableAttacker(position,target,side);
+        if(attackerSquare<0) break;
+        int attacker=position.board[attackerSquare];
+        if(typeOf(attacker)==6) {
+            Position kingCapture=position;
+            removePositionPiece(kingCapture,attackerSquare);
+            removePositionPiece(kingCapture,target);
+            putPositionPiece(kingCapture,target,attacker);
+            if(attacked(kingCapture,target,1-side)) break;
+        }
+        ++depth;
+        int promotionGain=0;
+        if(typeOf(attacker)==1&&rankOf(target)==(side==WHITE?7:0)) {
+            promotionGain=MG_VALUE[5]-MG_VALUE[1];
+            attacker=makePiece(5,side);
+        }
+        gains[depth]=MG_VALUE[typeOf(occupant)]+promotionGain-gains[depth-1];
+        removePositionPiece(position,attackerSquare);
+        removePositionPiece(position,target);
+        putPositionPiece(position,target,attacker);
+        occupant=attacker;
+        side=1-side;
+    }
+    while(depth>0) {
+        gains[depth-1]=-std::max(-gains[depth-1],gains[depth]);
+        --depth;
+    }
+    return gains[0];
+}
+
+static bool exchangeEvaluationsAgree(const prunex::Position& position) {
+    using namespace prunex;
+    for(const Move& move:legalMoves(position)) {
+        if(!isCapture(position,move)) continue;
+        const int actual=staticExchangeEvaluation(position,move);
+        const int expected=referenceStaticExchangeEvaluation(position,move);
+        if(actual!=expected) {
+            std::cerr<<"SEE mismatch for "<<moveUci(move)
+                <<": actual "<<actual<<", reference "<<expected<<'\n';
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool enPassantHashingMatchesLegalMoves() {
     using namespace prunex;
     Position noAdjacentPawn;
@@ -625,6 +726,7 @@ int main() {
     }};
     for(const char* fen:legalityFens) {
         if(!loadFen(position,fen)||!legalMoveSetsAgree(position)) return 92;
+        if(!exchangeEvaluationsAgree(position)) return 150;
 
         const auto allLegal=legalMoves(position,0);
         const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
@@ -656,6 +758,7 @@ int main() {
     std::mt19937 randomMoves(0x5052554EU);
     for(int ply=0;ply<160;++ply) {
         if(!legalMoveSetsAgree(position)) return 94;
+        if(!exchangeEvaluationsAgree(position)) return 151;
         const auto allLegal=legalMoves(position,0);
         const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
         const auto tactical=legalMoves(position,0,true);
