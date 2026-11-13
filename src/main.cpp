@@ -859,7 +859,12 @@ bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move
 #endif
 constexpr int TT_BITS = PRUNEX_TT_BITS;
 constexpr std::size_t TT_SIZE = std::size_t{1} << TT_BITS;
-constexpr std::size_t TT_WAYS = 2;
+#ifndef PRUNEX_TT_WAYS
+#define PRUNEX_TT_WAYS 4
+#endif
+
+static_assert(PRUNEX_TT_WAYS==2||PRUNEX_TT_WAYS==4);
+constexpr std::size_t TT_WAYS = PRUNEX_TT_WAYS;
 constexpr std::size_t TT_BUCKETS = TT_SIZE / TT_WAYS;
 constexpr std::array<int, 7> MG_VALUE{0, 100, 325, 335, 510, 950, 0};
 constexpr std::array<int, 7> EG_VALUE{0, 120, 315, 350, 525, 930, 0};
