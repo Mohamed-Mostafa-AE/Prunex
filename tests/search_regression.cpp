@@ -412,9 +412,33 @@ static bool continuationHistoryIsBounded() {
     if(continuationHistoryScore(1,3,35)!=30000) return false;
     updateContinuationHistory(1,3,35,-60000);
     if(continuationHistoryScore(1,3,35)!=-30000) return false;
-    return continuationHistoryScore(0,3,35)==0
+    const bool valid=continuationHistoryScore(0,3,35)==0
         &&continuationHistoryScore(1,0,35)==0
         &&continuationHistoryScore(1,3,128)==0;
+    clearContinuationHistoryScores();
+    searchPathPieceTypes.fill(0);
+    searchPathMoves.fill(Move{});
+    return valid;
+}
+
+static bool captureHistoryIsBounded() {
+    using namespace prunex;
+    clearCaptureHistoryScores();
+    Position position;
+    if(!loadFen(position,"4k3/8/8/3p4/8/8/3R4/4K3 w - - 0 1")) return false;
+    Move capture;
+    if(!parseUciMove(position,"d2d5",capture)) return false;
+    if(captureHistoryScore(position,capture)!=0) return false;
+    updateCaptureHistory(position,capture,2048);
+    if(captureHistoryScore(position,capture)!=2048) return false;
+    updateCaptureHistory(position,capture,40000);
+    if(captureHistoryScore(position,capture)!=30000) return false;
+    updateCaptureHistory(position,capture,-60000);
+    if(captureHistoryScore(position,capture)!=-30000) return false;
+    Move invalid{};
+    const bool valid=captureHistoryScore(position,invalid)==0;
+    clearCaptureHistoryScores();
+    return valid;
 }
 
 int main() {
@@ -422,6 +446,7 @@ int main() {
     Position position;
 
     if(!continuationHistoryIsBounded()) return 153;
+    if(!captureHistoryIsBounded()) return 154;
 
     if(!positionCommandsAreTransactional()) return 126;
     if(!moveCountersSaturateAndUndo()) return 127;

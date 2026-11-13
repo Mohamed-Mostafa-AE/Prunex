@@ -893,6 +893,7 @@ std::array<std::array<Move, 128>, 7> counterMoves{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
 std::array<std::array<std::array<std::array<std::int16_t,128>,7>,128>,7> continuationHistoryScores{};
+std::array<std::array<std::array<std::array<std::int16_t,7>,128>,7>,2> captureHistoryScores{};
 std::uint64_t nodes=0;
 int lastSearchScore=0;
 int completedSearchDepth=0;
@@ -999,6 +1000,13 @@ void clearContinuationHistoryScores() {
                 movingPiece.fill(0);
 }
 
+void clearCaptureHistoryScores() {
+    for(auto& color:captureHistoryScores)
+        for(auto& movingPiece:color)
+            for(auto& destination:movingPiece)
+                destination.fill(0);
+}
+
 void resetSearchState() {
     clearTranspositionTable();
     searchPathKeys.fill(0);
@@ -1007,6 +1015,7 @@ void resetSearchState() {
     counterMoves={};
     historyScores={};
     clearContinuationHistoryScores();
+    clearCaptureHistoryScores();
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
     lastSearchScore=0;
@@ -1224,6 +1233,24 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
     return gains[0];
 }
 
+int captureHistoryScore(const Position& position,const Move& move) {
+    if(!onBoard(move.from)||!onBoard(move.to)||!isCapture(position,move)) return 0;
+    const int movingType=typeOf(position.board[move.from]);
+    const int capturedType=move.enPassant?1:typeOf(position.board[move.to]);
+    if(movingType<1||movingType>6||capturedType<1||capturedType>6) return 0;
+    return captureHistoryScores[position.side][movingType][move.to][capturedType];
+}
+
+void updateCaptureHistory(const Position& position,const Move& move,int bonus) {
+    if(!onBoard(move.from)||!onBoard(move.to)||!isCapture(position,move)) return;
+    const int movingType=typeOf(position.board[move.from]);
+    const int capturedType=move.enPassant?1:typeOf(position.board[move.to]);
+    if(movingType<1||movingType>6||capturedType<1||capturedType>6) return;
+    auto& value=captureHistoryScores[position.side][movingType][move.to][capturedType];
+    value=static_cast<std::int16_t>(std::clamp(
+        static_cast<int>(value)+bonus,-30000,30000));
+}
+
 int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply,
                       int* exchangeOut=nullptr) {
     if(exchangeOut) *exchangeOut=0;
@@ -1235,7 +1262,8 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
         const int exchange=staticExchangeEvaluation(p,m);
         if(exchangeOut) *exchangeOut=exchange;
         score+=1000000+(exchange>=0?200000:-200000)+exchange*16
-            +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])];
+            +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])]
+            +captureHistoryScore(p,m)/4;
         return score;
     }
     if(ply<MAX_PLY) {
@@ -1893,30 +1921,40 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
         if(score>alpha) alpha=score;
         if(alpha>=beta) {
-            if(quiet&&ply<MAX_PLY) {
+            if(ply<MAX_PLY) {
                 const int historyBonus=std::min(2048,depth*depth*16);
                 const int historyMalus=std::min(1024,depth*depth*8);
-                for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
-                    const Move& rejected=nodeScratch.searched[previous];
-                    if(isCapture(p,rejected)||rejected.promotion) continue;
-                    int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
-                    rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
-                    updateContinuationHistory(
-                        ply,typeOf(p.board[rejected.from]),rejected.to,-historyMalus);
-                }
-                if(!sameMove(m,killerMoves[ply][0])) {
-                    killerMoves[ply][1]=killerMoves[ply][0];
-                    killerMoves[ply][0]=m;
-                }
-                int& quietHistory=historyScores[movingColor][m.from][m.to];
-                quietHistory=std::min(30000,quietHistory+historyBonus);
-                updateContinuationHistory(ply,movingPieceType,m.to,historyBonus);
+                if(quiet) {
+                    for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
+                        const Move& rejected=nodeScratch.searched[previous];
+                        if(isCapture(p,rejected)||rejected.promotion) continue;
+                        int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
+                        rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
+                        updateContinuationHistory(
+                            ply,typeOf(p.board[rejected.from]),rejected.to,-historyMalus);
+                    }
 
-                if(ply>0&&ply<MAX_PLY) {
-                    const int previousType=searchPathPieceTypes[ply-1];
-                    const Move& previous=searchPathMoves[ply-1];
-                    if(previousType>=1&&previousType<=6&&previous.to>=0)
-                        counterMoves[previousType][previous.to]=m;
+                    if(!sameMove(m,killerMoves[ply][0])) {
+                        killerMoves[ply][1]=killerMoves[ply][0];
+                        killerMoves[ply][0]=m;
+                    }
+                    int& quietHistory=historyScores[movingColor][m.from][m.to];
+                    quietHistory=std::min(30000,quietHistory+historyBonus);
+                    updateContinuationHistory(ply,movingPieceType,m.to,historyBonus);
+
+                    if(ply>0&&ply<MAX_PLY) {
+                        const int previousType=searchPathPieceTypes[ply-1];
+                        const Move& previous=searchPathMoves[ply-1];
+                        if(previousType>=1&&previousType<=6&&previous.to>=0)
+                            counterMoves[previousType][previous.to]=m;
+                    }
+                } else if(capture&&!m.promotion) {
+                    for(std::size_t previous=0;previous<nodeScratch.searchedCount;++previous) {
+                        const Move& rejected=nodeScratch.searched[previous];
+                        if(isCapture(p,rejected)&&!rejected.promotion)
+                            updateCaptureHistory(p,rejected,-historyMalus);
+                    }
+                    updateCaptureHistory(p,m,historyBonus);
                 }
             }
             break;
@@ -1948,6 +1986,10 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         for(auto& previousSquare:previousPiece)
             for(auto& movingPiece:previousSquare)
                 for(auto& value:movingPiece) value=static_cast<std::int16_t>(value/2);
+    for(auto& color:captureHistoryScores)
+        for(auto& movingPiece:color)
+            for(auto& destination:movingPiece)
+                for(auto& value:destination) value=static_cast<std::int16_t>(value/2);
     nodes=0;
     ttHits=0;
     searchPathKeys.fill(0);
