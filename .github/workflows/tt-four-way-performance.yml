@@ -38,11 +38,11 @@ jobs:
         run: |
           git worktree add --detach ../prunex-tt-baseline "$BASELINE_SHA"
           cmake -S ../prunex-tt-baseline -B ../prunex-tt-baseline/build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22 \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=16 \
             -DCMAKE_CXX_FLAGS=-DPRUNEX_TT_WAYS=2
           cmake --build ../prunex-tt-baseline/build --target prunex --parallel 2
           cmake -S . -B build-tt -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=16
           cmake --build build-tt --target prunex --parallel 2
 
       - name: Run repeated fixed-position and equal-node comparisons
