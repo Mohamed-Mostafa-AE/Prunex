@@ -1583,26 +1583,23 @@ int evaluate(Position& p) {
 }
 
 bool isInsufficientMaterial(const Position& p) {
-    int minorCount=0;
-    int bishopColor=-1;
-    bool bishopsOnly=true;
-    for(int square=0;square<128;++square) {
-        if(!onBoard(square)) continue;
-        const int piece=p.board[square];
-        if(piece==EMPTY||typeOf(piece)==6) continue;
-        const int type=typeOf(piece);
-        if(type==1||type==4||type==5) return false;
-        if(type==2) {
-            ++minorCount;
-            bishopsOnly=false;
-        } else if(type==3) {
-            ++minorCount;
-            const int squareColor=(fileOf(square)+rankOf(square))&1;
-            if(bishopColor<0) bishopColor=squareColor;
-            else if(bishopColor!=squareColor) bishopsOnly=false;
-        }
-    }
-    return minorCount<=1||(bishopsOnly&&bishopColor>=0);
+    const std::uint64_t pawnsRooksQueens=
+        p.piecesBB[WHITE][1]|p.piecesBB[BLACK][1]
+        |p.piecesBB[WHITE][4]|p.piecesBB[BLACK][4]
+        |p.piecesBB[WHITE][5]|p.piecesBB[BLACK][5];
+    if(pawnsRooksQueens) return false;
+
+    const std::uint64_t knights=
+        p.piecesBB[WHITE][2]|p.piecesBB[BLACK][2];
+    const std::uint64_t bishops=
+        p.piecesBB[WHITE][3]|p.piecesBB[BLACK][3];
+    if(std::popcount(knights|bishops)<=1) return true;
+    if(knights) return false;
+
+    constexpr std::uint64_t firstSquareColor=0xAA55AA55AA55AA55ULL;
+    const std::uint64_t firstColorBishops=bishops&firstSquareColor;
+    const std::uint64_t secondColorBishops=bishops&~firstSquareColor;
+    return firstColorBishops==0||secondColorBishops==0;
 }
 
 int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
