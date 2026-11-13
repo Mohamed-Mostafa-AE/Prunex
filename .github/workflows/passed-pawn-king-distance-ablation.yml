@@ -58,7 +58,7 @@ jobs:
         run: |
           if [ -d passed-pawn-king-distance-results ]; then
             (cd passed-pawn-king-distance-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > passed-pawn-king-distance-results/SHA256SUMS.txt
-            (cd passed-pawn-king-distance-results && sha256sum --check SHA256SUMS.txt) || true
+            (cd passed-pawn-king-distance-results && sha256sum --check SHA256SUMS.txt)
           fi
       - name: Upload match evidence
         if: always()
