@@ -837,6 +837,10 @@ int main() {
     if(shouldPruneLosingCapture(false,true,false,true,false,3,2,-400)) return 147;
     if(shouldPruneLosingCapture(false,false,false,true,true,3,2,-400)) return 148;
     if(shouldPruneLosingCapture(false,false,false,true,false,6,2,-1000)) return 149;
+    if(shouldPruneLosingCapture(false,false,false,true,false,3,2,-241,3000)) return 150;
+    if(!shouldPruneLosingCapture(false,false,false,true,false,3,2,-391,3000)) return 151;
+    if(shouldPruneLosingCapture(false,false,false,true,false,3,2,-300,3000)) return 152;
+    if(!shouldPruneLosingCapture(false,false,false,true,false,3,2,-241,0)) return 153;
 
     return 0;
 }

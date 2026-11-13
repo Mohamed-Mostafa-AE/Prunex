@@ -1,0 +1,84 @@
+name: Prunex history-aware capture-pruning ablation
+
+on:
+  push:
+    branches: ['engine/capture-history-see-guard-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/strength-match/internal_selfplay.py'
+      - '.github/workflows/capture-history-see-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-capture-history-see-guard
+  cancel-in-progress: false
+
+jobs:
+  paired-ablation:
+    name: Compare history-aware SEE pruning against capture-history baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      BASELINE_SHA: 2f22662e6bcc935af0ed8a0fdf95b9cb4c84b139
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install compiler and chess test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+          python3 -m pip install --user --disable-pip-version-check python-chess==1.999
+
+      - name: Build exact parent baseline
+        run: |
+          git worktree add --detach ../prunex-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-baseline -B ../prunex-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-baseline/build --target prunex --parallel 2
+
+      - name: Build candidate and all regression targets
+        run: |
+          cmake -S . -B build-ablation -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-ablation --parallel 2
+
+      - name: Run complete native regression suite
+        run: ctest --test-dir build-ablation --output-on-failure --parallel 2
+
+      - name: Test paired-match harness
+        run: python3 tests/test_internal_selfplay.py
+
+      - name: Run independent 300-game paired-colour match
+        run: |
+          python3 tools/strength-match/internal_selfplay.py \
+            --baseline ../prunex-baseline/build/prunex \
+            --candidate build-ablation/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --pairs 100 --nodes 100000 \
+            --hash-mb 128 --threads 1 --seed 20261114 --max-plies 240 \
+            --out capture-history-see-guard-results
+
+      - name: Create and verify evidence checksums
+        if: always()
+        run: |
+          if [ -d capture-history-see-guard-results ]; then
+            (cd capture-history-see-guard-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > capture-history-see-guard-results/SHA256SUMS.txt
+            (cd capture-history-see-guard-results && sha256sum --check SHA256SUMS.txt)
+          fi
+
+      - name: Upload PGN, telemetry, summaries and checksums
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prunex-capture-history-see-guard-${{ github.run_number }}
+          path: capture-history-see-guard-results/
+          if-no-files-found: warn
+          retention-days: 90
