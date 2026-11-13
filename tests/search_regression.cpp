@@ -479,6 +479,12 @@ int main() {
     if(!hashRoundTrips(position)) return 71;
 
     if(!loadFen(position,START_FEN)) return 72;
+    Move encodedMove;
+    if(!parseUciMove(position,"e2e4",encodedMove)) return 130;
+    if(!sameMove(decodeTTMove(encodeTTMove(encodedMove)),encodedMove)) return 131;
+    Move promotionMove{parseSquare("a7"),parseSquare("a8"),WQ,false,false};
+    if(!sameMove(decodeTTMove(encodeTTMove(promotionMove)),promotionMove)) return 132;
+    if(decodeTTMove(TT_NO_MOVE).from>=0) return 133;
     if(!bitboardsConsistent(position)) return 87;
     const std::uint64_t beforeNull=position.key;
     makeNullMove(position);
