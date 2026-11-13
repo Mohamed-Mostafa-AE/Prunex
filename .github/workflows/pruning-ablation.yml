@@ -2,7 +2,7 @@ name: Prunex pruning ablation match
 
 on:
   push:
-    branches: ['engine/search-profile-2026-11-13']
+    branches: ['engine/search-profile-2026-11-13', 'engine/shallow-search-pruning-2026-11-13']
     paths:
       - 'src/**'
       - 'tools/strength-match/internal_selfplay.py'
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
-      BASELINE_SHA: fe742d1118828dd29a21c805ff44f198045d9d37
+      BASELINE_SHA: 520f69014f737ad5c9729afdec33b841ae4d7f01
     steps:
       - name: Check out the candidate commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
