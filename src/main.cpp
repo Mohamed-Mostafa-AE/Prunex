@@ -1804,7 +1804,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         ++moveIndex;
         const int movingColor=p.side;
         const int movingPieceType=typeOf(p.board[m.from]);
-        const int history=historyScores[movingColor][m.from][m.to];
+        const int priorMoveHistory=historyScores[movingColor][m.from][m.to];
         const bool capture=isCapture(p,m);
         const int exchange=capture?staticExchangeEvaluation(p,m):0;
         searchPathMoves[ply]=m;
@@ -1817,7 +1817,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             pvNode,checked,givesCheck,capture,m.promotion!=EMPTY,
             depth,moveIndex,exchange
         )||shouldPruneLateQuietMove(
-            pvNode,checked,givesCheck,quiet,depth,moveIndex,history
+            pvNode,checked,givesCheck,quiet,depth,moveIndex,priorMoveHistory
         )||(safeForForwardPruning&&shouldPruneFutilityQuiet(
             pvNode,checked,givesCheck,quiet,depth,moveIndex,
             history,staticEval,alpha
@@ -1838,9 +1838,9 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 if(depth>=5&&moveNumber>=6) ++reduction;
                 if(depth>=8&&moveNumber>=12) ++reduction;
                 if(pvNode) --reduction;
-                const int history=historyScores[movingColor][m.from][m.to];
-                if(history>5000) --reduction;
-                else if(history<-5000) ++reduction;
+                const int lmrHistory=historyScores[movingColor][m.from][m.to];
+                if(lmrHistory>5000) --reduction;
+                else if(lmrHistory<-5000) ++reduction;
                 reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
             }
             score=-negamax(p,childDepth-reduction,-alpha-1,-alpha,ply+1,false);
@@ -1869,8 +1869,8 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                     killerMoves[ply][1]=killerMoves[ply][0];
                     killerMoves[ply][0]=m;
                 }
-                int& history=historyScores[movingColor][m.from][m.to];
-                history=std::min(30000,history+historyBonus);
+                int& quietHistory=historyScores[movingColor][m.from][m.to];
+                quietHistory=std::min(30000,quietHistory+historyBonus);
 
                 if(ply>0&&ply<MAX_PLY) {
                     const int previousType=searchPathPieceTypes[ply-1];
