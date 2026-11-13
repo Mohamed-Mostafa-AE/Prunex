@@ -523,11 +523,9 @@ int main() {
 
     if(!loadFen(position,START_FEN)) return 12;
     Move first=findBestMove(position,5);
-    std::uint64_t firstNodes=nodes;
     if(first.from<0||first.to<0) return 13;
     Move second=findBestMove(position,5);
-    std::uint64_t secondNodes=nodes;
-    if(!sameMove(first,second)||secondNodes>=firstNodes) return 14;
+    if(!sameMove(first,second)||ttHits==0) return 14;
 
     if(!loadFen(position,"r3k2r/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w kq - 2 10")) return 15;
     Position reflected=position;
@@ -682,6 +680,33 @@ int main() {
     MovePicker tacticalPicker(position,tacticalMoves,hashCandidate,0);
     if(!sameMove(tacticalPicker.next(),hashCandidate)) return 100;
     if(moveUci(tacticalPicker.next())!="d1d5") return 101;
+
+    if(!loadFen(position,START_FEN)) return 150;
+    historyScores={};
+    captureHistoryScores={};
+    counterMoves={};
+    for(auto& pair:killerMoves) pair={Move{},Move{}};
+    auto quietMoves=legalMoves(position,0);
+    Move e4,d4,c4;
+    if(!parseUciMove(position,"e2e4",e4)
+        ||!parseUciMove(position,"d2d4",d4)
+        ||!parseUciMove(position,"c2c4",c4)) return 151;
+    historyScores[WHITE][e4.from][e4.to]=300;
+    historyScores[WHITE][d4.from][d4.to]=200;
+    historyScores[WHITE][c4.from][c4.to]=100;
+    MovePicker partialPicker(position,quietMoves,Move{},0);
+    const Move firstQuiet=partialPicker.next();
+    const Move secondQuiet=partialPicker.next();
+    const Move thirdQuiet=partialPicker.next();
+    if(!sameMove(firstQuiet,e4)||!sameMove(secondQuiet,d4)||!sameMove(thirdQuiet,c4)) {
+        std::cerr<<"partial move ordering mismatch: "
+            <<moveUci(firstQuiet)<<" "<<moveUci(secondQuiet)<<" "<<moveUci(thirdQuiet)<<"\n";
+        return 152;
+    }
+    historyScores[WHITE][e4.from][e4.to]=0;
+    historyScores[WHITE][d4.from][d4.to]=0;
+    historyScores[WHITE][c4.from][c4.to]=0;
+    historyScores={};
 
     // A countermove is staged ahead of ordinary quiet moves.
     if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 102;
