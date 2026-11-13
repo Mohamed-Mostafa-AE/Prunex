@@ -1,0 +1,70 @@
+name: Prunex capture-history paired match
+
+on:
+  push:
+    branches: ['engine/capture-history-ablation-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/strength-match/internal_selfplay.py'
+      - '.github/workflows/capture-history-ablation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-capture-history-ablation
+  cancel-in-progress: false
+
+jobs:
+  paired-match:
+    name: Compare capture history against the current Prunex baseline
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      BASELINE_SHA: c19df7176896a32756377309de84af071f8111bd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install build and match dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+          python3 -m pip install --user --disable-pip-version-check python-chess==1.999
+      - name: Build baseline and candidate
+        run: |
+          git worktree add --detach ../prunex-capture-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-capture-baseline -B ../prunex-capture-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-capture-baseline/build --target prunex --parallel 2
+          cmake -S . -B build-capture -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-capture --target prunex --parallel 2
+          python3 tests/test_internal_selfplay.py
+      - name: Run paired-colour equal-node match
+        run: |
+          python3 tools/strength-match/internal_selfplay.py \
+            --baseline ../prunex-capture-baseline/build/prunex \
+            --candidate build-capture/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --pairs 100 --nodes 100000 \
+            --hash-mb 128 --threads 1 --seed 20261113 --max-plies 240 \
+            --out capture-history-results
+      - name: Create and verify evidence checksums
+        if: always()
+        run: |
+          if [ -d capture-history-results ]; then
+            (cd capture-history-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > capture-history-results/SHA256SUMS.txt
+            (cd capture-history-results && sha256sum --check SHA256SUMS.txt)
+          fi
+      - name: Upload match evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-capture-history-match-${{ github.run_number }}
+          path: capture-history-results/
+          if-no-files-found: warn
+          retention-days: 90
