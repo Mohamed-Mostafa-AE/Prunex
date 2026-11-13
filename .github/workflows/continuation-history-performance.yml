@@ -1,0 +1,63 @@
+name: Prunex continuation-history performance comparison
+
+on:
+  push:
+    branches: ['engine/continuation-history-ablation-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/benchmark/compare_internal_bench.py'
+      - '.github/workflows/continuation-history-performance.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-continuation-history-performance
+  cancel-in-progress: false
+
+jobs:
+  fixed-suite-comparison:
+    name: Compare quiet-search ordering cost
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      BASELINE_SHA: c19df7176896a32756377309de84af071f8111bd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+
+      - name: Build baseline and candidate
+        run: |
+          git worktree add --detach ../prunex-history-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-history-baseline -B ../prunex-history-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-history-baseline/build --target prunex --parallel 2
+          cmake -S . -B build-history -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-history --target prunex --parallel 2
+
+      - name: Run repeated fixed-position and equal-node comparisons
+        run: |
+          python3 tools/benchmark/compare_internal_bench.py \
+            --baseline ../prunex-history-baseline/build/prunex \
+            --candidate build-history/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --depth 6 --runs 5 --node-budget 200000 \
+            --output continuation-history-performance.json
+
+      - name: Upload benchmark evidence
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-continuation-history-performance-${{ github.run_number }}
+          path: continuation-history-performance.json
+          if-no-files-found: error
+          retention-days: 90
