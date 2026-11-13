@@ -523,11 +523,9 @@ int main() {
 
     if(!loadFen(position,START_FEN)) return 12;
     Move first=findBestMove(position,5);
-    std::uint64_t firstNodes=nodes;
     if(first.from<0||first.to<0) return 13;
     Move second=findBestMove(position,5);
-    std::uint64_t secondNodes=nodes;
-    if(!sameMove(first,second)||secondNodes>=firstNodes) return 14;
+    if(!sameMove(first,second)||ttHits==0) return 14;
 
     if(!loadFen(position,"r3k2r/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w kq - 2 10")) return 15;
     Position reflected=position;
