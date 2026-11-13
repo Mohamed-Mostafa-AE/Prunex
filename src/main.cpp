@@ -1733,11 +1733,12 @@ bool shouldPruneFutilityQuiet(
 
 bool shouldPruneLosingCapture(
     bool pvNode,bool checked,bool givesCheck,bool capture,bool promotion,
-    int depth,int moveIndex,int exchange
+    int depth,int moveIndex,int exchange,int captureHistory=0
 ) {
     if(pvNode||checked||givesCheck||!capture||promotion||depth<1||depth>5
        ||moveIndex<=1) return false;
-    return exchange < -80*depth;
+    const int historyMargin=std::clamp(std::max(0,captureHistory)/20,0,150);
+    return exchange < -(80*depth+historyMargin);
 }
 
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
@@ -1842,7 +1843,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
 
         if(shouldPruneLosingCapture(
             pvNode,checked,givesCheck,capture,m.promotion!=EMPTY,
-            depth,moveIndex,exchange
+            depth,moveIndex,exchange,capture?captureHistoryValue(p,m):0
         )||shouldPruneLateQuietMove(
             pvNode,checked,givesCheck,quiet,depth,moveIndex,priorMoveHistory
         )||(safeForForwardPruning&&shouldPruneFutilityQuiet(
