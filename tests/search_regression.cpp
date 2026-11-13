@@ -48,6 +48,28 @@ static bool legalMoveSetsAgree(prunex::Position position) {
     return actual==referenceLegalMoveStrings(position)&&bitboardsConsistent(position);
 }
 
+
+static bool transpositionMoveEncodingAgrees(const prunex::Position& position) {
+    using namespace prunex;
+    Position workingPosition=position;
+    const auto moves=legalMoves(workingPosition,0);
+    for(const Move& move:moves) {
+        const std::uint16_t packed=packTranspositionMove(move);
+        if(packed==TT_NO_MOVE) return false;
+        const Move decoded=unpackTranspositionMove(position,packed);
+        if(!sameMove(decoded,move)
+            ||decoded.enPassant!=move.enPassant
+            ||decoded.castle!=move.castle) {
+            std::cerr<<"transposition move encoding mismatch for "
+                <<moveUci(move)<<'\n';
+            return false;
+        }
+    }
+    const Move empty{};
+    return packTranspositionMove(empty)==TT_NO_MOVE
+        &&unpackTranspositionMove(position,TT_NO_MOVE).from<0;
+}
+
 static bool referenceIsInsufficientMaterial(const prunex::Position& p) {
     using namespace prunex;
     int minorCount=0;
@@ -461,6 +483,20 @@ int main() {
     if(!moveCountersSaturateAndUndo()) return 127;
     if(!enPassantHashingMatchesLegalMoves()) return 125;
 
+    const std::array<const char*,7> transpositionMovePositions{{
+        START_FEN,
+        "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+        "7k/P7/8/8/8/8/8/7K w - - 0 1",
+        "7k/8/8/8/8/8/p7/7K b - - 0 1",
+        "7k/8/8/3pP3/8/8/8/K7 w - d6 0 1",
+        "1r5k/P7/8/8/8/8/8/7K w - - 0 1",
+        "7k/8/8/8/8/8/1p6/1K6 b - - 0 1"
+    }};
+    for(const char* fen:transpositionMovePositions) {
+        if(!loadFen(position,fen)
+            ||!transpositionMoveEncodingAgrees(position)) return 156;
+    }
+
     struct MaterialFixture { const char* fen; bool insufficient; };
     const std::array<MaterialFixture,10> materialFixtures{{
         {"7k/8/8/8/8/8/8/K7 w - - 0 1",true},
@@ -836,6 +872,7 @@ int main() {
     for(int ply=0;ply<160;++ply) {
         if(!legalMoveSetsAgree(position)) return 94;
         if(!exchangeEvaluationsAgree(position)) return 151;
+        if(!transpositionMoveEncodingAgrees(position)) return 157;
         if(!movePickerExchangeScoresAgree(position)) return 155;
         if(!insufficientMaterialMatchesReference(position)) return 153;
         const auto allLegal=legalMoves(position,0);
