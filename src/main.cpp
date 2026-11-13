@@ -1924,16 +1924,16 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(ply<MAX_PLY) {
                 const int historyBonus=std::min(2048,depth*depth*16);
                 const int historyMalus=std::min(1024,depth*depth*8);
-                for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
-                    const Move& rejected=nodeScratch.searched[previous];
-                    if(isCapture(p,rejected)||rejected.promotion) continue;
-                    int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
-                    rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
-                    updateContinuationHistory(
-                        ply,typeOf(p.board[rejected.from]),rejected.to,-historyMalus);
-                }
-
                 if(quiet) {
+                    for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
+                        const Move& rejected=nodeScratch.searched[previous];
+                        if(isCapture(p,rejected)||rejected.promotion) continue;
+                        int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
+                        rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
+                        updateContinuationHistory(
+                            ply,typeOf(p.board[rejected.from]),rejected.to,-historyMalus);
+                    }
+
                     if(!sameMove(m,killerMoves[ply][0])) {
                         killerMoves[ply][1]=killerMoves[ply][0];
                         killerMoves[ply][0]=m;
