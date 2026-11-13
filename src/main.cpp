@@ -992,6 +992,13 @@ void updateContinuationHistory(int ply,int movingPieceType,int destination,int b
         static_cast<int>(value)+bonus,-30000,30000));
 }
 
+void clearContinuationHistoryScores() {
+    for(auto& previousPiece:continuationHistoryScores)
+        for(auto& previousSquare:previousPiece)
+            for(auto& movingPiece:previousSquare)
+                movingPiece.fill(0);
+}
+
 void resetSearchState() {
     clearTranspositionTable();
     searchPathKeys.fill(0);
@@ -999,7 +1006,7 @@ void resetSearchState() {
     searchPathPieceTypes.fill(0);
     counterMoves={};
     historyScores={};
-    continuationHistoryScores={};
+    clearContinuationHistoryScores();
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
     lastSearchScore=0;
