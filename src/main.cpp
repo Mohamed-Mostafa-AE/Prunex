@@ -1740,6 +1740,20 @@ bool shouldPruneLosingCapture(
     return exchange < -80*depth;
 }
 
+int probCutMargin(int depth) {
+    return 120+8*depth;
+}
+
+bool shouldTryProbCut(
+    bool pvNode,bool checked,bool allowNullMove,int depth,
+    int beta,int staticEval
+) {
+    if(pvNode||checked||!allowNullMove||depth<5
+       ||beta<=-MATE+200||beta>=MATE-200) return false;
+    const int raisedBeta=beta+probCutMargin(depth);
+    return staticEval+200+30*depth>=raisedBeta;
+}
+
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
@@ -1775,8 +1789,12 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     const bool safeForForwardPruning=!pvNode&&!checked
         &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
     int staticEval=0;
-    if(safeForForwardPruning&&depth<=6) {
+    const bool probCutEligible=!pvNode&&!checked&&allowNullMove&&depth>=5
+        &&beta>-MATE+200&&beta<MATE-200;
+    if((safeForForwardPruning&&depth<=6)||probCutEligible) {
         staticEval=evaluate(p);
+    }
+    if(safeForForwardPruning&&depth<=6) {
 
         // Keep a wide margin at shallow nodes. The legal-move check preserves
         // exact stalemate handling when this shortcut would otherwise fire.
@@ -1814,6 +1832,35 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             const int verification=negamax(p,depth-1-reduction,beta-1,beta,ply,false,false);
             if(searchAborted.load(std::memory_order_relaxed)) return 0;
             if(verification>=beta) return nullScore;
+        }
+    }
+    if(shouldTryProbCut(
+        pvNode,checked,allowNullMove,depth,beta,staticEval
+    )) {
+        const int probBeta=beta+probCutMargin(depth);
+        auto tacticalMoves=legalMoves(p,ply,true);
+        MovePicker probCutPicker(p,tacticalMoves,hashMove,ply);
+        while(true) {
+            const Move move=probCutPicker.next();
+            if(move.from<0) break;
+            const bool capture=isCapture(p,move);
+            if(!capture&&move.promotion==EMPTY) continue;
+            const int exchange=capture?staticExchangeEvaluation(p,move):0;
+            if(capture&&move.promotion==EMPTY&&exchange < -80*depth) continue;
+
+            const int savedPieceType=searchPathPieceTypes[ply];
+            const Move savedPathMove=searchPathMoves[ply];
+            searchPathMoves[ply]=move;
+            searchPathPieceTypes[ply]=typeOf(p.board[move.from]);
+            const Undo undo=makeMove(p,move);
+            const int score=-negamax(
+                p,depth-4,-probBeta,-probBeta+1,ply+1,false,false
+            );
+            undoMove(p,move,undo);
+            searchPathMoves[ply]=savedPathMove;
+            searchPathPieceTypes[ply]=savedPieceType;
+            if(searchAborted.load(std::memory_order_relaxed)) return 0;
+            if(score>=probBeta) return score;
         }
     }
     auto moves=legalMoves(p,ply);
