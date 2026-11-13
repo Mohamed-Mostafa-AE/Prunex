@@ -703,5 +703,25 @@ int main() {
         }
     }
 
+    if(!shouldPruneLateQuietMove(false,false,false,true,3,12,0)) return 133;
+    if(shouldPruneLateQuietMove(false,false,false,true,3,11,0)) return 134;
+    if(shouldPruneLateQuietMove(true,false,false,true,3,20,0)) return 135;
+    if(shouldPruneLateQuietMove(false,true,false,true,3,20,0)) return 136;
+    if(shouldPruneLateQuietMove(false,false,true,true,3,20,0)) return 137;
+    if(shouldPruneLateQuietMove(false,false,false,false,3,20,0)) return 138;
+
+    if(!shouldPruneFutilityQuiet(false,false,false,true,2,2,0,-100,200)) return 139;
+    if(shouldPruneFutilityQuiet(false,false,false,true,2,2,5000,-100,200)) return 140;
+    if(shouldPruneFutilityQuiet(false,false,false,true,2,1,0,-100,200)) return 141;
+    if(shouldPruneFutilityQuiet(false,false,false,true,2,2,0,-100,150)) return 142;
+    if(shouldPruneFutilityQuiet(true,false,false,true,2,2,0,-100,200)) return 143;
+
+    if(!shouldPruneLosingCapture(false,false,false,true,false,3,2,-241)) return 144;
+    if(shouldPruneLosingCapture(false,false,true,true,false,3,2,-400)) return 145;
+    if(shouldPruneLosingCapture(true,false,false,true,false,3,2,-400)) return 146;
+    if(shouldPruneLosingCapture(false,true,false,true,false,3,2,-400)) return 147;
+    if(shouldPruneLosingCapture(false,false,false,true,true,3,2,-400)) return 148;
+    if(shouldPruneLosingCapture(false,false,false,true,false,6,2,-1000)) return 149;
+
     return 0;
 }
