@@ -1660,7 +1660,15 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     return alpha;
 }
 
-void makeNullMove(Position& p) {
+struct NullUndo {
+    int side=WHITE;
+    int ep=-1;
+    int halfmove=0;
+    std::uint64_t key=0;
+};
+
+NullUndo makeNullMove(Position& p) {
+    const NullUndo undo{p.side,p.ep,p.halfmove,p.key};
     const auto& keys=zobristKeys();
     const int hashedEp=hashableEnPassantSquare(p);
     if(hashedEp>=0) p.key^=keys.enPassant[hashedEp];
@@ -1668,6 +1676,14 @@ void makeNullMove(Position& p) {
     p.side=1-p.side;
     p.key^=keys.side;
     p.halfmove=0;
+    return undo;
+}
+
+void undoNullMove(Position& p,const NullUndo& undo) {
+    p.side=undo.side;
+    p.ep=undo.ep;
+    p.halfmove=undo.halfmove;
+    p.key=undo.key;
 }
 
 bool hasNonPawnMaterial(const Position& p,int color) {
@@ -1771,16 +1787,16 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     }
 
     if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
-        Position nullPosition=p;
-        makeNullMove(nullPosition);
+        const NullUndo nullUndo=makeNullMove(p);
         const Move savedPathMove=searchPathMoves[ply];
         const int savedPathType=searchPathPieceTypes[ply];
         searchPathMoves[ply]=Move{};
         searchPathPieceTypes[ply]=0;
         const int reduction=2+depth/4;
-        const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
+        const int nullScore=-negamax(p,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
         searchPathMoves[ply]=savedPathMove;
         searchPathPieceTypes[ply]=savedPathType;
+        undoNullMove(p,nullUndo);
         if(searchAborted.load(std::memory_order_relaxed)) return 0;
         if(nullScore>=beta) {
             if(depth<7) return nullScore;
