@@ -827,5 +827,33 @@ int main() {
     if(shouldPruneLosingCapture(false,false,false,true,true,3,2,-400)) return 148;
     if(shouldPruneLosingCapture(false,false,false,true,false,6,2,-1000)) return 149;
 
+    int historyValue=0;
+    updateHistoryValue(historyValue,1024);
+    if(historyValue!=1024) return 153;
+    const int firstReward=historyValue;
+    updateHistoryValue(historyValue,2048);
+    if(historyValue<=firstReward||historyValue>=firstReward+2048) return 154;
+    int upperHistory=29990;
+    int lowerHistory=-29990;
+    updateHistoryValue(upperHistory,2048);
+    updateHistoryValue(lowerHistory,-2048);
+    if(upperHistory>HISTORY_LIMIT||lowerHistory<-HISTORY_LIMIT) return 155;
+
+    Move previousMove{};
+    previousMove.from=16;
+    previousMove.to=32;
+    searchPathMoves[0]=previousMove;
+    searchPathPieceTypes[0]=2;
+    Move continuationMove{};
+    continuationMove.from=33;
+    continuationMove.to=49;
+    int& continuationValue=continuationHistoryScores[2][square64From88(32)][3][square64From88(49)];
+    continuationValue=600;
+    if(continuationHistoryValue(3,continuationMove,1)!=600) return 156;
+    updateContinuationHistory(3,continuationMove,1,1000);
+    if(continuationValue<=600||continuationValue>HISTORY_LIMIT) return 157;
+    if(continuationHistoryValue(3,continuationMove,0)!=0) return 158;
+    continuationValue=0;
+
     return 0;
 }
