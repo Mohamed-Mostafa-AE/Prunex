@@ -218,7 +218,8 @@ static bool exchangeEvaluationsAgree(const prunex::Position& position) {
 
 static bool movePickerExchangeScoresAgree(const prunex::Position& position) {
     using namespace prunex;
-    auto moves=legalMoves(position,0);
+    Position workingPosition=position;
+    auto moves=legalMoves(workingPosition,0);
     MovePicker picker(position,moves,Move{},0);
     while(true) {
         const Move move=picker.next();
