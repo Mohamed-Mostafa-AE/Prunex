@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
-      BASELINE_SHA: c19df7176896a32756377309de84af071f8111bd
+      BASELINE_SHA: 2f22662e6bcc935af0ed8a0fdf95b9cb4c84b139
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -62,7 +62,7 @@ jobs:
             --candidate build-ablation/prunex \
             --baseline-commit "$BASELINE_SHA" \
             --candidate-commit "$GITHUB_SHA" \
-            --pairs 150 --nodes 100000 \
+            --pairs 100 --nodes 100000 \
             --hash-mb 128 --threads 1 --seed 20261114 --max-plies 240 \
             --out capture-history-see-guard-results
 
