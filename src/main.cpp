@@ -1898,14 +1898,14 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                     const Move& rejected=nodeScratch.searched[previous];
                     if(isCapture(p,rejected)||rejected.promotion) continue;
                     int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
-                    updateHistoryValue(rejectedHistory,-historyMalus);
+                    rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
                 }
                 if(!sameMove(m,killerMoves[ply][0])) {
                     killerMoves[ply][1]=killerMoves[ply][0];
                     killerMoves[ply][0]=m;
                 }
                 int& quietHistory=historyScores[movingColor][m.from][m.to];
-                updateHistoryValue(quietHistory,historyBonus);
+                quietHistory=std::min(30000,quietHistory+historyBonus);
 
                 if(ply>0&&ply<MAX_PLY) {
                     const int previousType=searchPathPieceTypes[ply-1];
