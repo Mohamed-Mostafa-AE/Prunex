@@ -866,14 +866,36 @@ constexpr std::array<int, 7> EG_VALUE{0, 120, 315, 350, 525, 930, 0};
 
 enum Bound : std::uint8_t { TT_NONE, TT_EXACT, TT_LOWER, TT_UPPER };
 
+constexpr std::uint32_t TT_NO_MOVE=0xFFFFFFFFU;
+
+std::uint32_t encodeTTMove(const Move& move) {
+    if(!onBoard(move.from)||!onBoard(move.to)
+        ||move.promotion<EMPTY||move.promotion>BK) return TT_NO_MOVE;
+    return static_cast<std::uint32_t>(move.from)
+        |(static_cast<std::uint32_t>(move.to)<<7)
+        |(static_cast<std::uint32_t>(move.promotion)<<14);
+}
+
+Move decodeTTMove(std::uint32_t encoded) {
+    if(encoded==TT_NO_MOVE) return Move{};
+    Move move;
+    move.from=static_cast<int>(encoded&0x7FU);
+    move.to=static_cast<int>((encoded>>7)&0x7FU);
+    move.promotion=static_cast<int>((encoded>>14)&0xFU);
+    if(!onBoard(move.from)||!onBoard(move.to)||move.promotion>BK) return Move{};
+    return move;
+}
+
 struct TTEntry {
     std::uint64_t key=0;
-    Move best{};
-    int score=0;
-    int depth=-1;
+    std::uint32_t bestMove=TT_NO_MOVE;
+    std::int32_t score=0;
+    std::int16_t depth=-1;
     std::uint8_t bound=TT_NONE;
     std::uint8_t generation=0;
 };
+
+static_assert(sizeof(TTEntry)==24);
 
 
 
@@ -1736,7 +1758,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     Move hashMove{};
     if(ttFound) {
         ++ttHits;
-        hashMove=entry.best;
+        hashMove=decodeTTMove(entry.bestMove);
         if(entry.depth>=depth) {
             int ttScore=scoreFromTable(entry.score,ply);
             if(entry.bound==TT_EXACT) return ttScore;
@@ -1885,7 +1907,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
     if(!ttFound||entry.key!=key||entry.generation!=ttGeneration||depth>=entry.depth) {
         entry.key=key;
-        entry.best=bestMove;
+        entry.bestMove=encodeTTMove(bestMove);
         entry.score=scoreToTable(bestScore,ply);
         entry.depth=depth;
         entry.bound=bound;
@@ -1935,7 +1957,8 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
             if(searchAborted.load(std::memory_order_relaxed)) break;
             bool rootFound=false;
             TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
-            if(rootFound&&rootEntry.best.from>=0) best=rootEntry.best;
+            const Move rootMove=decodeTTMove(rootEntry.bestMove);
+            if(rootFound&&rootMove.from>=0) best=rootMove;
             if(score<=alpha&&alpha>-INF) {
                 window=std::min(INF,window*2);
                 alpha=window==INF?-INF:std::max(-INF,previousScore-window);
