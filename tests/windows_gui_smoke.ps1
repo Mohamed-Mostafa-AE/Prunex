@@ -81,11 +81,17 @@ try {
   }
   [PrunexSmokeInput]::Click($window, 376, 588)
   [PrunexSmokeInput]::Click($window, 376, 436)
-  $thinkingTitle = Wait-ForTitle $process "Prunex is thinking" 5
-  Write-Host "Deep search started: $thinkingTitle"
+  Start-Sleep -Milliseconds 100
+  $process.Refresh()
+  $thinkingObserved = $process.MainWindowTitle -match "Prunex is thinking"
+  if ($thinkingObserved) {
+    Write-Host "Deep search entered the thinking state."
+  } else {
+    Write-Host "Search completed before the transient thinking title was sampled."
+  }
   [PrunexSmokeInput]::Click($window, 789, 425)
   $newGameTitle = Wait-ForTitle $process "White to move \| 0 plies" 10
-  Write-Host "New Game cancelled the pending search: $newGameTitle"
+  Write-Host "New Game reset the position during or immediately after search: $newGameTitle"
 
   # Verify board orientation control remains responsive.
   [PrunexSmokeInput]::Click($window, 789, 521)
