@@ -430,7 +430,8 @@ std::uint64_t bishopAttacks(int square,std::uint64_t occupied) {
 std::uint64_t rookAttacks(int square,std::uint64_t occupied) {
     return slidingAttackTables().rooks.lookup(square,occupied);
 }
-std::uint64_t attackersTo(const Position& p,int sq,int by) {
+template<typename PositionLike>
+std::uint64_t attackersTo(const PositionLike& p,int sq,int by) {
     if(!onBoard(sq)) return 0;
     const int target=square64From88(sq);
     const std::uint64_t occupied=p.occupancy[WHITE]|p.occupancy[BLACK];
@@ -443,7 +444,8 @@ std::uint64_t attackersTo(const Position& p,int sq,int by) {
         (p.piecesBB[by][4]|p.piecesBB[by][5]);
     return attackers;
 }
-bool attacked(const Position& p,int sq,int by) {
+template<typename PositionLike>
+bool attacked(const PositionLike& p,int sq,int by) {
     return attackersTo(p,sq,by)!=0;
 }
 int kingSquare(const Position& p,int color) {
@@ -1076,7 +1078,36 @@ bool isCapture(const Position& p,const Move& m) {
     return m.enPassant||p.board[m.to]!=EMPTY;
 }
 
-int leastValuableAttacker(const Position& p,int target,int color) {
+struct ExchangePosition {
+    std::array<int,128> board{};
+    std::array<std::array<std::uint64_t,7>,2> piecesBB{};
+    std::array<std::uint64_t,2> occupancy{};
+};
+
+void removeExchangePiece(ExchangePosition& position,int square88) {
+    const int piece=position.board[square88];
+    if(piece==EMPTY) return;
+    const int color=colorOf(piece);
+    const int type=typeOf(piece);
+    const std::uint64_t bit=squareBit(square88);
+    position.piecesBB[color][type]&=~bit;
+    position.occupancy[color]&=~bit;
+    position.board[square88]=EMPTY;
+}
+
+void putExchangePiece(ExchangePosition& position,int square88,int piece) {
+    if(position.board[square88]!=EMPTY)
+        removeExchangePiece(position,square88);
+    if(piece==EMPTY) return;
+    const int color=colorOf(piece);
+    const int type=typeOf(piece);
+    const std::uint64_t bit=squareBit(square88);
+    position.board[square88]=piece;
+    position.piecesBB[color][type]|=bit;
+    position.occupancy[color]|=bit;
+}
+
+int leastValuableAttacker(const ExchangePosition& p,int target,int color) {
     if(!onBoard(target)) return -1;
     const int target64=square64From88(target);
     const std::uint64_t occupied=p.occupancy[WHITE]|p.occupancy[BLACK];
@@ -1106,7 +1137,7 @@ int leastValuableAttacker(const Position& p,int target,int color) {
 }
 int staticExchangeEvaluation(const Position& original,const Move& move) {
     if(!isCapture(original,move)) return 0;
-    Position position=original;
+    ExchangePosition position{original.board,original.piecesBB,original.occupancy};
     const int target=move.to;
     const int capturedSquare=move.enPassant
         ? target+(original.side==WHITE?-16:16)
@@ -1120,10 +1151,10 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
     gains[0]=MG_VALUE[typeOf(captured)];
     if(move.promotion) gains[0]+=MG_VALUE[typeOf(move.promotion)]-MG_VALUE[1];
 
-    removePositionPiece(position,move.from);
-    removePositionPiece(position,capturedSquare);
-    removePositionPiece(position,target);
-    putPositionPiece(position,target,occupant);
+    removeExchangePiece(position,move.from);
+    removeExchangePiece(position,capturedSquare);
+    removeExchangePiece(position,target);
+    putExchangePiece(position,target,occupant);
     int side=1-original.side;
     int depth=0;
 
@@ -1132,10 +1163,10 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
         if(attackerSquare<0) break;
         int attacker=position.board[attackerSquare];
         if(typeOf(attacker)==6) {
-            Position kingCapture=position;
-            removePositionPiece(kingCapture,attackerSquare);
-            removePositionPiece(kingCapture,target);
-            putPositionPiece(kingCapture,target,attacker);
+            ExchangePosition kingCapture=position;
+            removeExchangePiece(kingCapture,attackerSquare);
+            removeExchangePiece(kingCapture,target);
+            putExchangePiece(kingCapture,target,attacker);
             if(attacked(kingCapture,target,1-side)) break;
         }
 
@@ -1146,9 +1177,9 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
             attacker=makePiece(5,side);
         }
         gains[depth]=MG_VALUE[typeOf(occupant)]+promotionGain-gains[depth-1];
-        removePositionPiece(position,attackerSquare);
-        removePositionPiece(position,target);
-        putPositionPiece(position,target,attacker);
+        removeExchangePiece(position,attackerSquare);
+        removeExchangePiece(position,target);
+        putExchangePiece(position,target,attacker);
         occupant=attacker;
         side=1-side;
     }
