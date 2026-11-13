@@ -397,9 +397,31 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
     return true;
 }
 
+static bool continuationHistoryIsBounded() {
+    using namespace prunex;
+    continuationHistoryScores={};
+    searchPathPieceTypes.fill(0);
+    searchPathMoves.fill(Move{});
+    searchPathPieceTypes[0]=2;
+    searchPathMoves[0].to=34;
+
+    if(continuationHistoryScore(1,3,35)!=0) return false;
+    updateContinuationHistory(1,3,35,2048);
+    if(continuationHistoryScore(1,3,35)!=2048) return false;
+    updateContinuationHistory(1,3,35,40000);
+    if(continuationHistoryScore(1,3,35)!=30000) return false;
+    updateContinuationHistory(1,3,35,-60000);
+    if(continuationHistoryScore(1,3,35)!=-30000) return false;
+    return continuationHistoryScore(0,3,35)==0
+        &&continuationHistoryScore(1,0,35)==0
+        &&continuationHistoryScore(1,3,128)==0;
+}
+
 int main() {
     using namespace prunex;
     Position position;
+
+    if(!continuationHistoryIsBounded()) return 153;
 
     if(!positionCommandsAreTransactional()) return 126;
     if(!moveCountersSaturateAndUndo()) return 127;
