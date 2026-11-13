@@ -1,0 +1,71 @@
+name: Prunex cached SEE paired match
+
+on:
+  push:
+    branches: ['engine/see-reuse-move-picker-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/strength-match/internal_selfplay.py'
+      - '.github/workflows/see-reuse-ablation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-see-reuse-ablation
+  cancel-in-progress: false
+
+jobs:
+  paired-match:
+    name: Verify cached exchange scores preserve search choices
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      BASELINE_SHA: 2f22662e6bcc935af0ed8a0fdf95b9cb4c84b139
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install build and match dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+          python3 -m pip install --user --disable-pip-version-check python-chess==1.999
+      - name: Build baseline and candidate
+        run: |
+          git worktree add --detach ../prunex-see-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-see-baseline -B ../prunex-see-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-see-baseline/build --target prunex --parallel 2
+          cmake -S . -B build-see -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-see --parallel 2
+          ctest --test-dir build-see --output-on-failure --parallel 2
+          python3 tests/test_internal_selfplay.py
+      - name: Run paired-colour equal-node match
+        run: |
+          python3 tools/strength-match/internal_selfplay.py \
+            --baseline ../prunex-see-baseline/build/prunex \
+            --candidate build-see/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --pairs 100 --nodes 100000 \
+            --hash-mb 128 --threads 1 --seed 20261115 --max-plies 240 \
+            --out see-reuse-results
+      - name: Create and verify evidence checksums
+        if: always()
+        run: |
+          if [ -d see-reuse-results ]; then
+            (cd see-reuse-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > see-reuse-results/SHA256SUMS.txt
+            (cd see-reuse-results && sha256sum --check SHA256SUMS.txt)
+          fi
+      - name: Upload match evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-see-reuse-match-${{ github.run_number }}
+          path: see-reuse-results/
+          if-no-files-found: warn
+          retention-days: 90
