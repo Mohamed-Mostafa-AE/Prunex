@@ -441,12 +441,28 @@ static bool captureHistoryIsBounded() {
     return valid;
 }
 
+static bool adaptiveLmrIsMonotonic() {
+    using namespace prunex;
+    if(lateMoveReduction(2,12,false,false,0)!=0) return false;
+    if(lateMoveReduction(8,2,false,false,0)!=0) return false;
+    const int low=lateMoveReduction(5,5,false,false,0);
+    const int medium=lateMoveReduction(8,8,false,false,0);
+    const int high=lateMoveReduction(12,16,false,false,0);
+    if(!(low<=medium&&medium<=high)) return false;
+    if(lateMoveReduction(8,8,true,false,0)>medium) return false;
+    if(lateMoveReduction(8,8,false,true,0)>medium) return false;
+    if(lateMoveReduction(8,8,false,false,9000)>medium) return false;
+    if(lateMoveReduction(8,8,false,false,-9000)<medium) return false;
+    return lateMoveReduction(8,8,false,false,0)<=6;
+}
+
 int main() {
     using namespace prunex;
     Position position;
 
     if(!continuationHistoryIsBounded()) return 153;
     if(!captureHistoryIsBounded()) return 154;
+    if(!adaptiveLmrIsMonotonic()) return 155;
 
     if(!positionCommandsAreTransactional()) return 126;
     if(!moveCountersSaturateAndUndo()) return 127;
