@@ -216,6 +216,26 @@ static bool exchangeEvaluationsAgree(const prunex::Position& position) {
     return true;
 }
 
+static bool movePickerExchangeScoresAgree(const prunex::Position& position) {
+    using namespace prunex;
+    Position workingPosition=position;
+    auto moves=legalMoves(workingPosition,0);
+    MovePicker picker(position,moves,Move{},0);
+    while(true) {
+        const Move move=picker.next();
+        if(move.from<0) break;
+        const int expected=isCapture(position,move)
+            ?staticExchangeEvaluation(position,move):0;
+        if(picker.exchangeScore()!=expected) {
+            std::cerr<<"cached SEE mismatch for "<<moveUci(move)
+                <<": cached "<<picker.exchangeScore()
+                <<", expected "<<expected<<'\n';
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool enPassantHashingMatchesLegalMoves() {
     using namespace prunex;
     Position noAdjacentPawn;
@@ -783,6 +803,7 @@ int main() {
     for(const char* fen:legalityFens) {
         if(!loadFen(position,fen)||!legalMoveSetsAgree(position)) return 92;
         if(!exchangeEvaluationsAgree(position)) return 150;
+        if(!movePickerExchangeScoresAgree(position)) return 154;
 
         const auto allLegal=legalMoves(position,0);
         const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
@@ -815,6 +836,7 @@ int main() {
     for(int ply=0;ply<160;++ply) {
         if(!legalMoveSetsAgree(position)) return 94;
         if(!exchangeEvaluationsAgree(position)) return 151;
+        if(!movePickerExchangeScoresAgree(position)) return 155;
         if(!insufficientMaterialMatchesReference(position)) return 153;
         const auto allLegal=legalMoves(position,0);
         const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());

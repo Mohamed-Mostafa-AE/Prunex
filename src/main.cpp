@@ -64,7 +64,7 @@ struct MoveList {
     }
 };
 
-struct ScoredMove { Move move; int score; };
+struct ScoredMove { Move move; int score; int exchange=0; };
 struct MoveScratch {
     std::array<Move,MAX_LEGAL_MOVES> pseudo{};
     std::array<Move,MAX_LEGAL_MOVES> legal{};
@@ -1233,7 +1233,7 @@ public:
             const Move& move=moves_[index];
             int exchange=0;
             const int score=moveOrderingScore(position,move,hashMove,ply,&exchange);
-            scratch_.scored[index]={move,score};
+            scratch_.scored[index]={move,score,exchange};
             const bool capture=isCapture(position,move);
             const bool promotion=move.promotion!=EMPTY;
             std::uint8_t stage=4;
@@ -1280,6 +1280,7 @@ public:
             }
             if(scratch_.stageCursors[stage_]<scratch_.stageEnds[stage_]) {
                 const std::size_t index=scratch_.order[scratch_.stageCursors[stage_]++];
+                currentExchange_=scratch_.scored[index].exchange;
                 return scratch_.scored[index].move;
             }
             ++stage_;
@@ -1287,10 +1288,13 @@ public:
         return Move{};
     }
 
+    int exchangeScore() const { return currentExchange_; }
+
 private:
     MoveList moves_;
     MoveScratch& scratch_;
     std::size_t stage_=0;
+    int currentExchange_=0;
 };
 
 void orderMoves(const Position& p,MoveList& moves,const Move& hashMove,int ply) {
@@ -1643,7 +1647,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         // Quiescence should follow captures that can change the evaluation,
         // not exchanges that lose material without compensation.
         if(!checked&&!move.promotion&&isCapture(p,move)
-            &&staticExchangeEvaluation(p,move)<-80) {
+            &&picker.exchangeScore()<-80) {
             continue;
         }
 
@@ -1803,7 +1807,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         const int movingPieceType=typeOf(p.board[m.from]);
         const int priorMoveHistory=historyScores[movingColor][m.from][m.to];
         const bool capture=isCapture(p,m);
-        const int exchange=capture?staticExchangeEvaluation(p,m):0;
+        const int exchange=capture?picker.exchangeScore():0;
         searchPathMoves[ply]=m;
         searchPathPieceTypes[ply]=movingPieceType;
         const bool quiet=!capture&&!m.promotion;
