@@ -2,7 +2,7 @@ name: Prunex strength ladder — Stockfish 19, Triumviratus, PlentyChess and Rec
 
 on:
   push:
-    branches: ['feature/bitboard-position-foundation', 'engine/stockfish-gap-rebuild-2026-11', 'engine/search-profile-2026-11-13']
+    branches: ['feature/bitboard-position-foundation', 'engine/stockfish-gap-rebuild-2026-11', 'engine/search-profile-2026-11-13', 'engine/shallow-search-pruning-2026-11-13']
     paths:
       - 'src/**'
       - 'tests/**'

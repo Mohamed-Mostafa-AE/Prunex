@@ -1654,6 +1654,34 @@ bool hasNullMoveMaterial(const Position& p) {
     return std::popcount(pieces[2]|pieces[3])>=2;
 }
 
+bool shouldPruneLateQuietMove(
+    bool pvNode,bool checked,bool givesCheck,bool quiet,
+    int depth,int moveIndex,int history
+) {
+    if(pvNode||checked||givesCheck||!quiet||depth<1||depth>5||moveIndex<1)
+        return false;
+    return moveIndex>=3+depth*depth&&history<6000;
+}
+
+bool shouldPruneFutilityQuiet(
+    bool pvNode,bool checked,bool givesCheck,bool quiet,
+    int depth,int moveIndex,int history,int staticEval,int alpha
+) {
+    if(pvNode||checked||givesCheck||!quiet||depth<1||depth>3
+       ||moveIndex<=1||history>=4000) return false;
+    const int margin=100+90*depth;
+    return staticEval+margin<=alpha;
+}
+
+bool shouldPruneLosingCapture(
+    bool pvNode,bool checked,bool givesCheck,bool capture,bool promotion,
+    int depth,int moveIndex,int exchange
+) {
+    if(pvNode||checked||givesCheck||!capture||promotion||depth<1||depth>5
+       ||moveIndex<=1) return false;
+    return exchange < -80*depth;
+}
+
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
@@ -1738,17 +1766,36 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     int bestScore=-INF;
     Move bestMove=moves.front();
     int moveNumber=0;
+    int moveIndex=0;
     while(true) {
         const Move m=picker.next();
         if(m.from<0) break;
-        nodeScratch.searched[nodeScratch.searchedCount++]=m;
+        ++moveIndex;
         const int movingColor=p.side;
         const int movingPieceType=typeOf(p.board[m.from]);
+        const int history=historyScores[movingColor][m.from][m.to];
+        const bool capture=isCapture(p,m);
+        const int exchange=capture?staticExchangeEvaluation(p,m):0;
         searchPathMoves[ply]=m;
         searchPathPieceTypes[ply]=movingPieceType;
-        bool quiet=!isCapture(p,m)&&!m.promotion;
+        const bool quiet=!capture&&!m.promotion;
         Undo undo=makeMove(p,m);
-        bool givesCheck=inCheck(p,p.side);
+        const bool givesCheck=inCheck(p,p.side);
+
+        if(shouldPruneLosingCapture(
+            pvNode,checked,givesCheck,capture,m.promotion!=EMPTY,
+            depth,moveIndex,exchange
+        )||shouldPruneLateQuietMove(
+            pvNode,checked,givesCheck,quiet,depth,moveIndex,history
+        )||(safeForForwardPruning&&shouldPruneFutilityQuiet(
+            pvNode,checked,givesCheck,quiet,depth,moveIndex,
+            history,staticEval,alpha
+        ))) {
+            undoMove(p,m,undo);
+            continue;
+        }
+
+        nodeScratch.searched[nodeScratch.searchedCount++]=m;
         int childDepth=depth-1;
         int score;
         if(moveNumber==0) {
