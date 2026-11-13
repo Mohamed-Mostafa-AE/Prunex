@@ -892,6 +892,7 @@ std::array<int, MAX_PLY> searchPathPieceTypes{};
 std::array<std::array<Move, 128>, 7> counterMoves{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
+std::array<std::array<std::array<std::array<int,7>,128>,7>,2> captureHistoryScores{};
 std::uint64_t nodes=0;
 int lastSearchScore=0;
 int completedSearchDepth=0;
@@ -974,6 +975,7 @@ void resetSearchState() {
     searchPathPieceTypes.fill(0);
     counterMoves={};
     historyScores={};
+    captureHistoryScores={};
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
     lastSearchScore=0;
@@ -1191,6 +1193,30 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
     return gains[0];
 }
 
+constexpr int HISTORY_LIMIT=30000;
+
+void updateHistoryValue(int& value,int bonus) {
+    bonus=std::clamp(bonus,-2048,2048);
+    value+=bonus-value*std::abs(bonus)/HISTORY_LIMIT;
+    value=std::clamp(value,-HISTORY_LIMIT,HISTORY_LIMIT);
+}
+
+int captureHistoryValue(const Position& p,const Move& move) {
+    if(!isCapture(p,move)||!onBoard(move.from)||!onBoard(move.to)) return 0;
+    const int attacker=typeOf(p.board[move.from]);
+    const int victim=typeOf(move.enPassant?makePiece(1,1-p.side):p.board[move.to]);
+    if(attacker<1||attacker>6||victim<1||victim>6) return 0;
+    return captureHistoryScores[p.side][attacker][move.to][victim];
+}
+
+void updateCaptureHistory(const Position& p,const Move& move,int bonus) {
+    if(!isCapture(p,move)||!onBoard(move.from)||!onBoard(move.to)) return;
+    const int attacker=typeOf(p.board[move.from]);
+    const int victim=typeOf(move.enPassant?makePiece(1,1-p.side):p.board[move.to]);
+    if(attacker<1||attacker>6||victim<1||victim>6) return;
+    updateHistoryValue(captureHistoryScores[p.side][attacker][move.to][victim],bonus);
+}
+
 int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply,
                       int* exchangeOut=nullptr) {
     if(exchangeOut) *exchangeOut=0;
@@ -1202,7 +1228,8 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
         const int exchange=staticExchangeEvaluation(p,m);
         if(exchangeOut) *exchangeOut=exchange;
         score+=1000000+(exchange>=0?200000:-200000)+exchange*16
-            +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])];
+            +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])]
+            +captureHistoryValue(p,m)/4;
         return score;
     }
     if(ply<MAX_PLY) {
@@ -1856,9 +1883,17 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
         if(score>alpha) alpha=score;
         if(alpha>=beta) {
+            const int historyBonus=std::min(2048,depth*depth*16);
+            const int historyMalus=std::min(1024,depth*depth*8);
+            if(capture) {
+                updateCaptureHistory(p,m,historyBonus);
+                for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
+                    const Move& rejected=nodeScratch.searched[previous];
+                    if(isCapture(p,rejected))
+                        updateCaptureHistory(p,rejected,-historyMalus);
+                }
+            }
             if(quiet&&ply<MAX_PLY) {
-                const int historyBonus=std::min(2048,depth*depth*16);
-                const int historyMalus=std::min(1024,depth*depth*8);
                 for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
                     const Move& rejected=nodeScratch.searched[previous];
                     if(isCapture(p,rejected)||rejected.promotion) continue;
@@ -1904,6 +1939,10 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     if(ttGeneration==0) ++ttGeneration;
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     for(auto& side:historyScores) for(auto& from:side) for(int& value:from) value/=2;
+    for(auto& color:captureHistoryScores)
+        for(auto& attacker:color)
+            for(auto& square:attacker)
+                for(int& value:square) value/=2;
     nodes=0;
     ttHits=0;
     searchPathKeys.fill(0);

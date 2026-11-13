@@ -699,6 +699,17 @@ int main() {
     searchPathPieceTypes.fill(0);
     counterMoves={};
 
+    if(!loadFen(position,"7k/8/8/3q4/8/8/8/K2R4 w - - 0 1")) return 105;
+    Move captureCandidate;
+    if(!parseUciMove(position,"d1d5",captureCandidate)) return 106;
+    const int captureScoreBefore=moveOrderingScore(position,captureCandidate,Move{},0);
+    updateCaptureHistory(position,captureCandidate,1200);
+    if(captureHistoryValue(position,captureCandidate)!=1200) return 107;
+    if(moveOrderingScore(position,captureCandidate,Move{},0)!=captureScoreBefore+300) return 108;
+    updateCaptureHistory(position,captureCandidate,-2000);
+    if(captureHistoryValue(position,captureCandidate)>=0) return 109;
+    captureHistoryScores={};
+
     const int originalHashSize=configuredHashMB;
     const std::size_t originalBucketCount=ttBucketCount;
     if(!resizeTranspositionTable(1)) return 93;
