@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   paired-pruning-match:
-    name: Compare capture history against PR #63
+    name: Compare capture history against PR #65
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
@@ -47,18 +47,18 @@ jobs:
           sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
           python3 -m pip install --user --disable-pip-version-check python-chess==1.999
 
-      - name: Build the PR #63 baseline
+      - name: Build the PR #65 baseline
         run: |
-          git worktree add --detach ../prunex-continuation-baseline "$BASELINE_SHA"
-          cmake -S ../prunex-continuation-baseline -B ../prunex-continuation-baseline/build -G Ninja \
+          git worktree add --detach ../prunex-capture-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-capture-baseline -B ../prunex-capture-baseline/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
-          cmake --build ../prunex-continuation-baseline/build --target prunex --parallel 2
+          cmake --build ../prunex-capture-baseline/build --target prunex --parallel 2
 
       - name: Build the capture-history candidate
         run: |
-          cmake -S . -B build-continuation -G Ninja \
+          cmake -S . -B build-capture -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
-          cmake --build build-continuation --target prunex --parallel 2
+          cmake --build build-capture --target prunex --parallel 2
 
       - name: Verify the match harness
         run: python3 tests/test_internal_selfplay.py
@@ -69,8 +69,8 @@ jobs:
           NODES_INPUT: ${{ inputs.nodes }}
         run: |
           python3 tools/strength-match/internal_selfplay.py \
-            --baseline ../prunex-continuation-baseline/build/prunex \
-            --candidate build-continuation/prunex \
+            --baseline ../prunex-capture-baseline/build/prunex \
+            --candidate build-capture/prunex \
             --baseline-commit "$BASELINE_SHA" \
             --candidate-commit "$GITHUB_SHA" \
             --pairs "${PAIRS_INPUT:-100}" \
