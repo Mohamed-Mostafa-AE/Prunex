@@ -397,10 +397,57 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
     return true;
 }
 
+static bool continuationHistoryTracksMoveSequences() {
+    using namespace prunex;
+    continuationHistory.fill(0);
+
+    Position position;
+    if(!loadFen(position,
+        "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"))
+        return false;
+
+    searchPathMoves[0]={parseSquare("e2"),parseSquare("e4"),EMPTY,false,false};
+    searchPathPieceTypes[0]=1;
+
+    Move reply;
+    if(!parseUciMove(position,"c7c5",reply)) return false;
+    if(continuationHistoryScore(position,reply,1)!=0) return false;
+    updateContinuationHistory(1,parseSquare("e4"),1,reply.to,256);
+    if(continuationHistoryScore(position,reply,1)!=256) return false;
+    if(moveOrderingScore(position,reply,Move{},1)!=128) return false;
+    if(continuationHistoryScore(position,reply,0)!=0) return false;
+    if(continuationHistoryValue(1,parseSquare("d4"),1,reply.to)!=0) return false;
+
+    updateContinuationHistory(1,parseSquare("e4"),1,reply.to,-512);
+    if(continuationHistoryScore(position,reply,1)!=-256) return false;
+
+    updateContinuationHistory(
+        1,parseSquare("e4"),1,reply.to,std::numeric_limits<int>::max()
+    );
+    if(continuationHistoryValue(1,parseSquare("e4"),1,reply.to)!=30000)
+        return false;
+    updateContinuationHistory(
+        1,parseSquare("e4"),1,reply.to,std::numeric_limits<int>::min()
+    );
+    if(continuationHistoryValue(1,parseSquare("e4"),1,reply.to)!=-30000)
+        return false;
+
+    updateContinuationHistory(0,parseSquare("e4"),1,reply.to,100);
+    updateContinuationHistory(1,-1,1,reply.to,100);
+    if(continuationHistoryValue(1,parseSquare("e4"),1,reply.to)!=-30000)
+        return false;
+
+    continuationHistory.fill(0);
+    searchPathMoves[0]=Move{};
+    searchPathPieceTypes[0]=0;
+    return true;
+}
+
 int main() {
     using namespace prunex;
     Position position;
 
+    if(!continuationHistoryTracksMoveSequences()) return 150;
     if(!positionCommandsAreTransactional()) return 126;
     if(!moveCountersSaturateAndUndo()) return 127;
     if(!enPassantHashingMatchesLegalMoves()) return 125;
