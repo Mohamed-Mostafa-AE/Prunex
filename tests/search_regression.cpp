@@ -695,9 +695,14 @@ int main() {
     historyScores[WHITE][d4.from][d4.to]=200;
     historyScores[WHITE][c4.from][c4.to]=100;
     MovePicker partialPicker(position,quietMoves,Move{},0);
-    if(!sameMove(partialPicker.next(),e4)
-        ||!sameMove(partialPicker.next(),d4)
-        ||!sameMove(partialPicker.next(),c4)) return 152;
+    const Move firstQuiet=partialPicker.next();
+    const Move secondQuiet=partialPicker.next();
+    const Move thirdQuiet=partialPicker.next();
+    if(!sameMove(firstQuiet,e4)||!sameMove(secondQuiet,d4)||!sameMove(thirdQuiet,c4)) {
+        std::cerr<<"partial move ordering mismatch: "
+            <<moveUci(firstQuiet)<<" "<<moveUci(secondQuiet)<<" "<<moveUci(thirdQuiet)<<"\n";
+        return 152;
+    }
     historyScores[WHITE][e4.from][e4.to]=0;
     historyScores[WHITE][d4.from][d4.to]=0;
     historyScores[WHITE][c4.from][c4.to]=0;
