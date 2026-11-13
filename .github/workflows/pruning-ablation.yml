@@ -2,7 +2,7 @@ name: Prunex pruning ablation match
 
 on:
   push:
-    branches: ['engine/search-profile-2026-11-13', 'engine/shallow-search-pruning-2026-11-13']
+    branches: ['engine/search-profile-2026-11-13', 'engine/shallow-search-pruning-2026-11-13', 'engine/see-lightweight-2026-11-13']
     paths:
       - 'src/**'
       - 'tools/strength-match/internal_selfplay.py'
@@ -29,11 +29,11 @@ concurrency:
 
 jobs:
   paired-pruning-match:
-    name: Compare shallow pruning against the pre-pruning build
+    name: Compare lightweight exchange evaluation against PR #62
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
-      BASELINE_SHA: 520f69014f737ad5c9729afdec33b841ae4d7f01
+      BASELINE_SHA: 0475a6f2b35743b175e4d44feb975764f37ff35d
     steps:
       - name: Check out the candidate commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
