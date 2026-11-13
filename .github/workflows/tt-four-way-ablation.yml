@@ -55,7 +55,7 @@ jobs:
             --baseline-commit "$BASELINE_SHA" \
             --candidate-commit "$GITHUB_SHA" \
             --pairs 100 --nodes 100000 \
-            --hash-mb 128 --threads 1 --seed 20261113 --max-plies 240 \
+            --hash-mb 16 --threads 1 --seed 20261113 --max-plies 240 \
             --out tt-four-way-results
 
       - name: Create and verify evidence checksums
