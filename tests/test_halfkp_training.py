@@ -114,6 +114,65 @@ def make_fixture(directory: Path, count: int = 16) -> None:
     )
 
 
+def reference_halfkp_features(fen: str) -> tuple[list[int], list[int], bool]:
+    board = chess.Board(fen)
+    if not board.is_valid():
+        raise ValueError(f"Invalid chess position: {fen}")
+    result: list[list[int]] = [[], []]
+    for perspective in (chess.WHITE, chess.BLACK):
+        king_square = board.king(perspective)
+        assert king_square is not None
+        oriented_king = king_square if perspective == chess.WHITE else king_square ^ 56
+        features = result[0 if perspective == chess.WHITE else 1]
+        for square, piece in board.piece_map().items():
+            if piece.piece_type == chess.KING:
+                continue
+            oriented_piece = square if perspective == chess.WHITE else square ^ 56
+            relative_color = 0 if piece.color == perspective else 1
+            piece_slot = (piece.piece_type - 1) * 2 + relative_color
+            features.append((oriented_king * 10 + piece_slot) * 64 + oriented_piece)
+    return result[0], result[1], board.turn == chess.WHITE
+
+
+def test_fast_halfkp_extractor_matches_reference() -> None:
+    rng = random.Random(20261113)
+    positions = [
+        chess.STARTING_FEN,
+        "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+        "4k3/P7/8/8/8/8/7p/4K3 w - - 0 1",
+        "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+        "rnbq1rk1/ppp1bppp/3ppn2/8/2BPP3/2N2N2/PPP2PPP/R1BQ1RK1 w - - 0 1",
+    ]
+    for _ in range(300):
+        board = chess.Board()
+        for _ in range(rng.randint(0, 90)):
+            if board.is_game_over(claim_draw=True):
+                break
+            board.push(rng.choice(list(board.legal_moves)))
+        if board.is_valid():
+            positions.append(board.fen(en_passant="fen"))
+
+    for fen in positions:
+        expected = reference_halfkp_features(fen)
+        actual = TRAINER_MODULE.halfkp_features(fen)
+        if actual != expected:
+            raise AssertionError(f"Fast HalfKP extraction differs from reference: {fen}")
+
+    malformed = (
+        "8/8/8/8/8/8/8/8 w - - 0 1",
+        "8/8/8/8/8/8/8/4K2k x - - 0 1",
+        "8/8/8/8/8/8/8/4K3 w - - 0 1",
+        "8/8/8/8/8/8/8/4K1kk w - - 0 1",
+        "8/8/8/8/8/8/8/4K3/8 w - - 0 1",
+    )
+    for fen in malformed:
+        try:
+            TRAINER_MODULE.halfkp_features(fen)
+        except ValueError:
+            continue
+        raise AssertionError(f"Malformed FEN was accepted by HalfKP extractor: {fen}")
+
+
 def test_factorized_weights_are_shared_and_coalesced() -> None:
     model = TRAINER_MODULE.PrunexHalfKP(hidden=8, dense1=4, dense2=4)
     factor_index = 17
@@ -260,6 +319,7 @@ def read_until(process: subprocess.Popen, prefix: str) -> list[str]:
 def main() -> int:
     if len(sys.argv) != 2:
         raise SystemExit("usage: test_halfkp_training.py PATH_TO_PRUNEX")
+    test_fast_halfkp_extractor_matches_reference()
     test_factorized_weights_are_shared_and_coalesced()
     test_sparse_clipping_only_touches_updated_rows()
 
