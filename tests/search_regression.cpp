@@ -243,6 +243,37 @@ static bool samePositionState(
         &&left.nnue.valid==right.nnue.valid;
 }
 
+static bool nullMoveRoundTrips() {
+    using namespace prunex;
+    const std::array<std::string_view,3> positions{{
+        START_FEN,
+        "4k3/8/8/3pP3/8/8/8/4K3 w - d6 17 23",
+        "k3r3/8/8/3pP3/8/8/8/4K3 w - d6 41 57"
+    }};
+    for(std::size_t fixture=0;fixture<positions.size();++fixture) {
+        Position position;
+        if(!loadFen(position,positions[fixture])) return false;
+        position.nnue.generation=static_cast<std::uint64_t>(fixture+11);
+        position.nnue.valid=true;
+        for(std::size_t perspective=0;perspective<2;++perspective) {
+            for(std::size_t index=0;index<NNUE_MAX_HIDDEN;++index) {
+                position.nnue.values[perspective][index]=
+                    static_cast<std::int32_t>((index+perspective*17+fixture*31)%1009)-504;
+            }
+        }
+        const Position before=position;
+        const NullUndo undo=makeNullMove(position);
+        if(position.side!=1-before.side||position.ep!=-1
+            ||position.halfmove!=0||position.nnue.values!=before.nnue.values
+            ||position.nnue.generation!=before.nnue.generation
+            ||position.nnue.valid!=before.nnue.valid) return false;
+        undoNullMove(position,undo);
+        if(!samePositionState(position,before)) return false;
+        if(position.key!=computePositionKey(position)) return false;
+    }
+    return true;
+}
+
 static bool positionCommandsAreTransactional() {
     using namespace prunex;
 
@@ -784,6 +815,8 @@ int main() {
     const Move timedBest=findBestMove(position,MAX_PLY-1,50,0);
     if(timedBest.from<0||timedBest.to<0||completedSearchDepth<=12) return 96;
     if(searchTimeLimited||searchNodeLimit!=0) return 97;
+
+    if(!nullMoveRoundTrips()) return 152;
 
     if(!sliderTableIndicesAgree()) return 98;
 
