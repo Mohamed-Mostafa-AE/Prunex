@@ -1,0 +1,76 @@
+name: Prunex transposition-table associativity match
+
+on:
+  push:
+    branches: ['engine/tt-four-way-ablation-2026-11-13']
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/strength-match/internal_selfplay.py'
+      - '.github/workflows/tt-four-way-ablation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-tt-four-way-match
+  cancel-in-progress: false
+
+jobs:
+  paired-match:
+    name: Compare four-way and two-way transposition tables
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      BASELINE_SHA: c19df7176896a32756377309de84af071f8111bd
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install build and match dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends cmake ninja-build g++
+          python3 -m pip install --user --disable-pip-version-check python-chess==1.999
+
+      - name: Build two-way baseline and four-way candidate
+        run: |
+          git worktree add --detach ../prunex-tt-baseline "$BASELINE_SHA"
+          cmake -S ../prunex-tt-baseline -B ../prunex-tt-baseline/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22 \
+            -DCMAKE_CXX_FLAGS=-DPRUNEX_TT_WAYS=2
+          cmake --build ../prunex-tt-baseline/build --target prunex --parallel 2
+          cmake -S . -B build-tt -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build-tt --target prunex --parallel 2
+          python3 tests/test_internal_selfplay.py
+
+      - name: Run paired-colour equal-node match
+        run: |
+          python3 tools/strength-match/internal_selfplay.py \
+            --baseline ../prunex-tt-baseline/build/prunex \
+            --candidate build-tt/prunex \
+            --baseline-commit "$BASELINE_SHA" \
+            --candidate-commit "$GITHUB_SHA" \
+            --pairs 100 --nodes 100000 \
+            --hash-mb 16 --threads 1 --seed 20261113 --max-plies 240 \
+            --out tt-four-way-results
+
+      - name: Create and verify evidence checksums
+        if: always()
+        run: |
+          if [ -d tt-four-way-results ]; then
+            (cd tt-four-way-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > tt-four-way-results/SHA256SUMS.txt
+            (cd tt-four-way-results && sha256sum --check SHA256SUMS.txt)
+          fi
+
+      - name: Upload match evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-tt-four-way-match-${{ github.run_number }}
+          path: tt-four-way-results/
+          if-no-files-found: warn
+          retention-days: 90
