@@ -1907,7 +1907,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(quiet&&ply<MAX_PLY) {
                 const int historyBonus=std::min(2048,depth*depth*16);
                 const int historyMalus=std::min(1024,depth*depth*8);
-                const Move& precedingMove=ply>0?searchPathMoves[ply-1]:Move{};
+                const Move precedingMove=ply>0?searchPathMoves[ply-1]:Move{};
                 const int precedingType=ply>0?searchPathPieceTypes[ply-1]:0;
                 for(std::size_t previous=0;previous+1<nodeScratch.searchedCount;++previous) {
                     const Move& rejected=nodeScratch.searched[previous];
