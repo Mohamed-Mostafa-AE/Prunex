@@ -15,7 +15,6 @@ import time
 from pathlib import Path
 from typing import Iterator
 
-import chess
 import numpy as np
 import torch
 from torch import Tensor, nn
@@ -38,39 +37,67 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+PIECE_TYPES = {"p": 1, "n": 2, "b": 3, "r": 4, "q": 5, "k": 6}
+
+
 def halfkp_features(fen: str) -> tuple[list[int], list[int], bool]:
-    """Return White and Black HalfKP feature indices for a standard position."""
-    board = chess.Board(fen)
-    if not board.is_valid():
-        raise ValueError(f"Invalid chess position: {fen}")
+    """Extract both HalfKP perspectives directly from a validated FEN."""
+    fields = fen.split()
+    if len(fields) != 6 or fields[1] not in ("w", "b"):
+        raise ValueError("FEN must contain six fields and a valid active colour")
 
-    perspective_features: list[list[int]] = [[], []]
-    for perspective in (chess.WHITE, chess.BLACK):
-        king_square = board.king(perspective)
-        if king_square is None:
-            raise ValueError("Position must contain both kings")
+    ranks = fields[0].split("/")
+    if len(ranks) != 8:
+        raise ValueError("FEN piece placement must contain eight ranks")
 
-        oriented_king = king_square if perspective == chess.WHITE else king_square ^ 56
-        features = perspective_features[0 if perspective == chess.WHITE else 1]
-
-        for square, piece in board.piece_map().items():
-            if piece.piece_type == chess.KING:
+    pieces: list[tuple[int, int, int]] = []
+    kings = [-1, -1]
+    for fen_rank, encoded_rank in enumerate(ranks):
+        file_index = 0
+        rank_index = 7 - fen_rank
+        for symbol in encoded_rank:
+            if symbol in "12345678":
+                file_index += int(symbol)
                 continue
 
-            oriented_piece = square if perspective == chess.WHITE else square ^ 56
-            relative_color = 0 if piece.color == perspective else 1
-            piece_type = piece.piece_type - 1
-            piece_slot = piece_type * 2 + relative_color
+            piece_type = PIECE_TYPES.get(symbol.lower())
+            if piece_type is None or file_index >= 8:
+                raise ValueError("FEN contains an invalid piece placement")
+            color = 0 if symbol.isupper() else 1
+            square = rank_index * 8 + file_index
+            if piece_type == 6:
+                if kings[color] >= 0:
+                    raise ValueError("FEN must contain exactly one king per colour")
+                kings[color] = square
+            else:
+                pieces.append((square, piece_type, color))
+            file_index += 1
+
+        if file_index != 8:
+            raise ValueError("Each FEN rank must describe exactly eight files")
+
+    if kings[0] < 0 or kings[1] < 0:
+        raise ValueError("FEN must contain exactly one king per colour")
+
+    perspective_features: list[list[int]] = [[], []]
+    for perspective in (0, 1):
+        oriented_king = kings[perspective]
+        if perspective == 1:
+            oriented_king ^= 56
+        features = perspective_features[perspective]
+
+        for square, piece_type, color in pieces:
+            oriented_piece = square if perspective == 0 else square ^ 56
+            relative_color = 0 if color == perspective else 1
+            piece_slot = (piece_type - 1) * 2 + relative_color
             feature_index = (oriented_king * 10 + piece_slot) * 64 + oriented_piece
             if not 0 <= feature_index < FEATURE_COUNT:
                 raise ValueError(f"HalfKP feature index out of range: {feature_index}")
             features.append(feature_index)
 
-    return (
-        perspective_features[0],
-        perspective_features[1],
-        board.turn == chess.WHITE,
-    )
+        features.sort(reverse=True)
+
+    return perspective_features[0], perspective_features[1], fields[1] == "w"
 
 
 def split_for_position(position_id: str, seed: str) -> str:
