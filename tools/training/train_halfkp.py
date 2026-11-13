@@ -55,11 +55,16 @@ def halfkp_features(fen: str) -> tuple[list[int], list[int], bool]:
     for fen_rank, encoded_rank in enumerate(ranks):
         file_index = 0
         rank_index = 7 - fen_rank
+        previous_was_digit = False
         for symbol in encoded_rank:
             if symbol in "12345678":
+                if previous_was_digit:
+                    raise ValueError("FEN rank contains adjacent empty-square counts")
+                previous_was_digit = True
                 file_index += int(symbol)
                 continue
 
+            previous_was_digit = False
             piece_type = PIECE_TYPES.get(symbol.lower())
             if piece_type is None or file_index >= 8:
                 raise ValueError("FEN contains an invalid piece placement")
