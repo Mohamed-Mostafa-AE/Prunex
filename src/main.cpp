@@ -1934,20 +1934,21 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                     updateContinuationHistory(
                         ply,typeOf(p.board[rejected.from]),rejected.to,-historyMalus);
                 }
+
                 if(quiet) {
                     if(!sameMove(m,killerMoves[ply][0])) {
-                    killerMoves[ply][1]=killerMoves[ply][0];
-                    killerMoves[ply][0]=m;
-                }
+                        killerMoves[ply][1]=killerMoves[ply][0];
+                        killerMoves[ply][0]=m;
+                    }
                     int& quietHistory=historyScores[movingColor][m.from][m.to];
                     quietHistory=std::min(30000,quietHistory+historyBonus);
                     updateContinuationHistory(ply,movingPieceType,m.to,historyBonus);
 
                     if(ply>0&&ply<MAX_PLY) {
-                    const int previousType=searchPathPieceTypes[ply-1];
-                    const Move& previous=searchPathMoves[ply-1];
-                    if(previousType>=1&&previousType<=6&&previous.to>=0)
-                        counterMoves[previousType][previous.to]=m;
+                        const int previousType=searchPathPieceTypes[ply-1];
+                        const Move& previous=searchPathMoves[ply-1];
+                        if(previousType>=1&&previousType<=6&&previous.to>=0)
+                            counterMoves[previousType][previous.to]=m;
                     }
                 } else if(capture&&!m.promotion) {
                     for(std::size_t previous=0;previous<nodeScratch.searchedCount;++previous) {
