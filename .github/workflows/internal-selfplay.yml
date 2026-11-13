@@ -2,7 +2,7 @@ name: Prunex internal paired self-play
 
 on:
   push:
-    branches: ['engine/stockfish-gap-rebuild-2026-11']
+    branches: ['engine/stockfish-gap-rebuild-2026-11', 'engine/bitboard-draw-detection-2026-11-13']
     paths:
       - 'src/**'
       - 'tests/test_internal_selfplay.py'
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 360
     env:
-      BASELINE_SHA: 129829dd95672e83a347563526ae7b28ccf1ea63
+      BASELINE_SHA: ${{ github.ref_name == 'engine/bitboard-draw-detection-2026-11-13' && 'c19df7176896a32756377309de84af071f8111bd' || '129829dd95672e83a347563526ae7b28ccf1ea63' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
