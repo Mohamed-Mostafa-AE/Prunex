@@ -1835,6 +1835,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         const int priorMoveHistory=historyScores[movingColor][m.from][m.to];
         const bool capture=isCapture(p,m);
         const int exchange=capture?staticExchangeEvaluation(p,m):0;
+        const int priorCaptureHistory=capture?captureHistoryValue(p,m):0;
         searchPathMoves[ply]=m;
         searchPathPieceTypes[ply]=movingPieceType;
         const bool quiet=!capture&&!m.promotion;
@@ -1843,7 +1844,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
 
         if(shouldPruneLosingCapture(
             pvNode,checked,givesCheck,capture,m.promotion!=EMPTY,
-            depth,moveIndex,exchange,capture?captureHistoryValue(p,m):0
+            depth,moveIndex,exchange,priorCaptureHistory
         )||shouldPruneLateQuietMove(
             pvNode,checked,givesCheck,quiet,depth,moveIndex,priorMoveHistory
         )||(safeForForwardPruning&&shouldPruneFutilityQuiet(
