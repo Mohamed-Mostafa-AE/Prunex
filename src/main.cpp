@@ -1219,14 +1219,14 @@ void updateCaptureHistory(const Position& p,const Move& move,int bonus) {
 
 int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply,
                       int* exchangeOut=nullptr) {
-    if(exchangeOut) *exchangeOut=0;
+    const bool capture=isCapture(p,m);
+    const int exchange=capture?staticExchangeEvaluation(p,m):0;
+    if(exchangeOut) *exchangeOut=exchange;
     if(hashMove.from>=0&&sameMove(m,hashMove)) return 2000000;
     int score=0;
     if(m.promotion) score+=900000+MG_VALUE[typeOf(m.promotion)]*8;
-    if(isCapture(p,m)) {
+    if(capture) {
         const int victim=m.enPassant?makePiece(1,1-p.side):p.board[m.to];
-        const int exchange=staticExchangeEvaluation(p,m);
-        if(exchangeOut) *exchangeOut=exchange;
         score+=1000000+(exchange>=0?200000:-200000)+exchange*16
             +MG_VALUE[typeOf(victim)]*4-MG_VALUE[typeOf(p.board[m.from])]
             +captureHistoryValue(p,m)/4;
