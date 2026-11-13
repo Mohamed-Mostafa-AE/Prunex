@@ -6,7 +6,7 @@ on:
     paths:
       - 'src/**'
       - 'tools/strength-match/internal_selfplay.py'
-      - '.github/workflows/pruning-ablation.yml'
+      - '.github/workflows/continuation-history-ablation.yml'
   workflow_dispatch:
     inputs:
       pairs:
@@ -50,15 +50,15 @@ jobs:
       - name: Build the PR #63 baseline
         run: |
           git worktree add --detach ../prunex-continuation-baseline "$BASELINE_SHA"
-          cmake -S ../prunex-baseline -B ../prunex-baseline/build -G Ninja \
+          cmake -S ../prunex-continuation-baseline -B ../prunex-continuation-baseline/build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
-          cmake --build ../prunex-baseline/build --target prunex --parallel 2
+          cmake --build ../prunex-continuation-baseline/build --target prunex --parallel 2
 
       - name: Build the continuation-history candidate
         run: |
           cmake -S . -B build-continuation -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
-          cmake --build build-pruning --target prunex --parallel 2
+          cmake --build build-continuation --target prunex --parallel 2
 
       - name: Verify the match harness
         run: python3 tests/test_internal_selfplay.py
@@ -69,8 +69,8 @@ jobs:
           NODES_INPUT: ${{ inputs.nodes }}
         run: |
           python3 tools/strength-match/internal_selfplay.py \
-            --baseline ../prunex-baseline/build/prunex \
-            --candidate build-pruning/prunex \
+            --baseline ../prunex-continuation-baseline/build/prunex \
+            --candidate build-continuation/prunex \
             --baseline-commit "$BASELINE_SHA" \
             --candidate-commit "$GITHUB_SHA" \
             --pairs "${PAIRS_INPUT:-100}" \
@@ -81,9 +81,9 @@ jobs:
       - name: Create and verify evidence checksums
         if: always()
         run: |
-          if [ -d pruning-ablation-results ]; then
-            (cd pruning-ablation-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > pruning-ablation-results/SHA256SUMS.txt
-            (cd pruning-ablation-results && sha256sum --check SHA256SUMS.txt)
+          if [ -d continuation-history-ablation-results ]; then
+            (cd continuation-history-ablation-results && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum) > continuation-history-ablation-results/SHA256SUMS.txt
+            (cd continuation-history-ablation-results && sha256sum --check SHA256SUMS.txt)
           fi
 
       - name: Upload PGN, telemetry, summary and manifest
@@ -91,6 +91,6 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: prunex-continuation-history-ablation-${{ github.run_number }}
-          path: pruning-ablation-results/
+          path: continuation-history-ablation-results/
           if-no-files-found: warn
           retention-days: 90
