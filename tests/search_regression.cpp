@@ -77,7 +77,7 @@ static bool insufficientMaterialMatchesReference(const prunex::Position& p) {
     const bool expected=referenceIsInsufficientMaterial(p);
     if(actual!=expected) {
         std::cerr<<"insufficient-material mismatch: actual "<<actual
-            <<" reference "<<expected<<'\\n';
+            <<" reference "<<expected<<'\n';
         return false;
     }
     return true;
