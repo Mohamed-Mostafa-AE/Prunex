@@ -84,6 +84,7 @@ def halfkp_features(fen: str) -> tuple[list[int], list[int], bool]:
     if kings[0] < 0 or kings[1] < 0:
         raise ValueError("FEN must contain exactly one king per colour")
 
+    pieces.sort(key=lambda piece: piece[0], reverse=True)
     perspective_features: list[list[int]] = [[], []]
     for perspective in (0, 1):
         oriented_king = kings[perspective]
@@ -99,8 +100,6 @@ def halfkp_features(fen: str) -> tuple[list[int], list[int], bool]:
             if not 0 <= feature_index < FEATURE_COUNT:
                 raise ValueError(f"HalfKP feature index out of range: {feature_index}")
             features.append(feature_index)
-
-        features.sort(reverse=True)
 
     return perspective_features[0], perspective_features[1], fields[1] == "w"
 
