@@ -882,6 +882,8 @@ int main() {
                 [&](const Move& expected){return sameMove(move,expected);})) return 112;
         }
         if(hasAnyLegalMove(position,0)!=!allMoves.empty()) return 113;
+        if(!inCheck(position,position.side)
+            &&hasAnyLegalMoveOutsideCheck(position,0)!=!allMoves.empty()) return 160;
     }
 
     // Quiescence must still recognise terminal positions after switching to
@@ -911,6 +913,8 @@ int main() {
             if(isCapture(position,move)||move.promotion) ++expectedTactical;
         if(tactical.size()!=expectedTactical) return 118;
         if(hasAnyLegalMove(position,0)!=!allMoves.empty()) return 119;
+        if(!inCheck(position,position.side)
+            &&hasAnyLegalMoveOutsideCheck(position,0)!=!allMoves.empty()) return 161;
         auto moves=legalMoves(position);
         if(moves.empty()) break;
         const Move selected=moves[

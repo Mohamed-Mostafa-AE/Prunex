@@ -302,7 +302,7 @@ inline constexpr auto KNIGHT_ATTACKS=buildKnightAttacks();
 inline constexpr auto KING_ATTACKS=buildKingAttacks();
 inline constexpr auto PAWN_ATTACKS=buildPawnAttacks();
 template<std::size_t N>
-std::uint64_t traceSlidingAttacks(int square64,std::uint64_t occupied,
+constexpr std::uint64_t traceSlidingAttacks(int square64,std::uint64_t occupied,
                                   const std::array<int,N>& directions) {
     std::uint64_t attacks=0;
     const int from=square88From64(square64);
@@ -315,6 +315,14 @@ std::uint64_t traceSlidingAttacks(int square64,std::uint64_t occupied,
     }
     return attacks;
 }
+
+inline constexpr auto KING_SLIDER_RAYS=[] {
+    std::array<std::uint64_t,64> rays{};
+    for(int square=0;square<64;++square)
+        rays[square]=traceSlidingAttacks(square,0,BISHOP_DIRECTIONS)
+                    |traceSlidingAttacks(square,0,ROOK_DIRECTIONS);
+    return rays;
+}();
 
 std::uint64_t relevantOccupancyMask(
     int square64,const std::array<int,4>& directions) {
@@ -839,6 +847,11 @@ MoveList legalMoves(Position& position,int ply=0,bool capturesOnly=false) {
     return legal;
 }
 
+std::uint64_t pawnPushesToEmpty(const Position& position,std::uint64_t pawns) {
+    const std::uint64_t destinations=position.side==WHITE?pawns<<8:pawns>>8;
+    return destinations&~(position.occupancy[WHITE]|position.occupancy[BLACK]);
+}
+
 bool hasAnyLegalMove(Position& position,int ply=0) {
     const int movingSide=position.side;
     const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
@@ -846,15 +859,25 @@ bool hasAnyLegalMove(Position& position,int ply=0) {
 
     // An unpinned pawn can advance onto an empty square that blocks a check.
     const std::uint64_t unpinnedPawns=position.piecesBB[movingSide][1]&~kingSafety.pinned;
-    const std::uint64_t pawnPushes=movingSide==WHITE?unpinnedPawns<<8:unpinnedPawns>>8;
-    const std::uint64_t occupied=position.occupancy[WHITE]|position.occupancy[BLACK];
-    if(checkCount<2&&(pawnPushes&~occupied&kingSafety.evasionMask)!=0) return true;
+    if(checkCount<2&&(pawnPushesToEmpty(position,unpinnedPawns)&kingSafety.evasionMask)!=0)
+        return true;
 
     const auto candidates=pseudoMoves(position,ply);
     for(const Move& move:candidates) {
         if(isLegalCandidate(position,move,movingSide,kingSafety,checkCount)) return true;
     }
     return false;
+}
+
+bool hasAnyLegalMoveOutsideCheck(Position& position,int ply) {
+    const auto& pieces=position.piecesBB[position.side];
+    if(pieces[6]!=0) {
+        const int king=std::countr_zero(pieces[6]);
+        // Moving a pawn off the king's rays cannot uncover a slider attack.
+        const std::uint64_t offRayPawns=pieces[1]&~KING_SLIDER_RAYS[king];
+        if(pawnPushesToEmpty(position,offRayPawns)!=0) return true;
+    }
+    return hasAnyLegalMove(position,ply);
 }
 
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
@@ -1667,7 +1690,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         // captures and promotions; test for stalemate separately when there
         // are no such moves.
         moves=legalMoves(p,searchPly,true);
-        if(moves.empty()) return hasAnyLegalMove(p,searchPly)?evaluate(p):0;
+        if(moves.empty()) return hasAnyLegalMoveOutsideCheck(p,searchPly)?evaluate(p):0;
 
         const int stand=evaluate(p);
         if(stand>=beta) return stand;
@@ -1792,7 +1815,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         // exact stalemate handling when this shortcut would otherwise fire.
         const int margin=120+70*depth;
         if(staticEval-margin>=beta) {
-            return hasAnyLegalMove(p,ply)?staticEval-margin:0;
+            return hasAnyLegalMoveOutsideCheck(p,ply)?staticEval-margin:0;
         }
 
         // A shallow quiescence search can disprove a very low static score
