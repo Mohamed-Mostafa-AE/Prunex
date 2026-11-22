@@ -160,6 +160,17 @@ When a cached parent accumulator is available and both kings stayed in place, Pr
 
 The screening campaign pairs six openings at 100, 250, 500, and 1,000 ms per move. Within each shard, both engines use the same logical CPU, one thread, and 128 MiB of hash. The campaign archives the PGNs, opening positions, engine checksums, UCI defaults, configured options, and match rules.
 
+Candidate `a4992e11b2a07481a53b058bca25a3806227789a` completed the 48-game screen on November 23, 2026. Stockfish 19 Full used its default network, `nn-1a298aa575a0.nnue`, with maximum skill and strength limiting disabled.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 250 ms | 12 | 1 | 2 | 9 | 16.67% |
+| 500 ms | 12 | 0 | 4 | 8 | 16.67% |
+| 1,000 ms | 12 | 0 | 5 | 7 | 20.83% |
+
+Stockfish led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45082249110)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
