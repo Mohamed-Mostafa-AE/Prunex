@@ -1,8 +1,8 @@
-name: Incremental HalfKP vs Stockfish 19 Full
+name: Sparse HalfKP inputs vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['feature/prunex-incremental-halfkp']
+    branches: ['experiment/halfkp-sparse-input']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'
@@ -14,6 +14,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: stockfish19-time-sweep-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   match:
@@ -28,6 +32,7 @@ jobs:
     env:
       STOCKFISH_SHA: edb0d9db6731067ec50ce619ff372b463bc4dd5d
       STOCKFISH_ARCHIVE_SHA: 9defc0d4e55d49c65a6d042f3e571a39fcea499ade6dbe741b53b8c65e03611f
+      HALF_KP_SHA: 82215d0fd0df3cde17fc47ac024c5b5736823ec390200abdd705c44660c69ee4
       MOVETIME_MS: ${{ matrix.milliseconds }}
       OPENING_OFFSET: ${{ matrix.offset }}
     steps:
@@ -61,21 +66,27 @@ jobs:
           curl --fail --location --retry 3 \
             https://raw.githubusercontent.com/official-stockfish/networks/master/nn-82215d0fd0df.nnue \
             --output nn-82215d0fd0df.nnue
-          digest="$(sha256sum nn-82215d0fd0df.nnue | cut -d ' ' -f 1)"
-          test "${digest:0:12}" = 82215d0fd0df
+          printf '%s  %s\n' "$HALF_KP_SHA" nn-82215d0fd0df.nnue | sha256sum --check
           .venv/bin/python tests/reference_nnue.py build/prunex nn-82215d0fd0df.nnue
 
       - name: Run paired games against Stockfish 19
         run: |
           mkdir -p results
           lscpu > results/runner-cpu.txt
-          .venv/bin/python tools/strength-match/modern_strength_ladder.py \
+          cpu="$(python3 -c 'import os; print(min(os.sched_getaffinity(0)))')"
+          printf '\nLogical CPU used by both engines: %s\n' "$cpu" >> results/runner-cpu.txt
+          printf 'uci\nquit\n' | "$STOCKFISH_BINARY" > results/stockfish-uci-defaults.txt
+          printf 'uci\nquit\n' | build/prunex > results/prunex-uci-defaults.txt
+          sha256sum stockfish.tar.gz "$STOCKFISH_BINARY" build/prunex nn-82215d0fd0df.nnue \
+            > results/engine-checksums.txt
+          taskset -c "$cpu" .venv/bin/python tools/strength-match/modern_strength_ladder.py \
             --candidate build/prunex --candidate-commit "$GITHUB_SHA" \
             --candidate-halfkp-file nn-82215d0fd0df.nnue \
             --stockfish "$STOCKFISH_BINARY" --stockfish-source-commit "$STOCKFISH_SHA" \
             --stockfish-build-arch linux-x86-64-universal --stockfish-only \
             --tier timed-no-node-cap --movetime-ms "$MOVETIME_MS" \
-            --opening-offset "$OPENING_OFFSET" --pairs 2 --hash-mb 128 \
+            --opening-offset "$OPENING_OFFSET" --pairs 2 --seed 20261112 \
+            --threads 1 --hash-mb 128 --max-plies 300 \
             --out results
 
       - name: Upload opening positions, PGNs and match settings
@@ -113,16 +124,22 @@ jobs:
                   manifest = json.loads((folder / "manifest.json").read_text())
                   report = json.loads((folder / "report.json").read_text())
                   pair = json.loads((folder / "openings.json").read_text())
+                  candidate_options = manifest["candidate"]["configured_options"]
                   options = manifest["opponents"][0]["configured_options"]
                   tier = manifest["conditions"]["tiers"][0]
                   if (manifest["conditions"]["opening_offset"] != offset or len(pair) != 2
                       or report["total_games"] != 4 or report["opponents"] != ["Stockfish 19"]
                       or report["candidate_commit"] != os.environ["GITHUB_SHA"]
+                      or manifest["conditions"]["opening_seed"] != 20261112
+                      or manifest["conditions"]["max_plies"] != 300
                       or tier["node_limit_per_move"] is not None
                       or round(tier["movetime_seconds_per_move"] * 1000) != milliseconds
+                      or candidate_options["Hash"] != 128 or options["Hash"] != 128
+                      or candidate_options["Threads"] != 1 or options["Threads"] != 1
                       or options["UCI_LimitStrength"] or options["Skill Level"] != 20
-                      or not options["EvalFile"]
-                      or not manifest["candidate"]["halfkp_sha256"].startswith("82215d0fd0df")):
+                      or options["EvalFile"] != "nn-1a298aa575a0.nnue"
+                      or manifest["candidate"]["halfkp_sha256"] !=
+                          "82215d0fd0df3cde17fc47ac024c5b5736823ec390200abdd705c44660c69ee4"):
                       raise RuntimeError(f"Unexpected match settings in {folder}")
                   openings.extend(opening["fen"] for opening in pair)
                   result = report["results"][0]

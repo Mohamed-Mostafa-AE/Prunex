@@ -154,6 +154,12 @@ Both candidates scored below 50% in every group. The small paired sample is usef
 
 [Direct evaluation match](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45059918835) · [Incremental evaluation match](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45060239942)
 
+### Sparse inputs for incremental HalfKP evaluation
+
+When a cached parent accumulator is available and both kings stayed in place, Prunex passes the king squares and changed pieces to the probe. It assembles the full piece list on cache misses and when a king moves. The probe and its network stay the same.
+
+The screening campaign pairs six openings at 100, 250, 500, and 1,000 ms per move. Within each shard, both engines use the same logical CPU, one thread, and 128 MiB of hash. The campaign archives the PGNs, opening positions, engine checksums, UCI defaults, configured options, and match rules.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

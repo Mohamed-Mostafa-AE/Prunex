@@ -1606,24 +1606,6 @@ int referenceEvaluation(const Position& p) {
     auto& entry=referenceScores[key&(referenceScores.size()-1)];
     if(entry.valid&&entry.key==key) return entry.score;
 
-    std::array<int,33> pieces{};
-    std::array<int,33> squares{};
-    pieces[0]=1;
-    pieces[1]=7;
-    squares[0]=square64From88(kingSquare(p,WHITE));
-    squares[1]=square64From88(kingSquare(p,BLACK));
-    std::size_t index=2;
-    for(int color=WHITE;color<=BLACK;++color) {
-        for(int type=1;type<=5;++type) {
-            std::uint64_t occupied=p.piecesBB[color][type];
-            while(occupied) {
-                pieces[index]=color*6+7-type;
-                squares[index++]=std::countr_zero(occupied);
-                occupied&=occupied-1;
-            }
-        }
-    }
-
     const ReferenceAccumulator* parentValues=nullptr;
     std::array<ReferencePieceChange,3> changes{};
     int changeCount=0;
@@ -1635,6 +1617,27 @@ int referenceEvaluation(const Position& p) {
             if(changeCount>0) {
                 parentValues=&parent.values;
                 ++referenceIncrementalCount;
+            }
+        }
+    }
+
+    std::array<int,33> pieces{};
+    std::array<int,33> squares{};
+    pieces[0]=1;
+    pieces[1]=7;
+    squares[0]=square64From88(kingSquare(p,WHITE));
+    squares[1]=square64From88(kingSquare(p,BLACK));
+    // The probe needs the full piece list for a refresh or a changed king bucket.
+    if(!parentValues||changes[0].piece==pieces[0]||changes[0].piece==pieces[1]) {
+        std::size_t index=2;
+        for(int color=WHITE;color<=BLACK;++color) {
+            for(int type=1;type<=5;++type) {
+                std::uint64_t occupied=p.piecesBB[color][type];
+                while(occupied) {
+                    pieces[index]=color*6+7-type;
+                    squares[index++]=std::countr_zero(occupied);
+                    occupied&=occupied-1;
+                }
             }
         }
     }
