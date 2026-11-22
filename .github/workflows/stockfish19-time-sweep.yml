@@ -2,7 +2,7 @@ name: Prunex vs Stockfish 19 time sweep
 
 on:
   push:
-    branches: ['feature/prunex-threat-evaluation']
+    branches: ['feature/prunex-pawn-and-draw-search']
     paths:
       - 'src/**'
       - 'tools/strength-match/modern_strength_ladder.py'

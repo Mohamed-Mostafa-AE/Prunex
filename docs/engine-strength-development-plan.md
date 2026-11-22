@@ -127,6 +127,14 @@ The match campaign compares this candidate with the official Stockfish 19 releas
 
 [Attack and defend maps](https://www.chessprogramming.org/Attack_and_Defend_Maps) · [Stockfish 19 release](https://stockfishchess.org/blog/2026/stockfish-19/)
 
+## Pawn masks and the fifty-move clock
+
+The evaluator checks passed and connected pawns with precomputed board masks. Tests compare the masks with a scan of the legal board after deterministic playouts.
+
+The search table now distinguishes the same board position at different fifty-move clocks. A regression checks a rook ending whose winning search result would otherwise be reused one ply before a fifty-move draw. The repetition key still follows piece placement, side, castling rights, and legal en passant.
+
+[Passed-pawn masks](https://www.chessprogramming.org/Passed_Pawns_(Bitboards)) · [Stockfish 19 clock-sensitive position keys](https://github.com/official-stockfish/Stockfish/blob/sf_19/src/position.h)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

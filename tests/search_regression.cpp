@@ -911,6 +911,29 @@ int main() {
         if(!transpositionMoveEncodingAgrees(position)) return 157;
         if(!movePickerExchangeScoresAgree(position)) return 155;
         if(!insufficientMaterialMatchesReference(position)) return 153;
+        for(int color=WHITE;color<=BLACK;++color) {
+            std::uint64_t pawns=position.piecesBB[color][1];
+            while(pawns) {
+                const int index=std::countr_zero(pawns);
+                pawns&=pawns-1;
+                const int pawn=square88From64(index);
+                bool blocked=false;
+                bool connected=false;
+                for(int target=0;target<128;++target) {
+                    if(!onBoard(target)) continue;
+                    const int files=fileOf(target)-fileOf(pawn);
+                    const int ranks=rankOf(target)-rankOf(pawn);
+                    const int piece=position.board[target];
+                    if(piece==makePiece(1,1-color)&&std::abs(files)<=1
+                       &&(color==WHITE?ranks>0:ranks<0)) blocked=true;
+                    if(piece==makePiece(1,color)&&std::abs(files)==1&&std::abs(ranks)<=1)
+                        connected=true;
+                }
+                if(isPassedPawn(position,pawn,color)==blocked) return 175;
+                if(((position.piecesBB[color][1]&CONNECTED_PAWN_SQUARES[index])!=0)
+                    !=connected) return 176;
+            }
+        }
         const auto allLegal=legalMoves(position,0);
         const std::vector<Move> allMoves(allLegal.begin(),allLegal.end());
         const auto tactical=legalMoves(position,0,true);
@@ -959,6 +982,17 @@ int main() {
             return 129;
         }
     }
+
+    // The same board can be winning or drawn depending on the fifty-move clock.
+    Position rookEnding;
+    Position nearDraw;
+    if(!loadFen(rookEnding,"7k/8/8/8/8/8/R7/K7 w - - 0 1")||
+       !loadFen(nearDraw,"7k/8/8/8/8/8/R7/K7 w - - 99 1")) return 171;
+    if(positionKey(rookEnding)!=positionKey(nearDraw)||
+       searchTableKey(rookEnding)==searchTableKey(nearDraw)) return 172;
+    resetSearchState();
+    if(negamax(rookEnding,2,-INF,INF,0,true)<=200) return 173;
+    if(negamax(nearDraw,2,-INF,INF,0,true)!=0) return 174;
 
     // A pawn attacking a queen scores more when the queen has no defender.
     if(!loadFen(position,"4k3/8/8/8/3q4/2P5/8/4K3 w - - 0 1")) return 167;

@@ -1115,6 +1115,12 @@ std::uint64_t positionKey(const Position& p) {
     return p.key;
 }
 
+std::uint64_t searchTableKey(const Position& p) {
+    // The fifty-move clock affects search bounds and is absent from the repetition key.
+    constexpr std::uint64_t clockSalt=0x9E3779B97F4A7C15ULL;
+    return positionKey(p)^(static_cast<std::uint64_t>(p.halfmove)*clockSalt);
+}
+
 bool repeatedPosition(std::uint64_t key,int ply,int reversiblePlies) {
     const int earliest=std::max(0,ply-reversiblePlies);
     for(int previous=ply-2;previous>=earliest;previous-=2) {
@@ -1387,20 +1393,39 @@ void orderMoves(const Position& p,MoveList& moves,const Move& hashMove,int ply) 
     }
 }
 
+constexpr auto PASSED_PAWN_BLOCKERS=[] {
+    std::array<std::array<std::uint64_t,64>,2> masks{};
+    for(int square=0;square<64;++square) {
+        const int file=square%8;
+        const int rank=square/8;
+        const int left=std::max(0,file-1);
+        const int right=std::min(7,file+1);
+        for(int adjacent=left;adjacent<=right;++adjacent) {
+            for(int ahead=rank+1;ahead<8;++ahead)
+                masks[WHITE][square]|=std::uint64_t{1}<<(ahead*8+adjacent);
+            for(int ahead=rank-1;ahead>=0;--ahead)
+                masks[BLACK][square]|=std::uint64_t{1}<<(ahead*8+adjacent);
+        }
+    }
+    return masks;
+}();
+
+constexpr auto CONNECTED_PAWN_SQUARES=[] {
+    std::array<std::uint64_t,64> masks{};
+    for(int square=0;square<64;++square) {
+        const int origin=square88From64(square);
+        for(int offset:{-17,-15,-1,1,15,17}) {
+            const int neighbour=origin+offset;
+            if(onBoard(neighbour)) masks[square]|=squareBit(neighbour);
+        }
+    }
+    return masks;
+}();
+
 bool isPassedPawn(const Position& p,int square,int color) {
     if(!onBoard(square)||p.board[square]!=makePiece(1,color)) return false;
-    const int file=fileOf(square);
-    const int rank=rankOf(square);
-    std::uint64_t enemyPawns=p.piecesBB[1-color][1];
-    while(enemyPawns) {
-        const int enemySquare=static_cast<int>(std::countr_zero(enemyPawns));
-        enemyPawns&=enemyPawns-1;
-        const int enemyFile=enemySquare%8;
-        const int enemyRank=enemySquare/8;
-        if(std::abs(enemyFile-file)<=1&&
-           (color==WHITE?enemyRank>rank:enemyRank<rank)) return false;
-    }
-    return true;
+    const auto blockers=PASSED_PAWN_BLOCKERS[color][square64From88(square)];
+    return (p.piecesBB[1-color][1]&blockers)==0;
 }
 
 struct EvaluationMaps {
@@ -1610,7 +1635,6 @@ int evaluate(Position& p) {
             const int square64=static_cast<int>(std::countr_zero(pawns));
             pawns&=pawns-1;
             const int square=square88From64(square64);
-            const int file=fileOf(square);
             const int rank=rankOf(square);
             const int relativeRank=color==WHITE?rank:7-rank;
             if(isPassedPawn(p,square,color)) {
@@ -1619,17 +1643,7 @@ int evaluate(Position& p) {
                 ending[color]+=bonus[relativeRank]*2;
             }
 
-            // Reward connected pawn chains without counting a pair twice.
-            bool connected=false;
-            for(int adjacentFile:{file-1,file+1}) {
-                if(adjacentFile<0||adjacentFile>7) continue;
-                for(int adjacentRank:{rank-1,rank,rank+1}) {
-                    if(adjacentRank<0||adjacentRank>7) continue;
-                    if(p.board[adjacentRank*16+adjacentFile]==makePiece(1,color))
-                        connected=true;
-                }
-            }
-            if(connected) {
+            if((p.piecesBB[color][1]&CONNECTED_PAWN_SQUARES[square64])!=0) {
                 middle[color]+=5;
                 ending[color]+=7;
             }
@@ -1832,7 +1846,8 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     ++nodes;
     int originalAlpha=alpha;
     bool ttFound=false;
-    TTEntry& entry=probeTranspositionTable(key,ttFound);
+    const std::uint64_t tableKey=searchTableKey(p);
+    TTEntry& entry=probeTranspositionTable(tableKey,ttFound);
     Move hashMove{};
     if(ttFound) {
         ++ttHits;
@@ -1983,8 +1998,8 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
     }
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
-    if(!ttFound||entry.key!=key||entry.generation!=ttGeneration||depth>=entry.depth) {
-        entry.key=key;
+    if(!ttFound||entry.key!=tableKey||entry.generation!=ttGeneration||depth>=entry.depth) {
+        entry.key=tableKey;
         entry.bestMove=packTranspositionMove(bestMove);
         entry.score=static_cast<std::int16_t>(std::clamp(scoreToTable(bestScore,ply),-32768,32767));
         entry.depth=static_cast<std::int8_t>(std::clamp(depth,-128,127));
@@ -2047,7 +2062,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         }
         if(searchAborted.load(std::memory_order_relaxed)) break;
         bool rootFound=false;
-        TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
+        TTEntry& rootEntry=probeTranspositionTable(searchTableKey(p),rootFound);
         if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
         previousScore=score;
         lastSearchScore=score;
