@@ -1974,12 +1974,12 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
                 beta=window==INF?INF:std::min(INF,previousScore+window);
                 continue;
             }
-            bool rootFound=false;
-            TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
-            if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
             break;
         }
         if(searchAborted.load(std::memory_order_relaxed)) break;
+        bool rootFound=false;
+        TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
+        if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
         previousScore=score;
         lastSearchScore=score;
         completedSearchDepth=currentDepth;
