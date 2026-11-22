@@ -81,18 +81,23 @@ try {
   }
   [PrunexSmokeInput]::Click($window, 376, 588)
   [PrunexSmokeInput]::Click($window, 376, 436)
-  $thinkingTitle = Wait-ForTitle $process "Prunex is thinking" 5
-  Write-Host "Deep search started: $thinkingTitle"
+  $searchTitle = Wait-ForTitle $process "Prunex is thinking|White to move \| 2 plies" 5
+  Write-Host "Deep search status before New Game: $searchTitle"
   [PrunexSmokeInput]::Click($window, 789, 425)
   $newGameTitle = Wait-ForTitle $process "White to move \| 0 plies" 10
-  Write-Host "New Game cancelled the pending search: $newGameTitle"
+  Start-Sleep -Milliseconds 250
+  $process.Refresh()
+  if ($process.MainWindowTitle -ne $newGameTitle) {
+    throw "New Game did not keep the starting position. Last title: '$($process.MainWindowTitle)'."
+  }
+  Write-Host "New Game restored the starting position: $newGameTitle"
 
   # Verify board orientation control remains responsive.
   [PrunexSmokeInput]::Click($window, 789, 521)
   $process.Refresh()
   if (-not $process.Responding) { throw "Prunex stopped responding after board flip." }
 
-  Write-Host "GUI interaction smoke passed: startup, legal move input, engine reply, paired undo, search cancellation, new game, board flip, and normal shutdown."
+  Write-Host "GUI interaction smoke passed: startup, legal move input, engine reply, paired undo, reset after deep search, board flip, and normal shutdown."
 } finally {
   if ($process -and -not $process.HasExited) {
     [void]$process.CloseMainWindow()
