@@ -135,6 +135,17 @@ Configure with `-DPRUNEX_STOCKFISH11_PSQT=ON` to build this variant. The extract
 
 [Original table source](https://github.com/official-stockfish/Stockfish/blob/c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790/src/psqt.cpp)
 
+The candidate played the official Stockfish 19 release over six openings per limit, with colours reversed for each opening. Stockfish used its default network at maximum skill.
+
+| Time per move | Games | Wins | Draws | Losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 0 | 12 | 0.00% |
+| 250 ms | 12 | 0 | 1 | 11 | 4.17% |
+| 500 ms | 12 | 0 | 2 | 10 | 8.33% |
+| 1,000 ms | 12 | 0 | 0 | 12 | 0.00% |
+
+The candidate stays experimental. [Exact build, game logs, and PGNs](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45050563555)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
