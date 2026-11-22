@@ -128,3 +128,11 @@ The original corpus split key used the first four FEN fields. The current HalfKP
 The trainer previously fake-quantized both complete embedding matrices and clipped both full matrices after every minibatch. That defeated much of the benefit of sparse embeddings. It now gathers the feature rows touched by a batch, quantizes those rows, sums them by bag, and clips only the unique feature rows updated by the sparse optimizers. Dense-layer clipping remains unchanged.
 
 Checkpoint selection now uses validation log loss. The best validation checkpoint is restored before the untouched test split is evaluated once and the selected model is exported. The CI test remains a deliberately tiny synthetic integration fixture; it verifies split identity, sparse-row clipping, training/export, native loading and numerical parity, not the quality of a production model.
+
+## Preparing a separate engine repository
+
+Create the separate repository after the Stockfish 19 match campaign. Freeze the candidate, record the Stockfish build, and test both colours from each opening. Use several opening sets and time controls. Keep the PGNs, exact engine settings, draw rules, paired confidence intervals, and links to the completed runs with the release.
+
+The public repository should make the engine easy to build and inspect. Include the C++ source, UCI instructions, CMake build, regression tests, match recipes, and a short explanation of the search and evaluation. Keep the README focused on the measured results and the contributions that can be traced to the project history.
+
+The current MIT license covers original Prunex engine files. Keep the notices for any included third-party code, datasets, or assets. Stockfish is built separately as a benchmark opponent. Its source and network are outside the standalone Prunex release. If the release contents change, check the license of each included component against [the current license scope](../LICENSE-SCOPE.md).
