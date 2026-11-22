@@ -15,19 +15,32 @@ permissions:
 
 jobs:
   tablebase:
-    name: Native build and root probes
-    runs-on: ubuntu-24.04
+    name: Native Syzygy on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Build and run native regressions
+      - name: Build and run Linux regressions
+        if: runner.os == 'Linux'
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRUNEX_ENABLE_SYZYGY=ON
           cmake --build build --parallel 2
           ctest --test-dir build --output-on-failure --parallel 2
 
+      - name: Build and run Windows regressions
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build -A x64 -DPRUNEX_ENABLE_SYZYGY=ON
+          cmake --build build --config Release --parallel 2
+          ctest --test-dir build -C Release --output-on-failure --parallel 2
+
       - name: Obtain the queen endgame files
+        if: runner.os == 'Linux'
         run: |
           mkdir tables
           curl --fail --location --retry 3 \
@@ -38,6 +51,7 @@ jobs:
           .venv/bin/python -m pip install python-chess==1.999
 
       - name: Verify root outcome and search fallback
+        if: runner.os == 'Linux'
         run: |
           .venv/bin/python - <<'PY'
           import chess
