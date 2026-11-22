@@ -437,6 +437,7 @@ def main() -> None:
     parser.add_argument("--plentychess-release-commit")
     parser.add_argument("--reckless-release-commit")
     parser.add_argument("--candidate-commit", required=True)
+    parser.add_argument("--candidate-halfkp-file", type=Path)
     parser.add_argument("--stockfish-only", action="store_true")
     parser.add_argument(
         "--tier", action="append",
@@ -524,6 +525,15 @@ def main() -> None:
         if "Prunex" not in candidate_identity["name"]:
             raise RuntimeError(f"Unexpected candidate identity: {candidate_identity}")
         candidate_options = configure_engine(candidate, args.hash_mb, args.threads)
+        candidate_halfkp_sha256 = None
+        if args.candidate_halfkp_file is not None:
+            weights = args.candidate_halfkp_file.resolve()
+            if not weights.is_file():
+                raise FileNotFoundError(weights)
+            candidate.configure({"HalfKpFile": str(weights)})
+            candidate.ping()
+            candidate_options["HalfKpFile"] = str(weights)
+            candidate_halfkp_sha256 = sha256_file(weights)
 
         manifest = {
             "candidate_commit": args.candidate_commit,
@@ -537,6 +547,7 @@ def main() -> None:
                 "path": str(candidate_path),
                 "sha256": sha256_file(candidate_path),
                 "configured_options": candidate_options,
+                "halfkp_sha256": candidate_halfkp_sha256,
             },
             "opponents": [],
             "conditions": {

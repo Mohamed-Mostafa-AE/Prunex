@@ -1535,7 +1535,54 @@ std::array<int,2> evaluateThreats(const Position& p,const EvaluationMaps& maps,i
             ending+7*attackedRooks+10*attackedQueens};
 }
 
+#ifdef PRUNEX_REFERENCE_NNUE
+bool loadReferenceNetwork(const char* path);
+int evaluateReferenceNetwork(int side,int* pieces,int* squares);
+
+struct ReferenceEvalEntry {
+    std::uint64_t key=0;
+    int score=0;
+    bool valid=false;
+};
+
+std::array<ReferenceEvalEntry,32768> referenceScores{};
+bool referenceNetworkLoaded=false;
+
+int referenceEvaluation(const Position& p) {
+    const auto key=positionKey(p);
+    auto& entry=referenceScores[key&(referenceScores.size()-1)];
+    if(entry.valid&&entry.key==key) return entry.score;
+
+    std::array<int,33> pieces{};
+    std::array<int,33> squares{};
+    pieces[0]=1;
+    pieces[1]=7;
+    squares[0]=square64From88(kingSquare(p,WHITE));
+    squares[1]=square64From88(kingSquare(p,BLACK));
+    std::size_t index=2;
+    for(int color=WHITE;color<=BLACK;++color) {
+        for(int type=1;type<=5;++type) {
+            std::uint64_t occupied=p.piecesBB[color][type];
+            while(occupied) {
+                pieces[index]=color*6+7-type;
+                squares[index++]=std::countr_zero(occupied);
+                occupied&=occupied-1;
+            }
+        }
+    }
+
+    const int score=std::clamp(evaluateReferenceNetwork(p.side,pieces.data(),squares.data()),
+                               -MATE+1000,MATE-1000);
+    entry={key,score,true};
+    return score;
+}
+#endif
+
 int evaluate(Position& p) {
+#ifdef PRUNEX_REFERENCE_NNUE
+    if(referenceNetworkLoaded&&std::popcount(p.occupancy[WHITE]|p.occupancy[BLACK])<=32)
+        return referenceEvaluation(p);
+#endif
     if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
 
     std::array<int,2> middle{};
@@ -2208,6 +2255,9 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 "option name Hash type spin default "+std::to_string(DEFAULT_HASH_MB)+" min 1 max 4096\n"
                 "option name Threads type spin default 1 min 1 max 1\n"
                 "option name EvalFile type string default none\n"
+#ifdef PRUNEX_REFERENCE_NNUE
+                "option name HalfKpFile type string default none\n"
+#endif
                 "option name Clear Hash type button\n"
                 "uciok"
             );
@@ -2237,12 +2287,31 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 int requestedThreads=0;
                 if(!parseIntegerToken(value,1,1,requestedThreads))
                     emitLine("info string this build supports Threads=1 only");
+#ifdef PRUNEX_REFERENCE_NNUE
+            } else if(name=="HalfKpFile") {
+                if(value.empty()||value=="none") {
+                    referenceNetworkLoaded=false;
+                    clearTranspositionTable();
+                    emitLine("info string reference HalfKP disabled");
+                } else if(loadReferenceNetwork(value.c_str())) {
+                    referenceNetworkLoaded=true;
+                    referenceScores={};
+                    nnueNetwork.clear();
+                    clearTranspositionTable();
+                    emitLine("info string loaded reference HalfKP network");
+                } else {
+                    emitLine("info string could not load the reference HalfKP network");
+                }
+#endif
             } else if(name=="EvalFile") {
                 if(value.empty()||value=="none") {
                     nnueNetwork.clear();
                     clearTranspositionTable();
                     emitLine("info string using handcrafted evaluation");
                 } else if(nnueNetwork.load(value)) {
+#ifdef PRUNEX_REFERENCE_NNUE
+                    referenceNetworkLoaded=false;
+#endif
                     clearTranspositionTable();
                     emitLine("info string loaded Prunex NNUE evaluation");
                 } else {

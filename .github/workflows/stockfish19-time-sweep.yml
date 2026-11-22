@@ -1,10 +1,13 @@
-name: Prunex vs Stockfish 19 time sweep
+name: Reference HalfKP vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['feature/prunex-threat-evaluation']
+    branches: ['feature/prunex-reference-nnue']
     paths:
       - 'src/**'
+      - 'CMakeLists.txt'
+      - 'third_party/nnue-probe/**'
+      - 'tests/reference_nnue.py'
       - 'tools/strength-match/modern_strength_ladder.py'
       - '.github/workflows/stockfish19-time-sweep.yml'
   workflow_dispatch:
@@ -35,7 +38,7 @@ jobs:
       - name: Build Prunex and pin the official Stockfish binary
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DPRUNEX_TT_BITS=22 -DPRUNEX_NATIVE_TUNING=ON
+            -DPRUNEX_TT_BITS=22 -DPRUNEX_NATIVE_TUNING=ON -DPRUNEX_REFERENCE_NNUE=ON
           cmake --build build --target prunex --parallel 2
           curl --fail --location --retry 3 \
             https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-linux-x86-64-universal.tar.gz \
@@ -50,12 +53,25 @@ jobs:
           python3 -m venv .venv
           .venv/bin/python -m pip install python-chess==1.999
 
+      - name: Download and verify the reference network
+        run: |
+          curl --fail --location --retry 3 \
+            https://tests.stockfishchess.org/api/nn/nn-82215d0fd0df.nnue \
+            --output nn-82215d0fd0df.nnue ||
+          curl --fail --location --retry 3 \
+            https://raw.githubusercontent.com/official-stockfish/networks/master/nn-82215d0fd0df.nnue \
+            --output nn-82215d0fd0df.nnue
+          digest="$(sha256sum nn-82215d0fd0df.nnue | cut -d ' ' -f 1)"
+          test "${digest:0:12}" = 82215d0fd0df
+          .venv/bin/python tests/reference_nnue.py build/prunex nn-82215d0fd0df.nnue
+
       - name: Run paired games against Stockfish 19
         run: |
           mkdir -p results
           lscpu > results/runner-cpu.txt
           .venv/bin/python tools/strength-match/modern_strength_ladder.py \
             --candidate build/prunex --candidate-commit "$GITHUB_SHA" \
+            --candidate-halfkp-file nn-82215d0fd0df.nnue \
             --stockfish "$STOCKFISH_BINARY" --stockfish-source-commit "$STOCKFISH_SHA" \
             --stockfish-build-arch linux-x86-64-universal --stockfish-only \
             --tier timed-no-node-cap --movetime-ms "$MOVETIME_MS" \
@@ -105,7 +121,8 @@ jobs:
                       or tier["node_limit_per_move"] is not None
                       or round(tier["movetime_seconds_per_move"] * 1000) != milliseconds
                       or options["UCI_LimitStrength"] or options["Skill Level"] != 20
-                      or not options["EvalFile"]):
+                      or not options["EvalFile"]
+                      or not manifest["candidate"]["halfkp_sha256"].startswith("82215d0fd0df")):
                       raise RuntimeError(f"Unexpected match settings in {folder}")
                   openings.extend(opening["fen"] for opening in pair)
                   result = report["results"][0]

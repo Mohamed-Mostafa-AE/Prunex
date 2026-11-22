@@ -11,4 +11,8 @@ The following items keep their own terms and are not relicensed by the root MIT 
 - Third-party libraries, fonts, and other assets remain subject to their respective licenses.
 - PGN corpora and other datasets retain the terms recorded in their source archives and provenance manifests.
 
+### Reference HalfKP evaluator
+
+The optional [nnue-probe backend](third_party/nnue-probe) is covered by GPL-3.0. The combined native executable built with `PRUNEX_REFERENCE_NNUE=ON` is distributed under GPL-3.0. Keep the corresponding source, the upstream license, and the original Prunex MIT notices with any distribution. Stockfish's separately downloaded reference weights are published under CC0 by the [network archive](https://github.com/official-stockfish/networks).
+
 The MIT License does not grant rights to the Prunex name, logo, or other trademarks. Refer to the individual notices alongside any separately licensed material before redistributing it.

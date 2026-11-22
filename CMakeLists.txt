@@ -52,6 +52,36 @@ if(PRUNEX_NATIVE_TUNING)
 endif()
 
 target_link_libraries(prunex PRIVATE Threads::Threads)
+
+option(PRUNEX_REFERENCE_NNUE "Enable the GPL reference HalfKP evaluator in the native UCI engine" OFF)
+if(PRUNEX_REFERENCE_NNUE)
+    add_library(prunex_reference_nnue STATIC
+        third_party/nnue-probe/src/nnue.cpp
+        third_party/nnue-probe/src/misc.cpp)
+    target_compile_definitions(prunex_reference_nnue PRIVATE NNUE_PROBE_STATIC)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        target_compile_definitions(prunex_reference_nnue PRIVATE IS_64BIT)
+    endif()
+    if(PRUNEX_NATIVE_TUNING AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang"
+       AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+        include(CheckCXXSourceCompiles)
+        set(CMAKE_REQUIRED_FLAGS "-march=native")
+        check_cxx_source_compiles("
+            #ifndef __AVX2__
+            #error AVX2 unavailable
+            #endif
+            int main() {}
+        " PRUNEX_REFERENCE_AVX2)
+        unset(CMAKE_REQUIRED_FLAGS)
+        if(PRUNEX_REFERENCE_AVX2)
+            target_compile_options(prunex_reference_nnue PRIVATE -march=native -mtune=native)
+            target_compile_definitions(prunex_reference_nnue PRIVATE
+                USE_AVX2 USE_SSE41 USE_SSE3 USE_SSE2 USE_SSE)
+        endif()
+    endif()
+    target_link_libraries(prunex PRIVATE prunex_reference_nnue)
+    target_compile_definitions(prunex PRIVATE PRUNEX_REFERENCE_NNUE)
+endif()
 message(STATUS "Prunex transposition-table entries: 2^${PRUNEX_TT_BITS}")
 
 if(WIN32)

@@ -127,6 +127,14 @@ The match campaign compares this candidate with the official Stockfish 19 releas
 
 [Attack and defend maps](https://www.chessprogramming.org/Attack_and_Defend_Maps) · [Stockfish 19 release](https://stockfishchess.org/blog/2026/stockfish-19/)
 
+## Reference HalfKP evaluator
+
+The experimental native build runs the official Stockfish 12 network through Daniel Shawul's nnue-probe, which was adapted from Cfish. Prunex still generates moves, runs the search, and speaks UCI. The adapter maps Prunex's piece codes and squares to the probe and caches completed evaluations by position key.
+
+Configure with `-DPRUNEX_REFERENCE_NNUE=ON` and set the native UCI option `HalfKpFile` to the downloaded `nn-82215d0fd0df.nnue`. The test workflow checks the file's published hash prefix, verifies that its scores change with material and the side to move, then compares the candidate with Stockfish 19 Full. See the [license scope](../LICENSE-SCOPE.md) for distribution terms.
+
+[Probe source at the pinned revision](https://github.com/dshawul/nnue-probe/tree/edcd97e998b0299f952786c68fe37f04a7ed7f0d) · [Official network archive](https://github.com/official-stockfish/networks)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
