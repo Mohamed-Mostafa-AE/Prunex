@@ -127,6 +127,14 @@ The match campaign compares this candidate with the official Stockfish 19 releas
 
 [Attack and defend maps](https://www.chessprogramming.org/Attack_and_Defend_Maps) · [Stockfish 19 release](https://stockfishchess.org/blog/2026/stockfish-19/)
 
+## Stockfish 11 piece-square tables
+
+The experimental build uses Stockfish 11's tuned middlegame and endgame placement bonuses. It converts those bonuses to Prunex's existing pawn scales and keeps Prunex's material values, move generator, search, threat scoring, and neural evaluator interface.
+
+Configure with `-DPRUNEX_STOCKFISH11_PSQT=ON` to build this variant. The extracted tables retain the original values and notices. The combined build uses GPL-3.0-or-later, as described in the [license scope](../LICENSE-SCOPE.md).
+
+[Original table source](https://github.com/official-stockfish/Stockfish/blob/c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790/src/psqt.cpp)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

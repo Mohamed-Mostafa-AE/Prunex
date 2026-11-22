@@ -5,6 +5,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(PRUNEX_STOCKFISH11_PSQT
+    "Use the Stockfish 11 piece-square tables in the GPL-3.0-or-later build" OFF)
+if(PRUNEX_STOCKFISH11_PSQT)
+    add_compile_definitions(PRUNEX_STOCKFISH11_PSQT)
+endif()
+
 if(EMSCRIPTEN)
     add_executable(prunex-wasm src/wasm_api.cpp)
     target_compile_features(prunex-wasm PRIVATE cxx_std_20)

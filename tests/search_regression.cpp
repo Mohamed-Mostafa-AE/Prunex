@@ -960,6 +960,16 @@ int main() {
         }
     }
 
+#ifdef PRUNEX_STOCKFISH11_PSQT
+    constexpr auto knightB1=stockfish11::pieceSquareBonus(2,0,1);
+    constexpr auto knightG1=stockfish11::pieceSquareBonus(2,0,6);
+    static_assert(knightB1.middle==-92&&knightB1.ending==-65);
+    static_assert(knightB1.middle==knightG1.middle&&knightB1.ending==knightG1.ending);
+    constexpr auto pawnD2=stockfish11::pieceSquareBonus(1,1,3);
+    constexpr auto pawnE2=stockfish11::pieceSquareBonus(1,1,4);
+    static_assert(pawnD2.middle==19&&pawnE2.middle==16);
+#endif
+
     // A pawn attacking a queen scores more when the queen has no defender.
     if(!loadFen(position,"4k3/8/8/8/3q4/2P5/8/4K3 w - - 0 1")) return 167;
     EvaluationMaps looseQueenMaps;

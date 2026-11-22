@@ -11,4 +11,8 @@ The following items keep their own terms and are not relicensed by the root MIT 
 - Third-party libraries, fonts, and other assets remain subject to their respective licenses.
 - PGN corpora and other datasets retain the terms recorded in their source archives and provenance manifests.
 
+### Stockfish 11 piece-square tables
+
+The adapted tables in [third_party/stockfish11](third_party/stockfish11) retain their upstream copyright notices and GPL-3.0-or-later license. Builds made with `PRUNEX_STOCKFISH11_PSQT=ON` combine this work with Prunex and are distributed under GPL-3.0-or-later. The original Prunex files retain their MIT notices. Keep the corresponding source and both applicable license notices with distributions of the combined build.
+
 The MIT License does not grant rights to the Prunex name, logo, or other trademarks. Refer to the individual notices alongside any separately licensed material before redistributing it.

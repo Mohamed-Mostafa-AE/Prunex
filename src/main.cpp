@@ -18,6 +18,10 @@
 #include <thread>
 #include <vector>
 
+#ifdef PRUNEX_STOCKFISH11_PSQT
+#include "../third_party/stockfish11/psqt.hpp"
+#endif
+
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 #include <immintrin.h>
 #define PRUNEX_HAS_GNU_X86_INTRINSICS 1
@@ -1558,10 +1562,15 @@ int evaluate(Position& p) {
                 if(type==1) ++pawnFiles[color][fileOf(square)];
 
                 const int relativeRank=color==WHITE?rankOf(square):7-rankOf(square);
-                const int center=14-std::abs(2*fileOf(square)-7)
-                    -std::abs(2*rankOf(square)-7);
                 int mg=MG_VALUE[type];
                 int eg=EG_VALUE[type];
+#ifdef PRUNEX_STOCKFISH11_PSQT
+                const auto squares=stockfish11::pieceSquareBonus(type,relativeRank,fileOf(square));
+                mg+=squares.middle*MG_VALUE[1]/128;
+                eg+=squares.ending*EG_VALUE[1]/213;
+#else
+                const int center=14-std::abs(2*fileOf(square)-7)
+                    -std::abs(2*rankOf(square)-7);
                 if(type==1) {
                     mg+=relativeRank*7+center;
                     eg+=relativeRank*11+center*2;
@@ -1581,6 +1590,7 @@ int evaluate(Position& p) {
                     mg-=center*4+relativeRank*4;
                     eg+=center*5;
                 }
+#endif
                 middle[color]+=mg;
                 ending[color]+=eg;
             }

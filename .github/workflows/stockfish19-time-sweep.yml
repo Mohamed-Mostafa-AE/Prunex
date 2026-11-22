@@ -1,10 +1,13 @@
-name: Prunex vs Stockfish 19 time sweep
+name: Stockfish 11 tables vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['feature/prunex-threat-evaluation']
+    branches: ['feature/prunex-stockfish11-piece-tables']
     paths:
       - 'src/**'
+      - 'third_party/stockfish11/**'
+      - 'tests/search_regression.cpp'
+      - 'CMakeLists.txt'
       - 'tools/strength-match/modern_strength_ladder.py'
       - '.github/workflows/stockfish19-time-sweep.yml'
   workflow_dispatch:
@@ -13,7 +16,20 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate the GPL candidate build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRUNEX_STOCKFISH11_PSQT=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure --parallel 2
+
   match:
+    needs: validate
     name: ${{ matrix.milliseconds }} ms, openings ${{ matrix.offset }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -35,7 +51,7 @@ jobs:
       - name: Build Prunex and pin the official Stockfish binary
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DPRUNEX_TT_BITS=22 -DPRUNEX_NATIVE_TUNING=ON
+            -DPRUNEX_TT_BITS=22 -DPRUNEX_NATIVE_TUNING=ON -DPRUNEX_STOCKFISH11_PSQT=ON
           cmake --build build --target prunex --parallel 2
           curl --fail --location --retry 3 \
             https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-linux-x86-64-universal.tar.gz \
