@@ -99,6 +99,14 @@ Before another Stockfish or Triumviratus match:
 
 These are prequalification gates, not proof of Stockfish 19 parity. Only a controlled external match can establish relative strength.
 
+## Quiet-move history experiment
+
+Stockfish and Ethereal keep move-ordering scores responsive by reducing the effect of repeated outcomes as the score approaches its limit. This is commonly called [history gravity](https://www.chessprogramming.org/History_Heuristic#History_Bonuses). Prunex keeps its own history table, cutoff rules, and depth weights. Its update moves each score a fraction of the way toward the positive or negative limit. No engine source files or weights are imported.
+
+The branch compares this single change against the preceding Prunex build and official Stockfish 19. The runs record the exact commits, both colours for each opening, resource limits, PGNs, per-move counters, and paired scores.
+
+[Stockfish 19 history implementation](https://github.com/official-stockfish/Stockfish/blob/sf_19/src/history.h) · [Ethereal history implementation](https://github.com/AndyGrant/Ethereal/blob/master/src/history.c)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

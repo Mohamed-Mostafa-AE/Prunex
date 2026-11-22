@@ -427,16 +427,22 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--stockfish", required=True)
-    parser.add_argument("--triumviratus", required=True)
-    parser.add_argument("--triumviratus-cwd", required=True)
-    parser.add_argument("--plentychess", required=True)
-    parser.add_argument("--reckless", required=True)
+    parser.add_argument("--triumviratus")
+    parser.add_argument("--triumviratus-cwd")
+    parser.add_argument("--plentychess")
+    parser.add_argument("--reckless")
     parser.add_argument("--stockfish-source-commit", required=True)
     parser.add_argument("--stockfish-build-arch", required=True)
-    parser.add_argument("--triumviratus-release-commit", required=True)
-    parser.add_argument("--plentychess-release-commit", required=True)
-    parser.add_argument("--reckless-release-commit", required=True)
+    parser.add_argument("--triumviratus-release-commit")
+    parser.add_argument("--plentychess-release-commit")
+    parser.add_argument("--reckless-release-commit")
     parser.add_argument("--candidate-commit", required=True)
+    parser.add_argument("--stockfish-only", action="store_true")
+    parser.add_argument(
+        "--tier", action="append",
+        choices=("nodes-100000", "nodes-1000000", "timed-no-node-cap"),
+        help="Run only the selected resource tier. May be given more than once.",
+    )
     parser.add_argument("--pairs", type=int, default=12)
     parser.add_argument("--seed", type=int, default=20261112)
     parser.add_argument("--hash-mb", type=int, default=256)
@@ -455,31 +461,44 @@ def main() -> None:
 
     candidate_path = Path(args.candidate).resolve()
     stockfish_path = Path(args.stockfish).resolve()
-    triumviratus_path = Path(args.triumviratus).resolve()
-    triumviratus_cwd = Path(args.triumviratus_cwd).resolve()
-    plentychess_path = Path(args.plentychess).resolve()
-    reckless_path = Path(args.reckless).resolve()
     output = Path(args.out).resolve()
-    output.mkdir(parents=True, exist_ok=True)
-
-    for path in (candidate_path, stockfish_path, triumviratus_path, plentychess_path, reckless_path):
-        if not path.is_file():
-            raise FileNotFoundError(path)
-    if not triumviratus_cwd.is_dir():
-        raise NotADirectoryError(triumviratus_cwd)
 
     candidate_spec = EngineSpec("Prunex", candidate_path, candidate_path.parent)
-    opponent_specs = [
-        EngineSpec("Stockfish 19", stockfish_path, stockfish_path.parent),
-        EngineSpec("Triumviratus 8.1", triumviratus_path, triumviratus_cwd),
-        EngineSpec("PlentyChess 8.0.0", plentychess_path, plentychess_path.parent),
-        EngineSpec("Reckless 0.9.0", reckless_path, reckless_path.parent),
-    ]
+    opponent_specs = [EngineSpec("Stockfish 19", stockfish_path, stockfish_path.parent)]
+    if not args.stockfish_only:
+        other_options = (
+            "triumviratus", "triumviratus_cwd", "plentychess", "reckless",
+            "triumviratus_release_commit", "plentychess_release_commit",
+            "reckless_release_commit",
+        )
+        missing = [name for name in other_options if not getattr(args, name)]
+        if missing:
+            parser.error("Missing options for the four-engine ladder: " +
+                         ", ".join("--" + name.replace("_", "-") for name in missing))
+        triumviratus_path = Path(args.triumviratus).resolve()
+        triumviratus_cwd = Path(args.triumviratus_cwd).resolve()
+        plentychess_path = Path(args.plentychess).resolve()
+        reckless_path = Path(args.reckless).resolve()
+        opponent_specs.extend((
+            EngineSpec("Triumviratus 8.1", triumviratus_path, triumviratus_cwd),
+            EngineSpec("PlentyChess 8.0.0", plentychess_path, plentychess_path.parent),
+            EngineSpec("Reckless 0.9.0", reckless_path, reckless_path.parent),
+        ))
+
+    for spec in [candidate_spec, *opponent_specs]:
+        if not spec.executable.is_file():
+            raise FileNotFoundError(spec.executable)
+        if not spec.working_directory.is_dir():
+            raise NotADirectoryError(spec.working_directory)
+    output.mkdir(parents=True, exist_ok=True)
+
     tiers = [
         Tier("nodes-100000", 100_000, None),
         Tier("nodes-1000000", 1_000_000, None),
         Tier("timed-no-node-cap", None, args.movetime_ms / 1000.0),
     ]
+    if args.tier:
+        tiers = [tier for tier in tiers if tier.name in args.tier]
     openings = opening_positions(args.pairs, args.seed)
     (output / "openings.json").write_text(
         json.dumps([

@@ -1,0 +1,80 @@
+name: Prunex history search study
+
+on:
+  push:
+    branches: ['feature/prunex-history-study']
+    paths:
+      - 'src/**'
+      - 'tools/strength-match/**'
+      - '.github/workflows/history-search-study.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-match:
+    name: ${{ matrix.test }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [prunex-baseline, stockfish-100k, stockfish-100ms]
+    env:
+      BASELINE_SHA: 25cae1425a46dffde89de54766cdac692ae33517
+      STOCKFISH_SHA: edb0d9db6731067ec50ce619ff372b463bc4dd5d
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Build Prunex and install the match tools
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build build --target prunex --parallel 2
+          python3 -m venv .venv
+          .venv/bin/python -m pip install python-chess==1.999
+
+      - name: Compare with the preceding Prunex build
+        if: matrix.test == 'prunex-baseline'
+        run: |
+          git worktree add --detach ../prunex-parent "$BASELINE_SHA"
+          cmake -S ../prunex-parent -B ../prunex-parent/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DPRUNEX_TT_BITS=22
+          cmake --build ../prunex-parent/build --target prunex --parallel 2
+          .venv/bin/python tools/strength-match/internal_selfplay.py \
+            --baseline ../prunex-parent/build/prunex --baseline-commit "$BASELINE_SHA" \
+            --candidate build/prunex --candidate-commit "$GITHUB_SHA" \
+            --pairs 24 --nodes 25000 --hash-mb 128 --out study-results
+
+      - name: Build the pinned official Stockfish release
+        if: matrix.test != 'prunex-baseline'
+        run: |
+          git clone --depth 1 --branch sf_19 https://github.com/official-stockfish/Stockfish.git stockfish-19
+          test "$(git -C stockfish-19 rev-parse HEAD)" = "$STOCKFISH_SHA"
+          make -C stockfish-19/src -j2 build ARCH=native
+          lscpu > runner-cpu.txt
+
+      - name: Run the Stockfish 19 match
+        if: matrix.test != 'prunex-baseline'
+        env:
+          STUDY_TIER: ${{ matrix.test == 'stockfish-100k' && 'nodes-100000' || 'timed-no-node-cap' }}
+        run: |
+          .venv/bin/python tools/strength-match/modern_strength_ladder.py \
+            --candidate build/prunex --candidate-commit "$GITHUB_SHA" \
+            --stockfish stockfish-19/src/stockfish --stockfish-source-commit "$STOCKFISH_SHA" \
+            --stockfish-build-arch native --stockfish-only --tier "$STUDY_TIER" \
+            --pairs 12 --movetime-ms 100 --hash-mb 128 --out study-results
+
+      - name: Upload match evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: history-study-${{ matrix.test }}-${{ github.run_number }}
+          path: |
+            study-results/
+            runner-cpu.txt
+          if-no-files-found: warn
+          retention-days: 90

@@ -954,6 +954,14 @@ int main() {
         }
     }
 
+    if(quietHistoryUpdate(0,QUIET_HISTORY_LIMIT,2000)!=2000) return 162;
+    if(quietHistoryUpdate(24000,QUIET_HISTORY_LIMIT,2000)!=24400) return 163;
+    if(quietHistoryUpdate(24000,-QUIET_HISTORY_LIMIT,1000)!=22200) return 164;
+    if(quietHistoryUpdate(QUIET_HISTORY_LIMIT,QUIET_HISTORY_LIMIT,2000)!=QUIET_HISTORY_LIMIT)
+        return 165;
+    if(quietHistoryUpdate(-QUIET_HISTORY_LIMIT,-QUIET_HISTORY_LIMIT,1000)!=-QUIET_HISTORY_LIMIT)
+        return 166;
+
     if(!shouldPruneLateQuietMove(false,false,false,true,3,12,0)) return 133;
     if(shouldPruneLateQuietMove(false,false,false,true,3,11,0)) return 134;
     if(shouldPruneLateQuietMove(true,false,false,true,3,20,0)) return 135;

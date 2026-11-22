@@ -950,7 +950,13 @@ std::array<Move, MAX_PLY> searchPathMoves{};
 std::array<int, MAX_PLY> searchPathPieceTypes{};
 std::array<std::array<Move, 128>, 7> counterMoves{};
 std::array<std::array<Move, 2>, MAX_PLY> killerMoves{};
+constexpr int QUIET_HISTORY_LIMIT=30000;
 std::array<std::array<std::array<int, 128>, 128>, 2> historyScores{};
+
+constexpr int quietHistoryUpdate(int score,int target,int weight) {
+    // A consistent result tells us less when the history already predicts it.
+    return score+(target-score)*weight/QUIET_HISTORY_LIMIT;
+}
 std::uint64_t nodes=0;
 int lastSearchScore=0;
 int completedSearchDepth=0;
@@ -1923,14 +1929,14 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                     const Move& rejected=nodeScratch.searched[previous];
                     if(isCapture(p,rejected)||rejected.promotion) continue;
                     int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
-                    rejectedHistory=std::max(-30000,rejectedHistory-historyMalus);
+                    rejectedHistory=quietHistoryUpdate(rejectedHistory,-QUIET_HISTORY_LIMIT,historyMalus);
                 }
                 if(!sameMove(m,killerMoves[ply][0])) {
                     killerMoves[ply][1]=killerMoves[ply][0];
                     killerMoves[ply][0]=m;
                 }
                 int& quietHistory=historyScores[movingColor][m.from][m.to];
-                quietHistory=std::min(30000,quietHistory+historyBonus);
+                quietHistory=quietHistoryUpdate(quietHistory,QUIET_HISTORY_LIMIT,historyBonus);
 
                 if(ply>0&&ply<MAX_PLY) {
                     const int previousType=searchPathPieceTypes[ply-1];
