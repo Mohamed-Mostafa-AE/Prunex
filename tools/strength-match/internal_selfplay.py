@@ -297,6 +297,7 @@ def main() -> int:
     parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--candidate-eval-file", type=Path)
+    parser.add_argument("--candidate-eval-blend", type=int)
     parser.add_argument("--baseline-commit", required=True)
     parser.add_argument("--candidate-commit", required=True)
     parser.add_argument("--pairs", type=int, default=100)
@@ -318,6 +319,11 @@ def main() -> int:
         parser.error("This protocol fixes both engines to one thread")
     if not 60 <= args.max_plies <= 400:
         parser.error("--max-plies must be between 60 and 400")
+
+    if args.candidate_eval_blend is not None and (
+        args.candidate_eval_file is None or not 0 <= args.candidate_eval_blend <= 100
+    ):
+        parser.error("--candidate-eval-blend requires an evaluation file and a value from 0 to 100")
 
     baseline_path = args.baseline.resolve()
     candidate_path = args.candidate.resolve()
@@ -352,6 +358,9 @@ def main() -> int:
         candidate_options = configure_engine(candidate, args.hash_mb, args.threads)
         if candidate_eval is not None:
             candidate.configure({"EvalFile": candidate_eval["path"]})
+            if args.candidate_eval_blend is not None:
+                candidate.configure({"EvalBlend": args.candidate_eval_blend})
+                candidate_options["EvalBlend"] = args.candidate_eval_blend
             candidate.ping()
 
         with pgn_path.open("w", encoding="utf-8") as pgn_file, telemetry_path.open(
@@ -442,6 +451,8 @@ def main() -> int:
         manifest["candidate"]["evaluation_file"] = candidate_eval
         manifest["candidate"]["options"]["EvalFile"] = candidate_eval["path"]
         summary["candidate_eval_sha256"] = candidate_eval["sha256"]
+        if args.candidate_eval_blend is not None:
+            summary["candidate_eval_blend"] = args.candidate_eval_blend
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in summary.items() if k != "games_detail"}, indent=2))

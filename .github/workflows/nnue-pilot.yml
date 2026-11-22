@@ -109,12 +109,12 @@ jobs:
             --input-dir pilot/corpus --output pilot/lichess-pilot.nnue \
             --hidden 128 --epochs 4 --batch-size 1024 --learning-rate 0.001
 
-      - name: Compare the trained network with handcrafted evaluation
+      - name: Compare a 25 percent neural blend with handcrafted evaluation
         run: |
           .venv/bin/python tools/strength-match/internal_selfplay.py \
             --baseline build/prunex --candidate build/prunex \
             --baseline-commit "$GITHUB_SHA" --candidate-commit "$GITHUB_SHA" \
-            --candidate-eval-file pilot/lichess-pilot.nnue \
+            --candidate-eval-file pilot/lichess-pilot.nnue --candidate-eval-blend 25 \
             --pairs 12 --nodes 25000 --hash-mb 128 --max-plies 300 \
             --out pilot/match
 

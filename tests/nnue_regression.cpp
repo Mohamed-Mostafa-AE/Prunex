@@ -380,7 +380,17 @@ int main() {
     if (network.load(truncatedPath.string())) return 12;
     if (!network.loaded() || network.evaluate(position) != 400) return 13;
 
+    const int pureNeural = evaluate(retainedPosition);
+    if (pureNeural != nnueNetwork.evaluate(retainedPosition)) return 35;
+
+    nnuePercent = 0;
+    const int handcrafted = evaluate(retainedPosition);
+    nnuePercent = 25;
+    if (evaluate(retainedPosition) != (3 * handcrafted + pureNeural) / 4) return 36;
+
     nnueNetwork.clear();
+    if (evaluate(retainedPosition) != handcrafted) return 37;
+    nnuePercent = 100;
     network.clear();
     if (network.loaded()) return 14;
 

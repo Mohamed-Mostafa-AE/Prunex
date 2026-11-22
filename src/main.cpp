@@ -1467,8 +1467,10 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
         }
     }
 }
+int nnuePercent=100;
+
 int evaluate(Position& p) {
-    if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
+    if(nnuePercent==100&&nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
 
     std::array<int,2> middle{};
     std::array<int,2> ending{};
@@ -1613,7 +1615,11 @@ int evaluate(Position& p) {
     const int whiteMiddle=middle[WHITE]-middle[BLACK];
     const int whiteEnding=ending[WHITE]-ending[BLACK];
     const int score=(whiteMiddle*phase+whiteEnding*(24-phase))/24;
-    return p.side==WHITE?score:-score;
+    const int handcrafted=p.side==WHITE?score:-score;
+    if(nnuePercent==0||!nnueNetwork.loaded()) return handcrafted;
+
+    const int neural=nnueNetwork.evaluate(p);
+    return (handcrafted*(100-nnuePercent)+neural*nnuePercent)/100;
 }
 
 bool isInsufficientMaterial(const Position& p) {
@@ -2139,6 +2145,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 "option name Hash type spin default "+std::to_string(DEFAULT_HASH_MB)+" min 1 max 4096\n"
                 "option name Threads type spin default 1 min 1 max 1\n"
                 "option name EvalFile type string default none\n"
+                "option name EvalBlend type spin default 100 min 0 max 100\n"
                 "option name Clear Hash type button\n"
                 "uciok"
             );
@@ -2168,6 +2175,14 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 int requestedThreads=0;
                 if(!parseIntegerToken(value,1,1,requestedThreads))
                     emitLine("info string this build supports Threads=1 only");
+            } else if(name=="EvalBlend") {
+                int requestedBlend=0;
+                if(!parseIntegerToken(value,0,100,requestedBlend)) {
+                    emitLine("info string invalid EvalBlend value; expected 0..100");
+                } else if(requestedBlend!=nnuePercent) {
+                    nnuePercent=requestedBlend;
+                    clearTranspositionTable();
+                }
             } else if(name=="EvalFile") {
                 if(value.empty()||value=="none") {
                     nnueNetwork.clear();
