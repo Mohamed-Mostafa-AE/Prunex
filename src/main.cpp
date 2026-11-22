@@ -18,6 +18,10 @@
 #include <thread>
 #include <vector>
 
+#ifdef PRUNEX_REFERENCE_NNUE
+#include "reference_nnue.hpp"
+#endif
+
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 #include <immintrin.h>
 #define PRUNEX_HAS_GNU_X86_INTRINSICS 1
@@ -80,6 +84,13 @@ struct MoveScratch {
 };
 std::array<MoveScratch,MAX_PLY> moveScratch{};
 
+#ifdef PRUNEX_REFERENCE_NNUE
+struct ReferenceParent {
+    std::uint64_t key=0;
+    bool known=false;
+};
+#endif
+
 struct Position {
     std::array<int,128> board{};
     std::array<std::array<std::uint64_t,7>,2> piecesBB{};
@@ -87,6 +98,9 @@ struct Position {
     int side=WHITE, castling=0, ep=-1, halfmove=0, fullmove=1;
     std::uint64_t key=0;
     NnueAccumulator nnue{};
+#ifdef PRUNEX_REFERENCE_NNUE
+    ReferenceParent referenceParent{};
+#endif
 };
 
 }  // namespace prunex
@@ -100,6 +114,9 @@ struct Undo {
     std::uint64_t key=0;
     std::uint64_t nnueGeneration=0;
     bool nnueWasValid=false;
+#ifdef PRUNEX_REFERENCE_NNUE
+    ReferenceParent referenceParent{};
+#endif
 };
 
 struct ZobristKeys {
@@ -668,6 +685,10 @@ Undo makeMove(Position& p,const Move& m) {
     const int currentHashedEp=hashableEnPassantSquare(p);
     if(currentHashedEp>=0) p.key^=keys.enPassant[currentHashedEp];
     p.key^=keys.side;
+#ifdef PRUNEX_REFERENCE_NNUE
+    undo.referenceParent=p.referenceParent;
+    p.referenceParent={undo.key,true};
+#endif
     return undo;
 }
 
@@ -731,6 +752,9 @@ void undoMove(Position& p,const Move& m,const Undo& undo) {
     }
 
     p.key=undo.key;
+#ifdef PRUNEX_REFERENCE_NNUE
+    p.referenceParent=undo.referenceParent;
+#endif
 }
 struct KingSafetyInfo {
     std::uint64_t checkers=0;
@@ -1536,17 +1560,46 @@ std::array<int,2> evaluateThreats(const Position& p,const EvaluationMaps& maps,i
 }
 
 #ifdef PRUNEX_REFERENCE_NNUE
-bool loadReferenceNetwork(const char* path);
-int evaluateReferenceNetwork(int side,int* pieces,int* squares);
-
 struct ReferenceEvalEntry {
     std::uint64_t key=0;
     int score=0;
     bool valid=false;
 };
 
+struct ReferenceAccumulatorEntry {
+    ReferenceAccumulator values{};
+    decltype(Position::piecesBB) pieces{};
+    std::uint64_t key=0;
+    bool valid=false;
+};
+
 std::array<ReferenceEvalEntry,32768> referenceScores{};
+std::array<ReferenceAccumulatorEntry,4096> referenceAccumulators{};
+std::uint64_t referenceIncrementalCount=0;
 bool referenceNetworkLoaded=false;
+
+int collectReferenceChanges(const Position& p,const ReferenceAccumulatorEntry& parent,
+                            std::array<ReferencePieceChange,3>& changes) {
+    int count=0;
+    // The probe expects a king move to be the first changed piece.
+    for(int type:{6,1,2,3,4,5}) {
+        for(int color=WHITE;color<=BLACK;++color) {
+            const auto before=parent.pieces[color][type];
+            const auto after=p.piecesBB[color][type];
+            std::uint64_t removed=before&~after;
+            std::uint64_t added=after&~before;
+            while(removed||added) {
+                if(count==static_cast<int>(changes.size())) return 0;
+                const int from=std::countr_zero(removed);
+                const int to=std::countr_zero(added);
+                changes[count++]={color*6+7-type,from,to};
+                removed&=removed-1;
+                added&=added-1;
+            }
+        }
+    }
+    return count;
+}
 
 int referenceEvaluation(const Position& p) {
     const auto key=positionKey(p);
@@ -1571,8 +1624,29 @@ int referenceEvaluation(const Position& p) {
         }
     }
 
-    const int score=std::clamp(evaluateReferenceNetwork(p.side,pieces.data(),squares.data()),
-                               -MATE+1000,MATE-1000);
+    const ReferenceAccumulator* parentValues=nullptr;
+    std::array<ReferencePieceChange,3> changes{};
+    int changeCount=0;
+    if(p.referenceParent.known) {
+        const auto parentKey=p.referenceParent.key;
+        const auto& parent=referenceAccumulators[parentKey&(referenceAccumulators.size()-1)];
+        if(parent.valid&&parent.key==parentKey) {
+            changeCount=collectReferenceChanges(p,parent,changes);
+            if(changeCount>0) {
+                parentValues=&parent.values;
+                ++referenceIncrementalCount;
+            }
+        }
+    }
+
+    auto& current=referenceAccumulators[key&(referenceAccumulators.size()-1)];
+    const int raw=evaluateReferenceNetwork(p.side,pieces.data(),squares.data(),
+                                           parentValues,changes.data(),changeCount,current.values);
+    current.pieces=p.piecesBB;
+    current.key=key;
+    current.valid=true;
+
+    const int score=std::clamp(raw,-MATE+1000,MATE-1000);
     entry={key,score,true};
     return score;
 }
@@ -2295,7 +2369,9 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                     emitLine("info string reference HalfKP disabled");
                 } else if(loadReferenceNetwork(value.c_str())) {
                     referenceNetworkLoaded=true;
-                    referenceScores={};
+                    for(auto& score:referenceScores) score.valid=false;
+                    for(auto& accumulator:referenceAccumulators) accumulator.valid=false;
+                    referenceIncrementalCount=0;
                     nnueNetwork.clear();
                     clearTranspositionTable();
                     emitLine("info string loaded reference HalfKP network");
@@ -2396,6 +2472,11 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         } else if(cmd=="eval"){
             stopAndJoin();
             emitLine("info string static evaluation cp "+std::to_string(evaluate(pos)));
+#ifdef PRUNEX_REFERENCE_NNUE
+            if(referenceNetworkLoaded)
+                emitLine("info string reference HalfKP incremental evaluations "+
+                         std::to_string(referenceIncrementalCount));
+#endif
         } else if(cmd=="stop"){
             stopAndJoin();
         } else if(cmd=="quit"){

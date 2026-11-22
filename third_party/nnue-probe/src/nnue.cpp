@@ -40,6 +40,7 @@
 
 //-------------------
 #include "misc.h"
+#include "../../../src/reference_nnue.hpp"
 #define DLL_EXPORT
 #include "nnue.h"
 #undef DLL_EXPORT
@@ -1324,7 +1325,29 @@ bool loadReferenceNetwork(const char* path) {
     return load_eval_file(path);
 }
 
-int evaluateReferenceNetwork(int side, int* pieces, int* squares) {
-    return nnue_evaluate(side, pieces, squares);
+int evaluateReferenceNetwork(int side,int* pieces,int* squares,
+                             const ReferenceAccumulator* parent,
+                             const ReferencePieceChange* changes,int count,
+                             ReferenceAccumulator& output) {
+    NNUEdata current{};
+    NNUEdata previous{};
+    NNUEdata* stack[] = {&current, nullptr, nullptr};
+    if (parent && count > 0) {
+        memcpy(previous.accumulator.accumulation, parent->data(),
+               sizeof(previous.accumulator.accumulation));
+        previous.accumulator.computedAccumulation = 1;
+        current.dirtyPiece.dirtyNum = count;
+        for (int index = 0; index < count; ++index) {
+            current.dirtyPiece.pc[index] = changes[index].piece;
+            current.dirtyPiece.from[index] = changes[index].from;
+            current.dirtyPiece.to[index] = changes[index].to;
+        }
+        stack[1]=&previous;
+    }
+
+    const int score=nnue_evaluate_incremental(side,pieces,squares,stack);
+    memcpy(output.data(),current.accumulator.accumulation,
+           sizeof(current.accumulator.accumulation));
+    return score;
 }
 }

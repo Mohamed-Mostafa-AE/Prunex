@@ -135,6 +135,10 @@ Configure with `-DPRUNEX_REFERENCE_NNUE=ON` and set the native UCI option `HalfK
 
 [Probe source at the pinned revision](https://github.com/dshawul/nnue-probe/tree/edcd97e998b0299f952786c68fe37f04a7ed7f0d) · [Official network archive](https://github.com/official-stockfish/networks)
 
+### Incremental feature updates
+
+When the parent position's accumulator is available, Prunex derives the changed pieces from the two boards and passes them to the probe. It keeps the full refresh path for cache misses. UCI tests check that a fresh evaluation agrees after an ordinary move, a capture, en passant, castling, a capture-promotion, and a king move.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

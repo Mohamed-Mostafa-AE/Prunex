@@ -1,8 +1,8 @@
-name: Reference HalfKP vs Stockfish 19 Full
+name: Incremental HalfKP vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['feature/prunex-reference-nnue']
+    branches: ['feature/prunex-incremental-halfkp']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'
