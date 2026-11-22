@@ -1,10 +1,11 @@
-name: Prunex history search study
+name: Prunex singular extension study
 
 on:
   push:
-    branches: ['feature/prunex-history-study']
+    branches: ['feature/prunex-singular-extension']
     paths:
       - 'src/**'
+      - 'tests/search_regression.cpp'
       - 'tools/strength-match/**'
       - '.github/workflows/history-search-study.yml'
   workflow_dispatch:
@@ -22,7 +23,7 @@ jobs:
       matrix:
         test: [prunex-baseline, stockfish-100k, stockfish-100ms]
     env:
-      BASELINE_SHA: 25cae1425a46dffde89de54766cdac692ae33517
+      BASELINE_SHA: 1e43dbf89df060264aced276078ef46f0301f4b8
       STOCKFISH_SHA: edb0d9db6731067ec50ce619ff372b463bc4dd5d
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -72,7 +73,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
-          name: history-study-${{ matrix.test }}-${{ github.run_number }}
+          name: singular-study-${{ matrix.test }}-${{ github.run_number }}
           path: |
             study-results/
             runner-cpu.txt

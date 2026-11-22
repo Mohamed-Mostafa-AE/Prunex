@@ -119,6 +119,14 @@ The internal paired 95% confidence interval was 46.33%–59.92%. The sample leav
 
 [Match logs and downloadable evidence](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45042096669)
 
+## Singular extensions
+
+The engine can search a transposition-table move one ply deeper when a shorter search rules out every legal alternative. The probe is limited to deep positions outside check and uses a sufficiently deep table result. It searches the alternatives without storing a separate result for their parent position and cannot trigger another singular probe. Only one singular extension is allowed along a search line.
+
+This follows the search idea introduced in ChipTest by Thomas Anantharaman, Murray Campbell, and Feng-hsiung Hsu. Stockfish and Ethereal use it in contemporary engines. Prunex verifies each alternative as a child search using its existing move buffers and search controls.
+
+[Original paper](https://doi.org/10.1016/0004-3702(90)90073-9) · [Stockfish 19 search](https://github.com/official-stockfish/Stockfish/blob/sf_19/src/search.cpp) · [Ethereal search](https://github.com/AndyGrant/Ethereal/blob/master/src/search.c)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

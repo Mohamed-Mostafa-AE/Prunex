@@ -954,6 +954,19 @@ int main() {
         }
     }
 
+    // Taking the queen is the only move that keeps the position near equal.
+    if(!loadFen(position,"4k3/8/8/8/3q4/2P5/8/4K3 w - - 0 1")) return 167;
+    Move queenCapture{};
+    if(!parseUciMove(position,"c3d4",queenCapture)) return 168;
+    resetSearchState();
+    const auto beforeProof=positionKey(position);
+    const auto proofMoves=legalMoves(position,1);
+    if(!hashMoveIsSingular(position,proofMoves,queenCapture,2,-100,1)) return 169;
+    if(positionKey(position)!=beforeProof||position.side!=WHITE) return 170;
+    if(searchPathMoves[1].from>=0||searchPathPieceTypes[1]!=0) return 171;
+    if(hashMoveIsSingular(position,proofMoves,queenCapture,2,-1500,1)) return 172;
+    if(hashMoveIsSingular(position,proofMoves,Move{},2,-100,1)) return 173;
+
     if(quietHistoryUpdate(0,QUIET_HISTORY_LIMIT,2000)!=2000) return 162;
     if(quietHistoryUpdate(24000,QUIET_HISTORY_LIMIT,2000)!=24400) return 163;
     if(quietHistoryUpdate(24000,-QUIET_HISTORY_LIMIT,1000)!=22200) return 164;

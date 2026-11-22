@@ -1779,7 +1779,37 @@ bool shouldPruneLosingCapture(
     return exchange < -80*depth;
 }
 
-int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
+int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,
+            bool allowNullMove=true,bool allowSingular=true);
+
+bool hashMoveIsSingular(Position& p,const MoveList& moves,const Move& candidate,
+                        int depth,int threshold,int ply) {
+    if(moves.size()<2||std::none_of(moves.begin(),moves.end(),
+        [&](const Move& move){return sameMove(move,candidate);})) return false;
+
+    const Move savedPathMove=searchPathMoves[ply];
+    const int savedPathType=searchPathPieceTypes[ply];
+    bool alternativesFallShort=true;
+    for(const Move& move:moves) {
+        if(sameMove(move,candidate)) continue;
+
+        searchPathMoves[ply]=move;
+        searchPathPieceTypes[ply]=typeOf(p.board[move.from]);
+        const Undo undo=makeMove(p,move);
+        const int score=-negamax(p,depth-1,-threshold,1-threshold,ply+1,true,false,false);
+        undoMove(p,move,undo);
+        if(searchAborted.load(std::memory_order_relaxed)||score>=threshold) {
+            alternativesFallShort=false;
+            break;
+        }
+    }
+    searchPathMoves[ply]=savedPathMove;
+    searchPathPieceTypes[ply]=savedPathType;
+    return alternativesFallShort;
+}
+
+int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,
+            bool allowNullMove,bool allowSingular) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
     bool checked=inCheck(p,p.side);
@@ -1800,14 +1830,20 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     bool ttFound=false;
     TTEntry& entry=probeTranspositionTable(key,ttFound);
     Move hashMove{};
+    int singularThreshold=-INF;
     if(ttFound) {
         ++ttHits;
         hashMove=unpackTranspositionMove(p,entry.bestMove);
+        const int ttScore=scoreFromTable(entry.score,ply);
         if(entry.depth>=depth) {
-            int ttScore=scoreFromTable(entry.score,ply);
             if(entry.bound==TT_EXACT) return ttScore;
             if(entry.bound==TT_LOWER&&ttScore>=beta) return ttScore;
             if(entry.bound==TT_UPPER&&ttScore<=alpha) return ttScore;
+        }
+        if(allowSingular&&ply>0&&ply<MAX_PLY-2&&!checked&&depth>=7&&hashMove.from>=0
+           &&entry.depth>=depth-2&&(entry.bound==TT_LOWER||entry.bound==TT_EXACT)
+           &&std::abs(ttScore)<MATE-MAX_PLY) {
+            singularThreshold=ttScore-(20+3*depth);
         }
     }
 
@@ -1844,19 +1880,25 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         searchPathMoves[ply]=Move{};
         searchPathPieceTypes[ply]=0;
         const int reduction=2+depth/4;
-        const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
+        const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false,false);
         searchPathMoves[ply]=savedPathMove;
         searchPathPieceTypes[ply]=savedPathType;
         if(searchAborted.load(std::memory_order_relaxed)) return 0;
         if(nullScore>=beta) {
             if(depth<7) return nullScore;
-            const int verification=negamax(p,depth-1-reduction,beta-1,beta,ply,false,false);
+            const int verification=negamax(p,depth-1-reduction,beta-1,beta,ply,false,false,false);
             if(searchAborted.load(std::memory_order_relaxed)) return 0;
             if(verification>=beta) return nullScore;
         }
     }
     auto moves=legalMoves(p,ply);
     if(moves.empty()) return checked?-MATE+ply:0;
+
+    // Only deepen the hash move when a shorter search rules out every alternative.
+    const bool extendHashMove=singularThreshold!=-INF
+        &&hashMoveIsSingular(p,moves,hashMove,depth/2,singularThreshold,ply);
+    if(searchAborted.load(std::memory_order_relaxed)) return 0;
+
     MovePicker picker(p,moves,hashMove,ply);
     auto& nodeScratch=moveScratch[ply];
     nodeScratch.searchedCount=0;
@@ -1893,13 +1935,15 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
 
         nodeScratch.searched[nodeScratch.searchedCount++]=m;
-        int childDepth=depth-1;
+        const bool extended=extendHashMove&&sameMove(m,hashMove);
+        const int childDepth=depth-1+static_cast<int>(extended);
+        const bool childCanExtend=allowSingular&&!extended;
         int score;
         if(moveNumber==0) {
-            score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode);
+            score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode,true,childCanExtend);
         } else {
             int reduction=0;
-            if(!checked&&!givesCheck&&quiet&&depth>=3&&moveNumber>=3) {
+            if(!extended&&!checked&&!givesCheck&&quiet&&depth>=3&&moveNumber>=3) {
                 reduction=1;
                 if(depth>=5&&moveNumber>=6) ++reduction;
                 if(depth>=8&&moveNumber>=12) ++reduction;
@@ -1909,9 +1953,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 else if(lmrHistory<-5000) ++reduction;
                 reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
             }
-            score=-negamax(p,childDepth-reduction,-alpha-1,-alpha,ply+1,false);
-            if(score>alpha&&reduction>0) score=-negamax(p,childDepth,-alpha-1,-alpha,ply+1,false);
-            if(score>alpha&&score<beta) score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode);
+            score=-negamax(p,childDepth-reduction,-alpha-1,-alpha,ply+1,false,true,childCanExtend);
+            if(score>alpha&&reduction>0)
+                score=-negamax(p,childDepth,-alpha-1,-alpha,ply+1,false,true,childCanExtend);
+            if(score>alpha&&score<beta)
+                score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode,true,childCanExtend);
         }
         undoMove(p,m,undo);
         if(searchAborted) return 0;
