@@ -11,4 +11,6 @@ The following items keep their own terms and are not relicensed by the root MIT 
 - Third-party libraries, fonts, and other assets remain subject to their respective licenses.
 - PGN corpora and other datasets retain the terms recorded in their source archives and provenance manifests.
 
+The optional [Fathom probe](third_party/fathom) retains the MIT copyright and license notices of Ronald de Man, Basil (basil00), and Jon Dart. Syzygy tablebase files are obtained separately.
+
 The MIT License does not grant rights to the Prunex name, logo, or other trademarks. Refer to the individual notices alongside any separately licensed material before redistributing it.

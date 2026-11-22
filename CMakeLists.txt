@@ -52,6 +52,16 @@ if(PRUNEX_NATIVE_TUNING)
 endif()
 
 target_link_libraries(prunex PRIVATE Threads::Threads)
+
+option(PRUNEX_ENABLE_SYZYGY "Enable the native UCI Syzygy tablebase probe" OFF)
+if(PRUNEX_ENABLE_SYZYGY)
+    set(fathom_source third_party/fathom/src/tbprobe.c)
+    set_source_files_properties(${fathom_source} PROPERTIES LANGUAGE CXX)
+    add_library(prunex_fathom STATIC ${fathom_source})
+    target_link_libraries(prunex_fathom PRIVATE Threads::Threads)
+    target_link_libraries(prunex PRIVATE prunex_fathom)
+    target_compile_definitions(prunex PRIVATE PRUNEX_HAS_SYZYGY)
+endif()
 message(STATUS "Prunex transposition-table entries: 2^${PRUNEX_TT_BITS}")
 
 if(WIN32)

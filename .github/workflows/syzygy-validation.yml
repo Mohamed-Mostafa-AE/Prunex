@@ -1,0 +1,67 @@
+name: Native Syzygy endgame validation
+
+on:
+  push:
+    branches: ['feature/prunex-syzygy']
+    paths:
+      - 'src/**'
+      - 'CMakeLists.txt'
+      - 'third_party/fathom/**'
+      - '.github/workflows/syzygy-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tablebase:
+    name: Native build and root probes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and run native regressions
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPRUNEX_ENABLE_SYZYGY=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure --parallel 2
+
+      - name: Obtain the queen endgame files
+        run: |
+          mkdir tables
+          curl --fail --location --retry 3 \
+            https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/KQvK.rtbw --output tables/KQvK.rtbw
+          curl --fail --location --retry 3 \
+            https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/KQvK.rtbz --output tables/KQvK.rtbz
+          python3 -m venv .venv
+          .venv/bin/python -m pip install python-chess==1.999
+
+      - name: Verify root outcome and search fallback
+        run: |
+          .venv/bin/python - <<'PY'
+          import chess
+          import chess.engine
+          from pathlib import Path
+
+          def respond(engine, fen, expected):
+              board = chess.Board(fen)
+              answer = engine.play(board, chess.engine.Limit(depth=3), info=chess.engine.INFO_ALL)
+              if answer.move not in board.legal_moves:
+                  raise AssertionError(f"Invalid move for {fen}: {answer.move}")
+              message = answer.info.get("string", "")
+              if expected is None:
+                  if message.startswith("syzygy "):
+                      raise AssertionError(f"Unexpected tablebase probe for {fen}: {message}")
+              elif message != f"syzygy {expected}":
+                  raise AssertionError(f"Expected {expected} for {fen}, got {message}")
+              print(f"{fen} -> {answer.move} ({message})")
+
+          with chess.engine.SimpleEngine.popen_uci(str(Path("build/prunex").resolve())) as engine:
+              engine.configure({"SyzygyPath": str(Path("tables").resolve())})
+              respond(engine, "7k/8/5K2/6Q1/8/8/8/8 w - - 0 1", "win")
+              respond(engine, "7k/8/8/8/8/6Q1/8/K7 w - - 99 1", "draw")
+              respond(engine, chess.STARTING_FEN, None)
+              engine.configure({"SyzygyPath": "<empty>"})
+              respond(engine, "7k/8/5K2/6Q1/8/8/8/8 w - - 0 1", None)
+          PY

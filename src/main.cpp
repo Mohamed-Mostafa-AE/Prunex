@@ -18,6 +18,10 @@
 #include <thread>
 #include <vector>
 
+#ifdef PRUNEX_HAS_SYZYGY
+#include "../third_party/fathom/src/tbprobe.h"
+#endif
+
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 #include <immintrin.h>
 #define PRUNEX_HAS_GNU_X86_INTRINSICS 1
@@ -883,6 +887,8 @@ bool hasAnyLegalMoveOutsideCheck(Position& position,int ply) {
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
 bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move&m:legalMoves(p))if(moveUci(m)==text){result=m;return true;}return false;}
 
+
+
 #ifndef PRUNEX_TT_BITS
 #define PRUNEX_TT_BITS 18
 #endif
@@ -977,6 +983,42 @@ void emitLine(const std::string& line) {
 #endif
     std::cout << line << '\n' << std::flush;
 }
+
+#ifdef PRUNEX_HAS_SYZYGY
+Move probeSyzygyMove(Position& p) {
+    const auto occupied=p.occupancy[WHITE]|p.occupancy[BLACK];
+    if(TB_LARGEST==0||p.castling!=0||p.halfmove>=100
+        ||static_cast<unsigned>(std::popcount(occupied))>TB_LARGEST) return {};
+
+    const auto pieces=[&](int type) {
+        return p.piecesBB[WHITE][type]|p.piecesBB[BLACK][type];
+    };
+    const int ep=hashableEnPassantSquare(p);
+    const unsigned result=tb_probe_root(
+        p.occupancy[WHITE],p.occupancy[BLACK],pieces(6),pieces(5),pieces(4),
+        pieces(3),pieces(2),pieces(1),static_cast<unsigned>(p.halfmove),0,
+        ep>=0?static_cast<unsigned>(square64From88(ep)):0U,p.side==WHITE,nullptr
+    );
+    if(result==TB_RESULT_FAILED||result==TB_RESULT_CHECKMATE||result==TB_RESULT_STALEMATE)
+        return {};
+
+    constexpr std::array<int,5> promotionTypes{0,5,4,3,2};
+    const unsigned promotion=TB_GET_PROMOTES(result);
+    if(promotion>=promotionTypes.size()) return {};
+    const Move selected{square88From64(static_cast<int>(TB_GET_FROM(result))),
+                        square88From64(static_cast<int>(TB_GET_TO(result))),
+                        promotion==TB_PROMOTES_NONE?EMPTY:makePiece(promotionTypes[promotion],p.side)};
+    for(const Move& move:legalMoves(p)) {
+        if(move.from==selected.from&&move.to==selected.to&&move.promotion==selected.promotion) {
+            const unsigned wdl=TB_GET_WDL(result);
+            const char* outcome=wdl==TB_WIN?"win":wdl==TB_LOSS?"loss":"draw";
+            emitLine("info string syzygy "+std::string(outcome));
+            return move;
+        }
+    }
+    return {};
+}
+#endif
 
 void clearTranspositionTable() {
     for(auto& cluster:transpositionTable) cluster.fill(TTEntry{});
@@ -2208,6 +2250,9 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 "option name Hash type spin default "+std::to_string(DEFAULT_HASH_MB)+" min 1 max 4096\n"
                 "option name Threads type spin default 1 min 1 max 1\n"
                 "option name EvalFile type string default none\n"
+#ifdef PRUNEX_HAS_SYZYGY
+                "option name SyzygyPath type string default <empty>\n"
+#endif
                 "option name Clear Hash type button\n"
                 "uciok"
             );
@@ -2237,6 +2282,17 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 int requestedThreads=0;
                 if(!parseIntegerToken(value,1,1,requestedThreads))
                     emitLine("info string this build supports Threads=1 only");
+#ifdef PRUNEX_HAS_SYZYGY
+            } else if(name=="SyzygyPath") {
+                if(value.empty()||value=="<empty>") {
+                    tb_init("");
+                    emitLine("info string syzygy disabled");
+                } else if(!tb_init(value.c_str())||TB_LARGEST==0) {
+                    emitLine("info string syzygy no tables found");
+                } else {
+                    emitLine("info string syzygy loaded up to "+std::to_string(TB_LARGEST)+" pieces");
+                }
+#endif
             } else if(name=="EvalFile") {
                 if(value.empty()||value=="none") {
                     nnueNetwork.clear();
@@ -2320,8 +2376,16 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             const int searchDepth=std::clamp(depth,1,MAX_PLY-1);
             const Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);
-            searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit]() mutable {
-                Move best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit);
+            searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit
+#ifdef PRUNEX_HAS_SYZYGY
+                                      ,infiniteSearch
+#endif
+                                      ]() mutable {
+                Move best{};
+#ifdef PRUNEX_HAS_SYZYGY
+                if(!infiniteSearch) best=probeSyzygyMove(searchPosition);
+#endif
+                if(best.from<0) best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit);
                 emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
             });
         } else if(cmd=="eval"){
@@ -2342,6 +2406,9 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         }
     }
     stopAndJoin();
+#ifdef PRUNEX_HAS_SYZYGY
+    tb_free();
+#endif
     return 0;
 }
 #endif // PRUNEX_NO_MAIN
