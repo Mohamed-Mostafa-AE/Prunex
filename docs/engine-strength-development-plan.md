@@ -139,6 +139,21 @@ Configure with `-DPRUNEX_REFERENCE_NNUE=ON` and set the native UCI option `HalfK
 
 When the parent position's accumulator is available, Prunex derives the changed pieces from the two boards and passes them to the probe. It keeps the full refresh path for cache misses. UCI tests check that a fresh evaluation agrees after an ordinary move, a capture, en passant, castling, a capture-promotion, and a king move.
 
+### Reference evaluator results
+
+Candidate `f5e99d0281030998437643922b69bc36bdd0e8b4` recomputed the feature transformer for new positions. Candidate `49ccb7c06d094033b705c753a5be0d571646f7bf` reused available accumulators. Each candidate played Stockfish 19 Full from the same six openings with colours reversed. The opponent used the official release binary, maximum skill, and its default network.
+
+| Time per move | Games per candidate | Direct HalfKP | Incremental HalfKP |
+| --- | ---: | ---: | ---: |
+| 100 ms | 12 | 8.33% | 12.50% |
+| 250 ms | 12 | 8.33% | 20.83% |
+| 500 ms | 12 | 12.50% | 8.33% |
+| 1,000 ms | 12 | 25.00% | 20.83% |
+
+Both candidates scored below 50% in every group. The small paired sample is useful for finding large changes in playing strength. It leaves the relative merits of the two evaluator implementations uncertain.
+
+[Direct evaluation match](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45059918835) · [Incremental evaluation match](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45060239942)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
