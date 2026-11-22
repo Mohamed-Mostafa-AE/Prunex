@@ -135,6 +135,17 @@ Configure with `-DPRUNEX_REFERENCE_NNUE=ON` and set the native UCI option `HalfK
 
 [Probe source at the pinned revision](https://github.com/dshawul/nnue-probe/tree/edcd97e998b0299f952786c68fe37f04a7ed7f0d) · [Official network archive](https://github.com/official-stockfish/networks)
 
+The direct evaluation candidate `f5e99d0281030998437643922b69bc36bdd0e8b4` played 12 games per time limit against Stockfish 19 Full.
+
+| Time per move | Wins | Draws | Losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: |
+| 100 ms | 0 | 2 | 10 | 8.33% |
+| 250 ms | 0 | 2 | 10 | 8.33% |
+| 500 ms | 0 | 3 | 9 | 12.50% |
+| 1,000 ms | 1 | 4 | 7 | 25.00% |
+
+[Match configuration, exact builds, and PGNs](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45059918835)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
