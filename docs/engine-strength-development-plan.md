@@ -127,6 +127,12 @@ This follows the search idea introduced in ChipTest by Thomas Anantharaman, Murr
 
 [Original paper](https://doi.org/10.1016/0004-3702(90)90073-9) · [Stockfish 19 search](https://github.com/official-stockfish/Stockfish/blob/sf_19/src/search.cpp) · [Ethereal search](https://github.com/AndyGrant/Ethereal/blob/master/src/search.c)
 
+Candidate `b496df71beacd49f5c1e746def19ebed2ad6f209` scored 44.79% against its parent over 48 games at 25,000 nodes per move, with 13 wins, 17 draws, and 18 losses. The paired 95% confidence interval was 39.70%–49.88%.
+
+Against Stockfish 19, the candidate won once and lost 23 games in each of the two tiers. It scored 4.17% at 100,000 nodes per move and 4.17% at 100 ms per move. This version remains an experiment.
+
+[Match logs and downloadable evidence](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45043415191)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
