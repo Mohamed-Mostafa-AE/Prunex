@@ -1964,9 +1964,6 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         while(true) {
             score=negamax(p,currentDepth,alpha,beta,0,true);
             if(searchAborted.load(std::memory_order_relaxed)) break;
-            bool rootFound=false;
-            TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
-            if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
             if(score<=alpha&&alpha>-INF) {
                 window=std::min(INF,window*2);
                 alpha=window==INF?-INF:std::max(-INF,previousScore-window);
@@ -1977,6 +1974,9 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
                 beta=window==INF?INF:std::min(INF,previousScore+window);
                 continue;
             }
+            bool rootFound=false;
+            TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
+            if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
             break;
         }
         if(searchAborted.load(std::memory_order_relaxed)) break;

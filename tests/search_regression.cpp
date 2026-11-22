@@ -640,6 +640,32 @@ int main() {
     std::uint64_t secondNodes=nodes;
     if(!sameMove(first,second)||secondNodes>=firstNodes) return 14;
 
+    // Stopping during a window re-search must keep the last completed result.
+    const std::array<std::string_view,3> nodeLimitPositions{{
+        START_FEN,
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"
+    }};
+    for(std::string_view fen:nodeLimitPositions) {
+        if(!loadFen(position,fen)) return 158;
+        for(std::uint64_t limit:{128,256,512,1024,2048}) {
+            resetSearchState();
+            const Move cappedMove=findBestMove(position,8,-1,limit);
+            const int finishedDepth=completedSearchDepth;
+            const int cappedScore=lastSearchScore;
+            if(finishedDepth==0||finishedDepth==8) continue;
+
+            resetSearchState();
+            const Move fullMove=findBestMove(position,finishedDepth);
+            if(!sameMove(cappedMove,fullMove)||cappedScore!=lastSearchScore) {
+                std::cerr<<"node cap "<<limit<<" changed the depth "
+                         <<finishedDepth<<" result for "<<fen<<'\n';
+                return 159;
+            }
+        }
+    }
+    resetSearchState();
+
     if(!loadFen(position,"r3k2r/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w kq - 2 10")) return 15;
     Position reflected=position;
     reflected.board.fill(EMPTY);

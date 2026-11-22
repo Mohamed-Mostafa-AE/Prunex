@@ -15,6 +15,18 @@ The archived 144-game candidate (`129829dd95672e83a347563526ae7b28ccf1ea63`) sco
 
 This is the result for that exact old candidate. It is not an Elo estimate and says nothing about later code until it is tested. The separate historical Stockfish 2.0 test did not complete 64 games; its latest recorded attempt stopped after nine games when the external engine exceeded the requested node budget by two nodes. It has no valid 64-game score.
 
+### November 13 Stockfish 19 match
+
+Candidate `c19df7176896a32756377309de84af071f8111bd` played 24 games per tier against the official Stockfish 19 release. Both engines played each opening from both sides.
+
+| Search limit | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: |
+| 100,000 nodes per move | 2 | 1 | 21 | 10.42% |
+| 1,000,000 nodes per move | 0 | 0 | 24 | 0.00% |
+| 500 ms per move | 1 | 2 | 21 | 8.33% |
+
+[Match logs, PGNs and telemetry](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/43445326540)
+
 ## Search and move-generation work on the isolated branch
 
 - Runtime BMI2 PEXT dispatch for slider attack indexing on supported x86 processors, with a portable fallback.
