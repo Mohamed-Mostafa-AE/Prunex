@@ -2374,7 +2374,7 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
                 depth=MAX_PLY-1;
             }
             const int searchDepth=std::clamp(depth,1,MAX_PLY-1);
-            const Position searchPosition=pos;
+            Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);
             searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit
 #ifdef PRUNEX_HAS_SYZYGY
