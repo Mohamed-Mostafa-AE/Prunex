@@ -483,7 +483,7 @@ int main() {
     if(!moveCountersSaturateAndUndo()) return 127;
     if(!enPassantHashingMatchesLegalMoves()) return 125;
 
-    const std::array<const char*,7> transpositionMovePositions{{
+    const std::array<std::string_view,7> transpositionMovePositions{{
         START_FEN,
         "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
         "7k/P7/8/8/8/8/8/7K w - - 0 1",
@@ -492,7 +492,7 @@ int main() {
         "1r5k/P7/8/8/8/8/8/7K w - - 0 1",
         "7k/8/8/8/8/8/1p6/1K6 b - - 0 1"
     }};
-    for(const char* fen:transpositionMovePositions) {
+    for(std::string_view fen:transpositionMovePositions) {
         if(!loadFen(position,fen)
             ||!transpositionMoveEncodingAgrees(position)) return 156;
     }
