@@ -840,11 +840,17 @@ MoveList legalMoves(Position& position,int ply=0,bool capturesOnly=false) {
 }
 
 bool hasAnyLegalMove(Position& position,int ply=0) {
-    const int scratchPly=std::clamp(ply,0,MAX_PLY-1);
-    const auto candidates=pseudoMoves(position,scratchPly);
     const int movingSide=position.side;
     const KingSafetyInfo kingSafety=buildKingSafetyInfo(position,movingSide);
     const int checkCount=std::popcount(kingSafety.checkers);
+
+    // An unpinned pawn can advance onto an empty square that blocks a check.
+    const std::uint64_t unpinnedPawns=position.piecesBB[movingSide][1]&~kingSafety.pinned;
+    const std::uint64_t pawnPushes=movingSide==WHITE?unpinnedPawns<<8:unpinnedPawns>>8;
+    const std::uint64_t occupied=position.occupancy[WHITE]|position.occupancy[BLACK];
+    if(checkCount<2&&(pawnPushes&~occupied&kingSafety.evasionMask)!=0) return true;
+
+    const auto candidates=pseudoMoves(position,ply);
     for(const Move& move:candidates) {
         if(isLegalCandidate(position,move,movingSide,kingSafety,checkCount)) return true;
     }

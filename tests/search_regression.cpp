@@ -852,7 +852,7 @@ int main() {
 
     // Compare the optimized pin/check-mask move filter against the former
     // make/undo legality oracle on tactical and special-move positions.
-    const std::array<const char*,8> legalityFens{{
+    const std::array<const char*,10> legalityFens{{
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
         "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
@@ -860,7 +860,9 @@ int main() {
         "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
         "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
         "k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
-        "4k3/8/8/8/1b6/8/4r3/4K3 w - - 0 1"
+        "4k3/8/8/8/1b6/8/4r3/4K3 w - - 0 1",
+        "8/8/8/8/4b3/8/5kP1/5n1K w - - 0 1", // Stalemate with a pinned pawn.
+        "7r/8/8/8/8/8/P4k2/5n1K w - - 0 1" // A free pawn cannot evade the check.
     }};
     for(const char* fen:legalityFens) {
         if(!loadFen(position,fen)||!legalMoveSetsAgree(position)) return 92;
