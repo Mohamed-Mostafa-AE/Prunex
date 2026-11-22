@@ -48,6 +48,28 @@ static bool legalMoveSetsAgree(prunex::Position position) {
     return actual==referenceLegalMoveStrings(position)&&bitboardsConsistent(position);
 }
 
+
+static bool transpositionMoveEncodingAgrees(const prunex::Position& position) {
+    using namespace prunex;
+    Position workingPosition=position;
+    const auto moves=legalMoves(workingPosition,0);
+    for(const Move& move:moves) {
+        const std::uint16_t packed=packTranspositionMove(move);
+        if(packed==TT_NO_MOVE) return false;
+        const Move decoded=unpackTranspositionMove(position,packed);
+        if(!sameMove(decoded,move)
+            ||decoded.enPassant!=move.enPassant
+            ||decoded.castle!=move.castle) {
+            std::cerr<<"transposition move encoding mismatch for "
+                <<moveUci(move)<<'\n';
+            return false;
+        }
+    }
+    const Move empty{};
+    return packTranspositionMove(empty)==TT_NO_MOVE
+        &&unpackTranspositionMove(position,TT_NO_MOVE).from<0;
+}
+
 static bool referenceIsInsufficientMaterial(const prunex::Position& p) {
     using namespace prunex;
     int minorCount=0;
@@ -461,6 +483,20 @@ int main() {
     if(!moveCountersSaturateAndUndo()) return 127;
     if(!enPassantHashingMatchesLegalMoves()) return 125;
 
+    const std::array<std::string_view,7> transpositionMovePositions{{
+        START_FEN,
+        "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+        "7k/P7/8/8/8/8/8/7K w - - 0 1",
+        "7k/8/8/8/8/8/p7/7K b - - 0 1",
+        "7k/8/8/3pP3/8/8/8/K7 w - d6 0 1",
+        "1r5k/P7/8/8/8/8/8/7K w - - 0 1",
+        "7k/8/8/8/8/8/1p6/1K6 b - - 0 1"
+    }};
+    for(std::string_view fen:transpositionMovePositions) {
+        if(!loadFen(position,fen)
+            ||!transpositionMoveEncodingAgrees(position)) return 156;
+    }
+
     struct MaterialFixture { const char* fen; bool insufficient; };
     const std::array<MaterialFixture,10> materialFixtures{{
         {"7k/8/8/8/8/8/8/K7 w - - 0 1",true},
@@ -603,6 +639,32 @@ int main() {
     Move second=findBestMove(position,5);
     std::uint64_t secondNodes=nodes;
     if(!sameMove(first,second)||secondNodes>=firstNodes) return 14;
+
+    // Stopping during a window re-search must keep the last completed result.
+    const std::array<std::string_view,3> nodeLimitPositions{{
+        START_FEN,
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"
+    }};
+    for(std::string_view fen:nodeLimitPositions) {
+        if(!loadFen(position,fen)) return 158;
+        for(std::uint64_t limit:{128,256,512,1024,2048}) {
+            resetSearchState();
+            const Move cappedMove=findBestMove(position,8,-1,limit);
+            const int finishedDepth=completedSearchDepth;
+            const int cappedScore=lastSearchScore;
+            if(finishedDepth==0||finishedDepth==8) continue;
+
+            resetSearchState();
+            const Move fullMove=findBestMove(position,finishedDepth);
+            if(!sameMove(cappedMove,fullMove)||cappedScore!=lastSearchScore) {
+                std::cerr<<"node cap "<<limit<<" changed the depth "
+                         <<finishedDepth<<" result for "<<fen<<'\n';
+                return 159;
+            }
+        }
+    }
+    resetSearchState();
 
     if(!loadFen(position,"r3k2r/pp2bppp/2n1pn2/2pp4/3P4/2P1PN2/PP1NBPPP/R2Q1RK1 w kq - 2 10")) return 15;
     Position reflected=position;
@@ -836,6 +898,7 @@ int main() {
     for(int ply=0;ply<160;++ply) {
         if(!legalMoveSetsAgree(position)) return 94;
         if(!exchangeEvaluationsAgree(position)) return 151;
+        if(!transpositionMoveEncodingAgrees(position)) return 157;
         if(!movePickerExchangeScoresAgree(position)) return 155;
         if(!insufficientMaterialMatchesReference(position)) return 153;
         const auto allLegal=legalMoves(position,0);

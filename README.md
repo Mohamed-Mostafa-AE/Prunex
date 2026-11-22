@@ -14,7 +14,7 @@
 
 ---
 
-Prunex is an original chess-engine project created and independently developed from scratch by **Mohamed Mostafa**. Its native engine is written in **C++20** and implements its own board representation, legal move generation, search, static evaluation, and Universal Chess Interface (UCI). The repository also includes a Windows desktop interface, a separately built WebAssembly target, regression tests, and a browser chess application.
+Prunex is a C++20 chess engine with UCI support. It includes legal move generation, alpha–beta search, and position evaluation. The repository also contains a Windows desktop app, a WebAssembly build, and the Prunex Play web app.
 
 **Current native engine version: 0.8.0.**
 
