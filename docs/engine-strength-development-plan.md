@@ -107,6 +107,18 @@ The branch compares this single change against the preceding Prunex build and of
 
 [Stockfish 19 history implementation](https://github.com/official-stockfish/Stockfish/blob/sf_19/src/history.h) · [Ethereal history implementation](https://github.com/AndyGrant/Ethereal/blob/master/src/history.c)
 
+Results for candidate `1d15a2ca838c75ad8a643ca3bfbcf4782d049157`:
+
+| Opponent and limit | Games | Wins | Draws | Losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Previous Prunex, 25,000 nodes per move | 48 | 18 | 15 | 15 | 53.12% |
+| Stockfish 19, 100,000 nodes per move | 24 | 1 | 1 | 22 | 6.25% |
+| Stockfish 19, 100 ms per move | 24 | 1 | 3 | 20 | 10.42% |
+
+The internal paired 95% confidence interval was 46.33%–59.92%. The sample leaves the change's effect on Prunex's strength uncertain. Both external tests used one thread and 128 MiB of hash per engine. The candidate remains well below Stockfish 19 at these limits.
+
+[Match logs and downloadable evidence](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45042096669)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
