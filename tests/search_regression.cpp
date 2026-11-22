@@ -398,6 +398,12 @@ static bool evaluationMapsMatchAttackReference(prunex::Position position) {
         const std::uint64_t occupied=position.occupancy[WHITE]
             |position.occupancy[BLACK];
 
+        for(int square=0;square<64;++square) {
+            const bool expected=attackersTo(position,square88From64(square),color)!=0;
+            const bool actual=((maps.allAttacks[color]>>square)&1U)!=0;
+            if(expected!=actual) return false;
+        }
+
         const int enemyKing=kingSquare(position,1-color);
         const std::uint64_t kingZone=enemyKing>=0
             ?KING_ATTACKS[square64From88(enemyKing)]:0;
@@ -953,6 +959,19 @@ int main() {
             return 129;
         }
     }
+
+    // A pawn attacking a queen scores more when the queen has no defender.
+    if(!loadFen(position,"4k3/8/8/8/3q4/2P5/8/4K3 w - - 0 1")) return 167;
+    EvaluationMaps looseQueenMaps;
+    buildEvaluationMaps(position,looseQueenMaps);
+    if(evaluateThreats(position,looseQueenMaps,WHITE)!=std::array<int,2>{38,34})
+        return 168;
+
+    if(!loadFen(position,"4k3/8/8/4p3/3q4/2P5/8/4K3 w - - 0 1")) return 169;
+    EvaluationMaps defendedQueenMaps;
+    buildEvaluationMaps(position,defendedQueenMaps);
+    if(evaluateThreats(position,defendedQueenMaps,WHITE)!=std::array<int,2>{26,21})
+        return 170;
 
     if(quietHistoryUpdate(0,QUIET_HISTORY_LIMIT,2000)!=2000) return 162;
     if(quietHistoryUpdate(24000,QUIET_HISTORY_LIMIT,2000)!=24400) return 163;

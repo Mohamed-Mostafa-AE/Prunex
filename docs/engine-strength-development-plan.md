@@ -119,6 +119,14 @@ The internal paired 95% confidence interval was 46.33%–59.92%. The sample leav
 
 [Match logs and downloadable evidence](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45042096669)
 
+## Threat evaluation
+
+Prunex already builds attack sets for mobility and king safety. The evaluator now also uses them to score attacked pieces with no defender, attacks by pawns, and attacks by minor pieces on rooks and queens. Each threatened piece is counted once. The middle-game and endgame weights are kept separate.
+
+The match campaign compares this candidate with the official Stockfish 19 release at 100, 250, 500, and 1,000 ms per move. Both engines get the same time, thread and hash settings. Each opening is replayed with colours reversed. Stockfish uses its default network with skill limits disabled.
+
+[Attack and defend maps](https://www.chessprogramming.org/Attack_and_Defend_Maps) · [Stockfish 19 release](https://stockfishchess.org/blog/2026/stockfish-19/)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

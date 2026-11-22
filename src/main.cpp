@@ -1406,6 +1406,8 @@ bool isPassedPawn(const Position& p,int square,int color) {
 struct EvaluationMaps {
     std::array<std::array<std::uint8_t,64>,2> attacks{};
     std::array<std::uint64_t,2> pawnAttacks{};
+    std::array<std::uint64_t,2> minorAttacks{};
+    std::array<std::uint64_t,2> allAttacks{};
     std::array<int,2> mobilityMiddle{};
     std::array<int,2> mobilityEnding{};
     std::array<int,2> kingPressureMiddle{};
@@ -1443,6 +1445,7 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
             maps.pawnAttacks[color]|=targets;
             markTargets(color,targets&kingZones[color]);
         }
+        maps.allAttacks[color]=maps.pawnAttacks[color];
     }
 
     // Calculate each non-pawn attack set once. The same bitboard supplies
@@ -1462,6 +1465,8 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
                 else targets=KING_ATTACKS[square];
 
                 markTargets(color,targets&kingZones[color]);
+                maps.allAttacks[color]|=targets;
+                if(type==2||type==3) maps.minorAttacks[color]|=targets;
 
                 if(type<=5) {
                     std::uint64_t safeTargets=targets&~p.occupancy[color]
@@ -1502,6 +1507,34 @@ void buildEvaluationMaps(const Position& p,EvaluationMaps& maps) {
         }
     }
 }
+
+std::array<int,2> evaluateThreats(const Position& p,const EvaluationMaps& maps,int color) {
+    constexpr std::array<int,6> hangingMiddle{0,12,22,22,29,38};
+    constexpr std::array<int,6> hangingEnding{0,15,21,21,28,34};
+    constexpr std::array<int,6> pawnMiddle{0,0,16,16,22,26};
+    constexpr std::array<int,6> pawnEnding{0,0,11,11,17,21};
+    const int enemy=1-color;
+    const std::uint64_t loose=maps.allAttacks[color]&~maps.allAttacks[enemy];
+    const std::uint64_t pawnTargets=maps.pawnAttacks[color]&~loose;
+    const std::uint64_t minorTargets=maps.minorAttacks[color]&~(loose|pawnTargets);
+
+    int middle=0;
+    int ending=0;
+    for(int type=1;type<=5;++type) {
+        const std::uint64_t pieces=p.piecesBB[enemy][type];
+        const int hanging=std::popcount(pieces&loose);
+        const int underPawnAttack=std::popcount(pieces&pawnTargets);
+        middle+=hanging*hangingMiddle[type]+underPawnAttack*pawnMiddle[type];
+        ending+=hanging*hangingEnding[type]+underPawnAttack*pawnEnding[type];
+    }
+
+    // A minor piece may win an exchange even when the target has a defender.
+    const int attackedRooks=std::popcount(p.piecesBB[enemy][4]&minorTargets);
+    const int attackedQueens=std::popcount(p.piecesBB[enemy][5]&minorTargets);
+    return {middle+8*attackedRooks+12*attackedQueens,
+            ending+7*attackedRooks+10*attackedQueens};
+}
+
 int evaluate(Position& p) {
     if(nnueNetwork.loaded()) return nnueNetwork.evaluate(p);
 
@@ -1639,10 +1672,11 @@ int evaluate(Position& p) {
     }
 
     for(int color=WHITE;color<=BLACK;++color) {
+        const auto threats=evaluateThreats(p,evaluationMaps,color);
         middle[color]+=evaluationMaps.mobilityMiddle[color]
-            +evaluationMaps.kingPressureMiddle[color];
+            +evaluationMaps.kingPressureMiddle[color]+threats[0];
         ending[color]+=evaluationMaps.mobilityEnding[color]
-            +evaluationMaps.kingPressureEnding[color];
+            +evaluationMaps.kingPressureEnding[color]+threats[1];
     }
     phase=std::min(24,phase);
     const int whiteMiddle=middle[WHITE]-middle[BLACK];

@@ -1,0 +1,133 @@
+name: Prunex vs Stockfish 19 time sweep
+
+on:
+  push:
+    branches: ['feature/prunex-threat-evaluation']
+    paths:
+      - 'src/**'
+      - 'tools/strength-match/modern_strength_ladder.py'
+      - '.github/workflows/stockfish19-time-sweep.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  match:
+    name: ${{ matrix.milliseconds }} ms, openings ${{ matrix.offset }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        milliseconds: [100, 250, 500, 1000]
+        offset: [0, 2, 4]
+    env:
+      STOCKFISH_SHA: edb0d9db6731067ec50ce619ff372b463bc4dd5d
+      STOCKFISH_ARCHIVE_SHA: 9defc0d4e55d49c65a6d042f3e571a39fcea499ade6dbe741b53b8c65e03611f
+      MOVETIME_MS: ${{ matrix.milliseconds }}
+      OPENING_OFFSET: ${{ matrix.offset }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Build Prunex and pin the official Stockfish binary
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DPRUNEX_TT_BITS=22 -DPRUNEX_NATIVE_TUNING=ON
+          cmake --build build --target prunex --parallel 2
+          curl --fail --location --retry 3 \
+            https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-linux-x86-64-universal.tar.gz \
+            --output stockfish.tar.gz
+          printf '%s  %s\n' "$STOCKFISH_ARCHIVE_SHA" stockfish.tar.gz | sha256sum --check
+          mkdir stockfish-release
+          tar -xzf stockfish.tar.gz -C stockfish-release
+          mapfile -t binaries < <(find stockfish-release -type f -executable \
+            \( -name 'stockfish-linux-x86-64*' -o -name 'stockfish' \))
+          test "${#binaries[@]}" -eq 1
+          printf 'STOCKFISH_BINARY=%s\n' "${binaries[0]}" >> "$GITHUB_ENV"
+          python3 -m venv .venv
+          .venv/bin/python -m pip install python-chess==1.999
+
+      - name: Run paired games against Stockfish 19
+        run: |
+          mkdir -p results
+          lscpu > results/runner-cpu.txt
+          .venv/bin/python tools/strength-match/modern_strength_ladder.py \
+            --candidate build/prunex --candidate-commit "$GITHUB_SHA" \
+            --stockfish "$STOCKFISH_BINARY" --stockfish-source-commit "$STOCKFISH_SHA" \
+            --stockfish-build-arch linux-x86-64-universal --stockfish-only \
+            --tier timed-no-node-cap --movetime-ms "$MOVETIME_MS" \
+            --opening-offset "$OPENING_OFFSET" --pairs 2 --hash-mb 128 \
+            --out results
+
+      - name: Upload opening positions, PGNs and match settings
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: time-sweep-${{ matrix.milliseconds }}-${{ matrix.offset }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 90
+
+  summarize:
+    needs: match
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: time-sweep-*
+          path: shards
+
+      - name: Verify the opening pairs and summarize each time limit
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          rows = []
+          opening_order = None
+          for milliseconds in (100, 250, 500, 1000):
+              wins = draws = losses = 0
+              openings = []
+              for offset in (0, 2, 4):
+                  folder = Path("shards") / f"time-sweep-{milliseconds}-{offset}"
+                  manifest = json.loads((folder / "manifest.json").read_text())
+                  report = json.loads((folder / "report.json").read_text())
+                  pair = json.loads((folder / "openings.json").read_text())
+                  options = manifest["opponents"][0]["configured_options"]
+                  tier = manifest["conditions"]["tiers"][0]
+                  if (manifest["conditions"]["opening_offset"] != offset or len(pair) != 2
+                      or report["total_games"] != 4 or report["opponents"] != ["Stockfish 19"]
+                      or report["candidate_commit"] != os.environ["GITHUB_SHA"]
+                      or tier["node_limit_per_move"] is not None
+                      or round(tier["movetime_seconds_per_move"] * 1000) != milliseconds
+                      or options["UCI_LimitStrength"] or options["Skill Level"] != 20
+                      or not options["EvalFile"]):
+                      raise RuntimeError(f"Unexpected match settings in {folder}")
+                  openings.extend(opening["fen"] for opening in pair)
+                  result = report["results"][0]
+                  wins += result["wins"]
+                  draws += result["draws"]
+                  losses += result["losses"]
+
+              if len(set(openings)) != 6 or (opening_order is not None and openings != opening_order):
+                  raise RuntimeError("Every speed must use the same six distinct opening pairs")
+              opening_order = openings
+              games = wins + draws + losses
+              rows.append({"movetime_ms": milliseconds, "games": games, "wins": wins,
+                           "draws": draws, "losses": losses,
+                           "prunex_score_percent": round(100 * (wins + draws / 2) / games, 2)})
+
+          result = {"candidate_commit": os.environ["GITHUB_SHA"], "results": rows}
+          Path("time-sweep-summary.json").write_text(json.dumps(result, indent=2) + "\n")
+          print(json.dumps(result, indent=2))
+          PY
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: stockfish19-time-sweep-summary
+          path: time-sweep-summary.json
+          retention-days: 90

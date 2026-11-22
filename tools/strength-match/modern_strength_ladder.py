@@ -445,6 +445,8 @@ def main() -> None:
     )
     parser.add_argument("--pairs", type=int, default=12)
     parser.add_argument("--seed", type=int, default=20261112)
+    parser.add_argument("--opening-offset", type=int, default=0,
+                        help="Skip this many positions in the seeded opening sequence")
     parser.add_argument("--hash-mb", type=int, default=256)
     parser.add_argument("--threads", type=int, default=1)
     parser.add_argument("--movetime-ms", type=int, default=500)
@@ -454,6 +456,8 @@ def main() -> None:
 
     if args.pairs < 2 or args.pairs > 100:
         parser.error("--pairs must be between 2 and 100")
+    if not 0 <= args.opening_offset <= 1000:
+        parser.error("--opening-offset must be between 0 and 1000")
     if args.movetime_ms < 50 or args.movetime_ms > 60_000:
         parser.error("--movetime-ms must be between 50 and 60000")
     if args.threads != 1:
@@ -499,7 +503,9 @@ def main() -> None:
     ]
     if args.tier:
         tiers = [tier for tier in tiers if tier.name in args.tier]
-    openings = opening_positions(args.pairs, args.seed)
+    openings = opening_positions(
+        args.opening_offset + args.pairs, args.seed
+    )[args.opening_offset:]
     (output / "openings.json").write_text(
         json.dumps([
             {"pair": i + 1, "fen": board.fen(), "opening_san": san}
@@ -537,6 +543,7 @@ def main() -> None:
                 "pairs_per_tier_per_opponent": args.pairs,
                 "games_per_tier_per_opponent": args.pairs * 2,
                 "opening_seed": args.seed,
+                "opening_offset": args.opening_offset,
                 "hash_mb": args.hash_mb,
                 "threads": args.threads,
                 "tiers": [
@@ -568,6 +575,17 @@ def main() -> None:
                         f"Unexpected {spec.label} identity: {identity}"
                     )
                 options = configure_engine(opponent, args.hash_mb, args.threads)
+                if spec.label == "Stockfish 19":
+                    full_strength = {
+                        "Skill Level": int(opponent.options["Skill Level"].max),
+                        "UCI_LimitStrength": False,
+                        "EvalFile": opponent.options["EvalFile"].default,
+                    }
+                    if not full_strength["EvalFile"]:
+                        raise RuntimeError("Stockfish 19 did not advertise its official evaluation file")
+                    opponent.configure(full_strength)
+                    opponent.ping()
+                    options.update(full_strength)
                 manifest["opponents"].append({
                     "label": spec.label,
                     **identity,
