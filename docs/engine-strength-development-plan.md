@@ -135,6 +135,21 @@ The search table now distinguishes the same board position at different fifty-mo
 
 [Passed-pawn masks](https://www.chessprogramming.org/Passed_Pawns_(Bitboards)) · [Stockfish 19 clock-sensitive position keys](https://github.com/official-stockfish/Stockfish/blob/sf_19/src/position.h)
 
+## Stockfish 19 time sweep
+
+Both Prunex candidates played the official Stockfish 19 release with skill limits disabled and the default network loaded. Each time limit used the same six openings, played with colours reversed, one thread per engine, and 128 MiB of hash.
+
+| Time per move | Games per candidate | Threat scoring | Threat scoring plus pawn and draw changes |
+| --- | ---: | ---: | ---: |
+| 100 ms | 12 | 4.17% | 4.17% |
+| 250 ms | 12 | 8.33% | 0.00% |
+| 500 ms | 12 | 4.17% | 0.00% |
+| 1,000 ms | 12 | 4.17% | 0.00% |
+
+Stockfish 19 finished ahead at every time limit. The scores apply to the exact experimental builds and opening set recorded in the runs.
+
+[Threat scoring games](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45047045091) · [Pawn and draw games](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45047388085)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
