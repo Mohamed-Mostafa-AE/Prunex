@@ -3,6 +3,9 @@
 
 import importlib.util
 import io
+from subprocess import CompletedProcess
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from pathlib import Path
 
 import chess
@@ -55,7 +58,24 @@ def main() -> None:
     replayed = list(parsed.mainline_moves())
     assert [move.uci() for move in replayed] == ["e2e4", "e7e5", "g1f3", "b8c6"]
 
-    print("Internal paired self-play harness: 4 groups of checks passed")
+    with TemporaryDirectory() as temporary:
+        network = Path(temporary) / "candidate.nnue"
+        network.touch()
+        engine = Path("prunex")
+        accepted = CompletedProcess([], 0, "info string loaded Prunex NNUE evaluation\n", "")
+        with patch.object(module.subprocess, "run", return_value=accepted) as probe:
+            module.verify_evaluation_file(engine, network)
+            assert f"setoption name EvalFile value {network}\n" in probe.call_args.kwargs["input"]
+        rejected = CompletedProcess([], 0, "info string could not load the requested evaluation file\n", "")
+        with patch.object(module.subprocess, "run", return_value=rejected):
+            try:
+                module.verify_evaluation_file(engine, network)
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError("The match accepted a rejected evaluation file")
+
+    print("Internal paired self-play harness: 5 groups of checks passed")
 
 
 if __name__ == "__main__":

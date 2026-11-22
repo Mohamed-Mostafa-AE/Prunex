@@ -10,6 +10,7 @@ import math
 import random
 import re
 import statistics
+import subprocess
 import time
 from pathlib import Path
 from typing import Any
@@ -130,6 +131,26 @@ def configure_engine(
     engine.configure(requested)
     engine.ping()
     return requested
+
+
+def verify_evaluation_file(engine_path: Path, evaluation_file: Path) -> None:
+    if not evaluation_file.is_file():
+        raise FileNotFoundError(evaluation_file)
+
+    path = str(evaluation_file)
+    if "\n" in path or "\r" in path:
+        raise ValueError("Evaluation file path contains a newline")
+
+    probe = subprocess.run(
+        [str(engine_path)],
+        input=f"uci\nsetoption name EvalFile value {path}\nisready\nquit\n",
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    if "info string loaded Prunex NNUE evaluation" not in probe.stdout.splitlines():
+        raise RuntimeError(f"Candidate did not load evaluation file: {path}")
 
 
 def play_game(
@@ -275,6 +296,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--candidate", required=True, type=Path)
+    parser.add_argument("--candidate-eval-file", type=Path)
     parser.add_argument("--baseline-commit", required=True)
     parser.add_argument("--candidate-commit", required=True)
     parser.add_argument("--pairs", type=int, default=100)
@@ -302,6 +324,12 @@ def main() -> int:
     if not baseline_path.is_file() or not candidate_path.is_file():
         raise FileNotFoundError("Both baseline and candidate executables must exist")
 
+    candidate_eval = None
+    if args.candidate_eval_file is not None:
+        evaluation_file = args.candidate_eval_file.resolve()
+        verify_evaluation_file(candidate_path, evaluation_file)
+        candidate_eval = {"path": str(evaluation_file), "sha256": sha256_file(evaluation_file)}
+
     args.out.mkdir(parents=True, exist_ok=True)
     pgn_path = args.out / "games.pgn"
     telemetry_path = args.out / "per-move.jsonl"
@@ -322,6 +350,9 @@ def main() -> int:
                               "author": candidate.id.get("author", "unknown")}
         baseline_options = configure_engine(baseline, args.hash_mb, args.threads)
         candidate_options = configure_engine(candidate, args.hash_mb, args.threads)
+        if candidate_eval is not None:
+            candidate.configure({"EvalFile": candidate_eval["path"]})
+            candidate.ping()
 
         with pgn_path.open("w", encoding="utf-8") as pgn_file, telemetry_path.open(
             "w", encoding="utf-8"
@@ -407,6 +438,10 @@ def main() -> int:
             ],
         },
     }
+    if candidate_eval is not None:
+        manifest["candidate"]["evaluation_file"] = candidate_eval
+        manifest["candidate"]["options"]["EvalFile"] = candidate_eval["path"]
+        summary["candidate_eval_sha256"] = candidate_eval["sha256"]
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in summary.items() if k != "games_detail"}, indent=2))

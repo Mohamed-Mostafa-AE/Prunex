@@ -1,0 +1,133 @@
+name: Prunex trained evaluation pilot
+
+on:
+  push:
+    branches: ['feature/prunex-nnue-pilot']
+    paths:
+      - '.github/workflows/nnue-pilot.yml'
+      - 'tools/training/**'
+      - 'tools/strength-match/internal_selfplay.py'
+      - 'src/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prunex-nnue-pilot
+  cancel-in-progress: false
+
+jobs:
+  train-and-match:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+      SOURCE_URL: https://database.lichess.org/lichess_db_eval.jsonl.zst
+      SOURCE_BYTES: '134217728'
+      POSITION_COUNT: '120000'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Build the engine and install training dependencies
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPRUNEX_NATIVE_TUNING=ON
+          cmake --build build --target prunex --parallel 2
+          python3 -m venv .venv
+          .venv/bin/python -m pip install python-chess==1.999 zstandard==0.25.0 numpy==2.2.6
+          .venv/bin/python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.10.0
+          .venv/bin/python tests/test_internal_selfplay.py
+
+      - name: Read the first 128 MiB of the Lichess evaluation archive
+        run: |
+          mkdir -p pilot
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+
+          url = os.environ["SOURCE_URL"]
+          size = int(os.environ["SOURCE_BYTES"])
+          byte_range = f"bytes=0-{size - 1}"
+          request = Request(url, headers={"Range": byte_range, "Accept-Encoding": "identity"})
+          with urlopen(request, timeout=90) as response:
+              content_range = response.headers.get("Content-Range")
+              if response.status == 206 and not (content_range or "").startswith(
+                  f"bytes 0-{size - 1}/"
+              ):
+                  raise ValueError(f"Unexpected response range: {content_range}")
+              if response.status not in (200, 206):
+                  raise ValueError(f"Unexpected HTTP status: {response.status}")
+              with Path("pilot/lichess-eval-prefix.jsonl.zst").open("wb") as output:
+                  remaining = size
+                  while remaining:
+                      block = response.read(min(remaining, 1024 * 1024))
+                      if not block:
+                          raise EOFError("Lichess response ended before the requested prefix")
+                      output.write(block)
+                      remaining -= len(block)
+              metadata = {
+                  "source_url": url,
+                  "byte_range": byte_range,
+                  "archive_prefix_bytes": size,
+                  "http_status": response.status,
+                  "content_range": content_range,
+                  "etag": response.headers.get("ETag"),
+                  "last_modified": response.headers.get("Last-Modified"),
+              }
+          Path("pilot/source.json").write_text(json.dumps(metadata, indent=2) + "\n")
+          PY
+
+      - name: Prepare and verify the train, validation and test splits
+        run: |
+          .venv/bin/python tools/training/prepare_lichess_eval.py \
+            --input pilot/lichess-eval-prefix.jsonl.zst \
+            --source-url "$SOURCE_URL" \
+            --dataset-name lichess-eval-archive-prefix-pilot \
+            --output-dir pilot/corpus --min-depth 16 --min-knodes 256 \
+            --max-positions "$POSITION_COUNT"
+          .venv/bin/python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = json.loads(Path("pilot/corpus/corpus-manifest.json").read_text())
+          counts = manifest["split"]["counts"]
+          if set(counts) != {"train", "validation", "test"} or sum(counts.values()) != int(
+              os.environ["POSITION_COUNT"]
+          ):
+              raise ValueError(f"Expected a complete pilot sample, got {counts}")
+          PY
+
+      - name: Train and export the Prunex evaluation network
+        run: |
+          .venv/bin/python tools/training/train_halfkp.py \
+            --input-dir pilot/corpus --output pilot/lichess-pilot.nnue \
+            --hidden 128 --epochs 4 --batch-size 1024 --learning-rate 0.001
+
+      - name: Compare the trained network with handcrafted evaluation
+        run: |
+          .venv/bin/python tools/strength-match/internal_selfplay.py \
+            --baseline build/prunex --candidate build/prunex \
+            --baseline-commit "$GITHUB_SHA" --candidate-commit "$GITHUB_SHA" \
+            --candidate-eval-file pilot/lichess-pilot.nnue \
+            --pairs 12 --nodes 25000 --hash-mb 128 --max-plies 300 \
+            --out pilot/match
+
+      - name: Upload the corpus, network and match evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: prunex-nnue-pilot-${{ github.run_number }}
+          path: |
+            pilot/source.json
+            pilot/corpus/*.json
+            pilot/corpus/*.jsonl
+            pilot/lichess-pilot.*
+            pilot/match/
+          retention-days: 30
+          if-no-files-found: warn
