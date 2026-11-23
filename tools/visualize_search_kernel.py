@@ -77,7 +77,7 @@ def build():
     card(60,270,480,145,"UCI COMMAND","Position + go limits",["FEN / start position + move sequence","depth · movetime · clock · optional node cap"],"blue")
     card(600,270,480,145,"ROOT CONTROLLER","findBestMove(position, depth, …)",["Generate legal root moves; set time / node limit","Advance TT generation; reset counters and PV state"],"teal")
     card(1140,270,480,145,"ITERATION SCHEDULE","Iterative deepening",["Depth 1 → requested limit; keep last completed result","Age history scores; clear killer moves"],"blue")
-    card(1680,270,460,145,"WINDOW CONTROL","Aspiration search",["From depth 3: previous score ± 40 cp","Fail-low / high → widen window and re-search"],"amber")
+    card(1680,270,460,145,"WINDOW CONTROL","Aspiration search",["From depth 3: adaptive half-width","Fail-low / high → widen window and re-search"],"amber")
     arrow([(540,342),(600,342)],"blue")
     arrow([(1080,342),(1140,342)],"teal")
     arrow([(1620,342),(1680,342)],"amber")

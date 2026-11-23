@@ -343,6 +343,12 @@ On November 23, 2026, candidate `0f421e965978a79ccaf7f18a8d1154082e6dcd4e` compl
 
 Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45151880594)
 
+### Adaptive aspiration windows
+
+In a fixed-node diagnostic on 33 positions from the guarded quiescence campaign, 170 failed root attempts consumed 746,260 of the 2,475,000 searched nodes. Of 207 completed iterations that used an aspiration window, 69 finished on or outside the original 40-centipawn half-width. Replaying the score sequence with the adaptive width reduced those window misses to 43. The replay used existing scores and did not measure the effect of wider windows on a live search.
+
+Starting at depth 3, the candidate centers the window on the previous completed score and adds half the last absolute score change to its 40-centipawn half-width, capped at 160. Retry and stop handling follow the same rules. The candidate uses the calibrated HalfKP evaluator and the same four paired limits against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

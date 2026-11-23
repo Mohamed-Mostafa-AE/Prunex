@@ -2231,6 +2231,10 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     return bestScore;
 }
 
+constexpr int aspirationHalfWidth(int previousSwing) {
+    return std::min(160,40+previousSwing/2);
+}
+
 Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t nodeLimit=0) {
     auto moves=legalMoves(p,0);
     if(moves.empty()) return {};
@@ -2260,10 +2264,11 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         }
     }
     int previousScore=0;
+    int previousSwing=0;
     const auto start=std::chrono::steady_clock::now();
     for(int currentDepth=1;currentDepth<=depth;++currentDepth) {
         if(searchTimeLimited&&std::chrono::steady_clock::now()>=searchDeadline) break;
-        int window=currentDepth>=3?40:INF;
+        int window=currentDepth>=3?aspirationHalfWidth(previousSwing):INF;
         int alpha=window==INF?-INF:std::max(-INF,previousScore-window);
         int beta=window==INF?INF:std::min(INF,previousScore+window);
         int score=0;
@@ -2286,6 +2291,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         bool rootFound=false;
         TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
         if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
+        previousSwing=std::abs(score-previousScore);
         previousScore=score;
         lastSearchScore=score;
         completedSearchDepth=currentDepth;

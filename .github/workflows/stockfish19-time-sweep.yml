@@ -1,8 +1,8 @@
-name: Guarded quiescence delta pruning vs Stockfish 19 Full
+name: Adaptive aspiration vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/guarded-quiescence-delta']
+    branches: ['experiment/adaptive-aspiration']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

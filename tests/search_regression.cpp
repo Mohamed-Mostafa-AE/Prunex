@@ -1135,5 +1135,8 @@ int main() {
     quiescence(position,deltaAlpha,deltaAlpha+1,0,0);
     if(nodes<=1) return 207;
 
+    if(aspirationHalfWidth(0)!=40||aspirationHalfWidth(81)!=80
+        ||aspirationHalfWidth(400)!=160) return 208;
+
     return 0;
 }

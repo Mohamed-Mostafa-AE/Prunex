@@ -27,7 +27,7 @@ text{font-family:Inter,Segoe UI,Arial,sans-serif}.bg{fill:#07111f}.grid{fill:url
 <rect class="card" x="1140" y="270" width="480" height="140" rx="16"/><rect class="blue" x="1140" y="270" width="7" height="140" rx="3"/>
 <text class="k blue" x="1164" y="296">ITERATION SCHEDULE</text><text class="h" x="1164" y="327">Iterative deepening</text><text class="b" x="1164" y="357">Depth 1 → requested limit</text><text class="b" x="1164" y="382">Retain the last fully completed iteration</text>
 <rect class="card" x="1680" y="270" width="460" height="140" rx="16"/><rect class="amber" x="1680" y="270" width="7" height="140" rx="3"/>
-<text class="k amber" x="1704" y="296">WINDOW CONTROL</text><text class="h" x="1704" y="327">Aspiration search</text><text class="b" x="1704" y="357">From depth 3: previous score ± 40 cp</text><text class="b" x="1704" y="382">Fail-low / high widens and retries</text>
+<text class="k amber" x="1704" y="296">WINDOW CONTROL</text><text class="h" x="1704" y="327">Aspiration search</text><text class="b" x="1704" y="357">From depth 3: adaptive half-width</text><text class="b" x="1704" y="382">Fail-low / high widens and retries</text>
 <path class="line lb" d="M540 340H600" marker-end="url(#aB)"/><path class="line lt" d="M1080 340H1140" marker-end="url(#aT)"/><path class="line la" d="M1620 340H1680" marker-end="url(#aA)"/>
 <path class="line la" d="M1910 410V455H1110V492" marker-end="url(#aA)"/>
 <text class="k teal" x="690" y="492">02 / RECURSIVE NEGAMAX + PVS CORE</text>

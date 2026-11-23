@@ -12,7 +12,7 @@ This page describes the **native C++20 engine** in `src/main.cpp`. The diagram a
 flowchart TD
     A[UCI go / findBestMove] --> B[Generate legal root moves; set limits]
     B --> C[Iterative deepening, depth 1 to limit]
-    C --> D[Aspiration window from depth 3: previous score ±40 cp]
+    C --> D[Adaptive aspiration window from depth 3]
     D --> E[negamax(position, depth, alpha, beta, ply, PV)]
     E --> F[Abort / max-ply guards; check extension]
     F --> G[Zobrist key + repetition / 50-move / material draw checks]
@@ -45,7 +45,7 @@ flowchart TD
 ## What the implementation actually does
 
 - **Root driver:** `findBestMove` generates legal root moves, configures an optional time/node limit, advances the transposition-table generation, ages history scores, clears killer moves, and iterates from depth 1 to the requested limit. A stopped or aborted iteration does not replace the last fully completed iteration.
-- **Aspiration windows:** from depth 3, the initial window is the previous completed score ± 40 centipawns. Fail-low or fail-high doubles the window and retries the same depth.
+- **Aspiration windows:** from depth 3, the window starts around the previous completed score. Its half-width is 40 centipawns plus half the last absolute score change, capped at 160. Fail-low or fail-high doubles the half-width on the failed side and retries the same depth.
 - **Negamax:** checks cancellation and maximum ply, extends depth by one when the side to move is in check, records Zobrist keys for repetition detection, checks the 50-move and insufficient-material rules, then enters quiescence at depth 0.
 - **Transposition table:** a direct-mapped array indexed by the low key bits; entries retain the full key, best move, score, depth, bound (`EXACT`, `LOWER`, or `UPPER`), and generation. Mate scores are normalized for ply on storage and retrieval. The default table has `2^18` entries.
 - **Null-move pruning:** available at non-PV nodes outside check, from depth 3, with sufficient non-pawn material and a beta bound outside the mate-score range. The static evaluation must reach beta before the search tries a pass. The null search uses reduction `R = 2 + depth / 4`. Deeper cutoffs, starting at depth 7, require verification with null-move disabled.
