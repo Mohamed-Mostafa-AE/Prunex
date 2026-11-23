@@ -247,6 +247,17 @@ The scale fitted by absolute error on 145 positions from four openings was appro
 
 The candidate enables `PRUNEX_REFERENCE_SCORE_CALIBRATION` when building the reference HalfKP evaluator. This scales its scores before storing them in the evaluation cache. The experiment uses the same `nn-62ef826d1a6d.nnue` weights and the same four-speed Stockfish 19 Full protocol.
 
+On November 23, 2026, candidate `39b9115ecb362182b8be2ddf09d23d7a1177ef29` completed 48 games. Each limit used six openings played from both sides. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. The official Stockfish 19 Full binary used its default network and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 250 ms | 12 | 0 | 2 | 10 | 8.33% |
+| 500 ms | 12 | 0 | 2 | 10 | 8.33% |
+| 1,000 ms | 12 | 1 | 2 | 9 | 16.67% |
+
+Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45110723785)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
