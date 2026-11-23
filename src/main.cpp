@@ -986,6 +986,52 @@ constexpr int quietHistoryUpdate(int score,int target,int weight) {
     return score+(target-score)*weight/QUIET_HISTORY_LIMIT;
 }
 
+constexpr std::size_t PIECE_DESTINATIONS=6U*64U;
+using ContinuationRow=std::array<std::int16_t,PIECE_DESTINATIONS>;
+using ContinuationTable=std::array<ContinuationRow,PIECE_DESTINATIONS>;
+// Separate the last opponent move from this side's previous move.
+std::array<std::array<ContinuationTable,2>,2> continuationHistory{};
+
+constexpr std::size_t pieceDestinationIndex(int pieceType,int destination) {
+    return static_cast<std::size_t>((pieceType-1)*64+square64From88(destination));
+}
+
+struct QuietContinuation {
+    std::array<ContinuationRow*,2> rows{};
+
+    int score(int pieceType,int destination) const {
+        if(!rows[0]||pieceType==EMPTY) return 0;
+        const auto index=pieceDestinationIndex(pieceType,destination);
+        const int reply=(*rows[0])[index];
+        const int followUp=rows[1]?(*rows[1])[index]:0;
+        return reply/2+followUp/4;
+    }
+
+    void update(int pieceType,int destination,int target,int weight) const {
+        if(!rows[0]||pieceType==EMPTY) return;
+        const auto index=pieceDestinationIndex(pieceType,destination);
+        for(auto* row:rows) {
+            if(!row) break;
+            auto& value=(*row)[index];
+            value=static_cast<std::int16_t>(quietHistoryUpdate(value,target,weight));
+        }
+    }
+};
+
+QuietContinuation quietContinuation(int side,int ply) {
+    QuietContinuation context;
+    for(int distance=1;distance<=2&&distance<=ply;++distance) {
+        const auto& previous=searchPathMoves[ply-distance];
+        const int pieceType=previous.promotion?typeOf(previous.promotion)
+            :searchPathPieceTypes[ply-distance];
+        // A synthetic null move ends the usable history at this node.
+        if(pieceType==EMPTY||!onBoard(previous.to)) break;
+        context.rows[distance-1]=
+            &continuationHistory[distance-1][side][pieceDestinationIndex(pieceType,previous.to)];
+    }
+    return context;
+}
+
 constexpr int PAWN_CORRECTION_BITS=13;
 constexpr int PAWN_CORRECTION_UNIT=16;
 constexpr int PAWN_CORRECTION_LIMIT=160;
@@ -1104,6 +1150,9 @@ void resetSearchState() {
     searchPathPieceTypes.fill(0);
     counterMoves={};
     historyScores={};
+    for(auto& distance:continuationHistory)
+        for(auto& side:distance)
+            for(auto& row:side) row.fill(0);
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     nodes=0;
     lastSearchScore=0;
@@ -1351,7 +1400,7 @@ int staticExchangeEvaluation(const Position& original,const Move& move) {
 }
 
 int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int ply,
-                      int* exchangeOut=nullptr) {
+                      int* exchangeOut=nullptr,const QuietContinuation& continuation={}) {
     if(exchangeOut) *exchangeOut=0;
     if(hashMove.from>=0&&sameMove(m,hashMove)) return 2000000;
     int score=0;
@@ -1374,16 +1423,18 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
         if(previousType>=1&&previousType<=6&&previous.to>=0&&
            sameMove(m,counterMoves[previousType][previous.to])) return 780000;
     }
-    return score+historyScores[p.side][m.from][m.to];
+    return score+historyScores[p.side][m.from][m.to]
+        +(m.promotion?0:continuation.score(typeOf(p.board[m.from]),m.to));
 }
 
 // Return a legal hash move before scoring captures. Sort other stages only
 // when the search reaches them.
 class MovePicker {
 public:
-    MovePicker(const Position& position,MoveList moves,const Move& hashMove,int ply)
+    MovePicker(const Position& position,MoveList moves,const Move& hashMove,int ply,
+               QuietContinuation continuation={})
         : position_(position),moves_(moves),scratch_(moveScratch[moves.ply]),
-          ply_(ply),hashIndex_(moves.size()) {
+          continuation_(continuation),ply_(ply),hashIndex_(moves.size()) {
         if(hashMove.from>=0) {
             for(std::size_t index=0;index<moves_.size();++index) {
                 if(sameMove(moves_[index],hashMove)) {
@@ -1402,7 +1453,8 @@ public:
         for(std::size_t index=0;index<moves_.size();++index) {
             const Move& move=moves_[index];
             if(index!=hashIndex_&&!isCapture(position_,move))
-                scratch_.scored[index]={move,moveOrderingScore(position_,move,Move{},ply_),0};
+                scratch_.scored[index]={
+                    move,moveOrderingScore(position_,move,Move{},ply_,nullptr,continuation_),0};
         }
     }
 
@@ -1449,7 +1501,7 @@ private:
             const bool capture=isCapture(position_,move);
             if(!reuseQuietScores||capture) {
                 int exchange=0;
-                const int score=moveOrderingScore(position_,move,Move{},ply_,&exchange);
+                const int score=moveOrderingScore(position_,move,Move{},ply_,&exchange,continuation_);
                 scratch_.scored[index]={move,score,exchange};
             }
             const auto& scored=scratch_.scored[index];
@@ -1480,6 +1532,7 @@ private:
     const Position& position_;
     MoveList moves_;
     MoveScratch& scratch_;
+    QuietContinuation continuation_;
     int ply_;
     std::size_t hashIndex_;
     bool stagesReady_=false;
@@ -2181,10 +2234,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
 
     std::optional<MovePicker> picker;
     Move bestMove{};
+    const auto continuation=quietContinuation(p.side,ply);
     if(!root) {
         const auto moves=legalMoves(p,ply);
         if(moves.empty()) return checked?-MATE+ply:0;
-        picker.emplace(p,moves,hashMove,ply);
+        picker.emplace(p,moves,hashMove,ply,continuation);
         bestMove=moves.front();
     }
     auto& nodeScratch=moveScratch[ply];
@@ -2235,7 +2289,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 if(depth>=5&&moveNumber>=6) ++reduction;
                 if(depth>=8&&moveNumber>=12) ++reduction;
                 if(pvNode) --reduction;
-                const int lmrHistory=historyScores[movingColor][m.from][m.to];
+                const int lmrHistory=priorMoveHistory+continuation.score(movingPieceType,m.to);
                 if(lmrHistory>5000) --reduction;
                 else if(lmrHistory<-5000) ++reduction;
                 reduction=std::clamp(reduction,0,std::max(0,childDepth-1));
@@ -2262,6 +2316,8 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                     if(isCapture(p,rejected)||rejected.promotion) continue;
                     int& rejectedHistory=historyScores[movingColor][rejected.from][rejected.to];
                     rejectedHistory=quietHistoryUpdate(rejectedHistory,-QUIET_HISTORY_LIMIT,historyMalus);
+                    continuation.update(typeOf(p.board[rejected.from]),rejected.to,
+                                        -QUIET_HISTORY_LIMIT,historyMalus);
                 }
                 if(!sameMove(m,killerMoves[ply][0])) {
                     killerMoves[ply][1]=killerMoves[ply][0];
@@ -2269,6 +2325,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
                 }
                 int& quietHistory=historyScores[movingColor][m.from][m.to];
                 quietHistory=quietHistoryUpdate(quietHistory,QUIET_HISTORY_LIMIT,historyBonus);
+                continuation.update(movingPieceType,m.to,QUIET_HISTORY_LIMIT,historyBonus);
 
                 if(ply>0&&ply<MAX_PLY) {
                     const int previousType=searchPathPieceTypes[ply-1];
@@ -2312,6 +2369,10 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     ++scoutCacheVersion;
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     for(auto& side:historyScores) for(auto& from:side) for(int& value:from) value/=2;
+    for(auto& distance:continuationHistory)
+        for(auto& side:distance)
+            for(auto& row:side)
+                for(auto& score:row) score=static_cast<std::int16_t>(score/2);
     nodes=0;
     ttHits=0;
     searchPathKeys.fill(0);

@@ -436,6 +436,12 @@ Prunex generates the legal root moves once per search and seeds their order with
 
 The root takes its best move directly from the completed pass. Transposition-table entries still seed the first root order and serve their usual role in the descendant search. This development branch defers engine validation and the four-speed Stockfish 19 Full campaign to the final testing phase.
 
+## Two-ply continuation history
+
+The full search learns which quiet moves work after the opponent's last move and after the moving side's previous move. It keeps separate scores for each context and each side to move. Each context identifies the earlier piece and its destination. The reply to the opponent's move has the larger weight.
+
+A quiet move that causes a beta cutoff gains history. Quiet alternatives that were searched before it lose history. The bounded history adjusts quiet move ordering and late-move reductions in the full descendant search. A null move ends the available context. Prunex halves the scores before a new root search and clears them on a new game.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
