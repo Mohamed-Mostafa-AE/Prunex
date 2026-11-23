@@ -194,6 +194,17 @@ An instrumented build sampled 32 positions from the preceding campaign's 100 ms 
 
 This experiment applies that existing pawn-push test before generating tactics when the stand-pat score reaches beta. Other positions still generate tactics and check for stalemate. The screening campaign uses the same four time limits and paired openings against Stockfish 19 Full.
 
+All 32 fixed-node searches matched the previous search's completed moves, scores, node counts, and transposition-table counters. On November 23, 2026, candidate `df5246cd3cfd251c39c61ad637d80b921ebbdc56` completed 48 games against the official Stockfish 19 Full release. Both engines used one thread, 128 MiB of hash, and the same logical CPU within each match shard. Stockfish used its default network and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 1 | 4 | 7 | 25.00% |
+| 250 ms | 12 | 0 | 5 | 7 | 20.83% |
+| 500 ms | 12 | 0 | 2 | 10 | 8.33% |
+| 1,000 ms | 12 | 0 | 3 | 9 | 12.50% |
+
+The verified PGNs put Stockfish ahead at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45093508584)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
