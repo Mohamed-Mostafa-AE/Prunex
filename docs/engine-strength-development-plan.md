@@ -402,6 +402,17 @@ The optional HalfKP evaluator now retains one feature accumulator and piece snap
 
 An AVX2 replay of 20 positions from the interrupted-root campaign searched to depth 10 on one logical CPU. Across three alternating runs per build, median total time was 5.35 seconds with the cache and 5.60 seconds with fresh refreshes. The builds agreed on node counts, root scores and moves at every position. This measures evaluator throughput under a fixed-depth workload. [Source games](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45172571652)
 
+Candidate `5dd56ca7d47b4c24588a7982ae5deb27fbf7a172` played 48 games on November 23, 2026, six color-reversed opening pairs at each limit. Both engines used one thread, 128 MiB of hash and the same logical CPU within each shard. The opponent was the official Stockfish 19 Full binary with its default network and maximum skill.
+
+| Time per move | Prunex wins | Draws | Losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: |
+| 100 ms | 0 | 1 | 11 | 4.17% |
+| 250 ms | 0 | 4 | 8 | 16.67% |
+| 500 ms | 1 | 1 | 10 | 12.50% |
+| 1,000 ms | 0 | 5 | 7 | 20.83% |
+
+Stockfish scored above 50% at every limit. The fixed-depth throughput result did not establish a playing-strength edge. [Paired games and exact settings](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45176387824)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
