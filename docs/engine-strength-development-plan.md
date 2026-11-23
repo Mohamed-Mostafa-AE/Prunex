@@ -264,6 +264,17 @@ An instrumented build searched 32 positions from the score-calibration campaign 
 
 The candidate examines checking captures that fail the exchange test at the first quiescence ply. It retains the exchange filter for captures without check and at later plies. The test keeps the calibrated HalfKP weights and repeats the four paired time limits against Stockfish 19 Full.
 
+On November 23, 2026, candidate `8ab89a254c1b7370bfd78233c3084d2c663bafd0` completed 48 games. Each limit used six openings played from both sides. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. The official Stockfish 19 Full binary used its default network and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 250 ms | 12 | 0 | 2 | 10 | 8.33% |
+| 500 ms | 12 | 0 | 4 | 8 | 16.67% |
+| 1,000 ms | 12 | 1 | 3 | 8 | 20.83% |
+
+Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45116394216)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
