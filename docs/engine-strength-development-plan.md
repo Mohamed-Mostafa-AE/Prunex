@@ -396,6 +396,21 @@ On November 23, 2026, candidate `351b509a255822beb6c3649148e46610c86a3b60` playe
 
 Stockfish finished ahead at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45168643599)
 
+## Interrupted root move experiment
+
+In the preceding campaign, 39.2% to 42.5% of Prunex's nodes at each time limit were searched after the last completed depth. Candidate `3011e14ce35c1e8ecbb43f7443044d7551f281ba` retained a replacement move from an interrupted aspiration pass only when the previous choice was searched first and a later, fully searched move raised alpha. Its reported completed depth still refers to the last finished iteration.
+
+On November 23, 2026, the candidate played six color-reversed opening pairs per limit against official Stockfish 19 Full at maximum skill with its default network. Both engines used one thread, 128 MiB of hash and the same logical CPU in each shard.
+
+| Time per move | Prunex wins | Draws | Losses | Points out of 12 | Moves differing from last completed PV |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 1 | 0 | 11 | 1 | 19 of 609 |
+| 250 ms | 0 | 0 | 12 | 0 | 8 of 561 |
+| 500 ms | 0 | 6 | 6 | 3 | 13 of 547 |
+| 1,000 ms | 0 | 5 | 7 | 2.5 | 8 of 541 |
+
+The candidate scored 6.5 points in 48 games. The preceding candidate scored 8 points on the same openings. Only the 500 ms score increased. This screen leaves the repetition-history branch as the baseline for subsequent work. [Games, telemetry and settings](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45172571652)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
