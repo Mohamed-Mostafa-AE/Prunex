@@ -211,6 +211,17 @@ In 34 positions from the early-quiescence campaign, an instrumented Prunex build
 
 This experiment reduces eligible narrow-window nodes by one ply when they have no move from the transposition table. It applies the reduction after null-move pruning and records the reduced depth in the table. The campaign repeats the four paired limits against Stockfish 19 Full.
 
+On November 23, 2026, candidate `29bd091b3244b6d239ec4d4d54b7c7f4fe1b3466` played 48 games against Stockfish 19 Full. Each limit used six openings with colours reversed. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. Stockfish used its official release binary, default network, and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 250 ms | 12 | 1 | 0 | 11 | 8.33% |
+| 500 ms | 12 | 1 | 2 | 9 | 16.67% |
+| 1,000 ms | 12 | 0 | 4 | 8 | 16.67% |
+
+Stockfish led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45099280296)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
