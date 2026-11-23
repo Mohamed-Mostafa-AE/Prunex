@@ -144,6 +144,7 @@ static int referenceLeastValuableAttacker(
     const int target64=square64From88(target);
     const std::uint64_t occupied=position.occupancy[WHITE]
         |position.occupancy[BLACK];
+    const auto safety=buildKingSafetyInfo(position,color);
     for(int type=1;type<=6;++type) {
         std::uint64_t attackers=0;
         if(type==1)
@@ -160,8 +161,13 @@ static int referenceLeastValuableAttacker(
         } else {
             attackers=KING_ATTACKS[target64]&position.piecesBB[color][6];
         }
-        if(attackers)
-            return square88From64(static_cast<int>(std::countr_zero(attackers)));
+        while(attackers) {
+            const int square64=std::countr_zero(attackers);
+            const std::uint64_t bit=std::uint64_t{1}<<square64;
+            if(!(safety.pinned&bit)||(safety.pinRay[square64]&squareBit(target)))
+                return square88From64(square64);
+            attackers&=attackers-1;
+        }
     }
     return -1;
 }
@@ -1044,15 +1050,15 @@ int main() {
         if(!found||entry.depth!=fixture.depth) return 178;
     }
 
-    // SEE counts the pinned rook as a recapture, although Qxg7 is mate.
+    // The pinned rook cannot recapture Qxg7, even in a deeper quiescence ply.
     if(!loadFen(position,"7k/6pr/8/8/6Q1/2B5/8/K6R w - - 0 1")) return 179;
     Move matingCapture{};
     if(!parseUciMove(position,"g4g7",matingCapture)
-        ||staticExchangeEvaluation(position,matingCapture)>=-80) return 180;
+        ||staticExchangeEvaluation(position,matingCapture)!=MG_VALUE[1]) return 180;
     resetSearchState();
     if(quiescence(position,-INF,INF,0,0)!=MATE-1) return 181;
     resetSearchState();
-    if(quiescence(position,-INF,INF,1,0)>=MATE-1) return 182;
+    if(quiescence(position,-INF,INF,1,0)!=MATE-1) return 182;
 
     // The same entry rule should still prune a losing capture without check.
     if(!loadFen(position,"4k3/8/2p5/3p4/3Q4/8/8/4K3 w - - 0 1")) return 183;
@@ -1062,6 +1068,25 @@ int main() {
     resetSearchState();
     const int standPat=evaluate(position);
     if(quiescence(position,-INF,INF,0,0)!=standPat||nodes!=1) return 185;
+
+    // A pinned rook may still recapture along the king's ray.
+    if(!loadFen(position,"4k3/4r3/4p3/4Q3/8/8/8/K3R3 w - - 0 1")) return 186;
+    Move captureAlongRay{};
+    if(!parseUciMove(position,"e5e6",captureAlongRay)
+        ||staticExchangeEvaluation(position,captureAlongRay)!=MG_VALUE[1]-MG_VALUE[5]+MG_VALUE[4])
+        return 187;
+
+    // A genuine checking sacrifice still gets a reply only at quiescence entry.
+    if(!loadFen(position,"6k1/7p/8/8/8/3B4/8/K7 w - - 0 1")) return 188;
+    Move sacrifice{};
+    if(!parseUciMove(position,"d3h7",sacrifice)
+        ||staticExchangeEvaluation(position,sacrifice)>=-80) return 189;
+    resetSearchState();
+    quiescence(position,-INF,INF,0,0);
+    if(nodes<=1) return 190;
+    resetSearchState();
+    quiescence(position,-INF,INF,1,0);
+    if(nodes!=1) return 191;
 
     return 0;
 }

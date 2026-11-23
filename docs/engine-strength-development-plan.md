@@ -275,6 +275,12 @@ On November 23, 2026, candidate `8ab89a254c1b7370bfd78233c3084d2c663bafd0` compl
 
 Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45116394216)
 
+### Pinned recaptures in static exchange evaluation
+
+The checking-capture regression from the preceding campaign scored `Qxg7#` at −675 because exchange scoring counted a rook recapture that exposed Black's king. The new estimator tests each recapture against the current exchange position. A recapture remains eligible if its destination keeps the king shielded or it captures the pinning piece. This applies to exchange scores used in move ordering and pruning.
+
+Regression cases cover a pinned defender, a legal recapture along the pin ray, and quiescence handling of a genuine checking sacrifice. The candidate keeps the calibrated HalfKP weights and repeats the same six paired openings at all four limits against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

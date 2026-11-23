@@ -1,8 +1,8 @@
-name: Quiescence checking captures vs Stockfish 19 Full
+name: Pin-aware exchange scoring vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/quiescence-checking-captures']
+    branches: ['experiment/pin-aware-exchange']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

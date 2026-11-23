@@ -1202,6 +1202,23 @@ int leastValuableAttacker(const ExchangePosition& p,int target,int color) {
     if(!onBoard(target)) return -1;
     const int target64=square64From88(target);
     const std::uint64_t occupied=p.occupancy[WHITE]|p.occupancy[BLACK];
+    const int king64=std::countr_zero(p.piecesBB[color][6]);
+    const std::uint64_t kingRays=king64<64?KING_SLIDER_RAYS[king64]:0;
+    const auto& enemy=p.piecesBB[1-color];
+    const std::uint64_t targetBit=std::uint64_t{1}<<target64;
+
+    auto opensKingRay=[&](int from64,std::uint64_t fromBit) {
+        if(!(kingRays&fromBit)) return false;
+        const bool diagonal=from64%8!=king64%8&&from64/8!=king64/8;
+        const std::uint64_t sliders=(enemy[diagonal?3:4]|enemy[5])&~targetBit&kingRays;
+        if(!sliders) return false;
+        const auto before=diagonal?bishopAttacks(king64,occupied):rookAttacks(king64,occupied);
+        if(!(before&fromBit)) return false;
+        // The recapture replaces the occupant on target, so target stays blocked.
+        const std::uint64_t remaining=occupied&~fromBit;
+        const auto after=diagonal?bishopAttacks(king64,remaining):rookAttacks(king64,remaining);
+        return (after&~before&sliders)!=0;
+    };
 
     // Examine attackers in ascending material order. The least-significant
     // attacker is selected deterministically within each piece class.
@@ -1219,9 +1236,11 @@ int leastValuableAttacker(const ExchangePosition& p,int target,int color) {
             attackers=diagonal|orthogonal;
         } else attackers=KING_ATTACKS[target64]&p.piecesBB[color][6];
 
-        if(attackers) {
+        while(attackers) {
             const int square64=static_cast<int>(std::countr_zero(attackers));
-            return square88From64(square64);
+            const std::uint64_t bit=std::uint64_t{1}<<square64;
+            if(!opensKingRay(square64,bit)) return square88From64(square64);
+            attackers&=attackers-1;
         }
     }
     return -1;
