@@ -385,6 +385,17 @@ The adaptive null-probe campaign recorded 19 second occurrences of a position in
 
 Prunex now preserves the earlier position keys supplied by the UCI `position` move list. Descendant searches can recognize a third occurrence before a search branch has repeated the same position. The existing cycle cutoff still applies to matches within the current search line. Pawn moves and captures clear the preceding history, and the halfmove clock limits which positions the engine checks. A standalone FEN has no earlier positions. The campaign retains the same calibrated HalfKP evaluator, match settings, and official Stockfish 19 Full opponent.
 
+On November 23, 2026, candidate `351b509a255822beb6c3649148e46610c86a3b60` played six paired openings at each limit. Both engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. The official Stockfish 19 Full binary used its default network and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 250 ms | 12 | 1 | 1 | 10 | 12.50% |
+| 500 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 1,000 ms | 12 | 1 | 5 | 6 | 29.17% |
+
+Stockfish finished ahead at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45168643599)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
