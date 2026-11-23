@@ -72,3 +72,40 @@ for index, (_, move) in enumerate(fixtures):
     if scores[root + 1] != scores[root + 2] or counts[root:root + 3] != [0, 1, 0]:
         raise RuntimeError(f"Incremental and fresh scores differ after {move}: {finished.stdout}")
 print(f"Incremental updates matched fresh evaluation on {len(fixtures)} move types")
+
+# Keep revisiting the same king squares after changing the piece layout.
+# The final castling and king-capture fixtures reuse previously seeded buckets.
+refresh_positions = [
+    (chess.STARTING_FEN, None),
+    ("4k3/pp6/8/8/4P3/8/8/4K2R w K - 0 1", None),
+    ("4k3/pp6/8/4P3/8/8/8/5RK1 b - - 0 1", None),
+    ("4k3/pp6/8/8/4P3/8/8/4K2R w K - 0 1", "e1g1"),
+    ("r3k3/pp6/8/8/4P3/8/8/4K3 b q - 0 1", None),
+    ("2kr4/1p6/p7/8/4P3/8/8/4K3 w - - 0 1", None),
+    ("r3k3/pp6/8/8/4P3/8/8/4K3 b q - 0 1", "e8c8"),
+    ("4k3/8/8/8/8/4p3/4K3/8 w - - 0 1", None),
+    ("4k3/8/8/8/8/4K2P/8/8 b - - 0 1", None),
+    ("4k3/8/8/8/8/4p3/4K3/8 w - - 0 1", "e2e3"),
+]
+load = f"setoption name HalfKpFile value {weights}"
+commands = [load]
+expected_positions = []
+for fen, move in refresh_positions:
+    board = chess.Board(fen)
+    if move:
+        board.push_uci(move)
+    expected_positions.append(board.fen(en_passant="fen"))
+    position = f"position fen {fen}"
+    if move:
+        position += f" moves {move}"
+    commands.extend([position, "eval"])
+for fen in expected_positions:
+    commands.extend([load, f"position fen {fen}", "eval"])
+commands.append("quit")
+finished = subprocess.run([str(engine)], input="\n".join(commands) + "\n",
+                          capture_output=True, text=True, check=True, timeout=60)
+scores = [int(score) for score in re.findall(r"static evaluation cp (-?\d+)", finished.stdout)]
+count = len(expected_positions)
+if len(scores) != 2 * count or scores[:count] != scores[count:]:
+    raise RuntimeError(f"Cached and fresh king refresh scores differ: {scores}")
+print(f"King refresh cache matched cold evaluation on {count} positions")

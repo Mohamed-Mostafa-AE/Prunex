@@ -1,8 +1,8 @@
-name: UCI repetition history vs Stockfish 19 Full
+name: HalfKP king refresh cache vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/uci-repetition-history']
+    branches: ['experiment/halfkp-king-refresh-cache']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

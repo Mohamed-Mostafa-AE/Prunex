@@ -396,6 +396,12 @@ On November 23, 2026, candidate `351b509a255822beb6c3649148e46610c86a3b60` playe
 
 Stockfish finished ahead at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45168643599)
 
+## HalfKP king-square refresh cache
+
+The optional HalfKP evaluator now retains one feature accumulator and piece snapshot per king square and perspective. When a parent accumulator is unavailable or the king changes squares, Prunex updates that snapshot from its current piece bitboards. Loading a network invalidates the saved snapshots. The campaign uses the same calibrated HalfKP weights as the repetition-history run.
+
+An AVX2 replay of 20 positions from the interrupted-root campaign searched to depth 10 on one logical CPU. Across three alternating runs per build, median total time was 5.35 seconds with the cache and 5.60 seconds with fresh refreshes. The builds agreed on node counts, root scores and moves at every position. This measures evaluator throughput under a fixed-depth workload. [Source games](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45172571652)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

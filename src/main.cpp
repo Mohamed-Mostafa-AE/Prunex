@@ -1716,29 +1716,9 @@ int referenceEvaluation(const Position& p) {
         }
     }
 
-    std::array<int,33> pieces{};
-    std::array<int,33> squares{};
-    pieces[0]=1;
-    pieces[1]=7;
-    squares[0]=square64From88(kingSquare(p,WHITE));
-    squares[1]=square64From88(kingSquare(p,BLACK));
-    // The probe needs the full piece list for a refresh or a changed king bucket.
-    if(!parentValues||changes[0].piece==pieces[0]||changes[0].piece==pieces[1]) {
-        std::size_t index=2;
-        for(int color=WHITE;color<=BLACK;++color) {
-            for(int type=1;type<=5;++type) {
-                std::uint64_t occupied=p.piecesBB[color][type];
-                while(occupied) {
-                    pieces[index]=color*6+7-type;
-                    squares[index++]=std::countr_zero(occupied);
-                    occupied&=occupied-1;
-                }
-            }
-        }
-    }
-
+    int kings[2]{square64From88(kingSquare(p,WHITE)),square64From88(kingSquare(p,BLACK))};
     auto& current=referenceAccumulators[key&(referenceAccumulators.size()-1)];
-    const int raw=evaluateReferenceNetwork(p.side,pieces.data(),squares.data(),
+    const int raw=evaluateReferenceNetwork(p.side,p.piecesBB,kings,
                                            parentValues,changes.data(),changeCount,current.values);
     current.pieces=p.piecesBB;
     current.key=key;

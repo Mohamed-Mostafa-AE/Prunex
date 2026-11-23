@@ -1,3 +1,6 @@
+// Prunex modified this GPL-3.0 nnue-probe source on 2026-11-23
+// to add a HalfKP king-square refresh cache.
+#include <bit>
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -234,38 +237,18 @@ static void half_kp_append_changed_indices(const Position *pos, const int c,
   }
 }
 
-static void append_active_indices(const Position *pos, IndexList active[2])
-{
-  for (unsigned c = 0; c < 2; c++)
-    half_kp_append_active_indices(pos, c, &active[c]);
-}
-
 static void append_changed_indices(const Position *pos, IndexList removed[2],
     IndexList added[2], bool reset[2])
 {
-  const DirtyPiece *dp = &(pos->nnue[0]->dirtyPiece);
-  // assert(dp->dirtyNum != 0);
-
-  if (pos->nnue[1]->accumulator.computedAccumulation) {
-    for (unsigned c = 0; c < 2; c++) {
-      reset[c] = dp->pc[0] == (int)KING(c);
-      if (reset[c])
-        half_kp_append_active_indices(pos, c, &added[c]);
-      else
-        half_kp_append_changed_indices(pos, c, dp, &removed[c], &added[c]);
-    }
-  } else {
-    const DirtyPiece *dp2 = &(pos->nnue[1]->dirtyPiece);
-    for (unsigned c = 0; c < 2; c++) {
-      reset[c] =   dp->pc[0] == (int)KING(c)
-                || dp2->pc[0] == (int)KING(c);
-      if (reset[c])
-        half_kp_append_active_indices(pos, c, &added[c]);
-      else {
-        half_kp_append_changed_indices(pos, c, dp, &removed[c], &added[c]);
-        half_kp_append_changed_indices(pos, c, dp2, &removed[c], &added[c]);
-      }
-    }
+  const DirtyPiece *dp = &pos->nnue[0]->dirtyPiece;
+  const DirtyPiece *dp2 = pos->nnue[1] && !pos->nnue[1]->accumulator.computedAccumulation
+      ? &pos->nnue[1]->dirtyPiece : nullptr;
+  for (unsigned c = 0; c < 2; c++) {
+    reset[c] = dp->pc[0] == (int)KING(c) || (dp2 && dp2->pc[0] == (int)KING(c));
+    if (reset[c]) continue;
+    half_kp_append_changed_indices(pos, c, dp, &removed[c], &added[c]);
+    if (dp2)
+      half_kp_append_changed_indices(pos, c, dp2, &removed[c], &added[c]);
   }
 }
 
@@ -893,150 +876,135 @@ static int16_t ft_weights alignas(64) [kHalfDimensions * FtInDims];
 #define TILE_HEIGHT (NUM_REGS * SIMD_WIDTH / 16)
 #endif
 
-// Calculate cumulative value without using difference calculation
-INLINE void refresh_accumulator(Position *pos)
+INLINE void apply_feature_changes(int16_t *destination, const int16_t *initial,
+    const IndexList& removed, const IndexList& added)
 {
-  Accumulator *accumulator = &(pos->nnue[0]->accumulator);
-
-  IndexList activeIndices[2];
-  activeIndices[0].size = activeIndices[1].size = 0;
-  append_active_indices(pos, activeIndices);
-
-  for (unsigned c = 0; c < 2; c++) {
 #ifdef VECTOR
-    for (unsigned i = 0; i < kHalfDimensions / TILE_HEIGHT; i++) {
-      vec16_t *ft_biases_tile = (vec16_t *)&ft_biases[i * TILE_HEIGHT];
-      vec16_t *accTile = (vec16_t *)&accumulator->accumulation[c][i * TILE_HEIGHT];
-      vec16_t acc[NUM_REGS];
+  for (unsigned i = 0; i < kHalfDimensions; i += TILE_HEIGHT) {
+    const auto *initialTile = reinterpret_cast<const vec16_t *>(initial + i);
+    auto *outputTile = reinterpret_cast<vec16_t *>(destination + i);
+    vec16_t acc[NUM_REGS];
 
+    for (unsigned j = 0; j < NUM_REGS; j++)
+      acc[j] = initialTile[j];
+
+    for (size_t k = 0; k < removed.size; k++) {
+      const auto *column = reinterpret_cast<const vec16_t *>(
+          ft_weights + kHalfDimensions * removed.values[k] + i);
       for (unsigned j = 0; j < NUM_REGS; j++)
-        acc[j] = ft_biases_tile[j];
+        acc[j] = vec_sub_16(acc[j], column[j]);
+    }
 
-      for (size_t k = 0; k < activeIndices[c].size; k++) {
-        unsigned index = activeIndices[c].values[k];
-        unsigned offset = kHalfDimensions * index + i * TILE_HEIGHT;
-        vec16_t *column = (vec16_t *)&ft_weights[offset];
-
-        for (unsigned j = 0; j < NUM_REGS; j++)
-          acc[j] = vec_add_16(acc[j], column[j]);
-      }
-
+    for (size_t k = 0; k < added.size; k++) {
+      const auto *column = reinterpret_cast<const vec16_t *>(
+          ft_weights + kHalfDimensions * added.values[k] + i);
       for (unsigned j = 0; j < NUM_REGS; j++)
-        accTile[j] = acc[j];
+        acc[j] = vec_add_16(acc[j], column[j]);
     }
-#else
-    memcpy(accumulator->accumulation[c], ft_biases,
-        kHalfDimensions * sizeof(int16_t));
 
-    for (size_t k = 0; k < activeIndices[c].size; k++) {
-      unsigned index = activeIndices[c].values[k];
-      unsigned offset = kHalfDimensions * index;
-
-      for (unsigned j = 0; j < kHalfDimensions; j++)
-        accumulator->accumulation[c][j] += ft_weights[offset + j];
-    }
-#endif
+    for (unsigned j = 0; j < NUM_REGS; j++)
+      outputTile[j] = acc[j];
   }
-
-  accumulator->computedAccumulation = 1;
+#else
+  memcpy(destination, initial, kHalfDimensions * sizeof(int16_t));
+  for (size_t k = 0; k < removed.size; k++) {
+    const int16_t *column = ft_weights + kHalfDimensions * removed.values[k];
+    for (unsigned j = 0; j < kHalfDimensions; j++)
+      destination[j] -= column[j];
+  }
+  for (size_t k = 0; k < added.size; k++) {
+    const int16_t *column = ft_weights + kHalfDimensions * added.values[k];
+    for (unsigned j = 0; j < kHalfDimensions; j++)
+      destination[j] += column[j];
+  }
+#endif
 }
 
-// Calculate cumulative value using difference calculation if possible
-INLINE bool update_accumulator(Position *pos)
+struct KingRefreshEntry {
+  alignas(64) int16_t features[kHalfDimensions];
+  prunex::ReferencePieceBoards pieces;
+  bool valid;
+};
+
+// Prunex's UCI worker owns reference evaluation until it is stopped and joined.
+static KingRefreshEntry kingRefreshCache[2][64]{};
+
+static void append_feature_squares(IndexList& indices, uint64_t squares,
+    int perspective, int piece, int kingSquare)
 {
-  Accumulator *accumulator = &(pos->nnue[0]->accumulator);
-  if (accumulator->computedAccumulation)
-    return true;
-
-  Accumulator *prevAcc;
-  if (   (!pos->nnue[1] || !(prevAcc = &pos->nnue[1]->accumulator)->computedAccumulation)
-      && (!pos->nnue[2] || !(prevAcc = &pos->nnue[2]->accumulator)->computedAccumulation) )
-    return false;
-
-  IndexList removed_indices[2], added_indices[2];
-  removed_indices[0].size = removed_indices[1].size = 0;
-  added_indices[0].size = added_indices[1].size = 0;
-  bool reset[2];
-  append_changed_indices(pos, removed_indices, added_indices, reset);
-
-#ifdef VECTOR
-  for (unsigned i = 0; i< kHalfDimensions / TILE_HEIGHT; i++) {
-    for (unsigned c = 0; c < 2; c++) {
-      vec16_t *accTile = (vec16_t *)&accumulator->accumulation[c][i * TILE_HEIGHT];
-      vec16_t acc[NUM_REGS];
-
-      if (reset[c]) {
-        vec16_t *ft_b_tile = (vec16_t *)&ft_biases[i * TILE_HEIGHT];
-        for (unsigned j = 0; j < NUM_REGS; j++)
-          acc[j] = ft_b_tile[j];
-      } else {
-        vec16_t *prevAccTile = (vec16_t *)&prevAcc->accumulation[c][i * TILE_HEIGHT];
-        for (unsigned j = 0; j < NUM_REGS; j++)
-          acc[j] = prevAccTile[j];
-
-        // Difference calculation for the deactivated features
-        for (unsigned k = 0; k < removed_indices[c].size; k++) {
-          unsigned index = removed_indices[c].values[k];
-          const unsigned offset = kHalfDimensions * index + i * TILE_HEIGHT;
-
-          vec16_t *column = (vec16_t *)&ft_weights[offset];
-          for (unsigned j = 0; j < NUM_REGS; j++)
-            acc[j] = vec_sub_16(acc[j], column[j]);
-        }
-      }
-
-      // Difference calculation for the activated features
-      for (unsigned k = 0; k < added_indices[c].size; k++) {
-        unsigned index = added_indices[c].values[k];
-        const unsigned offset = kHalfDimensions * index + i * TILE_HEIGHT;
-
-        vec16_t *column = (vec16_t *)&ft_weights[offset];
-        for (unsigned j = 0; j < NUM_REGS; j++)
-          acc[j] = vec_add_16(acc[j], column[j]);
-      }
-
-      for (unsigned j = 0; j < NUM_REGS; j++)
-        accTile[j] = acc[j];
-    }
+  while (squares) {
+    const int square = std::countr_zero(squares);
+    indices.values[indices.size++] = make_index(perspective, square, piece, kingSquare);
+    squares &= squares - 1;
   }
-#else
-  for (unsigned c = 0; c < 2; c++) {
-    if (reset[c]) {
-      memcpy(accumulator->accumulation[c], ft_biases,
-          kHalfDimensions * sizeof(int16_t));
-    } else {
-      memcpy(accumulator->accumulation[c], prevAcc->accumulation[c],
-          kHalfDimensions * sizeof(int16_t));
-      // Difference calculation for the deactivated features
-      for (unsigned k = 0; k < removed_indices[c].size; k++) {
-        unsigned index = removed_indices[c].values[k];
-        const unsigned offset = kHalfDimensions * index;
+}
 
-        for (unsigned j = 0; j < kHalfDimensions; j++)
-          accumulator->accumulation[c][j] -= ft_weights[offset + j];
-      }
-    }
-
-    // Difference calculation for the activated features
-    for (unsigned k = 0; k < added_indices[c].size; k++) {
-      unsigned index = added_indices[c].values[k];
-      const unsigned offset = kHalfDimensions * index;
-
-      for (unsigned j = 0; j < kHalfDimensions; j++)
-        accumulator->accumulation[c][j] += ft_weights[offset + j];
-    }
-  }
+// Keep the refresh path out of the hot parent-delta path.
+#if defined(__GNUC__) || defined(__clang__)
+[[gnu::noinline]]
 #endif
+static void refresh_perspective(const Position *pos, int perspective,
+    const prunex::ReferencePieceBoards *pieces, int16_t *destination)
+{
+  IndexList removed, added;
+  removed.size = added.size = 0;
+  if (!pieces) {
+    half_kp_append_active_indices(pos, perspective, &added);
+    apply_feature_changes(destination, ft_biases, removed, added);
+    return;
+  }
 
+  const int kingSquare = orient(perspective, pos->squares[perspective]);
+  auto& entry = kingRefreshCache[perspective][kingSquare];
+  for (int color = white; color <= black; color++) {
+    for (int type = 1; type <= 5; type++) {
+      const uint64_t before = entry.valid ? entry.pieces[color][type] : 0;
+      const uint64_t after = (*pieces)[color][type];
+      if (before == after) continue;
+      const int piece = color * 6 + 7 - type;
+      append_feature_squares(removed, before & ~after, perspective, piece, kingSquare);
+      append_feature_squares(added, after & ~before, perspective, piece, kingSquare);
+    }
+  }
+  apply_feature_changes(destination, entry.valid ? entry.features : ft_biases, removed, added);
+  memcpy(entry.features, destination, sizeof(entry.features));
+  entry.pieces = *pieces;
+  entry.valid = true;
+}
+
+INLINE void update_accumulator(Position *pos, const prunex::ReferencePieceBoards *pieces)
+{
+  Accumulator *accumulator = &pos->nnue[0]->accumulator;
+  if (accumulator->computedAccumulation) return;
+
+  const Accumulator *previous = nullptr;
+  for (int ply = 1; ply <= 2; ply++) {
+    if (pos->nnue[ply] && pos->nnue[ply]->accumulator.computedAccumulation) {
+      previous = &pos->nnue[ply]->accumulator;
+      break;
+    }
+  }
+
+  IndexList removed[2], added[2];
+  removed[0].size = removed[1].size = added[0].size = added[1].size = 0;
+  bool reset[2]{true, true};
+  if (previous)
+    append_changed_indices(pos, removed, added, reset);
+  for (int c = 0; c < 2; c++) {
+    auto *destination = accumulator->accumulation[c];
+    if (reset[c])
+      refresh_perspective(pos, c, pieces, destination);
+    else
+      apply_feature_changes(destination, previous->accumulation[c], removed[c], added[c]);
+  }
   accumulator->computedAccumulation = 1;
-  return true;
 }
 
 // Convert input features
-INLINE void transform(Position *pos, clipped_t *output, mask_t *outMask)
+INLINE void transform(Position *pos, clipped_t *output, mask_t *outMask,
+    const prunex::ReferencePieceBoards *pieces)
 {
-  if (!update_accumulator(pos))
-    refresh_accumulator(pos);
+  update_accumulator(pos, pieces);
 
   int16_t (*accumulation)[2][256] = &pos->nnue[0]->accumulator.accumulation;
   (void)outMask; // avoid compiler warning
@@ -1077,7 +1045,7 @@ struct NetData {
 };
 
 // Evaluation function
-int nnue_evaluate_pos(Position *pos)
+static int evaluate_position(Position *pos, const prunex::ReferencePieceBoards *pieces)
 {
   int32_t out_value;
   alignas(8) mask_t input_mask[FtOutDims / (8 * sizeof(mask_t))];
@@ -1091,7 +1059,7 @@ int nnue_evaluate_pos(Position *pos)
 #define B(x) (buf.x)
 #endif
 
-  transform(pos, B(input), input_mask);
+  transform(pos, B(input), input_mask, pieces);
 
   affine_txfm(B(input), B(hidden1_out), FtOutDims, 32,
       hidden1_biases, hidden1_weights, input_mask, hidden1_mask, true);
@@ -1107,6 +1075,11 @@ int nnue_evaluate_pos(Position *pos)
 #endif
 
   return out_value / FV_SCALE;
+}
+
+int nnue_evaluate_pos(Position *pos)
+{
+  return evaluate_position(pos, nullptr);
 }
 
 static void read_output_weights(weight_t *w, const char *d)
@@ -1258,8 +1231,12 @@ static bool load_eval_file(const char *evalFile)
   }
 
   bool success = evalData && verify_net(evalData, size);
-  if (success)
+  if (success) {
     init_weights(evalData);
+    for (auto& perspective : kingRefreshCache)
+      for (auto& entry : perspective)
+        entry.valid = false;
+  }
   if (evalData && mapping) unmap_file(evalData, mapping);
   return success;
 }
@@ -1325,13 +1302,13 @@ bool loadReferenceNetwork(const char* path) {
     return load_eval_file(path);
 }
 
-int evaluateReferenceNetwork(int side,int* pieces,int* squares,
+int evaluateReferenceNetwork(int side,const ReferencePieceBoards& pieces,int* kings,
                              const ReferenceAccumulator* parent,
                              const ReferencePieceChange* changes,int count,
                              ReferenceAccumulator& output) {
     NNUEdata current{};
     NNUEdata previous{};
-    NNUEdata* stack[] = {&current, nullptr, nullptr};
+    Position position{side, nullptr, kings, {&current, nullptr, nullptr}};
     if (parent && count > 0) {
         memcpy(previous.accumulator.accumulation, parent->data(),
                sizeof(previous.accumulator.accumulation));
@@ -1342,10 +1319,10 @@ int evaluateReferenceNetwork(int side,int* pieces,int* squares,
             current.dirtyPiece.from[index] = changes[index].from;
             current.dirtyPiece.to[index] = changes[index].to;
         }
-        stack[1]=&previous;
+        position.nnue[1]=&previous;
     }
 
-    const int score=nnue_evaluate_incremental(side,pieces,squares,stack);
+    const int score=evaluate_position(&position,&pieces);
     memcpy(output.data(),current.accumulator.accumulation,
            sizeof(current.accumulator.accumulation));
     return score;
