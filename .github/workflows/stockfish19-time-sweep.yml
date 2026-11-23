@@ -1,8 +1,8 @@
-name: Pawn correction history vs Stockfish 19 Full
+name: Guarded quiescence delta pruning vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/pawn-correction-history']
+    branches: ['experiment/guarded-quiescence-delta']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

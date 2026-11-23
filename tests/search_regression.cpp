@@ -1113,5 +1113,27 @@ int main() {
     clearTranspositionTable();
     if(correctedSearchEvaluation(position,100)!=100) return 200;
 
+    // A nonchecking pawn capture is pruned only in the eligible scout window.
+    if(!loadFen(position,"rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"))
+        return 201;
+    int deltaAlpha=std::max(0,evaluate(position)+900);
+    resetSearchState();
+    if(quiescence(position,deltaAlpha,deltaAlpha+1,0,0)!=deltaAlpha||nodes!=1) return 202;
+    resetSearchState();
+    quiescence(position,deltaAlpha,deltaAlpha+2,0,0);
+    if(nodes<=1) return 203;
+
+    // Sparse positions and checking captures are exempt in scout windows.
+    if(!loadFen(position,"4k3/8/3p4/4P3/8/8/1P6/4K3 w - - 0 1")) return 204;
+    deltaAlpha=std::max(0,evaluate(position)+900);
+    resetSearchState();
+    quiescence(position,deltaAlpha,deltaAlpha+1,0,0);
+    if(nodes<=1) return 205;
+    if(!loadFen(position,"6k1/ppp3pp/ppp5/8/8/3B4/PPP5/KNN5 w - - 0 1")) return 206;
+    deltaAlpha=std::max(0,evaluate(position)+900);
+    resetSearchState();
+    quiescence(position,deltaAlpha,deltaAlpha+1,0,0);
+    if(nodes<=1) return 207;
+
     return 0;
 }

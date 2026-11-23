@@ -326,6 +326,12 @@ On November 23, 2026, candidate `e1df7bd765dc14fcac5438def4872de0e0c4fe41` compl
 
 Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45142131135)
 
+### Guarded quiescence delta pruning
+
+An instrumented build searched 35 positions from the pawn-correction campaign at 75,000 nodes each. It measured 282,191 nonchecking captures that met the scout-window and material guards. With a margin of 550 centipawns above the larger of the captured piece's middlegame and endgame values, the filter would have skipped 14,869 captures. Nine of those captures raised alpha in the original search. The diagnostic left the search tree intact.
+
+The candidate skips those captures when stand-pat plus the estimated gain falls short of alpha. The filter applies outside check, with at least 16 pieces on the board and a nonnegative, non-mate scout window. Checking captures, promotions, wider windows, and sparse endgames are exempt. The four-speed test retains the calibrated HalfKP evaluator and compares only against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

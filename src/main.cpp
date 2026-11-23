@@ -1934,11 +1934,12 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     }
 
     MoveList moves;
+    int stand=0;
     if(checked) {
         moves=legalMoves(p,searchPly);
         if(moves.empty()) return -MATE+searchPly;
     } else {
-        const int stand=correctedSearchEvaluation(p,evaluate(p));
+        stand=correctedSearchEvaluation(p,evaluate(p));
         if(stand>=beta&&hasPawnPushOffKingRays(p)) return stand;
 
         // Quiet moves cannot improve a stand-pat search. Generate only
@@ -1952,6 +1953,10 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         if(qply>=MAX_QPLY) return alpha;
     }
 
+    // Use the material bound only in scout windows away from mate and endgames.
+    constexpr int deltaMargin=550;
+    const bool deltaEligible=!checked&&alpha>=0&&alpha<MATE-MAX_PLY&&beta==alpha+1
+        &&std::popcount(p.occupancy[WHITE]|p.occupancy[BLACK])>=16;
     MovePicker picker(p,moves,Move{},searchPly);
     while(true) {
         const Move move=picker.next();
@@ -1962,8 +1967,13 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         if(losingCapture&&qply!=0) continue;
 
         const Undo undo=makeMove(p,move);
-        // At entry, check can justify a sacrifice that exchange scoring rejects.
-        if(losingCapture&&!inCheck(p,p.side)) {
+        bool belowDelta=false;
+        if(deltaEligible&&undo.captured!=EMPTY&&!move.promotion) {
+            const int victim=typeOf(undo.captured);
+            belowDelta=stand+std::max(MG_VALUE[victim],EG_VALUE[victim])+deltaMargin<=alpha;
+        }
+        // Checking captures can gain more than their immediate material swing.
+        if((losingCapture||belowDelta)&&!inCheck(p,p.side)) {
             undoMove(p,move,undo);
             continue;
         }
