@@ -1044,5 +1044,24 @@ int main() {
         if(!found||entry.depth!=fixture.depth) return 178;
     }
 
+    // SEE counts the pinned rook as a recapture, although Qxg7 is mate.
+    if(!loadFen(position,"7k/6pr/8/8/6Q1/2B5/8/K6R w - - 0 1")) return 179;
+    Move matingCapture{};
+    if(!parseUciMove(position,"g4g7",matingCapture)
+        ||staticExchangeEvaluation(position,matingCapture)>=-80) return 180;
+    resetSearchState();
+    if(quiescence(position,-INF,INF,0,0)!=MATE-1) return 181;
+    resetSearchState();
+    if(quiescence(position,-INF,INF,1,0)>=MATE-1) return 182;
+
+    // The same entry rule should still prune a losing capture without check.
+    if(!loadFen(position,"4k3/8/2p5/3p4/3Q4/8/8/4K3 w - - 0 1")) return 183;
+    Move losingCapture{};
+    if(!parseUciMove(position,"d4d5",losingCapture)
+        ||staticExchangeEvaluation(position,losingCapture)>=-80) return 184;
+    resetSearchState();
+    const int standPat=evaluate(position);
+    if(quiescence(position,-INF,INF,0,0)!=standPat||nodes!=1) return 185;
+
     return 0;
 }

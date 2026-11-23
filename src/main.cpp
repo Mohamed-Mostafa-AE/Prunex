@@ -1876,14 +1876,16 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         const Move move=picker.next();
         if(move.from<0) break;
 
-        // Quiescence should follow captures that can change the evaluation,
-        // not exchanges that lose material without compensation.
-        if(!checked&&!move.promotion&&isCapture(p,move)
-            &&picker.exchangeScore()<-80) {
-            continue;
-        }
+        const bool losingCapture=!checked&&!move.promotion&&isCapture(p,move)
+            &&picker.exchangeScore()<-80;
+        if(losingCapture&&qply!=0) continue;
 
         const Undo undo=makeMove(p,move);
+        // At entry, check can justify a sacrifice that exchange scoring rejects.
+        if(losingCapture&&!inCheck(p,p.side)) {
+            undoMove(p,move,undo);
+            continue;
+        }
         const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
         undoMove(p,move,undo);
         if(searchAborted.load(std::memory_order_relaxed)) return 0;

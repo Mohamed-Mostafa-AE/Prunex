@@ -1,8 +1,8 @@
-name: HalfKP score calibration vs Stockfish 19 Full
+name: Quiescence checking captures vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/halfkp-score-calibration']
+    branches: ['experiment/quiescence-checking-captures']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

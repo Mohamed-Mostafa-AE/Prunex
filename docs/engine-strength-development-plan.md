@@ -258,6 +258,12 @@ On November 23, 2026, candidate `39b9115ecb362182b8be2ddf09d23d7a1177ef29` compl
 
 Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45110723785)
 
+### Checking captures at quiescence entry
+
+An instrumented build searched 32 positions from the score-calibration campaign at 75,000 nodes per position. At the first quiescence ply outside check, it encountered 739,982 ordinary captures. The exchange filter skipped 395,218, including 76,537 checks. A regression position exposes the tactical cost when the exchange estimate counts a pinned rook as a defender and discards a legal mate-in-one capture.
+
+The candidate examines checking captures that fail the exchange test at the first quiescence ply. It retains the exchange filter for captures without check and at later plies. The test keeps the calibrated HalfKP weights and repeats the four paired time limits against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
