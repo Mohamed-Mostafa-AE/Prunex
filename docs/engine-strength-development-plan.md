@@ -349,6 +349,19 @@ In a fixed-node diagnostic on 33 positions from the guarded quiescence campaign,
 
 Starting at depth 3, the candidate centers the window on the previous completed score and adds half the last absolute score change to its 40-centipawn half-width, capped at 160. Retry and stop handling follow the same rules. The candidate uses the calibrated HalfKP evaluator and the same four paired limits against Stockfish 19 Full.
 
+A second instrumented run applied the window rule to the same 33 positions at the same node budget. It logged 104 failed attempts consuming 534,827 nodes and completed 206 aspiration iterations. The initial diagnostic completed 207 aspiration iterations.
+
+On November 23, 2026, candidate `ab42e2b1475bfe6e56a5f11fe4e5203eff154952` completed 48 games. Each limit used six openings played from both sides. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. Stockfish 19 Full used its official binary, default network, and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 250 ms | 12 | 0 | 2 | 10 | 8.33% |
+| 500 ms | 12 | 1 | 3 | 8 | 20.83% |
+| 1,000 ms | 12 | 0 | 4 | 8 | 16.67% |
+
+Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45157678959)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
