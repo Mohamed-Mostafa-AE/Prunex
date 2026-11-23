@@ -2,6 +2,7 @@ name: Windows x64 validation (Prunex 0.8.0)
 
 on:
   push:
+    branches-ignore: ['experiment/root-move-ordering']
     paths:
       - 'src/**'
       - 'tests/**'

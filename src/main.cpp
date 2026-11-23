@@ -11,6 +11,7 @@
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -2075,7 +2076,24 @@ constexpr int nullProbeExtraReduction(int depth,int staticMargin) {
     return depth>=7&&staticMargin>=160?1:0;
 }
 
-int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
+struct RootCandidate {
+    Move move;
+    std::uint64_t nodesSpent=0;
+};
+
+struct RootSearch {
+    std::vector<RootCandidate> candidates;
+    Move passBest{};
+
+    void prioritize(const Move& preferred) {
+        const auto candidate=std::find_if(candidates.begin(),candidates.end(),
+            [&](const RootCandidate& item){return sameMove(item.move,preferred);});
+        if(candidate!=candidates.end()) std::rotate(candidates.begin(),candidate,candidate+1);
+    }
+};
+
+int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true,
+            RootSearch* root=nullptr) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
     bool checked=inCheck(p,p.side);
@@ -2096,7 +2114,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     bool ttFound=false;
     TTEntry& entry=probeTranspositionTable(key,ttFound);
     Move hashMove{};
-    if(ttFound&&entry.depth!=QSCOUT_TT_DEPTH) {
+    if(!root&&ttFound&&entry.depth!=QSCOUT_TT_DEPTH) {
         ++ttHits;
         hashMove=unpackTranspositionMove(p,entry.bestMove);
         if(entry.depth>=depth) {
@@ -2161,24 +2179,31 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     if(safeForForwardPruning&&allowNullMove&&depth>=5&&beta==alpha+1&&hashMove.from<0)
         --depth;
 
-    auto moves=legalMoves(p,ply);
-    if(moves.empty()) return checked?-MATE+ply:0;
-    MovePicker picker(p,moves,hashMove,ply);
+    std::optional<MovePicker> picker;
+    Move bestMove{};
+    if(!root) {
+        const auto moves=legalMoves(p,ply);
+        if(moves.empty()) return checked?-MATE+ply:0;
+        picker.emplace(p,moves,hashMove,ply);
+        bestMove=moves.front();
+    }
     auto& nodeScratch=moveScratch[ply];
     nodeScratch.searchedCount=0;
     int bestScore=-INF;
-    Move bestMove=moves.front();
     int moveNumber=0;
     int moveIndex=0;
     while(true) {
-        const Move m=picker.next();
+        if(root&&static_cast<std::size_t>(moveIndex)==root->candidates.size()) break;
+        RootCandidate* candidate=root?&root->candidates[moveIndex]:nullptr;
+        const Move m=candidate?candidate->move:picker->next();
         if(m.from<0) break;
+        const auto nodesBefore=candidate?nodes:0;
         ++moveIndex;
         const int movingColor=p.side;
         const int movingPieceType=typeOf(p.board[m.from]);
         const int priorMoveHistory=historyScores[movingColor][m.from][m.to];
         const bool capture=isCapture(p,m);
-        const int exchange=capture?picker.exchangeScore():0;
+        const int exchange=capture&&picker?picker->exchangeScore():0;
         searchPathMoves[ply]=m;
         searchPathPieceTypes[ply]=movingPieceType;
         const bool quiet=!capture&&!m.promotion;
@@ -2221,6 +2246,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
         undoMove(p,m,undo);
         if(searchAborted) return 0;
+        if(candidate) candidate->nodesSpent=nodes-nodesBefore;
         ++moveNumber;
         if(score>bestScore) {
             bestScore=score;
@@ -2254,6 +2280,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             break;
         }
     }
+    if(root) root->passBest=bestMove;
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
     if(hasStaticEval&&allowNullMove&&depth>=2&&!isCapture(p,bestMove)&&!bestMove.promotion)
         updatePawnCorrection(p,rawStaticEval,bestScore,depth,bound);
@@ -2303,6 +2330,16 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
             best=move;
         }
     }
+    RootSearch root;
+    root.candidates.reserve(moves.size());
+    {
+        bool found=false;
+        const auto& entry=probeTranspositionTable(positionKey(p),found);
+        const Move preferred=found?unpackTranspositionMove(p,entry.bestMove):Move{};
+        MovePicker initialPicker(p,moves,preferred,0);
+        for(std::size_t index=0;index<moves.size();++index)
+            root.candidates.push_back({initialPicker.next()});
+    }
     int previousScore=0;
     int previousSwing=0;
     const auto start=std::chrono::steady_clock::now();
@@ -2313,7 +2350,9 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         int beta=window==INF?INF:std::min(INF,previousScore+window);
         int score=0;
         while(true) {
-            score=negamax(p,currentDepth,alpha,beta,0,true);
+            root.passBest=Move{};
+            for(auto& candidate:root.candidates) candidate.nodesSpent=0;
+            score=negamax(p,currentDepth,alpha,beta,0,true,true,&root);
             if(searchAborted.load(std::memory_order_relaxed)) break;
             if(score<=alpha&&alpha>-INF) {
                 window=std::min(INF,window*2);
@@ -2321,6 +2360,8 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
                 continue;
             }
             if(score>=beta&&beta<INF) {
+                // Search the cutoff move first when the window widens.
+                root.prioritize(root.passBest);
                 window=std::min(INF,window*2);
                 beta=window==INF?INF:std::min(INF,previousScore+window);
                 continue;
@@ -2328,9 +2369,11 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
             break;
         }
         if(searchAborted.load(std::memory_order_relaxed)) break;
-        bool rootFound=false;
-        TTEntry& rootEntry=probeTranspositionTable(positionKey(p),rootFound);
-        if(rootFound&&rootEntry.bestMove!=TT_NO_MOVE) best=unpackTranspositionMove(p,rootEntry.bestMove);
+        if(root.passBest.from>=0) best=root.passBest;
+        // Keep the winner first, then favor alternatives that took more work.
+        std::stable_sort(root.candidates.begin(),root.candidates.end(),
+            [](const RootCandidate& a,const RootCandidate& b){return a.nodesSpent>b.nodesSpent;});
+        root.prioritize(best);
         previousSwing=std::abs(score-previousScore);
         previousScore=score;
         lastSearchScore=score;

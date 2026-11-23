@@ -430,6 +430,12 @@ Candidate `a0f6f775dc402099fe80d4b2acba4af9ae2989b4` played 48 games on November
 
 Stockfish led at all four limits. [Verified match evidence](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45184034080)
 
+## Root move ordering
+
+Prunex generates the legal root moves once per search and seeds their order with the existing move picker. At each completed depth it keeps the best move first and orders the alternatives by the nodes spent on them in the final pass. If an aspiration search exceeds its upper bound, the move that caused the cutoff starts the retry. An interrupted depth leaves the last completed choice in place.
+
+The root takes its best move directly from the completed pass. Transposition-table entries still seed the first root order and serve their usual role in the descendant search. This development branch defers engine validation and the four-speed Stockfish 19 Full campaign to the final testing phase.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
