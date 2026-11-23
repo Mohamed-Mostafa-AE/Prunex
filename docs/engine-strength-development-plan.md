@@ -228,6 +228,17 @@ This experiment loads the CC0 `nn-62ef826d1a6d.nnue` weights through Prunex's ex
 
 [Stockfish 13 release](https://github.com/official-stockfish/Stockfish/releases/tag/sf_13) · [Default network in the Stockfish 13 source](https://github.com/official-stockfish/Stockfish/blob/sf_13/src/evaluate.h) · [CC0 network archive](https://github.com/official-stockfish/networks)
 
+Candidate `997961d181c587fd972ac9991fcae048c06f5ea8` played 48 games on November 23, 2026. Six openings were played from both sides at each limit. Both engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. The official Stockfish 19 Full binary used its default network and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 250 ms | 12 | 0 | 2 | 10 | 8.33% |
+| 500 ms | 12 | 0 | 5 | 7 | 20.83% |
+| 1,000 ms | 12 | 0 | 3 | 9 | 12.50% |
+
+Stockfish 19 Full finished ahead at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45104944120)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
