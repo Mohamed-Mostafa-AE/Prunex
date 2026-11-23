@@ -1971,10 +1971,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
 
     const bool safeForForwardPruning=!pvNode&&!checked
         &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
-    int staticEval=0;
-    if(safeForForwardPruning&&depth<=6) {
-        staticEval=evaluate(p);
+    const bool shallowPruning=safeForForwardPruning&&depth<=6;
+    const bool nullMoveEligible=safeForForwardPruning&&allowNullMove&&depth>=3;
+    const int staticEval=(shallowPruning||nullMoveEligible)?evaluate(p):0;
 
+    if(shallowPruning) {
         // Keep a wide margin at shallow nodes. The legal-move check preserves
         // exact stalemate handling when this shortcut would otherwise fire.
         const int margin=120+70*depth;
@@ -1994,7 +1995,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
     }
 
-    if(allowNullMove&&!pvNode&&!checked&&depth>=3&&beta<MATE-100&&hasNullMoveMaterial(p)) {
+    if(nullMoveEligible&&staticEval>=beta) {
         Position nullPosition=p;
         makeNullMove(nullPosition);
         const Move savedPathMove=searchPathMoves[ply];

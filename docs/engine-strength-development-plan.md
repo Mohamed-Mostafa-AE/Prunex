@@ -171,6 +171,12 @@ Candidate `a4992e11b2a07481a53b058bca25a3806227789a` completed the 48-game scree
 
 Stockfish led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45082249110)
 
+### Static evaluation gate for null-move probes
+
+An instrumented build sampled 34 Prunex positions from the 100 ms games, with a 75,000-node budget per position. There were 66,612 probes below beta out of 129,522 total probes. Those probes produced 640 cutoffs, including verified cutoffs at deeper nodes.
+
+The experiment requires the static score to reach beta before trying a null move and uses the same non-mate window as the other forward-pruning checks. It reuses the static score at shallow nodes. The match keeps the sparse HalfKP evaluator and repeats the four paired time limits against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
