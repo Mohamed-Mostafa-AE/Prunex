@@ -281,6 +281,17 @@ The checking-capture regression from the preceding campaign scored `Qxg7#` at âˆ
 
 Regression cases cover a pinned defender, a legal recapture along the pin ray, and quiescence handling of a genuine checking sacrifice. The candidate keeps the calibrated HalfKP weights and repeats the same six paired openings at all four limits against Stockfish 19 Full.
 
+On November 23, 2026, candidate `272c99aa5f914d29f2e0d348c6addeb392e2c861` completed 48 games. Each limit used six openings played from both sides. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. The official Stockfish 19 Full binary used its default network and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 1 | 3 | 8 | 20.83% |
+| 250 ms | 12 | 1 | 1 | 10 | 12.50% |
+| 500 ms | 12 | 0 | 4 | 8 | 16.67% |
+| 1,000 ms | 12 | 0 | 6 | 6 | 25.00% |
+
+Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45123113730)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
