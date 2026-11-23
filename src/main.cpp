@@ -893,15 +893,17 @@ bool hasAnyLegalMove(Position& position,int ply=0) {
     return false;
 }
 
-bool hasAnyLegalMoveOutsideCheck(Position& position,int ply) {
+bool hasPawnPushOffKingRays(const Position& position) {
     const auto& pieces=position.piecesBB[position.side];
-    if(pieces[6]!=0) {
-        const int king=std::countr_zero(pieces[6]);
-        // Moving a pawn off the king's rays cannot uncover a slider attack.
-        const std::uint64_t offRayPawns=pieces[1]&~KING_SLIDER_RAYS[king];
-        if(pawnPushesToEmpty(position,offRayPawns)!=0) return true;
-    }
-    return hasAnyLegalMove(position,ply);
+    if(pieces[6]==0) return false;
+    const int king=std::countr_zero(pieces[6]);
+    // Outside check, moving a pawn off the king's rays cannot expose the king.
+    const std::uint64_t offRayPawns=pieces[1]&~KING_SLIDER_RAYS[king];
+    return pawnPushesToEmpty(position,offRayPawns)!=0;
+}
+
+bool hasAnyLegalMoveOutsideCheck(Position& position,int ply) {
+    return hasPawnPushOffKingRays(position)||hasAnyLegalMove(position,ply);
 }
 
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
@@ -1850,13 +1852,15 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         moves=legalMoves(p,searchPly);
         if(moves.empty()) return -MATE+searchPly;
     } else {
+        const int stand=evaluate(p);
+        if(stand>=beta&&hasPawnPushOffKingRays(p)) return stand;
+
         // Quiet moves cannot improve a stand-pat search. Generate only
         // captures and promotions; test for stalemate separately when there
         // are no such moves.
         moves=legalMoves(p,searchPly,true);
-        if(moves.empty()) return hasAnyLegalMoveOutsideCheck(p,searchPly)?evaluate(p):0;
+        if(moves.empty()) return hasAnyLegalMoveOutsideCheck(p,searchPly)?stand:0;
 
-        const int stand=evaluate(p);
         if(stand>=beta) return stand;
         if(stand>alpha) alpha=stand;
         if(qply>=MAX_QPLY) return alpha;

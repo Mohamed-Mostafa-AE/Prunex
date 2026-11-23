@@ -1,8 +1,8 @@
-name: Null-move evaluation gate vs Stockfish 19 Full
+name: Early quiescence cutoff vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/null-move-eval-gate']
+    branches: ['experiment/early-quiescence-cutoff']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

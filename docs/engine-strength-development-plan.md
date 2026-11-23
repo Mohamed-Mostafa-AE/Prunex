@@ -188,6 +188,12 @@ Candidate `4b7c5451b9f589e42a230c446085661a29274386` completed 48 games on Novem
 
 Stockfish finished ahead at every limit. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45088131817)
 
+### Earlier stand-pat cutoffs in quiescence
+
+An instrumented build sampled 32 positions from the preceding campaign's 100 ms games at 75,000 nodes per position. It found 479,512 quiescence nodes that generated captures or promotions before a stand-pat cutoff. In 426,085 of those nodes, an available pawn push off the king's rays already proved there was a legal move.
+
+This experiment applies that existing pawn-push test before generating tactics when the stand-pat score reaches beta. Other positions still generate tactics and check for stalemate. The screening campaign uses the same four time limits and paired openings against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

@@ -897,6 +897,24 @@ int main() {
     if(!loadFen(position,"7k/5Q2/6K1/8/8/8/8/8 b - - 0 1")) return 114;
     resetSearchState();
     if(quiescence(position,-INF,INF,0,0)!=0) return 115;
+    // A score that would normally cut off must still return a stalemate draw.
+    const int stalemateStand=evaluate(position);
+    if(stalemateStand==0||quiescence(position,stalemateStand-1,stalemateStand,0,0)!=0)
+        return 171;
+
+    // A pawn push can prove legality before tactical generation. The fallback
+    // still confirms legality in positions where a capture is available.
+    if(!loadFen(position,"4k3/8/3p4/4P3/8/8/1P6/4K3 w - - 0 1")) return 172;
+    resetSearchState();
+    const int pawnStand=evaluate(position);
+    if(!hasPawnPushOffKingRays(position)
+        ||quiescence(position,pawnStand-1,pawnStand,0,0)!=pawnStand||nodes!=1) return 173;
+    if(!loadFen(position,"4k3/8/5r2/8/5R2/8/8/4K3 w - - 0 1")) return 174;
+    resetSearchState();
+    const int rookStand=evaluate(position);
+    if(hasPawnPushOffKingRays(position)
+        ||quiescence(position,rookStand-1,rookStand,0,0)!=rookStand||nodes!=1) return 175;
+
     if(!loadFen(position,"7k/6Q1/5K2/8/8/8/8/8 b - - 0 1")) return 116;
     resetSearchState();
     if(quiescence(position,-INF,INF,0,0)!=-MATE) return 117;
