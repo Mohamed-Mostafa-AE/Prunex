@@ -1141,5 +1141,31 @@ int main() {
     if(nullProbeExtraReduction(6,400)!=0||nullProbeExtraReduction(7,159)!=0
         ||nullProbeExtraReduction(7,160)!=1||nullProbeExtraReduction(12,450)!=1) return 209;
 
+    constexpr std::string_view repeatFen="position fen 4k1n1/8/8/8/8/8/8/Q3K1N1 w - - 0 1 moves ";
+    const std::string firstCycle=std::string(repeatFen)+"g1f3 g8f6 f3g1";
+    std::vector<std::uint64_t> gameHistory;
+    for(int earlierOccurrences:{1,2}) {
+        const std::string command=earlierOccurrences==1?firstCycle:
+            std::string(repeatFen)+"g1f3 g8f6 f3g1 f6g8 g1f3 g8f6 f3g1";
+        if(!setPosition(position,command,&gameHistory)) return 210;
+        const auto acceptedHistory=gameHistory;
+        if(setPosition(position,command+" e8e1",&gameHistory)||gameHistory!=acceptedHistory)
+            return 211;
+        Move returningMove;
+        if(!parseUciMove(position,"f6g8",returningMove)) return 212;
+        resetSearchState();
+        searchGameHistory=gameHistory;
+        searchPathKeys[0]=positionKey(position);
+        makeMove(position,returningMove);
+        const bool shouldDraw=earlierOccurrences==2;
+        if(repeatedPosition(positionKey(position),1,position.halfmove)!=shouldDraw
+            ||repeatedPosition(positionKey(position),1,0)) return 213;
+        const int score=quiescence(position,-INF,INF,0,1);
+        if((score==0)!=shouldDraw) return 214;
+    }
+    resetSearchState();
+    if(!setPosition(position,"position startpos moves g1f3 g8f6 e2e4",&gameHistory)
+        ||!gameHistory.empty()) return 215;
+
     return 0;
 }

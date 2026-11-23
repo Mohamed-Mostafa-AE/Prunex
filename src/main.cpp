@@ -972,6 +972,7 @@ std::size_t ttBucketCount=TT_BUCKETS;
 std::size_t ttBucketMask=TT_BUCKETS-1;
 int configuredHashMB=DEFAULT_HASH_MB;
 std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
+std::vector<std::uint64_t> searchGameHistory;
 std::array<Move, MAX_PLY> searchPathMoves{};
 std::array<int, MAX_PLY> searchPathPieceTypes{};
 std::array<std::array<Move, 128>, 7> counterMoves{};
@@ -1091,6 +1092,7 @@ TTEntry& probeTranspositionTable(std::uint64_t key,bool& found) {
 
 void resetSearchState() {
     clearTranspositionTable();
+    searchGameHistory.clear();
     searchPathKeys.fill(0);
     searchPathMoves.fill(Move{});
     searchPathPieceTypes.fill(0);
@@ -1176,6 +1178,16 @@ bool repeatedPosition(std::uint64_t key,int ply,int reversiblePlies) {
     const int earliest=std::max(0,ply-reversiblePlies);
     for(int previous=ply-2;previous>=earliest;previous-=2) {
         if(searchPathKeys[previous]==key) return true;
+    }
+    // At the root UCI still requires a move. In descendants a draw needs two
+    // earlier game occurrences if there is no matching position on the path.
+    if(ply==0) return false;
+    const int available=static_cast<int>(searchGameHistory.size());
+    const int oldest=std::max(-available,ply-reversiblePlies);
+    int matches=0;
+    for(int previous=(ply%2==0?-2:-1);previous>=oldest;previous-=2) {
+        if(searchGameHistory[static_cast<std::size_t>(available+previous)]==key&&++matches==2)
+            return true;
     }
     return false;
 }
@@ -2240,9 +2252,11 @@ constexpr int aspirationHalfWidth(int previousSwing) {
     return std::min(160,40+previousSwing/2);
 }
 
-Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t nodeLimit=0) {
+Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t nodeLimit=0,
+                  const std::vector<std::uint64_t>& gameHistory={}) {
     auto moves=legalMoves(p,0);
     if(moves.empty()) return {};
+    searchGameHistory=gameHistory;
     searchTimeLimited=timeLimitMs>0;
     searchNodeLimit=nodeLimit;
     if(searchTimeLimited) searchDeadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(timeLimitMs);
@@ -2319,6 +2333,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     emitLine(finalInfo.str());
     searchTimeLimited=false;
     searchNodeLimit=0;
+    searchGameHistory.clear();
     return best;
 }
 
@@ -2364,7 +2379,8 @@ std::uint64_t perft(Position& p,int depth,int ply=0){
     return n;
 }
 
-bool setPosition(Position& position,std::string_view command) {
+bool setPosition(Position& position,std::string_view command,
+                 std::vector<std::uint64_t>* gameHistory=nullptr) {
     std::istringstream input{std::string(command)};
     std::string commandName;
     std::string positionKind;
@@ -2389,23 +2405,34 @@ bool setPosition(Position& position,std::string_view command) {
         return false;
     }
 
+    std::vector<std::uint64_t> priorPositions;
     std::string token;
     if(input>>token) {
         if(token!="moves") return false;
         while(input>>token) {
             Move move;
             if(!parseUciMove(next,token,move)) return false;
+            if(gameHistory) priorPositions.push_back(positionKey(next));
             makeMove(next,move);
+            if(next.halfmove==0) priorPositions.clear();
         }
     }
 
     position=std::move(next);
+    if(gameHistory) {
+        // Positions older than the fifty-move threshold cannot affect search.
+        constexpr std::size_t maxHistory=100;
+        if(priorPositions.size()>maxHistory)
+            priorPositions.erase(priorPositions.begin(),priorPositions.end()-maxHistory);
+        *gameHistory=std::move(priorPositions);
+    }
     return true;
 }
 }
 
 #ifndef PRUNEX_NO_MAIN
 int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,START_FEN);
+    std::vector<std::uint64_t> gameHistory;
     std::thread searchThread;
     auto stopAndJoin=[&]() {
         if(searchThread.joinable()) {
@@ -2526,10 +2553,11 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
         } else if(cmd=="ucinewgame"){
             stopAndJoin();
             loadFen(pos,START_FEN);
+            gameHistory.clear();
             resetSearchState();
         } else if(cmd=="position"){
             stopAndJoin();
-            if(!setPosition(pos,line)) {
+            if(!setPosition(pos,line,&gameHistory)) {
                 emitLine("info string rejected invalid position command; previous position retained");
             }
         } else if(cmd=="go"){
@@ -2592,8 +2620,8 @@ int main(int argc,char**argv){using namespace prunex;Position pos;loadFen(pos,ST
             const int searchDepth=std::clamp(depth,1,MAX_PLY-1);
             const Position searchPosition=pos;
             searchAborted.store(false,std::memory_order_relaxed);
-            searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit]() mutable {
-                Move best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit);
+            searchThread=std::thread([searchPosition,searchDepth,moveTime,nodeLimit,gameHistory]() {
+                Move best=findBestMove(searchPosition,searchDepth,moveTime,nodeLimit,gameHistory);
                 emitLine("bestmove "+(best.from>=0?moveUci(best):"0000"));
             });
         } else if(cmd=="eval"){

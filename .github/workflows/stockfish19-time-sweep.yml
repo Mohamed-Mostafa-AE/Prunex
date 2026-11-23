@@ -1,8 +1,8 @@
-name: Adaptive null probe depth vs Stockfish 19 Full
+name: UCI repetition history vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/eval-gap-null-reduction']
+    branches: ['experiment/uci-repetition-history']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'
@@ -24,7 +24,22 @@ env:
   PRUNEX_REFERENCE_SHA256: 62ef826d1a6d11b9e814188025aa02a60815c037292e0ef9bbb9bf4f724e5e63
 
 jobs:
+  regressions:
+    name: Native regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and exercise the native engine
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure
+
   match:
+    needs: regressions
     name: ${{ matrix.milliseconds }} ms, openings ${{ matrix.offset }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35

@@ -379,6 +379,12 @@ On November 23, 2026, candidate `f36b8ee9adf2825b1d026ff50ed28b60322031c2` compl
 
 Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45164204481)
 
+### UCI game history for repetition detection
+
+The adaptive null-probe campaign recorded 19 second occurrences of a position in the 12 games at 1,000 ms, including seven on Prunex's turn. These counts compare the first four FEN fields within each game. They describe positions that arose in play, while the regression checks whether search recognizes a future third occurrence.
+
+Prunex now preserves the earlier position keys supplied by the UCI `position` move list. Descendant searches can recognize a third occurrence before a search branch has repeated the same position. The existing cycle cutoff still applies to matches within the current search line. Pawn moves and captures clear the preceding history, and the halfmove clock limits which positions the engine checks. A standalone FEN has no earlier positions. The campaign retains the same calibrated HalfKP evaluator, match settings, and official Stockfish 19 Full opponent.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
