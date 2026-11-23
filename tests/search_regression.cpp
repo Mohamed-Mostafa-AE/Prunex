@@ -828,9 +828,16 @@ int main() {
     auto tacticalMoves=legalMoves(position,0);
     Move hashCandidate;
     if(!parseUciMove(position,"a1b1",hashCandidate)) return 99;
+    const auto capture=std::find_if(tacticalMoves.begin(),tacticalMoves.end(),
+        [&](const Move& move){return isCapture(position,move);});
+    if(capture==tacticalMoves.end()) return 192;
+    auto& captureScore=moveScratch[0].scored[static_cast<std::size_t>(capture-tacticalMoves.begin())];
+    captureScore.exchange=-INF;
     MovePicker tacticalPicker(position,tacticalMoves,hashCandidate,0);
     if(!sameMove(tacticalPicker.next(),hashCandidate)) return 100;
+    if(captureScore.exchange!=-INF||tacticalPicker.exchangeScore()!=0) return 193;
     if(moveUci(tacticalPicker.next())!="d1d5") return 101;
+    if(tacticalPicker.exchangeScore()!=MG_VALUE[5]) return 194;
 
     // A countermove is staged ahead of ordinary quiet moves.
     if(!loadFen(position,"rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 1 2")) return 102;

@@ -292,6 +292,12 @@ On November 23, 2026, candidate `272c99aa5f914d29f2e0d348c6addeb392e2c861` compl
 
 Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45123113730)
 
+### Defer capture scoring until after the cached move
+
+An instrumented search ran 75,000 nodes on each of 35 positions from the pin-aware exchange campaign. A cached move cut off 121,792 nodes. Those nodes had already scored 208,149 captures that the search never visited.
+
+The candidate returns the legal cached move before performing exchange evaluation on the other captures. Quiet scores are recorded before that move is searched, so history updates from its child search do not change this node's ordering. The experiment uses the same calibrated HalfKP evaluator and four-speed Stockfish 19 Full protocol.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

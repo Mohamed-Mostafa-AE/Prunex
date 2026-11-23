@@ -1328,52 +1328,41 @@ int moveOrderingScore(const Position& p,const Move& m,const Move& hashMove,int p
     return score+historyScores[p.side][m.from][m.to];
 }
 
-// Staged move selection: hash move, profitable captures/promotions,
-// killer/counter quiets, remaining quiets, then losing captures. Unlike the
-// previous eager full-list sort, the picker selects the next best candidate
-// only when the search actually asks for it, so beta cutoffs avoid ordering
-// work on moves that are never searched.
+// Return a legal hash move before scoring captures. Sort other stages only
+// when the search reaches them.
 class MovePicker {
 public:
     MovePicker(const Position& position,MoveList moves,const Move& hashMove,int ply)
-        : moves_(moves),scratch_(moveScratch[moves.ply]) {
-        std::array<std::size_t,5> counts{};
-        scratch_.stageSorted.fill(0);
+        : position_(position),moves_(moves),scratch_(moveScratch[moves.ply]),
+          ply_(ply),hashIndex_(moves.size()) {
+        if(hashMove.from>=0) {
+            for(std::size_t index=0;index<moves_.size();++index) {
+                if(sameMove(moves_[index],hashMove)) {
+                    hashIndex_=index;
+                    break;
+                }
+            }
+        }
+        if(hashIndex_==moves_.size()) {
+            prepareStages();
+            return;
+        }
+
+        // A search of the hash move can update quiet history and killers.
+        // Keep the same quiet scores the node would have used before that search.
         for(std::size_t index=0;index<moves_.size();++index) {
             const Move& move=moves_[index];
-            int exchange=0;
-            const int score=moveOrderingScore(position,move,hashMove,ply,&exchange);
-            scratch_.scored[index]={move,score,exchange};
-            const bool capture=isCapture(position,move);
-            const bool promotion=move.promotion!=EMPTY;
-            std::uint8_t stage=4;
-            if(hashMove.from>=0&&sameMove(move,hashMove)) stage=0;
-            else if(promotion||(capture&&exchange>=0)) stage=1;
-            else if(!capture&&score>=780000) stage=2;
-            else if(!capture) stage=3;
-            scratch_.stageByMove[index]=stage;
-            ++counts[stage];
+            if(index!=hashIndex_&&!isCapture(position_,move))
+                scratch_.scored[index]={move,moveOrderingScore(position_,move,Move{},ply_),0};
         }
-
-        scratch_.stageOffsets[0]=0;
-        for(std::size_t stage=0;stage<5;++stage) {
-            scratch_.stageOffsets[stage+1]=scratch_.stageOffsets[stage]+counts[stage];
-            scratch_.stageCursors[stage]=scratch_.stageOffsets[stage];
-            scratch_.stageEnds[stage]=scratch_.stageOffsets[stage+1];
-        }
-
-        auto writePositions=scratch_.stageCursors;
-        for(std::size_t index=0;index<moves_.size();++index) {
-            const std::size_t stage=scratch_.stageByMove[index];
-            scratch_.order[writePositions[stage]++]=index;
-        }
-
-        // Stage ordering is deferred until that stage is first requested.
-        // A cutoff in the capture stage therefore avoids sorting killers,
-        // quiets and losing captures that the search never reaches.
     }
 
     Move next() {
+        if(stage_==0) {
+            ++stage_;
+            if(hashIndex_<moves_.size()) return moves_[hashIndex_];
+        }
+        if(!stagesReady_) prepareStages();
         while(stage_<5) {
             if(!scratch_.stageSorted[stage_]) {
                 const auto first=scratch_.order.begin()+static_cast<std::ptrdiff_t>(scratch_.stageOffsets[stage_]);
@@ -1401,8 +1390,50 @@ public:
     int exchangeScore() const { return currentExchange_; }
 
 private:
+    void prepareStages() {
+        std::array<std::size_t,5> counts{};
+        scratch_.stageSorted.fill(0);
+        const bool reuseQuietScores=hashIndex_<moves_.size();
+        for(std::size_t index=0;index<moves_.size();++index) {
+            if(index==hashIndex_) continue;
+            const Move& move=moves_[index];
+            const bool capture=isCapture(position_,move);
+            if(!reuseQuietScores||capture) {
+                int exchange=0;
+                const int score=moveOrderingScore(position_,move,Move{},ply_,&exchange);
+                scratch_.scored[index]={move,score,exchange};
+            }
+            const auto& scored=scratch_.scored[index];
+            std::uint8_t stage=4;
+            if(move.promotion||(capture&&scored.exchange>=0)) stage=1;
+            else if(!capture&&scored.score>=780000) stage=2;
+            else if(!capture) stage=3;
+            scratch_.stageByMove[index]=stage;
+            ++counts[stage];
+        }
+
+        scratch_.stageOffsets[0]=0;
+        for(std::size_t stage=0;stage<5;++stage) {
+            scratch_.stageOffsets[stage+1]=scratch_.stageOffsets[stage]+counts[stage];
+            scratch_.stageCursors[stage]=scratch_.stageOffsets[stage];
+            scratch_.stageEnds[stage]=scratch_.stageOffsets[stage+1];
+        }
+
+        auto writePositions=scratch_.stageCursors;
+        for(std::size_t index=0;index<moves_.size();++index) {
+            if(index==hashIndex_) continue;
+            const std::size_t stage=scratch_.stageByMove[index];
+            scratch_.order[writePositions[stage]++]=index;
+        }
+        stagesReady_=true;
+    }
+
+    const Position& position_;
     MoveList moves_;
     MoveScratch& scratch_;
+    int ply_;
+    std::size_t hashIndex_;
+    bool stagesReady_=false;
     std::size_t stage_=0;
     int currentExchange_=0;
 };

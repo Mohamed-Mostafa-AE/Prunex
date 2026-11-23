@@ -1,8 +1,8 @@
-name: Pin-aware exchange scoring vs Stockfish 19 Full
+name: Deferred capture ordering vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/pin-aware-exchange']
+    branches: ['experiment/deferred-capture-ordering']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'
