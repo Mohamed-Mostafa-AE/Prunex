@@ -315,6 +315,17 @@ In a diagnostic search of 32 positions from the deferred capture-ordering campai
 
 The candidate applies the learned correction to stand-pat and forward-pruning evaluations. The table separates the two sides to move and indexes both pawn sets. Entries shift gradually toward the latest supported residual and are bounded to 160 centipawns in either direction. Clearing the transposition table also clears the corrections. The test uses the calibrated HalfKP evaluator and the same four-speed Stockfish 19 Full protocol.
 
+On November 23, 2026, candidate `e1df7bd765dc14fcac5438def4872de0e0c4fe41` completed 48 games. Each limit used six openings played from both sides. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. Stockfish 19 Full used its official binary, default network, and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 1 | 0 | 11 | 8.33% |
+| 250 ms | 12 | 0 | 1 | 11 | 4.17% |
+| 500 ms | 12 | 0 | 4 | 8 | 16.67% |
+| 1,000 ms | 12 | 0 | 4 | 8 | 16.67% |
+
+Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45142131135)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
