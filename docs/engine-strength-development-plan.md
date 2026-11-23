@@ -298,6 +298,17 @@ An instrumented search ran 75,000 nodes on each of 35 positions from the pin-awa
 
 The candidate returns the legal cached move before performing exchange evaluation on the other captures. Quiet scores are recorded before that move is searched, so history updates from its child search do not change this node's ordering. The experiment uses the same calibrated HalfKP evaluator and four-speed Stockfish 19 Full protocol.
 
+The 35 fixed-node checks matched on moves, scores, node counts, and transposition-table counters. On November 23, 2026, candidate `e5b4466de2b0d4af34f33032b9335effd828d062` completed 48 games. Each limit used six openings played from both sides. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. Stockfish 19 Full used its official binary, default network, and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 1 | 11 | 4.17% |
+| 250 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 500 ms | 12 | 1 | 3 | 8 | 20.83% |
+| 1,000 ms | 12 | 0 | 3 | 9 | 12.50% |
+
+Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45130560158)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
