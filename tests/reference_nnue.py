@@ -10,15 +10,18 @@ from pathlib import Path
 
 
 engine, weights = map(lambda value: Path(value).resolve(), sys.argv[1:])
+# Keep both armies on the board while giving White a clear material advantage.
+# Very sparse mating positions can produce different raw scores across networks.
+queen_advantage = "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 commands = [
     "uci",
     f"setoption name HalfKpFile value {weights}",
     "isready",
-    "position fen 7k/8/5K2/6Q1/8/8/8/8 w - - 0 1",
+    f"position fen {queen_advantage} w - - 0 1",
     "eval",
-    "position fen 7k/8/5K2/6Q1/8/8/8/8 b - - 0 1",
+    f"position fen {queen_advantage} b - - 0 1",
     "eval",
-    "position fen 7k/8/5K2/6Q1/8/8/8/8 w - - 0 1",
+    f"position fen {queen_advantage} w - - 0 1",
     "eval",
     "quit",
 ]

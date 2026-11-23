@@ -1,8 +1,8 @@
-name: Hash-miss reduction vs Stockfish 19 Full
+name: Stockfish 13 HalfKP weights vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/hash-miss-reduction']
+    branches: ['experiment/stockfish13-halfkp-weights']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'
@@ -19,6 +19,10 @@ concurrency:
   group: stockfish19-time-sweep-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  PRUNEX_REFERENCE_NETWORK: nn-62ef826d1a6d.nnue
+  PRUNEX_REFERENCE_SHA256: 62ef826d1a6d11b9e814188025aa02a60815c037292e0ef9bbb9bf4f724e5e63
+
 jobs:
   match:
     name: ${{ matrix.milliseconds }} ms, openings ${{ matrix.offset }}
@@ -32,7 +36,6 @@ jobs:
     env:
       STOCKFISH_SHA: edb0d9db6731067ec50ce619ff372b463bc4dd5d
       STOCKFISH_ARCHIVE_SHA: 9defc0d4e55d49c65a6d042f3e571a39fcea499ade6dbe741b53b8c65e03611f
-      HALF_KP_SHA: 82215d0fd0df3cde17fc47ac024c5b5736823ec390200abdd705c44660c69ee4
       MOVETIME_MS: ${{ matrix.milliseconds }}
       OPENING_OFFSET: ${{ matrix.offset }}
     steps:
@@ -61,13 +64,13 @@ jobs:
       - name: Download and verify the reference network
         run: |
           curl --fail --location --retry 3 \
-            https://tests.stockfishchess.org/api/nn/nn-82215d0fd0df.nnue \
-            --output nn-82215d0fd0df.nnue ||
+            "https://tests.stockfishchess.org/api/nn/$PRUNEX_REFERENCE_NETWORK" \
+            --output "$PRUNEX_REFERENCE_NETWORK" ||
           curl --fail --location --retry 3 \
-            https://raw.githubusercontent.com/official-stockfish/networks/master/nn-82215d0fd0df.nnue \
-            --output nn-82215d0fd0df.nnue
-          printf '%s  %s\n' "$HALF_KP_SHA" nn-82215d0fd0df.nnue | sha256sum --check
-          .venv/bin/python tests/reference_nnue.py build/prunex nn-82215d0fd0df.nnue
+            "https://raw.githubusercontent.com/official-stockfish/networks/master/$PRUNEX_REFERENCE_NETWORK" \
+            --output "$PRUNEX_REFERENCE_NETWORK"
+          printf '%s  %s\n' "$PRUNEX_REFERENCE_SHA256" "$PRUNEX_REFERENCE_NETWORK" | sha256sum --check
+          .venv/bin/python tests/reference_nnue.py build/prunex "$PRUNEX_REFERENCE_NETWORK"
 
       - name: Run paired games against Stockfish 19
         run: |
@@ -77,11 +80,11 @@ jobs:
           printf '\nLogical CPU used by both engines: %s\n' "$cpu" >> results/runner-cpu.txt
           printf 'uci\nquit\n' | "$STOCKFISH_BINARY" > results/stockfish-uci-defaults.txt
           printf 'uci\nquit\n' | build/prunex > results/prunex-uci-defaults.txt
-          sha256sum stockfish.tar.gz "$STOCKFISH_BINARY" build/prunex nn-82215d0fd0df.nnue \
+          sha256sum stockfish.tar.gz "$STOCKFISH_BINARY" build/prunex "$PRUNEX_REFERENCE_NETWORK" \
             > results/engine-checksums.txt
           taskset -c "$cpu" .venv/bin/python tools/strength-match/modern_strength_ladder.py \
             --candidate build/prunex --candidate-commit "$GITHUB_SHA" \
-            --candidate-halfkp-file nn-82215d0fd0df.nnue \
+            --candidate-halfkp-file "$PRUNEX_REFERENCE_NETWORK" \
             --stockfish "$STOCKFISH_BINARY" --stockfish-source-commit "$STOCKFISH_SHA" \
             --stockfish-build-arch linux-x86-64-universal --stockfish-only \
             --tier timed-no-node-cap --movetime-ms "$MOVETIME_MS" \
@@ -138,8 +141,7 @@ jobs:
                       or candidate_options["Threads"] != 1 or options["Threads"] != 1
                       or options["UCI_LimitStrength"] or options["Skill Level"] != 20
                       or options["EvalFile"] != "nn-1a298aa575a0.nnue"
-                      or manifest["candidate"]["halfkp_sha256"] !=
-                          "82215d0fd0df3cde17fc47ac024c5b5736823ec390200abdd705c44660c69ee4"):
+                      or manifest["candidate"]["halfkp_sha256"] != os.environ["PRUNEX_REFERENCE_SHA256"]):
                       raise RuntimeError(f"Unexpected match settings in {folder}")
                   openings.extend(opening["fen"] for opening in pair)
                   result = report["results"][0]

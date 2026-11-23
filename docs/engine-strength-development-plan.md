@@ -222,6 +222,12 @@ On November 23, 2026, candidate `29bd091b3244b6d239ec4d4d54b7c7f4fe1b3466` playe
 
 Stockfish led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45099280296)
 
+### Stockfish 13 reference weights
+
+This experiment loads the CC0 `nn-62ef826d1a6d.nnue` weights through Prunex's existing HalfKP backend. The official Stockfish 13 release retrained its network on billions of positions. The test pins the full SHA-256 and checks score direction with a material imbalance, as well as incremental and fresh evaluation parity. Prunex supplies the search, UCI, and move generation. The sole match opponent is Stockfish 19 Full with its own default network and maximum skill.
+
+[Stockfish 13 release](https://github.com/official-stockfish/Stockfish/releases/tag/sf_13) · [Default network in the Stockfish 13 source](https://github.com/official-stockfish/Stockfish/blob/sf_13/src/evaluate.h) · [CC0 network archive](https://github.com/official-stockfish/networks)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
