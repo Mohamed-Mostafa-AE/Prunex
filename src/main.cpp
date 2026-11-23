@@ -19,6 +19,7 @@
 #include <thread>
 #include <vector>
 
+#include "search_score.hpp"
 #include "transposition_table.hpp"
 
 #ifdef PRUNEX_REFERENCE_NNUE
@@ -31,8 +32,6 @@
 #endif
 
 namespace prunex {
-constexpr int INF = 32000;
-constexpr int MATE = 30000;
 constexpr std::string_view START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 enum Piece : int { EMPTY=0, WP=1, WN, WB, WR, WQ, WK, BP=7, BN, BB, BR, BQ, BK };
@@ -40,7 +39,6 @@ enum Color : int { WHITE=0, BLACK=1 };
 enum Castle : int { WKCA=1, WQCA=2, BKCA=4, BQCA=8 };
 
 struct Move { int from=-1, to=-1, promotion=EMPTY; bool enPassant=false, castle=false; };
-constexpr int MAX_PLY = 128;
 constexpr int MAX_QPLY = 18;
 constexpr std::size_t MAX_LEGAL_MOVES = 256;
 
@@ -1019,11 +1017,11 @@ std::int16_t& pawnCorrection(const Position& p) {
 
 int correctedSearchEvaluation(const Position& p,int raw) {
     const int estimate=raw+pawnCorrection(p)/PAWN_CORRECTION_UNIT;
-    return std::clamp(estimate,-MATE+1000,MATE-1000);
+    return clampStaticEvaluation(estimate);
 }
 
 void updatePawnCorrection(const Position& p,int raw,int searched,int depth,Bound bound) {
-    if(std::abs(searched)>=MATE-MAX_PLY) return;
+    if(std::abs(searched)>=MATE_SCORE_MIN) return;
     auto& correction=pawnCorrection(p);
     const int estimate=correctedSearchEvaluation(p,raw);
     // A bound supplies evidence only when the estimate falls outside it.
@@ -1163,18 +1161,6 @@ bool repeatedPosition(std::uint64_t key,int ply,int reversiblePlies) {
 
 bool sameMove(const Move& a,const Move& b) {
     return a.from==b.from&&a.to==b.to&&a.promotion==b.promotion;
-}
-
-int scoreFromTable(int score,int ply) {
-    if(score>MATE-100) return score-ply;
-    if(score<-MATE+100) return score+ply;
-    return score;
-}
-
-int scoreToTable(int score,int ply) {
-    if(score>MATE-100) return score+ply;
-    if(score<-MATE+100) return score-ply;
-    return score;
 }
 
 bool isCapture(const Position& p,const Move& m) {
@@ -1702,7 +1688,7 @@ int referenceEvaluation(const Position& p) {
 #else
     const int calibrated=raw;
 #endif
-    const int score=std::clamp(calibrated,-MATE+1000,MATE-1000);
+    const int score=clampStaticEvaluation(calibrated);
     entry={key,score,true};
     return score;
 }
@@ -1859,7 +1845,7 @@ int evaluate(Position& p) {
     const int whiteMiddle=middle[WHITE]-middle[BLACK];
     const int whiteEnding=ending[WHITE]-ending[BLACK];
     const int score=(whiteMiddle*phase+whiteEnding*(24-phase))/24;
-    return p.side==WHITE?score:-score;
+    return clampStaticEvaluation(p.side==WHITE?score:-score);
 }
 
 bool isInsufficientMaterial(const Position& p) {
@@ -1883,7 +1869,7 @@ bool isInsufficientMaterial(const Position& p) {
 }
 
 void storeQuiescenceScout(std::uint64_t key,int score,Bound bound) {
-    if(std::abs(score)>=MATE-MAX_PLY) return;
+    if(std::abs(score)>=MATE_SCORE_MIN) return;
     storeTranspositionEntry({key,TT_NO_MOVE,static_cast<std::int16_t>(score),
                              QSCOUT_TT_DEPTH,bound,ttGeneration});
 }
@@ -1901,8 +1887,9 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
 
     if(drawRule||insufficient) {
         if(!checked) return 0;
-        return hasAnyLegalMove(p,searchPly)?0:-MATE+searchPly;
+        return hasAnyLegalMove(p,searchPly)?0:matedAtPly(searchPly);
     }
+    if(const auto bound=narrowMateWindow(searchPly,alpha,beta)) return *bound;
 
     MoveList moves;
     int stand=0;
@@ -1910,7 +1897,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     std::uint64_t scoutKey=0;
     if(checked) {
         moves=legalMoves(p,searchPly);
-        if(moves.empty()) return -MATE+searchPly;
+        if(moves.empty()) return matedAtPly(searchPly);
     } else {
         stand=correctedSearchEvaluation(p,evaluate(p));
         if(stand>=beta&&hasPawnPushOffKingRays(p)) return stand;
@@ -1918,7 +1905,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         // Keep the window and corrected evaluations that produced the bound.
         // Earlier repetition history is irrelevant after an irreversible move.
         cacheable=stand<beta&&p.halfmove==0&&qply==0&&searchPly>0
-            &&searchPly<MAX_PLY-MAX_QPLY&&beta==alpha+1&&std::abs(beta)<MATE-MAX_PLY;
+            &&searchPly<MAX_PLY-MAX_QPLY&&beta==alpha+1&&std::abs(beta)<MATE_SCORE_MIN;
         if(cacheable) {
             scoutKey=key^0x2dc174c02826b637ULL
                 ^(static_cast<std::uint64_t>(beta)*0x9e3779b97f4a7c15ULL)
@@ -1943,7 +1930,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
 
     // Use the material bound only in scout windows away from mate and endgames.
     constexpr int deltaMargin=550;
-    const bool deltaEligible=!checked&&alpha>=0&&alpha<MATE-MAX_PLY&&beta==alpha+1
+    const bool deltaEligible=!checked&&alpha>=0&&alpha<MATE_SCORE_MIN&&beta==alpha+1
         &&std::popcount(p.occupancy[WHITE]|p.occupancy[BLACK])>=16;
     MovePicker picker(p,moves,Move{},searchPly);
     bool searched=false;
@@ -2066,11 +2053,12 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     if(drawRule||insufficient) {
         if(!checked) return 0;
         const auto evasions=legalMoves(p,ply);
-        return evasions.empty()?-MATE+ply:0;
+        return evasions.empty()?matedAtPly(ply):0;
     }
     if(depth<=0) return quiescence(p,alpha,beta,0,ply);
     if(searchShouldStop()) return evaluate(p);
     ++nodes;
+    if(const auto bound=narrowMateWindow(ply,alpha,beta)) return *bound;
     int originalAlpha=alpha;
     Move hashMove{};
     if(const TTEntry* entry=root?nullptr:findTranspositionEntry(key);
@@ -2079,14 +2067,17 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         hashMove=unpackTranspositionMove(p,entry->bestMove);
         if(entry->depth>=depth&&entry->halfmove==p.halfmove) {
             const int ttScore=scoreFromTable(entry->score,ply);
-            if(entry->bound==TT_EXACT) return ttScore;
-            if(entry->bound==TT_LOWER&&ttScore>=beta) return ttScore;
-            if(entry->bound==TT_UPPER&&ttScore<=alpha) return ttScore;
+            // A mate cached closer to the root can lie beyond the ply limit here.
+            if(!isMateScore(entry->score)||std::abs(ttScore)>-matedAtPly(MAX_PLY-1)) {
+                if(entry->bound==TT_EXACT) return ttScore;
+                if(entry->bound==TT_LOWER&&ttScore>=beta) return ttScore;
+                if(entry->bound==TT_UPPER&&ttScore<=alpha) return ttScore;
+            }
         }
     }
 
     const bool safeForForwardPruning=!pvNode&&!checked
-        &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
+        &&std::abs(beta)<MATE_SCORE_MIN&&hasNullMoveMaterial(p);
     const bool shallowPruning=safeForForwardPruning&&depth<=6;
     const bool nullMoveEligible=safeForForwardPruning&&allowNullMove&&depth>=3;
     const bool hasStaticEval=shallowPruning||nullMoveEligible;
@@ -2126,7 +2117,8 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         searchPathMoves[ply]=savedPathMove;
         searchPathPieceTypes[ply]=savedPathType;
         if(searchAborted.load(std::memory_order_relaxed)) return 0;
-        if(nullScore>=beta) {
+        // A pass can justify an ordinary cutoff. Mate requires a legal move.
+        if(nullScore>=beta&&!isMateScore(nullScore)) {
             if(depth<7) return nullScore;
             const int verification=negamax(p,verificationDepth,beta-1,beta,ply,false,false);
             if(searchAborted.load(std::memory_order_relaxed)) return 0;
@@ -2144,7 +2136,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     const auto continuation=quietContinuation(p.side,ply);
     if(!root) {
         const auto moves=legalMoves(p,ply);
-        if(moves.empty()) return checked?-MATE+ply:0;
+        if(moves.empty()) return checked?matedAtPly(ply):0;
         picker.emplace(p,moves,hashMove,ply,continuation);
         bestMove=moves.front();
     }

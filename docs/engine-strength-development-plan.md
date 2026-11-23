@@ -448,6 +448,12 @@ A quiet move that causes a beta cutoff gains history. Quiet alternatives that we
 
 Each full-search entry records the halfmove clock in the existing 16-byte layout. A move hint can still guide ordering when the clocks differ. Returning a cached score or using a cached bound for a cutoff requires matching clocks and sufficient search depth. Quiescence scout entries keep their existing eligibility and full-search replacement restrictions.
 
+## Mate-distance bounds
+
+Below the root, full search and quiescence restrict the score window to the mate distances that are still possible at the current ply. The side to move can already be checkmated, and its fastest possible win requires one more ply. A window wholly beyond either limit returns the corresponding bound without searching moves.
+
+The search uses one mate-score range for its full ply limit and keeps static evaluations below that range. Transposition entries store mate distances relative to the cached position and convert them back at lookup. A cached mate beyond the current search's ply range supplies a move hint only. A null-move probe must return an ordinary score to trigger its cutoff path.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
