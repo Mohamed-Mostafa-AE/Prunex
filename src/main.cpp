@@ -2055,7 +2055,13 @@ constexpr int nullProbeExtraReduction(int depth,int staticMargin) {
     return depth>=7&&staticMargin>=160?1:0;
 }
 
-int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
+struct RootMoveProgress {
+    Move incumbent;
+    Move replacement{};
+};
+
+int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true,
+            RootMoveProgress* rootProgress=nullptr) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
     bool checked=inCheck(p,p.side);
@@ -2201,6 +2207,12 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
         undoMove(p,m,undo);
         if(searchAborted) return 0;
+        // Only compare finished children from this aspiration pass. Its first
+        // child must be the move selected at the last completed depth.
+        if(rootProgress) {
+            if(moveNumber==0&&!sameMove(m,rootProgress->incumbent)) rootProgress=nullptr;
+            else if(moveNumber>0&&score>alpha) rootProgress->replacement=m;
+        }
         ++moveNumber;
         if(score>bestScore) {
             bestScore=score;
@@ -2292,8 +2304,17 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         int beta=window==INF?INF:std::min(INF,previousScore+window);
         int score=0;
         while(true) {
-            score=negamax(p,currentDepth,alpha,beta,0,true);
-            if(searchAborted.load(std::memory_order_relaxed)) break;
+            RootMoveProgress progress{best};
+            score=negamax(p,currentDepth,alpha,beta,0,true,true,
+                          completedSearchDepth>0?&progress:nullptr);
+            if(searchAborted.load(std::memory_order_relaxed)) {
+                if(progress.replacement.from>=0) {
+                    best=progress.replacement;
+                    emitLine("info string interrupted-root bestmove "+moveUci(best)
+                             +" at depth "+std::to_string(currentDepth));
+                }
+                break;
+            }
             if(score<=alpha&&alpha>-INF) {
                 window=std::min(INF,window*2);
                 alpha=window==INF?-INF:std::max(-INF,previousScore-window);

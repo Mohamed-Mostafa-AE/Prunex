@@ -1,8 +1,8 @@
-name: UCI repetition history vs Stockfish 19 Full
+name: Interrupted root choice vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/uci-repetition-history']
+    branches: ['experiment/interrupted-root-choice']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

@@ -1167,5 +1167,29 @@ int main() {
     if(!setPosition(position,"position startpos moves g1f3 g8f6 e2e4",&gameHistory)
         ||!gameHistory.empty()) return 215;
 
+    // Start with a hanging queen as the hash move. A stopped child may never
+    // replace it, but a finished, better alternative from this pass may.
+    if(!loadFen(position,"7k/8/5KQ1/8/8/8/8/8 w - - 0 1")) return 216;
+    Move hangingQueen;
+    if(!parseUciMove(position,"g6g8",hangingQueen)) return 217;
+    const auto interruptedPass=[&](std::uint64_t budget,const Move& incumbent) {
+        resetSearchState();
+        searchNodeLimit=budget;
+        bool found=false;
+        const auto key=positionKey(position);
+        auto& root=probeTranspositionTable(key,found);
+        root={key,packTranspositionMove(hangingQueen),0,0,TT_UPPER,ttGeneration};
+        RootMoveProgress progress{incumbent};
+        negamax(position,1,-INF,INF,0,true,true,&progress);
+        return progress.replacement;
+    };
+    if(interruptedPass(1,hangingQueen).from>=0||!searchAborted) return 218;
+    const Move fullPassChoice=interruptedPass(0,hangingQueen);
+    const auto fullPassNodes=nodes;
+    if(fullPassChoice.from<0||sameMove(fullPassChoice,hangingQueen)||fullPassNodes<3)
+        return 219;
+    if(interruptedPass(fullPassNodes-1,hangingQueen).from<0||!searchAborted) return 220;
+    if(interruptedPass(fullPassNodes-1,fullPassChoice).from>=0||!searchAborted) return 221;
+
     return 0;
 }
