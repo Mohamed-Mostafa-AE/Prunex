@@ -2018,6 +2018,12 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             if(verification>=beta) return nullScore;
         }
     }
+
+    // Search one ply less when a scout node has no cached move to try first.
+    // The shallower depth also applies to the bound stored below.
+    if(safeForForwardPruning&&allowNullMove&&depth>=5&&beta==alpha+1&&hashMove.from<0)
+        --depth;
+
     auto moves=legalMoves(p,ply);
     if(moves.empty()) return checked?-MATE+ply:0;
     MovePicker picker(p,moves,hashMove,ply);

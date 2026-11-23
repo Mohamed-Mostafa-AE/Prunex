@@ -205,6 +205,12 @@ All 32 fixed-node searches matched the previous search's completed moves, scores
 
 The verified PGNs put Stockfish ahead at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45093508584)
 
+### One-ply reduction at non-PV nodes without a cached move
+
+In 34 positions from the early-quiescence campaign, an instrumented Prunex build searched 150,000 nodes per position. Of 57,158 non-PV nodes at depth 5 or more that reached move generation outside check, 9,947 lacked a cached move. The search examined 103,899 moves at those nodes.
+
+This experiment reduces eligible narrow-window nodes by one ply when they have no move from the transposition table. It applies the reduction after null-move pruning and records the reduced depth in the table. The campaign repeats the four paired limits against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

@@ -1019,5 +1019,30 @@ int main() {
     if(shouldPruneLosingCapture(false,false,false,true,true,3,2,-400)) return 148;
     if(shouldPruneLosingCapture(false,false,false,true,false,6,2,-1000)) return 149;
 
+    // A reduced scout must record the depth it actually searched.
+    if(!loadFen(position,START_FEN)) return 176;
+    const int scoutBeta=evaluate(position)+500;
+    const auto rootKey=positionKey(position);
+    Move cachedMove{};
+    if(!parseUciMove(position,"e2e4",cachedMove)) return 177;
+    struct ScoutFixture { bool cachedMove; bool pv; bool allowNullMove; int depth; };
+    const std::array<ScoutFixture,4> scouts{{
+        {false,false,true,4},
+        {true,false,true,5},
+        {false,true,true,5},
+        {false,false,false,5},
+    }};
+    for(const auto& fixture:scouts) {
+        resetSearchState();
+        bool found=false;
+        if(fixture.cachedMove) {
+            auto& entry=probeTranspositionTable(rootKey,found);
+            entry={rootKey,packTranspositionMove(cachedMove),0,1,TT_UPPER,ttGeneration};
+        }
+        negamax(position,5,scoutBeta-1,scoutBeta,0,fixture.pv,fixture.allowNullMove);
+        const auto& entry=probeTranspositionTable(rootKey,found);
+        if(!found||entry.depth!=fixture.depth) return 178;
+    }
+
     return 0;
 }
