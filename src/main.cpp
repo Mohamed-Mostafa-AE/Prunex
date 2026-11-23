@@ -1651,7 +1651,12 @@ int referenceEvaluation(const Position& p) {
     current.key=key;
     current.valid=true;
 
-    const int score=std::clamp(raw,-MATE+1000,MATE-1000);
+#ifdef PRUNEX_REFERENCE_SCORE_CALIBRATION
+    const int calibrated=static_cast<int>(static_cast<std::int64_t>(raw)*2/5);
+#else
+    const int calibrated=raw;
+#endif
+    const int score=std::clamp(calibrated,-MATE+1000,MATE-1000);
     entry={key,score,true};
     return score;
 }

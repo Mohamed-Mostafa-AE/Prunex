@@ -55,6 +55,8 @@ target_link_libraries(prunex PRIVATE Threads::Threads)
 
 option(PRUNEX_REFERENCE_NNUE "Enable the GPL reference HalfKP evaluator in the native UCI engine" OFF)
 if(PRUNEX_REFERENCE_NNUE)
+    option(PRUNEX_REFERENCE_SCORE_CALIBRATION
+        "Use experimental score calibration for the reference HalfKP evaluator" OFF)
     add_library(prunex_reference_nnue STATIC
         third_party/nnue-probe/src/nnue.cpp
         third_party/nnue-probe/src/misc.cpp)
@@ -81,6 +83,9 @@ if(PRUNEX_REFERENCE_NNUE)
     endif()
     target_link_libraries(prunex PRIVATE prunex_reference_nnue)
     target_compile_definitions(prunex PRIVATE PRUNEX_REFERENCE_NNUE)
+    if(PRUNEX_REFERENCE_SCORE_CALIBRATION)
+        target_compile_definitions(prunex PRIVATE PRUNEX_REFERENCE_SCORE_CALIBRATION)
+    endif()
 endif()
 message(STATUS "Prunex transposition-table entries: 2^${PRUNEX_TT_BITS}")
 

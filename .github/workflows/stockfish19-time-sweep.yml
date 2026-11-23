@@ -1,8 +1,8 @@
-name: Stockfish 13 HalfKP weights vs Stockfish 19 Full
+name: HalfKP score calibration vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/stockfish13-halfkp-weights']
+    branches: ['experiment/halfkp-score-calibration']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'
@@ -46,7 +46,8 @@ jobs:
       - name: Build Prunex and pin the official Stockfish binary
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DPRUNEX_TT_BITS=22 -DPRUNEX_NATIVE_TUNING=ON -DPRUNEX_REFERENCE_NNUE=ON
+            -DPRUNEX_TT_BITS=22 -DPRUNEX_NATIVE_TUNING=ON -DPRUNEX_REFERENCE_NNUE=ON \
+            -DPRUNEX_REFERENCE_SCORE_CALIBRATION=ON
           cmake --build build --target prunex --parallel 2
           curl --fail --location --retry 3 \
             https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-linux-x86-64-universal.tar.gz \

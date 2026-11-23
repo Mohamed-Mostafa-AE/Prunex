@@ -239,6 +239,14 @@ Candidate `997961d181c587fd972ac9991fcae048c06f5ea8` played 48 games on November
 
 Stockfish 19 Full finished ahead at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45104944120)
 
+### HalfKP score calibration
+
+The calibration uses raw evaluations from the existing Prunex HalfKP backend and Stockfish 19's recorded scores for the same side to move. The sample comes from the preceding 1,000 ms games. It uses Stockfish turns through ply 80 with a completed depth of at least 16 and an ordinary numeric score. It excludes positions in check and turns where Stockfish played a capture or promotion. Repeated positions were deduplicated by the first four FEN fields.
+
+The scale fitted by absolute error on 145 positions from four openings was approximately 0.399, rounded to 2/5. On 95 positions from the two held-out openings, with overlapping positions excluded, the mean absolute error against the logged scores fell from 293.34 to 231.44 centipawns. The logged search scores are estimates. The paired games measure playing strength.
+
+The candidate enables `PRUNEX_REFERENCE_SCORE_CALIBRATION` when building the reference HalfKP evaluator. This scales its scores before storing them in the evaluation cache. The experiment uses the same `nn-62ef826d1a6d.nnue` weights and the same four-speed Stockfish 19 Full protocol.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
