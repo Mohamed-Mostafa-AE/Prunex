@@ -19,6 +19,8 @@
 #include <thread>
 #include <vector>
 
+#include "transposition_table.hpp"
+
 #ifdef PRUNEX_REFERENCE_NNUE
 #include "reference_nnue.hpp"
 #endif
@@ -910,29 +912,8 @@ bool hasAnyLegalMoveOutsideCheck(Position& position,int ply) {
 std::string moveUci(const Move&m){std::string s=squareName(m.from)+squareName(m.to);if(m.promotion){char c=static_cast<char>(std::tolower(pieceChar(m.promotion)));s+=c;}return s;}
 bool parseUciMove(Position& p,std::string_view text,Move& result){for(const Move&m:legalMoves(p))if(moveUci(m)==text){result=m;return true;}return false;}
 
-#ifndef PRUNEX_TT_BITS
-#define PRUNEX_TT_BITS 18
-#endif
-constexpr int TT_BITS = PRUNEX_TT_BITS;
-constexpr std::size_t TT_SIZE = std::size_t{1} << TT_BITS;
-constexpr std::size_t TT_WAYS = 2;
-constexpr std::size_t TT_BUCKETS = TT_SIZE / TT_WAYS;
 constexpr std::array<int, 7> MG_VALUE{0, 100, 325, 335, 510, 950, 0};
 constexpr std::array<int, 7> EG_VALUE{0, 120, 315, 350, 525, 930, 0};
-
-enum Bound : std::uint8_t { TT_NONE, TT_EXACT, TT_LOWER, TT_UPPER };
-
-constexpr std::uint16_t TT_NO_MOVE=0xFFFFU;
-
-struct TTEntry {
-    std::uint64_t key=0;
-    std::uint16_t bestMove=TT_NO_MOVE;
-    std::int16_t score=0;
-    std::int8_t depth=-1;
-    std::uint8_t bound=TT_NONE;
-    std::uint8_t generation=0;
-};
-static_assert(sizeof(TTEntry)==16);
 
 std::uint16_t packTranspositionMove(const Move& move) noexcept {
     if(!onBoard(move.from)||!onBoard(move.to)) return TT_NO_MOVE;
@@ -963,15 +944,6 @@ Move unpackTranspositionMove(
     return Move{from,to,promotion,enPassant,castle};
 }
 
-using TTCluster = std::array<TTEntry, TT_WAYS>;
-constexpr std::size_t MEBIBYTE=1024U*1024U;
-constexpr std::size_t DEFAULT_TT_BYTES=TT_BUCKETS*sizeof(TTCluster);
-constexpr int DEFAULT_HASH_MB=static_cast<int>(
-    std::max<std::size_t>(1,(DEFAULT_TT_BYTES+MEBIBYTE-1)/MEBIBYTE));
-std::vector<TTCluster> transpositionTable(TT_BUCKETS);
-std::size_t ttBucketCount=TT_BUCKETS;
-std::size_t ttBucketMask=TT_BUCKETS-1;
-int configuredHashMB=DEFAULT_HASH_MB;
 std::array<std::uint64_t, MAX_PLY> searchPathKeys{};
 std::vector<std::uint64_t> searchGameHistory;
 std::array<Move, MAX_PLY> searchPathMoves{};
@@ -1069,7 +1041,6 @@ std::uint64_t nodes=0;
 int lastSearchScore=0;
 int completedSearchDepth=0;
 std::uint64_t ttHits=0;
-std::uint8_t ttGeneration=0;
 bool searchTimeLimited=false;
 std::uint64_t searchNodeLimit=0;
 std::atomic<bool> searchAborted{false};
@@ -1087,59 +1058,16 @@ void emitLine(const std::string& line) {
 }
 
 void clearTranspositionTable() {
-    for(auto& cluster:transpositionTable) cluster.fill(TTEntry{});
+    clearTranspositionStorage();
     pawnCorrections={};
     scoutCacheVersion=0;
 }
 
 bool resizeTranspositionTable(int megabytes) {
-    if(megabytes<1||megabytes>4096) return false;
-    const std::size_t requestedBytes=static_cast<std::size_t>(megabytes)*MEBIBYTE;
-    const std::size_t maximumBuckets=requestedBytes/sizeof(TTCluster);
-    if(maximumBuckets==0) return false;
-    const std::size_t newBucketCount=std::bit_floor(maximumBuckets);
-    if(newBucketCount==0) return false;
-
-    try {
-        std::vector<TTCluster> replacement(newBucketCount);
-        transpositionTable.swap(replacement);
-    } catch(const std::bad_alloc&) {
-        return false;
-    }
-
-    ttBucketCount=newBucketCount;
-    ttBucketMask=newBucketCount-1;
-    configuredHashMB=megabytes;
-    ttGeneration=0;
-    clearTranspositionTable();
+    if(!resizeTranspositionStorage(megabytes)) return false;
+    pawnCorrections={};
+    scoutCacheVersion=0;
     return true;
-}
-
-TTEntry& probeTranspositionTable(std::uint64_t key,bool& found) {
-    auto& cluster=transpositionTable[key&ttBucketMask];
-    TTEntry* replacement=&cluster.front();
-    int replacementQuality=std::numeric_limits<int>::max();
-
-    for(auto& entry:cluster) {
-        if(entry.bound!=TT_NONE&&entry.key==key) {
-            found=true;
-            return entry;
-        }
-        if(entry.bound==TT_NONE) {
-            found=false;
-            return entry;
-        }
-
-        const int age=static_cast<std::uint8_t>(ttGeneration-entry.generation);
-        const int quality=entry.depth-age*8;
-        if(quality<replacementQuality) {
-            replacementQuality=quality;
-            replacement=&entry;
-        }
-    }
-
-    found=false;
-    return *replacement;
 }
 
 void resetSearchState() {
@@ -1174,20 +1102,6 @@ bool searchShouldStop() {
     if(!searchTimeLimited||(nodes&127ULL)!=0) return false;
     if(std::chrono::steady_clock::now()>=searchDeadline) searchAborted.store(true,std::memory_order_relaxed);
     return searchAborted.load(std::memory_order_relaxed);
-}
-
-int hashFullPermille() {
-    constexpr std::size_t sampleEntries=1000;
-    constexpr std::size_t maximumSampleClusters=sampleEntries/TT_WAYS;
-    const std::size_t sampleClusters=std::min(ttBucketCount,maximumSampleClusters);
-    std::size_t used=0;
-    for(std::size_t index=0;index<sampleClusters;++index) {
-        for(const auto& entry:transpositionTable[index]) {
-            if(entry.generation==ttGeneration&&entry.bound!=TT_NONE) ++used;
-        }
-    }
-    const std::size_t sampledEntries=sampleClusters*TT_WAYS;
-    return sampledEntries==0?0:static_cast<int>(used*1000/sampledEntries);
 }
 
 std::uint64_t splitMix64(std::uint64_t& state) {
@@ -1968,15 +1882,10 @@ bool isInsufficientMaterial(const Position& p) {
     return firstColorBishops==0||secondColorBishops==0;
 }
 
-constexpr int QSCOUT_TT_DEPTH=-2;
-
 void storeQuiescenceScout(std::uint64_t key,int score,Bound bound) {
     if(std::abs(score)>=MATE-MAX_PLY) return;
-    bool found=false;
-    auto& entry=probeTranspositionTable(key,found);
-    // Tactics at the horizon must not displace the full-width search.
-    if(entry.bound!=TT_NONE&&entry.depth!=QSCOUT_TT_DEPTH) return;
-    entry={key,TT_NO_MOVE,static_cast<std::int16_t>(score),QSCOUT_TT_DEPTH,bound,ttGeneration};
+    storeTranspositionEntry({key,TT_NO_MOVE,static_cast<std::int16_t>(score),
+                             QSCOUT_TT_DEPTH,bound,ttGeneration});
 }
 
 int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
@@ -2014,11 +1923,10 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
             scoutKey=key^0x2dc174c02826b637ULL
                 ^(static_cast<std::uint64_t>(beta)*0x9e3779b97f4a7c15ULL)
                 ^(scoutCacheVersion*0xbf58476d1ce4e5b9ULL);
-            bool found=false;
-            const auto& entry=probeTranspositionTable(scoutKey,found);
-            if(found&&entry.depth==QSCOUT_TT_DEPTH&&entry.generation==ttGeneration) {
+            const auto* entry=findTranspositionEntry(scoutKey);
+            if(entry&&entry->depth==QSCOUT_TT_DEPTH&&entry->generation==ttGeneration) {
                 ++ttHits;
-                return entry.score;
+                return entry->score;
             }
         }
 
@@ -2164,17 +2072,16 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     if(searchShouldStop()) return evaluate(p);
     ++nodes;
     int originalAlpha=alpha;
-    bool ttFound=false;
-    TTEntry& entry=probeTranspositionTable(key,ttFound);
     Move hashMove{};
-    if(!root&&ttFound&&entry.depth!=QSCOUT_TT_DEPTH) {
+    if(const TTEntry* entry=root?nullptr:findTranspositionEntry(key);
+       entry&&entry->depth!=QSCOUT_TT_DEPTH) {
         ++ttHits;
-        hashMove=unpackTranspositionMove(p,entry.bestMove);
-        if(entry.depth>=depth) {
-            int ttScore=scoreFromTable(entry.score,ply);
-            if(entry.bound==TT_EXACT) return ttScore;
-            if(entry.bound==TT_LOWER&&ttScore>=beta) return ttScore;
-            if(entry.bound==TT_UPPER&&ttScore<=alpha) return ttScore;
+        hashMove=unpackTranspositionMove(p,entry->bestMove);
+        if(entry->depth>=depth&&entry->halfmove==p.halfmove) {
+            const int ttScore=scoreFromTable(entry->score,ply);
+            if(entry->bound==TT_EXACT) return ttScore;
+            if(entry->bound==TT_LOWER&&ttScore>=beta) return ttScore;
+            if(entry->bound==TT_UPPER&&ttScore<=alpha) return ttScore;
         }
     }
 
@@ -2341,14 +2248,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
     if(hasStaticEval&&allowNullMove&&depth>=2&&!isCapture(p,bestMove)&&!bestMove.promotion)
         updatePawnCorrection(p,rawStaticEval,bestScore,depth,bound);
-    if(!ttFound||entry.key!=key||entry.generation!=ttGeneration||depth>=entry.depth) {
-        entry.key=key;
-        entry.bestMove=packTranspositionMove(bestMove);
-        entry.score=static_cast<std::int16_t>(std::clamp(scoreToTable(bestScore,ply),-32768,32767));
-        entry.depth=static_cast<std::int8_t>(std::clamp(depth,-128,127));
-        entry.bound=bound;
-        entry.generation=ttGeneration;
-    }
+    // Descendants may have changed both slots since the lookup at node entry.
+    storeTranspositionEntry({key,packTranspositionMove(bestMove),
+        static_cast<std::int16_t>(std::clamp(scoreToTable(bestScore,ply),-32768,32767)),
+        static_cast<std::int8_t>(std::clamp(depth,-128,127)),bound,ttGeneration,
+        static_cast<std::uint8_t>(p.halfmove)});
     return bestScore;
 }
 
@@ -2394,9 +2298,9 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     RootSearch root;
     root.candidates.reserve(moves.size());
     {
-        bool found=false;
-        const auto& entry=probeTranspositionTable(positionKey(p),found);
-        const Move preferred=found?unpackTranspositionMove(p,entry.bestMove):Move{};
+        const auto* entry=findTranspositionEntry(positionKey(p));
+        const Move preferred=entry&&entry->depth!=QSCOUT_TT_DEPTH
+            ?unpackTranspositionMove(p,entry->bestMove):Move{};
         MovePicker initialPicker(p,moves,preferred,0);
         for(std::size_t index=0;index<moves.size();++index)
             root.candidates.push_back({initialPicker.next()});

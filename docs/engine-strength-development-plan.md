@@ -442,6 +442,12 @@ The full search learns which quiet moves work after the opponent's last move and
 
 A quiet move that causes a beta cutoff gains history. Quiet alternatives that were searched before it lose history. The bounded history adjusts quiet move ordering and late-move reductions in the full descendant search. A null move ends the available context. Prunex halves the scores before a new root search and clears them on a new game.
 
+## Transposition table
+
+`src/transposition_table.hpp` owns Prunex’s two-entry hash buckets, lookup, replacement, resizing and occupancy reporting. Full search looks up a move when it enters a position and selects the storage slot after the child searches return. A deeper entry for the same key from the current generation takes priority over a shallower write.
+
+Each full-search entry records the halfmove clock in the existing 16-byte layout. A move hint can still guide ordering when the clocks differ. Returning a cached score or using a cached bound for a cutoff requires matching clocks and sufficient search depth. Quiescence scout entries keep their existing eligibility and full-search replacement restrictions.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
