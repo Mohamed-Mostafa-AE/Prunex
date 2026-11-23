@@ -1167,5 +1167,38 @@ int main() {
     if(!setPosition(position,"position startpos moves g1f3 g8f6 e2e4",&gameHistory)
         ||!gameHistory.empty()) return 215;
 
+    // A repeated tactical scout can return its bound without replaying the capture.
+    if(!loadFen(position,"4k3/8/3p4/4P3/8/8/1P6/4K3 w - - 0 1")) return 216;
+    const int scoutAlpha=evaluate(position)+800;
+    const auto probeScout=[&](int alpha,int width,int qply) {
+        nodes=0;
+        return quiescence(position,alpha,alpha+width,qply,1);
+    };
+    if(probeScout(scoutAlpha,1,0)!=scoutAlpha||nodes<=1) return 217;
+    if(probeScout(scoutAlpha,1,0)!=scoutAlpha||nodes!=1||ttHits!=1) return 218;
+    probeScout(scoutAlpha+1,1,0);
+    if(nodes<=1) return 219;
+    probeScout(scoutAlpha,2,0);
+    if(nodes<=1) return 220;
+    probeScout(scoutAlpha,1,1);
+    if(nodes<=1) return 221;
+    ++ttGeneration;
+    probeScout(scoutAlpha,1,0);
+    if(nodes<=1) return 222;
+    const int raw=evaluate(position);
+    updatePawnCorrection(position,raw,raw+160,8,TT_EXACT);
+    if(probeScout(scoutAlpha,1,0)!=scoutAlpha||nodes<=1) return 223;
+    if(probeScout(scoutAlpha,1,0)!=scoutAlpha||nodes!=1) return 224;
+    position.halfmove=1;
+    probeScout(scoutAlpha,1,0);
+    if(nodes<=1) return 225;
+
+    resetSearchState();
+    position.halfmove=0;
+    const int stand=evaluate(position);
+    const int wonCapture=probeScout(stand,1,0);
+    if(wonCapture<=stand||nodes<=1) return 226;
+    if(probeScout(stand,1,0)!=wonCapture||nodes!=1||ttHits!=1) return 227;
+
     return 0;
 }

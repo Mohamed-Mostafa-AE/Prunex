@@ -1,8 +1,8 @@
-name: HalfKP king refresh cache vs Stockfish 19 Full
+name: Quiescence scout bounds vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/halfkp-king-refresh-cache']
+    branches: ['experiment/quiescence-scout-bounds']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

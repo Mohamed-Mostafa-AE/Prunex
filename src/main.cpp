@@ -989,6 +989,7 @@ constexpr int PAWN_CORRECTION_BITS=13;
 constexpr int PAWN_CORRECTION_UNIT=16;
 constexpr int PAWN_CORRECTION_LIMIT=160;
 std::array<std::array<std::int16_t,1U<<PAWN_CORRECTION_BITS>,2> pawnCorrections{};
+std::uint64_t scoutCacheVersion=0;
 
 std::int16_t& pawnCorrection(const Position& p) {
     auto key=std::rotl(p.piecesBB[WHITE][1],23)^p.piecesBB[BLACK][1];
@@ -1011,7 +1012,10 @@ void updatePawnCorrection(const Position& p,int raw,int searched,int depth,Bound
     const int target=std::clamp(searched-raw,-PAWN_CORRECTION_LIMIT,PAWN_CORRECTION_LIMIT)
         *PAWN_CORRECTION_UNIT;
     const int weight=std::min(depth*2,16);
-    correction=static_cast<std::int16_t>(correction+(target-correction)*weight/128);
+    const auto updated=static_cast<std::int16_t>(correction+(target-correction)*weight/128);
+    if(correction/PAWN_CORRECTION_UNIT!=updated/PAWN_CORRECTION_UNIT)
+        ++scoutCacheVersion;
+    correction=updated;
 }
 
 std::uint64_t nodes=0;
@@ -1038,6 +1042,7 @@ void emitLine(const std::string& line) {
 void clearTranspositionTable() {
     for(auto& cluster:transpositionTable) cluster.fill(TTEntry{});
     pawnCorrections={};
+    scoutCacheVersion=0;
 }
 
 bool resizeTranspositionTable(int megabytes) {
@@ -1909,6 +1914,17 @@ bool isInsufficientMaterial(const Position& p) {
     return firstColorBishops==0||secondColorBishops==0;
 }
 
+constexpr int QSCOUT_TT_DEPTH=-2;
+
+void storeQuiescenceScout(std::uint64_t key,int score,Bound bound) {
+    if(std::abs(score)>=MATE-MAX_PLY) return;
+    bool found=false;
+    auto& entry=probeTranspositionTable(key,found);
+    // Tactics at the horizon must not displace the full-width search.
+    if(entry.bound!=TT_NONE&&entry.depth!=QSCOUT_TT_DEPTH) return;
+    entry={key,TT_NO_MOVE,static_cast<std::int16_t>(score),QSCOUT_TT_DEPTH,bound,ttGeneration};
+}
+
 int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     if(searchShouldStop()) return evaluate(p);
     ++nodes;
@@ -1927,12 +1943,30 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
 
     MoveList moves;
     int stand=0;
+    bool cacheable=false;
+    std::uint64_t scoutKey=0;
     if(checked) {
         moves=legalMoves(p,searchPly);
         if(moves.empty()) return -MATE+searchPly;
     } else {
         stand=correctedSearchEvaluation(p,evaluate(p));
         if(stand>=beta&&hasPawnPushOffKingRays(p)) return stand;
+
+        // Keep the window and corrected evaluations that produced the bound.
+        // Earlier repetition history is irrelevant after an irreversible move.
+        cacheable=stand<beta&&p.halfmove==0&&qply==0&&searchPly>0
+            &&searchPly<MAX_PLY-MAX_QPLY&&beta==alpha+1&&std::abs(beta)<MATE-MAX_PLY;
+        if(cacheable) {
+            scoutKey=key^0x2dc174c02826b637ULL
+                ^(static_cast<std::uint64_t>(beta)*0x9e3779b97f4a7c15ULL)
+                ^(scoutCacheVersion*0xbf58476d1ce4e5b9ULL);
+            bool found=false;
+            const auto& entry=probeTranspositionTable(scoutKey,found);
+            if(found&&entry.depth==QSCOUT_TT_DEPTH&&entry.generation==ttGeneration) {
+                ++ttHits;
+                return entry.score;
+            }
+        }
 
         // Quiet moves cannot improve a stand-pat search. Generate only
         // captures and promotions; test for stalemate separately when there
@@ -1950,6 +1984,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
     const bool deltaEligible=!checked&&alpha>=0&&alpha<MATE-MAX_PLY&&beta==alpha+1
         &&std::popcount(p.occupancy[WHITE]|p.occupancy[BLACK])>=16;
     MovePicker picker(p,moves,Move{},searchPly);
+    bool searched=false;
     while(true) {
         const Move move=picker.next();
         if(move.from<0) break;
@@ -1972,9 +2007,14 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
         undoMove(p,move,undo);
         if(searchAborted.load(std::memory_order_relaxed)) return 0;
-        if(score>=beta) return score;
+        searched=true;
+        if(score>=beta) {
+            if(cacheable) storeQuiescenceScout(scoutKey,score,TT_LOWER);
+            return score;
+        }
         if(score>alpha) alpha=score;
     }
+    if(cacheable&&searched) storeQuiescenceScout(scoutKey,alpha,TT_UPPER);
     return alpha;
 }
 
@@ -2056,7 +2096,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     bool ttFound=false;
     TTEntry& entry=probeTranspositionTable(key,ttFound);
     Move hashMove{};
-    if(ttFound) {
+    if(ttFound&&entry.depth!=QSCOUT_TT_DEPTH) {
         ++ttHits;
         hashMove=unpackTranspositionMove(p,entry.bestMove);
         if(entry.depth>=depth) {
@@ -2242,6 +2282,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
     if(searchTimeLimited) searchDeadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(timeLimitMs);
     ++ttGeneration;
     if(ttGeneration==0) ++ttGeneration;
+    ++scoutCacheVersion;
     for(auto& pair:killerMoves) pair={Move{},Move{}};
     for(auto& side:historyScores) for(auto& from:side) for(int& value:from) value/=2;
     nodes=0;
