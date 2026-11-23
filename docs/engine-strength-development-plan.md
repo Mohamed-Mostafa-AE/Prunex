@@ -177,6 +177,17 @@ An instrumented build sampled 34 Prunex positions from the 100 ms games, with a 
 
 The experiment requires the static score to reach beta before trying a null move and uses the same non-mate window as the other forward-pruning checks. It reuses the static score at shallow nodes. The match keeps the sparse HalfKP evaluator and repeats the four paired time limits against Stockfish 19 Full.
 
+Candidate `4b7c5451b9f589e42a230c446085661a29274386` completed 48 games on November 23, 2026. Each limit used the same six openings with colours reversed. Both engines used one thread, 128 MiB of hash, and the same logical CPU within each match shard. Stockfish used its official release binary, default network, and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 4 | 8 | 16.67% |
+| 250 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 500 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 1,000 ms | 12 | 1 | 2 | 9 | 16.67% |
+
+Stockfish finished ahead at every limit. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45088131817)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
