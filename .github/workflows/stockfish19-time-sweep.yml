@@ -1,8 +1,8 @@
-name: Adaptive aspiration vs Stockfish 19 Full
+name: Adaptive null probe depth vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/adaptive-aspiration']
+    branches: ['experiment/eval-gap-null-reduction']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'

@@ -1138,5 +1138,8 @@ int main() {
     if(aspirationHalfWidth(0)!=40||aspirationHalfWidth(81)!=80
         ||aspirationHalfWidth(400)!=160) return 208;
 
+    if(nullProbeExtraReduction(6,400)!=0||nullProbeExtraReduction(7,159)!=0
+        ||nullProbeExtraReduction(7,160)!=1||nullProbeExtraReduction(12,450)!=1) return 209;
+
     return 0;
 }

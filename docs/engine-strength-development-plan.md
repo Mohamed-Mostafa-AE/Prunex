@@ -362,6 +362,12 @@ On November 23, 2026, candidate `ab42e2b1475bfe6e56a5f11fe4e5203eff154952` compl
 
 Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45157678959)
 
+### Adaptive null-move probe depth
+
+A fixed-node diagnostic searched 31 positions from the adaptive aspiration campaign at 250,000 nodes per position. At depth 7 or deeper, 5,676 completed null probes started with a static evaluation at least 160 centipawns above beta. Of those, 4,475 reached beta before the existing verification check.
+
+The candidate reduces those speculative probes by one extra ply and keeps the verification search at its original depth. Shallower null probes use their original reduction. The candidate uses the calibrated HalfKP evaluator and the same four paired limits against Stockfish 19 Full.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

@@ -2039,6 +2039,10 @@ bool shouldPruneLosingCapture(
     return exchange < -80*depth;
 }
 
+constexpr int nullProbeExtraReduction(int depth,int staticMargin) {
+    return depth>=7&&staticMargin>=160?1:0;
+}
+
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true) {
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
@@ -2106,14 +2110,15 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         const int savedPathType=searchPathPieceTypes[ply];
         searchPathMoves[ply]=Move{};
         searchPathPieceTypes[ply]=0;
-        const int reduction=2+depth/4;
-        const int nullScore=-negamax(nullPosition,depth-1-reduction,-beta,-beta+1,ply+1,false,false);
+        const int verificationDepth=depth-1-(2+depth/4);
+        const int probeDepth=verificationDepth-nullProbeExtraReduction(depth,staticEval-beta);
+        const int nullScore=-negamax(nullPosition,probeDepth,-beta,-beta+1,ply+1,false,false);
         searchPathMoves[ply]=savedPathMove;
         searchPathPieceTypes[ply]=savedPathType;
         if(searchAborted.load(std::memory_order_relaxed)) return 0;
         if(nullScore>=beta) {
             if(depth<7) return nullScore;
-            const int verification=negamax(p,depth-1-reduction,beta-1,beta,ply,false,false);
+            const int verification=negamax(p,verificationDepth,beta-1,beta,ply,false,false);
             if(searchAborted.load(std::memory_order_relaxed)) return 0;
             if(verification>=beta) return nullScore;
         }
