@@ -454,6 +454,12 @@ Below the root, full search and quiescence restrict the score window to the mate
 
 The search uses one mate-score range for its full ply limit and keeps static evaluations below that range. Transposition entries store mate distances relative to the cached position and convert them back at lookup. A cached mate beyond the current search's ply range supplies a move hint only. A null-move probe must return an ordinary score to trigger its cutoff path.
 
+## Principal variation
+
+The root search retains the line from each completed depth. Full-window search and quiescence build it from legal moves that improve the score inside the search window. A failed aspiration attempt or an interruption leaves the previous completed line in place.
+
+At the next depth, a full-search descendant following that line's move sequence tries its next legal move ahead of the table's move hint. Full-search nodes building the line search for continuations themselves. Scouts still use cached bounds. UCI reports the completed line in `info ... pv`.
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.

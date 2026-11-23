@@ -23,7 +23,7 @@ flowchart TD
     J -- Yes --> R[Return cached score]
     J -- No --> K[Null-move pruning gate]
     K --> L[Generate legal moves]
-    L --> M[Order hash move / captures / promotions / killers / history]
+    L --> M[Order PV hint / hash move / captures / promotions / killers / history]
     M --> N[PVS recursive move loop]
     N --> O[First move: full window; later moves: null-window]
     O --> P[Late-move reduction; conditional re-search]
@@ -51,10 +51,10 @@ flowchart TD
 - **Null-move pruning:** available at non-PV nodes outside check, from depth 3, with sufficient non-pawn material and a beta bound outside the mate-score range. The static evaluation must reach beta before the search tries a pass. The base reduction is `R = 2 + depth / 4`. From depth 7, a probe uses one extra ply of reduction when the evaluation exceeds beta by at least 160 centipawns. Cutoffs starting at depth 7 require verification with null-move disabled, using the original reduction.
 - **PVS and reductions:** the first move receives a full-window search. Later moves receive a null-window search; quiet late moves may be reduced. A reduced move that improves alpha is re-searched at full child depth, and an in-window PV improvement is then re-searched with the full window.
 - **Reduction without a cached move:** at eligible non-PV scout nodes from depth 5, a missing transposition-table move reduces the node's remaining depth by one. The table records the reduced depth. The reduction requires the same material and score-window checks as forward pruning and is disabled during null-move verification.
-- **Move ordering:** a matching hash move is first; capture scores include static-exchange evaluation and victim/attacker values; promotions receive a priority bonus; quiet moves can be ordered by killer and history scores. Capture-promotions combine capture and promotion scoring.
+- **Move ordering:** a full-search descendant following the previous completed principal variation tries the next move in that line first. Otherwise, it tries a matching hash move first. Capture scores include static-exchange evaluation and victim/attacker values. Promotions receive a priority bonus, and killer and history scores help order quiet moves. Capture-promotions combine capture and promotion scoring.
 - **Quiescence:** outside check, a stand-pat score reaching beta can cut off before capture and promotion generation when a pawn push off the king's rays proves legality. Other positions retain tactical generation and the stalemate check. The quiescence-ply cap of 18 applies outside check. In check, the search examines legal evasions and detects checkmate.
 - **Evaluation:** a handcrafted tapered middlegame/endgame evaluator, blended by material phase (capped at 24). Terms include material, activity/centralization, pawn advancement, doubled/isolated/passed/connected pawns, bishop pair, king shelter, and rook-file bonuses.
-- **UCI observability:** completed iterations report depth, centipawn score, nodes, NPS, TT hits, hash fullness, and a `pv` field. In the current implementation that field contains the **root best move only**, not a multi-move principal-variation line; the final response emits `bestmove`.
+- **UCI observability:** completed iterations report depth, centipawn score, nodes, NPS, TT hits, hash fullness, and the searched principal variation in `pv`. The final response emits `bestmove`.
 
 ## Generate the diagram
 

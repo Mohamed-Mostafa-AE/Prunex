@@ -123,7 +123,7 @@ def build():
     arrow([(1530,1530),(1550,1530),(1550,735),(1530,735)],"green",None,None,True,2)
 
     # Completed iteration / UCI layer
-    panel(690,1590,1450,72,"COMPLETED ITERATION  /  UCI OBSERVABILITY",["info depth · score cp · nodes · NPS · TT hits · hashfull · pv field (root best move only) · final response: bestmove"],"green","RUNTIME OUTPUT","small")
+    panel(690,1590,1450,72,"COMPLETED ITERATION  /  UCI OBSERVABILITY",["info depth · score cp · nodes · NPS · TT hits · hashfull · pv (searched line) · final response: bestmove"],"green","RUNTIME OUTPUT","small")
     arrow([(1110,1580),(1110,1590)],"green")
     arrow([(2040,1625),(2160,1625),(2160,235),(1380,235),(1380,270)],"green",None,None,True,2)
     text(60,1690,"SOURCE MAP · src/main.cpp: qsearch 589–628 | negamax / TT / pruning 653–752 | root iteration 755–807 | evaluation 432–563","foot")

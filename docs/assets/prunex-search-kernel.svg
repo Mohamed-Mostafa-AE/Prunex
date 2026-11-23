@@ -102,7 +102,7 @@ text{font-family:Inter,Segoe UI,Arial,sans-serif}.bg{fill:#07111f}.grid{fill:url
 <path class="line lg" d="M1530 1535H1550V735H1530" stroke-width="2" stroke-dasharray="8 7" marker-end="url(#aG)"/>
 <rect class="panel" x="690" y="1590" width="1450" height="72" rx="16"/><rect class="green" x="690" y="1590" width="7" height="72" rx="3"/>
 <text class="p" x="713" y="1624">COMPLETED ITERATION / UCI OBSERVABILITY</text><text class="tag green" x="2120" y="1621" text-anchor="end">RUNTIME OUTPUT</text>
-<text class="s" x="713" y="1652">info depth · score cp · nodes · NPS · TT hits · hashfull · pv field (root best move only) · final response: bestmove</text>
+<text class="s" x="713" y="1652">info depth · score cp · nodes · NPS · TT hits · hashfull · pv (searched line) · final response: bestmove</text>
 <path class="line lg" d="M1110 1577V1590" marker-end="url(#aG)"/><path class="line lg" d="M2040 1625H2160V235H1380V270" stroke-width="2" stroke-dasharray="8 7" marker-end="url(#aG)"/>
 <text class="s" x="60" y="1690">SOURCE MAP · src/main.cpp: qsearch 589–628 · negamax / TT / pruning 653–752 · root iteration 755–807 · evaluation 432–563</text>
 <text class="s" x="2140" y="1690" text-anchor="end">SOURCE-LEVEL VIEW · NOT A RUNTIME TRACE</text>

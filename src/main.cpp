@@ -1868,13 +1868,42 @@ bool isInsufficientMaterial(const Position& p) {
     return firstColorBishops==0||secondColorBishops==0;
 }
 
+struct PrincipalVariation {
+    using Line=std::array<Move,MAX_PLY>;
+    std::vector<Line> lines=std::vector<Line>(MAX_PLY);
+    std::array<std::size_t,MAX_PLY> lengths{};
+    Line previous{};
+    std::size_t previousLength=0;
+
+    void clear(int ply) { lengths[ply]=0; }
+
+    void prepend(int ply,const Move& move) {
+        auto& line=lines[ply];
+        const std::size_t childLength=lengths[ply+1];
+        line.front()=move;
+        std::copy_n(lines[ply+1].begin(),childLength,line.begin()+1);
+        lengths[ply]=childLength+1;
+    }
+
+    Move previousMove(int ply) const {
+        return static_cast<std::size_t>(ply)<previousLength?previous[ply]:Move{};
+    }
+
+    void completeIteration() {
+        previousLength=lengths[0];
+        std::copy_n(lines[0].begin(),previousLength,previous.begin());
+    }
+};
+
 void storeQuiescenceScout(std::uint64_t key,int score,Bound bound) {
     if(std::abs(score)>=MATE_SCORE_MIN) return;
     storeTranspositionEntry({key,TT_NO_MOVE,static_cast<std::int16_t>(score),
                              QSCOUT_TT_DEPTH,bound,ttGeneration});
 }
 
-int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
+int quiescence(Position& p,int alpha,int beta,int qply,int searchPly,
+               PrincipalVariation* variation=nullptr) {
+    if(variation) variation->clear(searchPly);
     if(searchShouldStop()) return evaluate(p);
     ++nodes;
     if(searchPly>=MAX_PLY-1) return evaluate(p);
@@ -1904,7 +1933,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
 
         // Keep the window and corrected evaluations that produced the bound.
         // Earlier repetition history is irrelevant after an irreversible move.
-        cacheable=stand<beta&&p.halfmove==0&&qply==0&&searchPly>0
+        cacheable=!variation&&stand<beta&&p.halfmove==0&&qply==0&&searchPly>0
             &&searchPly<MAX_PLY-MAX_QPLY&&beta==alpha+1&&std::abs(beta)<MATE_SCORE_MIN;
         if(cacheable) {
             scoutKey=key^0x2dc174c02826b637ULL
@@ -1953,7 +1982,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
             undoMove(p,move,undo);
             continue;
         }
-        const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1);
+        const int score=-quiescence(p,-beta,-alpha,qply+1,searchPly+1,variation);
         undoMove(p,move,undo);
         if(searchAborted.load(std::memory_order_relaxed)) return 0;
         searched=true;
@@ -1961,7 +1990,10 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
             if(cacheable) storeQuiescenceScout(scoutKey,score,TT_LOWER);
             return score;
         }
-        if(score>alpha) alpha=score;
+        if(score>alpha) {
+            if(variation) variation->prepend(searchPly,move);
+            alpha=score;
+        }
     }
     if(cacheable&&searched) storeQuiescenceScout(scoutKey,alpha,TT_UPPER);
     return alpha;
@@ -2041,7 +2073,8 @@ struct RootSearch {
 };
 
 int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool allowNullMove=true,
-            RootSearch* root=nullptr) {
+            RootSearch* root=nullptr,PrincipalVariation* variation=nullptr,bool followsPrevious=false) {
+    if(variation) variation->clear(ply);
     if(searchAborted) return 0;
     if(ply>=MAX_PLY-1) return evaluate(p);
     bool checked=inCheck(p,p.side);
@@ -2055,7 +2088,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         const auto evasions=legalMoves(p,ply);
         return evasions.empty()?matedAtPly(ply):0;
     }
-    if(depth<=0) return quiescence(p,alpha,beta,0,ply);
+    if(depth<=0) return quiescence(p,alpha,beta,0,ply,variation);
     if(searchShouldStop()) return evaluate(p);
     ++nodes;
     if(const auto bound=narrowMateWindow(ply,alpha,beta)) return *bound;
@@ -2065,7 +2098,7 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
        entry&&entry->depth!=QSCOUT_TT_DEPTH) {
         ++ttHits;
         hashMove=unpackTranspositionMove(p,entry->bestMove);
-        if(entry->depth>=depth&&entry->halfmove==p.halfmove) {
+        if(!variation&&entry->depth>=depth&&entry->halfmove==p.halfmove) {
             const int ttScore=scoreFromTable(entry->score,ply);
             // A mate cached closer to the root can lie beyond the ply limit here.
             if(!isMateScore(entry->score)||std::abs(ttScore)>-matedAtPly(MAX_PLY-1)) {
@@ -2134,10 +2167,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
     std::optional<MovePicker> picker;
     Move bestMove{};
     const auto continuation=quietContinuation(p.side,ply);
+    const Move previousMove=variation&&followsPrevious?variation->previousMove(ply):Move{};
     if(!root) {
         const auto moves=legalMoves(p,ply);
         if(moves.empty()) return checked?matedAtPly(ply):0;
-        picker.emplace(p,moves,hashMove,ply,continuation);
+        picker.emplace(p,moves,previousMove.from>=0?previousMove:hashMove,ply,continuation);
         bestMove=moves.front();
     }
     auto& nodeScratch=moveScratch[ply];
@@ -2178,9 +2212,11 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
 
         nodeScratch.searched[nodeScratch.searchedCount++]=m;
         int childDepth=depth-1;
+        const bool followsPreviousChild=previousMove.from>=0&&sameMove(m,previousMove);
         int score;
         if(moveNumber==0) {
-            score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode);
+            score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode,true,nullptr,
+                           variation,followsPreviousChild);
         } else {
             int reduction=0;
             if(!checked&&!givesCheck&&quiet&&depth>=3&&moveNumber>=3) {
@@ -2195,7 +2231,10 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             }
             score=-negamax(p,childDepth-reduction,-alpha-1,-alpha,ply+1,false);
             if(score>alpha&&reduction>0) score=-negamax(p,childDepth,-alpha-1,-alpha,ply+1,false);
-            if(score>alpha&&score<beta) score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode);
+            if(score>alpha&&score<beta) {
+                score=-negamax(p,childDepth,-beta,-alpha,ply+1,pvNode,true,nullptr,
+                               variation,followsPreviousChild);
+            }
         }
         undoMove(p,m,undo);
         if(searchAborted) return 0;
@@ -2205,7 +2244,10 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
             bestScore=score;
             bestMove=m;
         }
-        if(score>alpha) alpha=score;
+        if(score>alpha) {
+            if(variation&&score<beta) variation->prepend(ply,m);
+            alpha=score;
+        }
         if(alpha>=beta) {
             if(quiet&&ply<MAX_PLY) {
                 const int historyBonus=std::min(2048,depth*depth*16);
@@ -2297,6 +2339,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         for(std::size_t index=0;index<moves.size();++index)
             root.candidates.push_back({initialPicker.next()});
     }
+    PrincipalVariation variation;
     int previousScore=0;
     int previousSwing=0;
     const auto start=std::chrono::steady_clock::now();
@@ -2309,7 +2352,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         while(true) {
             root.passBest=Move{};
             for(auto& candidate:root.candidates) candidate.nodesSpent=0;
-            score=negamax(p,currentDepth,alpha,beta,0,true,true,&root);
+            score=negamax(p,currentDepth,alpha,beta,0,true,true,&root,&variation,true);
             if(searchAborted.load(std::memory_order_relaxed)) break;
             if(score<=alpha&&alpha>-INF) {
                 window=std::min(INF,window*2);
@@ -2327,6 +2370,7 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         }
         if(searchAborted.load(std::memory_order_relaxed)) break;
         if(root.passBest.from>=0) best=root.passBest;
+        variation.completeIteration();
         // Keep the winner first, then favor alternatives that took more work.
         std::stable_sort(root.candidates.begin(),root.candidates.end(),
             [](const RootCandidate& a,const RootCandidate& b){return a.nodesSpent>b.nodesSpent;});
@@ -2337,7 +2381,10 @@ Move findBestMove(Position p,int depth,std::int64_t timeLimitMs=-1,std::uint64_t
         completedSearchDepth=currentDepth;
         auto elapsed=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-start).count();
         std::ostringstream info;
-        info<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv "<<moveUci(best);
+        info<<"info depth "<<currentDepth<<" score cp "<<score<<" nodes "<<nodes<<" nps "<<(elapsed>0?nodes*1000/static_cast<std::uint64_t>(elapsed):0)<<" tthits "<<ttHits<<" hashfull "<<hashFullPermille()<<" pv";
+        if(variation.previousLength==0) info<<' '<<moveUci(best);
+        for(std::size_t ply=0;ply<variation.previousLength;++ply)
+            info<<' '<<moveUci(variation.previous[ply]);
         emitLine(info.str());
     }
     const auto finalElapsed=std::chrono::duration_cast<std::chrono::milliseconds>(
