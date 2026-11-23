@@ -419,6 +419,17 @@ An instrumented depth-10 replay of 20 positions from the king-square cache campa
 
 The cache records a bound only after searching a tactical move. Its key includes the scout window and a version that changes at the start of a root search and whenever a pawn correction changes a search evaluation. Bounds are reused within the current root search. They use the configured transposition table's empty or quiescence slots, leaving full-search entries in place. Mate scores and draw adjudication follow the existing paths. [Source games](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45176387824)
 
+Candidate `a0f6f775dc402099fe80d4b2acba4af9ae2989b4` played 48 games on November 23, 2026, with six color-reversed opening pairs per time limit. Both engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. The official Stockfish 19 Full binary used its default network and maximum skill.
+
+| Time per move | Prunex wins | Draws | Losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: |
+| 100 ms | 1 | 1 | 10 | 12.50% |
+| 250 ms | 0 | 0 | 12 | 0.00% |
+| 500 ms | 1 | 2 | 9 | 16.67% |
+| 1,000 ms | 0 | 4 | 8 | 16.67% |
+
+Stockfish led at all four limits. [Verified match evidence](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45184034080)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
