@@ -1095,5 +1095,23 @@ int main() {
     quiescence(position,-INF,INF,1,0);
     if(nodes!=1) return 191;
 
+    // Corrections follow the pawn structure and side, and heed the score bound.
+    if(!loadFen(position,START_FEN)) return 195;
+    resetSearchState();
+    updatePawnCorrection(position,100,200,8,TT_LOWER);
+    if(correctedSearchEvaluation(position,100)!=112) return 196;
+    updatePawnCorrection(position,100,110,8,TT_LOWER);
+    updatePawnCorrection(position,100,120,8,TT_UPPER);
+    updatePawnCorrection(position,100,MATE-1,8,TT_EXACT);
+    if(correctedSearchEvaluation(position,100)!=112) return 197;
+
+    Position samePawns;
+    if(!loadFen(samePawns,"rnbqkb1r/pppppppp/5n2/8/8/5N2/PPPPPPPP/RNBQKB1R w KQkq - 2 2")
+        ||correctedSearchEvaluation(samePawns,100)!=112) return 198;
+    if(!loadFen(samePawns,"rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq - 1 1")
+        ||correctedSearchEvaluation(samePawns,100)!=100) return 199;
+    clearTranspositionTable();
+    if(correctedSearchEvaluation(position,100)!=100) return 200;
+
     return 0;
 }

@@ -983,6 +983,36 @@ constexpr int quietHistoryUpdate(int score,int target,int weight) {
     // A consistent result tells us less when the history already predicts it.
     return score+(target-score)*weight/QUIET_HISTORY_LIMIT;
 }
+
+constexpr int PAWN_CORRECTION_BITS=13;
+constexpr int PAWN_CORRECTION_UNIT=16;
+constexpr int PAWN_CORRECTION_LIMIT=160;
+std::array<std::array<std::int16_t,1U<<PAWN_CORRECTION_BITS>,2> pawnCorrections{};
+
+std::int16_t& pawnCorrection(const Position& p) {
+    auto key=std::rotl(p.piecesBB[WHITE][1],23)^p.piecesBB[BLACK][1];
+    key=(key^(key>>31))*0x9e3779b97f4a7c15ULL;
+    const auto bucket=static_cast<std::size_t>(key>>(64-PAWN_CORRECTION_BITS));
+    return pawnCorrections[p.side][bucket];
+}
+
+int correctedSearchEvaluation(const Position& p,int raw) {
+    const int estimate=raw+pawnCorrection(p)/PAWN_CORRECTION_UNIT;
+    return std::clamp(estimate,-MATE+1000,MATE-1000);
+}
+
+void updatePawnCorrection(const Position& p,int raw,int searched,int depth,Bound bound) {
+    if(std::abs(searched)>=MATE-MAX_PLY) return;
+    auto& correction=pawnCorrection(p);
+    const int estimate=correctedSearchEvaluation(p,raw);
+    // A bound supplies evidence only when the estimate falls outside it.
+    if((bound==TT_LOWER&&searched<=estimate)||(bound==TT_UPPER&&searched>=estimate)) return;
+    const int target=std::clamp(searched-raw,-PAWN_CORRECTION_LIMIT,PAWN_CORRECTION_LIMIT)
+        *PAWN_CORRECTION_UNIT;
+    const int weight=std::min(depth*2,16);
+    correction=static_cast<std::int16_t>(correction+(target-correction)*weight/128);
+}
+
 std::uint64_t nodes=0;
 int lastSearchScore=0;
 int completedSearchDepth=0;
@@ -1006,6 +1036,7 @@ void emitLine(const std::string& line) {
 
 void clearTranspositionTable() {
     for(auto& cluster:transpositionTable) cluster.fill(TTEntry{});
+    pawnCorrections={};
 }
 
 bool resizeTranspositionTable(int megabytes) {
@@ -1907,7 +1938,7 @@ int quiescence(Position& p,int alpha,int beta,int qply,int searchPly) {
         moves=legalMoves(p,searchPly);
         if(moves.empty()) return -MATE+searchPly;
     } else {
-        const int stand=evaluate(p);
+        const int stand=correctedSearchEvaluation(p,evaluate(p));
         if(stand>=beta&&hasPawnPushOffKingRays(p)) return stand;
 
         // Quiet moves cannot improve a stand-pat search. Generate only
@@ -2034,7 +2065,9 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         &&beta>-MATE+100&&beta<MATE-100&&hasNullMoveMaterial(p);
     const bool shallowPruning=safeForForwardPruning&&depth<=6;
     const bool nullMoveEligible=safeForForwardPruning&&allowNullMove&&depth>=3;
-    const int staticEval=(shallowPruning||nullMoveEligible)?evaluate(p):0;
+    const bool hasStaticEval=shallowPruning||nullMoveEligible;
+    const int rawStaticEval=hasStaticEval?evaluate(p):0;
+    const int staticEval=hasStaticEval?correctedSearchEvaluation(p,rawStaticEval):0;
 
     if(shallowPruning) {
         // Keep a wide margin at shallow nodes. The legal-move check preserves
@@ -2175,6 +2208,8 @@ int negamax(Position& p,int depth,int alpha,int beta,int ply,bool pvNode,bool al
         }
     }
     Bound bound=bestScore<=originalAlpha?TT_UPPER:(bestScore>=beta?TT_LOWER:TT_EXACT);
+    if(hasStaticEval&&allowNullMove&&depth>=2&&!isCapture(p,bestMove)&&!bestMove.promotion)
+        updatePawnCorrection(p,rawStaticEval,bestScore,depth,bound);
     if(!ttFound||entry.key!=key||entry.generation!=ttGeneration||depth>=entry.depth) {
         entry.key=key;
         entry.bestMove=packTranspositionMove(bestMove);

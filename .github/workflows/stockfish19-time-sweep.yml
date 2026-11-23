@@ -1,8 +1,8 @@
-name: Deferred capture ordering vs Stockfish 19 Full
+name: Pawn correction history vs Stockfish 19 Full
 
 on:
   push:
-    branches: ['experiment/deferred-capture-ordering']
+    branches: ['experiment/pawn-correction-history']
     paths:
       - 'src/**'
       - 'CMakeLists.txt'
