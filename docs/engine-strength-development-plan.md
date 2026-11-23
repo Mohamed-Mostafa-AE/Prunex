@@ -332,6 +332,17 @@ An instrumented build searched 35 positions from the pawn-correction campaign at
 
 The candidate skips those captures when stand-pat plus the estimated gain falls short of alpha. The filter applies outside check, with at least 16 pieces on the board and a nonnegative, non-mate scout window. Checking captures, promotions, wider windows, and sparse endgames are exempt. The four-speed test retains the calibrated HalfKP evaluator and compares only against Stockfish 19 Full.
 
+On November 23, 2026, candidate `0f421e965978a79ccaf7f18a8d1154082e6dcd4e` completed 48 games. Each limit used six openings played from both sides. The engines used one thread, 128 MiB of hash, and the same logical CPU within each shard. Stockfish 19 Full used its official binary, default network, and maximum skill.
+
+| Time per move | Games | Prunex wins | Draws | Prunex losses | Prunex score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 ms | 12 | 0 | 1 | 11 | 4.17% |
+| 250 ms | 12 | 0 | 3 | 9 | 12.50% |
+| 500 ms | 12 | 0 | 6 | 6 | 25.00% |
+| 1,000 ms | 12 | 0 | 6 | 6 | 25.00% |
+
+Stockfish 19 Full led at all four limits. [GitHub Actions match artifacts](https://github.com/Mohamed-Mostafa-AE/Prunex/actions/runs/45151880594)
+
 ## Provenance and licensing
 
 Prunex engine source and network format are original project work. The offline tools that use GPL-licensed python-chess are separately marked under GPL-3.0-or-later. The Lichess evaluation archive is CC0. Record every dataset source and license. Do not copy GPL-licensed source or pretrained Stockfish/PlentyChess weights into the MIT-licensed native engine.
