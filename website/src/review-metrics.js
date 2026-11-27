@@ -19,7 +19,8 @@ export function evaluationCalibrationStatus(searchBudgetMs = null) {
     evaluationCalibration.engineRuntime === "webassembly" &&
     evaluationCalibration.wasmApiVersion === 800;
   const budgetMatches = artifactTrained &&
-    (searchBudgetMs == null || searchBudgetMs === evaluationCalibration.searchBudgetMs);
+    Number.isInteger(searchBudgetMs) &&
+    searchBudgetMs === evaluationCalibration.searchBudgetMs;
   return Object.freeze({
     trained: budgetMatches,
     artifactTrained,
