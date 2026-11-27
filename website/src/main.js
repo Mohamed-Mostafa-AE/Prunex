@@ -845,6 +845,18 @@ function renderReviewSummary(analysis,
     .filter(value => Number.isInteger(value) && value > 0))];
   const calibrationBudget = reviewBudgets.length === 1 ? reviewBudgets[0] : null;
   const calibration = evaluationCalibrationStatus(calibrationBudget);
+  if (calibration.trained) {
+    reviewMethodNote.textContent = "Expected-points estimates use a Prunex WebAssembly calibration trained on " +
+      calibration.trainingGames + " games and independently checked on validation and test games at " +
+      calibration.searchBudgetMs + "ms per position.";
+  } else if (calibration.artifactTrained) {
+    reviewMethodNote.textContent = "Provisional for this saved analysis: the accepted calibration requires " +
+      calibration.searchBudgetMs + "ms searches, but these positions have mixed or missing search-budget metadata. " +
+      "No calibrated curve is applied.";
+  } else {
+    reviewMethodNote.textContent = "Provisional expected-points estimate: no Prunex WebAssembly calibration corpus has been accepted yet. " +
+      "The percentage is an experimental expected-points-retention metric, not verified chess accuracy or an Elo rating.";
+  }
   const playerCard = (color, accuracy) => {
     const card = document.createElement("div");
     card.className = "review-player";
