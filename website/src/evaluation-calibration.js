@@ -19,5 +19,7 @@ export const evaluationCalibration = Object.freeze({
   searchBudgetMs: null,
   engineVersion: null,
   engineSha256: null,
+  engineRuntime: null,
+  wasmApiVersion: null,
   trained: false
 });
