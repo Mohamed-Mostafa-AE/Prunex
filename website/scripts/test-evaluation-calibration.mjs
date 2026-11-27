@@ -26,6 +26,7 @@ for (let game = 0; game < 40; game += 1) {
       scoreCp,
       result,
       scorePov: "side_to_move",
+      label_kind: "observed_game_result_and_played_move",
       engineVersion: "Prunex synthetic test fixture",
       engineSha256: "a".repeat(64),
       searchBudgetMs: 15000
