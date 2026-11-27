@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync, mkdirSync, renameSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, mkdirSync, renameSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -189,13 +189,8 @@ export async function runAnnotation(options) {
   if (!options.input || !options.output) {
     throw new Error("--input and --output are required.");
   }
-  if (!options.overwrite) {
-    try {
-      readFileSync(options.output);
-      throw new Error("Output already exists; choose another path or pass --overwrite.");
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
+  if (!options.overwrite && existsSync(options.output)) {
+    throw new Error("Output already exists; choose another path or pass --overwrite.");
   }
   const rows = readJsonl(options.input);
   const annotator = await createWasmAnnotator({
