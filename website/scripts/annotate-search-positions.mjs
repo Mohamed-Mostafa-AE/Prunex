@@ -60,7 +60,7 @@ export async function createWasmAnnotator({
   const commonJsModule = { exports: {} };
   const source = readFileSync(jsPath, "utf8");
   const evaluateBundle = runInThisContext(
-    "(function(exports, require, module, __filename, __dirname) {\\n" + source + "\\n})",
+    "(function(exports, require, module, __filename, __dirname) {\n" + source + "\n})",
     { filename: jsPath }
   );
   evaluateBundle(commonJsModule.exports, require, commonJsModule, jsPath, dirname(jsPath));
