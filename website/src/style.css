@@ -1395,10 +1395,16 @@ img, svg, video, canvas { max-width: 100%; }
 
 
 /* The primary title is essential content, not scroll-triggered decoration. */
-#home .hero-copy > h1 {
+#home .hero-copy > .hero-title {
+  display:block !important;
+  visibility:visible !important;
   clip-path:none !important;
   opacity:1 !important;
   transform:none !important;
+  color:var(--ink) !important;
+}
+#home .hero-copy > .hero-title span {
+  color:var(--blue) !important;
 }
 
 /* Prevent sticky mobile navigation from covering the benchmark section on anchor/scroll navigation. */
