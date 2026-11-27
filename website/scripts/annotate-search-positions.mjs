@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, mkdirSync, renameSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import os from "node:os";
 
 const API_ERROR = -2147483648;
 const DEFAULT_ENGINE_JS = fileURLToPath(new URL("../public/engine/prunex-wasm.js", import.meta.url));
@@ -209,11 +208,11 @@ export async function runAnnotation(options) {
     maxPositions: options.maxPositions
   });
   const directory = dirname(options.output);
+  mkdirSync(directory, { recursive: true });
   const tempDirectory = mkdtempSync(resolve(directory, ".prunex-annotation-"));
   const tempPath = resolve(tempDirectory, "annotated.jsonl");
   try {
     writeFileSync(tempPath, result.map(row => JSON.stringify(row)).join("\n") + "\n", { encoding: "utf8" });
-    const { renameSync } = await import("node:fs");
     renameSync(tempPath, options.output);
   } finally {
     rmSync(tempDirectory, { recursive: true, force: true });
