@@ -59,6 +59,7 @@ const reviewProgressLabel = $("#review-progress-label");
 const reviewDepth = $("#review-depth");
 const reviewSummary = $("#review-summary");
 const reviewKeyMoments = $("#review-key-moments");
+const rerunReviewButton = $("#rerun-game-review");
 const archiveCount = $("#game-archive-count");
 const archiveList = $("#game-archive-list");
 const archiveNote = $("#game-archive-note");
@@ -462,7 +463,12 @@ function openArchivedGame(record) {
   reviewMovesSnapshot = record.moves;
   reviewPly = record.moves.length;
   reviewRequiresFork = true;
-  moveAnalysis = Array.isArray(record.analysis) ? record.analysis : [];
+  const storedAnalysis = Array.isArray(record.analysis) ? record.analysis : [];
+  const hasCurrentReview = record.reviewMetricVersion === 2 &&
+    storedAnalysis.length === Math.min(record.moves.length, MAX_REVIEW_PLIES) &&
+    storedAnalysis.every(item => item.reviewMetricVersion === 2);
+  moveAnalysis = hasCurrentReview ? storedAnalysis : [];
+  rerunReviewButton.hidden = false;
   lastMove = record.moves.length
     ? { from: record.moves[record.moves.length - 1].from, to: record.moves[record.moves.length - 1].to }
     : null;
@@ -471,7 +477,9 @@ function openArchivedGame(record) {
   gameReviewPanel.hidden = false;
   if (moveAnalysis.length) renderReviewSummary(moveAnalysis, record.whiteAccuracy, record.blackAccuracy);
   else {
-    reviewSummary.textContent = "This archived game has not been analyzed yet.";
+    reviewSummary.textContent = storedAnalysis.length
+      ? "This saved review uses an earlier scoring method. Reanalyze the game to refresh its move grades and expected-points metric."
+      : "This archived game has not been analyzed yet. Reanalyze it to generate a review.";
     reviewKeyMoments.replaceChildren();
   }
   render();
@@ -481,6 +489,7 @@ async function saveReviewedGame() {
   if (!currentArchiveRecord || !moveAnalysis.length) return;
   const record = {
     ...currentArchiveRecord,
+    reviewMetricVersion: 2,
     analysis: moveAnalysis,
     whiteAccuracy: reviewAccuracy("w", moveAnalysis),
     blackAccuracy: reviewAccuracy("b", moveAnalysis)
@@ -832,7 +841,10 @@ function renderReviewSummary(analysis,
   whiteAccuracy = reviewAccuracy("w", analysis),
   blackAccuracy = reviewAccuracy("b", analysis)) {
   reviewSummary.replaceChildren();
-  const calibration = evaluationCalibrationStatus(reviewBudgetMs);
+  const reviewBudgets = [...new Set(analysis.map(item => item.searchBudgetMs)
+    .filter(value => Number.isInteger(value) && value > 0))];
+  const calibrationBudget = reviewBudgets.length === 1 ? reviewBudgets[0] : null;
+  const calibration = evaluationCalibrationStatus(calibrationBudget);
   const playerCard = (color, accuracy) => {
     const card = document.createElement("div");
     card.className = "review-player";
@@ -931,6 +943,7 @@ function analyzeCurrentGame() {
 
   cancelSearch();
   analyzingGame = true;
+  rerunReviewButton.disabled = true;
   evaluating = false;
   thinking = false;
   moveAnalysis = [];
@@ -966,8 +979,11 @@ function startGameReview() {
   }));
   reviewPly = history.length;
   gameReviewPanel.hidden = false;
-  if (moveAnalysis.length && moveAnalysis.length === history.length) {
+  const expectedReviewLength = Math.min(history.length, MAX_REVIEW_PLIES);
+  if (moveAnalysis.length === expectedReviewLength &&
+      moveAnalysis.every(item => item.reviewMetricVersion === 2)) {
     renderReviewSummary(moveAnalysis);
+    rerunReviewButton.disabled = false;
     render();
     return;
   }
@@ -1028,6 +1044,7 @@ async function completeGameReview(results) {
       expectedPointLoss: classification.expectedPointLoss ?? pointLoss,
       lossCp: classification.lossCp,
       grade: classification.grade,
+      reviewMetricVersion: 2,
       engineBestMatches,
       searchComplete: canScoreMove,
       depth: beforeSearchComplete ? beforeResult.depth : 0,
@@ -1040,6 +1057,7 @@ async function completeGameReview(results) {
 
   moveAnalysis = scored;
   analyzingGame = false;
+  rerunReviewButton.disabled = false;
   reviewProgress.hidden = false;
   reviewProgressFill.style.width = "100%";
   const depths = scored.map(item => item.depth).filter(value => value > 0);
@@ -1626,6 +1644,7 @@ async function handleWorkerMessage(event) {
     if (analyzingGame) {
       analyzingGame = false;
       evaluating = false;
+      rerunReviewButton.disabled = false;
       console.warn("The browser engine could not finish this game review.", data.message);
       reviewProgressLabel.textContent = "Review couldn't finish. You can try again.";
       reviewSummary.textContent = "The engine could not finish this review. You can try again.";
@@ -1694,6 +1713,10 @@ moveLastButton.addEventListener("click", () => goToPly(reviewMovesSnapshot?.leng
 moveScrubber.addEventListener("input", event => goToPly(Number(event.target.value)));
 gameResultClose.addEventListener("click", () => dismissGameResult());
 $("#game-result-review").addEventListener("click", startGameReview);
+rerunReviewButton.addEventListener("click", () => {
+  moveAnalysis = [];
+  startGameReview();
+});
 $("#game-result-new-game").addEventListener("click", () => {
   dismissGameResult();
   startNewGame();
