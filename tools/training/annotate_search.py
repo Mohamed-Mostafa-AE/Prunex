@@ -21,10 +21,10 @@ import threading
 import time
 from pathlib import Path
 
-INFO_SCORE = re.compile(r"(?:^|\\s)score\\s+(cp|mate)\\s+(-?\\d+)(?:\\s|$)")
-INFO_DEPTH = re.compile(r"(?:^|\\s)depth\\s+(\\d+)(?:\\s|$)")
-INFO_NODES = re.compile(r"(?:^|\\s)nodes\\s+(\\d+)(?:\\s|$)")
-BESTMOVE = re.compile(r"^bestmove\\s+([a-h][1-8][a-h][1-8][qrbn]?|0000)(?:\\s|$)")
+INFO_SCORE = re.compile(r"(?:^|\s)score\s+(cp|mate)\s+(-?\d+)(?:\s|$)")
+INFO_DEPTH = re.compile(r"(?:^|\s)depth\s+(\d+)(?:\s|$)")
+INFO_NODES = re.compile(r"(?:^|\s)nodes\s+(\d+)(?:\s|$)")
+BESTMOVE = re.compile(r"^bestmove\s+([a-h][1-8][a-h][1-8][qrbn]?|0000)(?:\s|$)")
 
 
 def sha256_file(path: Path) -> str:
@@ -79,7 +79,7 @@ class UciReader:
             raise TimeoutError(f"Timed out waiting for {description}.") from None
         if line is None:
             raise RuntimeError(f"Prunex exited while waiting for {description}.")
-        return line.rstrip("\\r\\n")
+        return line.rstrip("\r\n")
 
     def wait_for(self, predicate, timeout: float, description: str) -> str:
         deadline = time.monotonic() + timeout
@@ -115,9 +115,9 @@ def search_position(
     timeout_seconds: float,
 ) -> dict:
     assert process.stdin is not None
-    process.stdin.write("ucinewgame\\n")
-    process.stdin.write("position fen " + fen.strip() + "\\n")
-    process.stdin.write(f"go movetime {movetime_ms}\\n")
+    process.stdin.write("ucinewgame\n")
+    process.stdin.write("position fen " + fen.strip() + "\n")
+    process.stdin.write(f"go movetime {movetime_ms}\n")
     process.stdin.flush()
 
     deadline = time.monotonic() + timeout_seconds
@@ -169,15 +169,15 @@ def annotate(args: argparse.Namespace) -> int:
     reader = UciReader(process)
     annotated = 0
     try:
-        process.stdin.write("uci\\n")
+        process.stdin.write("uci\n")
         process.stdin.flush()
         reader.wait_for(lambda line: line.strip() == "uciok", args.timeout, "UCI handshake")
-        process.stdin.write("isready\\n")
+        process.stdin.write("isready\n")
         process.stdin.flush()
         reader.wait_for(lambda line: line.strip() == "readyok", args.timeout, "ready response")
 
         with source.open("r", encoding="utf-8") as input_file, temporary.open(
-            "w", encoding="utf-8", newline="\\n"
+            "w", encoding="utf-8", newline="\n"
         ) as output_file:
             for line_number, line in enumerate(input_file, start=1):
                 if not line.strip():
@@ -199,10 +199,10 @@ def annotate(args: argparse.Namespace) -> int:
                 row["search_nodes"] = result["nodes"]
                 row["native_engine_version"] = args.engine_version
                 row["native_engine_sha256"] = binary_hash
-                output_file.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\\n")
+                output_file.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
                 annotated += 1
 
-        process.stdin.write("quit\\n")
+        process.stdin.write("quit\n")
         process.stdin.flush()
         process.wait(timeout=args.timeout)
         os.replace(temporary, output)
