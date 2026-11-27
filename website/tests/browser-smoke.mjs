@@ -993,7 +993,7 @@ try {
     throw new Error("Post-game review should grade the played move and calculate player accuracy.");
   }
   const methodDisclosure = await page.locator("#review-method-note").textContent();
-  if (!methodDisclosure.includes("expected points") || !methodDisclosure.includes("Provisional")) {
+  if (!/expected[- ]points/i.test(methodDisclosure) || !methodDisclosure.includes("Provisional")) {
     throw new Error("The review must disclose that its expected-points estimate is provisional until calibrated.");
   }
   if (!(await page.locator("#review-summary").innerText()).includes("Provisional expected points retained") ||
