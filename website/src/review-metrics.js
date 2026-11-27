@@ -2,8 +2,8 @@ import { evaluationCalibration } from "./evaluation-calibration.js";
 
 const clamp01 = value => Math.max(0, Math.min(1, value));
 
-export function evaluationCalibrationStatus() {
-  const trained = evaluationCalibration.trained === true &&
+export function evaluationCalibrationStatus(searchBudgetMs = null) {
+  const artifactTrained = evaluationCalibration.trained === true &&
     Number.isFinite(evaluationCalibration.slope) && evaluationCalibration.slope > 0 &&
     Number.isFinite(evaluationCalibration.intercept) &&
     Number.isInteger(evaluationCalibration.trainingSamples) && evaluationCalibration.trainingSamples >= 100 &&
@@ -12,19 +12,24 @@ export function evaluationCalibrationStatus() {
     Number.isInteger(evaluationCalibration.validationGames) && evaluationCalibration.validationGames >= 5 &&
     Number.isInteger(evaluationCalibration.testSamples) && evaluationCalibration.testSamples >= 20 &&
     Number.isInteger(evaluationCalibration.testGames) && evaluationCalibration.testGames >= 5 &&
+    Number.isInteger(evaluationCalibration.searchBudgetMs) && evaluationCalibration.searchBudgetMs >= 1 &&
     evaluationCalibration.scorePerspective === "side_to_move";
+  const budgetMatches = artifactTrained &&
+    (searchBudgetMs == null || searchBudgetMs === evaluationCalibration.searchBudgetMs);
   return Object.freeze({
-    trained,
-    status: trained ? "calibrated" : "provisional",
+    trained: budgetMatches,
+    artifactTrained,
+    status: budgetMatches ? "calibrated" :
+      artifactTrained ? "budget-mismatch" : "provisional",
     model: evaluationCalibration.model,
-    trainingSamples: trained ? evaluationCalibration.trainingSamples : 0,
-    trainingGames: trained ? evaluationCalibration.trainingGames : 0,
-    validationSamples: trained ? evaluationCalibration.validationSamples : 0,
-    validationGames: trained ? evaluationCalibration.validationGames : 0,
-    testSamples: trained ? evaluationCalibration.testSamples : 0,
-    testGames: trained ? evaluationCalibration.testGames : 0,
-    searchBudgetMs: trained ? evaluationCalibration.searchBudgetMs : null,
-    engineVersion: trained ? evaluationCalibration.engineVersion : null
+    trainingSamples: artifactTrained ? evaluationCalibration.trainingSamples : 0,
+    trainingGames: artifactTrained ? evaluationCalibration.trainingGames : 0,
+    validationSamples: artifactTrained ? evaluationCalibration.validationSamples : 0,
+    validationGames: artifactTrained ? evaluationCalibration.validationGames : 0,
+    testSamples: artifactTrained ? evaluationCalibration.testSamples : 0,
+    testGames: artifactTrained ? evaluationCalibration.testGames : 0,
+    searchBudgetMs: artifactTrained ? evaluationCalibration.searchBudgetMs : null,
+    engineVersion: artifactTrained ? evaluationCalibration.engineVersion : null
   });
 }
 
@@ -37,12 +42,12 @@ export function scoreToCentipawns(result) {
   return result.score;
 }
 
-export function centipawnsToExpectedPoints(scoreCp) {
+export function centipawnsToExpectedPoints(scoreCp, searchBudgetMs = null) {
   if (!Number.isFinite(scoreCp)) return null;
   if (scoreCp >= 10000) return 0.9999;
   if (scoreCp <= -10000) return 0.0001;
 
-  const calibration = evaluationCalibrationStatus();
+  const calibration = evaluationCalibrationStatus(searchBudgetMs);
   const slope = calibration.trained ? evaluationCalibration.slope : 1;
   const intercept = calibration.trained ? evaluationCalibration.intercept : 0;
   const x = Math.max(-10, Math.min(10, scoreCp / 400));
@@ -60,7 +65,7 @@ export function expectedPointsFromEvaluation(result) {
       return clamp01((wdl.win + 0.5 * wdl.draw) / total);
     }
   }
-  return centipawnsToExpectedPoints(scoreToCentipawns(result));
+  return centipawnsToExpectedPoints(scoreToCentipawns(result), result.searchBudgetMs ?? null);
 }
 
 export function expectedPointLoss(beforeExpectedPoints, afterMoverExpectedPoints) {
