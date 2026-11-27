@@ -119,36 +119,33 @@ change the separate browser review calibration. A better calibration score
 is not evidence of stronger play.
 
 
-## Annotate search scores for browser-review calibration
+## Annotate WebAssembly search scores for browser-review calibration
 
-The browser review uses the score returned by a **completed, time-bounded search**. It does not use the native `eval` command's static score. Use `annotate_search.py` for this workflow; do not substitute files produced by `annotate_native.py`.
+The browser review uses the score returned by a **completed, time-bounded search**. It does not use the native `eval` command's static score or a native UCI search as a substitute for browser calibration. Use `website/scripts/annotate-search-positions.mjs`; it runs the same checked-in WebAssembly loader and binary that Prunex Play loads.
 
-First ingest the licensed PGN source into game-disjoint train, validation, and test splits. Then use the exact same compiled Prunex executable, reported version, and fixed time budget for all three annotation passes:
+First ingest the licensed PGN source into game-disjoint train, validation, and test splits. From the repository root, annotate each split with the same WebAssembly bundle and fixed time budget:
 
 ```bash
-python tools/training/annotate_search.py \
-  --engine ./build/prunex \
+node website/scripts/annotate-search-positions.mjs \
   --input /data/prunex-corpus/positions-train.jsonl \
   --output /data/prunex-corpus/positions-train-search-15000ms.jsonl \
   --engine-version "Prunex 0.8.0" \
   --movetime-ms 15000
 
-python tools/training/annotate_search.py \
-  --engine ./build/prunex \
+node website/scripts/annotate-search-positions.mjs \
   --input /data/prunex-corpus/positions-validation.jsonl \
   --output /data/prunex-corpus/positions-validation-search-15000ms.jsonl \
   --engine-version "Prunex 0.8.0" \
   --movetime-ms 15000
 
-python tools/training/annotate_search.py \
-  --engine ./build/prunex \
+node website/scripts/annotate-search-positions.mjs \
   --input /data/prunex-corpus/positions-test.jsonl \
   --output /data/prunex-corpus/positions-test-search-15000ms.jsonl \
   --engine-version "Prunex 0.8.0" \
   --movetime-ms 15000
 ```
 
-The annotator records the latest completed iterative-deepening score, depth, node count, fixed budget, score perspective, engine version, and executable SHA-256. If no search iteration completes, it rejects that position rather than recording the fallback static score as a search result. It writes atomically and never overwrites an existing output unless `--overwrite` is supplied.
+The annotator records the latest completed iterative-deepening score, selected move, depth, node count, fixed budget, side-to-move perspective, WebAssembly API version, engine version, and SHA-256 of the exact `prunex-wasm.js` plus `prunex-wasm.wasm` bundle. If no search iteration completes, it rejects that position rather than recording the fallback static score. It writes atomically and does not overwrite an existing output unless `--overwrite` is supplied.
 
 Combine the annotated files while preserving their original `split` values. For example, on Linux:
 
@@ -166,6 +163,6 @@ node scripts/calibrate-evaluation.mjs /data/prunex-corpus/all-search-positions-1
 npm run build
 ```
 
-The calibration command requires at least 100 training positions from 20 games, 20 validation positions from 5 games, and 20 test positions from 5 games. It rejects game leakage, invalid labels, mixed score perspectives, mixed engine binaries, and mixed search budgets. Each game receives equal total weight. The fitted mapping is written to `website/src/evaluation-calibration.js` only if both validation and test log loss **and** Brier score improve over the provisional baseline. Otherwise, the current module is left untouched.
+The calibration command requires at least 100 training positions from 20 games, 20 validation positions from 5 games, and 20 test positions from 5 games. It rejects game leakage, invalid labels, mixed score perspectives, native rather than WebAssembly annotations, any API version other than 800, mixed WebAssembly bundle hashes, and mixed search budgets. Each game receives equal total weight. The fitted mapping is written to `website/src/evaluation-calibration.js` only if both validation and test log loss **and** Brier score improve over the provisional baseline. Otherwise, the current module is left untouched.
 
-A fitted mapping is used in Prunex Play only at the exact search budget recorded in the calibration artifact. For other review budgets, expected-points values remain provisional. Calibration adjusts score interpretation; it does not modify the C++ engine or prove a playing-strength improvement.
+A fitted mapping is used in Prunex Play only at the exact search budget recorded in the calibration artifact. Other review budgets remain provisional until separately calibrated. A better calibration score predicts observed game outcomes more consistently on the sampled population; it does not prove an objective position evaluation or a playing-strength improvement. Calibration adjusts score interpretation and never modifies the C++ engine.
