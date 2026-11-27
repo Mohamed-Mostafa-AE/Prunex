@@ -832,7 +832,7 @@ function renderReviewSummary(analysis,
   whiteAccuracy = reviewAccuracy("w", analysis),
   blackAccuracy = reviewAccuracy("b", analysis)) {
   reviewSummary.replaceChildren();
-  const calibration = evaluationCalibrationStatus();
+  const calibration = evaluationCalibrationStatus(reviewBudgetMs);
   const playerCard = (color, accuracy) => {
     const card = document.createElement("div");
     card.className = "review-player";
@@ -978,7 +978,7 @@ function startGameReview() {
 async function completeGameReview(results) {
   const moves = reviewMovesSnapshot || game.history({ verbose: true });
   const scored = [];
-  const count = Math.min(moves.length, results.length);
+  const count = Math.min(moves.length, MAX_REVIEW_PLIES, results.length);
   for (let index = 0; index < count; index += 1) {
     const beforeResult = results[index];
     const afterResult = results[index + 1] || null;
@@ -986,7 +986,7 @@ async function completeGameReview(results) {
       Number.isInteger(beforeResult.depth) && beforeResult.depth > 0;
     const afterSearchComplete = afterResult?.searchComplete === true &&
       Number.isInteger(afterResult.depth) && afterResult.depth > 0;
-    const terminalLastMove = index === moves.length - 1 &&
+    const terminalLastMove = index === count - 1 && !afterSearchComplete &&
       (game.isGameOver() || game.isCheckmate());
     const canScoreMove = beforeSearchComplete && (afterSearchComplete || terminalLastMove);
 
@@ -1047,7 +1047,7 @@ async function completeGameReview(results) {
     ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
   const deepestDepth = depths.length ? Math.max(...depths) : 0;
   const ratedMoves = scored.filter(item => Number.isFinite(item.expectedPointLoss)).length;
-  const calibration = evaluationCalibrationStatus();
+  const calibration = evaluationCalibrationStatus(reviewBudgetMs);
 
   reviewDepth.textContent = "PRUNEX ANALYSIS · " + Math.round(reviewBudgetMs / 1000) +
     "S / POSITION · AVG DEPTH " + averageDepth;
