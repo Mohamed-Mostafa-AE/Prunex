@@ -36,9 +36,11 @@ function normalizeSamples(samples) {
     const gameId = getField(sample, "gameId", "game_id");
     const split = sample.split;
     const scorePov = getField(sample, "scorePov", "prunex_search_score_pov");
-    const engineVersion = getField(sample, "engineVersion", "native_engine_version") ?? null;
-    const engineSha256 = getField(sample, "engineSha256", "native_engine_sha256") ?? null;
+    const engineVersion = sample.prunex_engine_version ?? sample.native_engine_version ?? sample.engineVersion ?? null;
+    const engineSha256 = sample.prunex_engine_bundle_sha256 ?? sample.native_engine_sha256 ?? sample.engineSha256 ?? null;
     const searchBudgetMs = getField(sample, "searchBudgetMs", "search_budget_ms") ?? null;
+    const searchRuntime = sample.search_runtime ?? null;
+    const wasmApiVersion = sample.prunex_wasm_api_version ?? sample.wasmApiVersion ?? null;
 
     if (!Number.isFinite(scoreCp) || !Number.isFinite(result) ||
         ![0, 0.5, 1].includes(result)) {
@@ -62,7 +64,10 @@ function normalizeSamples(samples) {
       throw new Error("Missing Prunex engine version at row " + (index + 1) + ".");
     }
     if (typeof engineSha256 !== "string" || !/^[0-9a-f]{64}$/i.test(engineSha256)) {
-      throw new Error("Missing or invalid Prunex engine SHA-256 at row " + (index + 1) + ".");
+      throw new Error("Missing or invalid Prunex WebAssembly bundle SHA-256 at row " + (index + 1) + ".");
+    }
+    if (searchRuntime !== "webassembly" || Number(wasmApiVersion) !== 800) {
+      throw new Error("Only Prunex WebAssembly API 800 search scores are accepted for browser calibration at row " + (index + 1) + ".");
     }
     if (!Number.isInteger(Number(searchBudgetMs)) || Number(searchBudgetMs) < 1) {
       throw new Error("Missing or invalid fixed search budget at row " + (index + 1) + ".");
@@ -81,8 +86,10 @@ function normalizeSamples(samples) {
       gameId: gameId.trim(),
       split,
       engineVersion: engineVersion == null ? null : String(engineVersion),
-      engineSha256: engineSha256 == null ? null : String(engineSha256).toLowerCase(),
-      searchBudgetMs: searchBudgetMs == null ? null : Number(searchBudgetMs)
+      engineSha256: String(engineSha256).toLowerCase(),
+      searchBudgetMs: Number(searchBudgetMs),
+      searchRuntime,
+      wasmApiVersion: Number(wasmApiVersion)
     };
   });
 }
@@ -115,12 +122,16 @@ function validatePartitions(clean) {
 
   const versions = new Set(clean.map(row => row.engineVersion).filter(Boolean));
   const hashes = new Set(clean.map(row => row.engineSha256).filter(Boolean));
-  const budgets = new Set(clean.map(row => row.searchBudgetMs).filter(value => value != null));
-  if (versions.size > 1 || hashes.size > 1 || budgets.size > 1) {
-    throw new Error("All calibration splits must use the same engine version, binary, and search budget.");
+  const budgets = new Set(clean.map(row => row.searchBudgetMs));
+  const runtimes = new Set(clean.map(row => row.searchRuntime));
+  const apiVersions = new Set(clean.map(row => row.wasmApiVersion));
+  if (versions.size > 1 || hashes.size > 1 || budgets.size > 1 ||
+      runtimes.size > 1 || apiVersions.size > 1) {
+    throw new Error("All calibration splits must use the same WebAssembly bundle, API version, and search budget.");
   }
-  if (versions.size !== 1 || hashes.size !== 1 || budgets.size !== 1) {
-    throw new Error("Every calibration row must use the same identified Prunex binary and fixed search budget.");
+  if (versions.size !== 1 || hashes.size !== 1 || budgets.size !== 1 ||
+      runtimes.size !== 1 || apiVersions.size !== 1) {
+    throw new Error("Every calibration row must identify one Prunex WebAssembly bundle and fixed search budget.");
   }
 
   return {
@@ -128,7 +139,9 @@ function validatePartitions(clean) {
     metadata: {
       engineVersion: versions.size ? [...versions][0] : null,
       engineSha256: hashes.size ? [...hashes][0] : null,
-      searchBudgetMs: budgets.size ? [...budgets][0] : null
+      searchBudgetMs: budgets.size ? [...budgets][0] : null,
+      engineRuntime: runtimes.size ? [...runtimes][0] : null,
+      wasmApiVersion: apiVersions.size ? [...apiVersions][0] : null
     }
   };
 }
