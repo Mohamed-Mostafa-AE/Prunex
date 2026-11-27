@@ -55,8 +55,17 @@ function normalizeSamples(samples) {
     if (scorePov !== "side_to_move") {
       throw new Error("Search scores must use the side-to-move perspective at row " + (index + 1) + ".");
     }
-    if (sample.label_kind && sample.label_kind !== "observed_game_result_and_played_move") {
-      throw new Error("Unsupported position label at row " + (index + 1) + ".");
+    if (sample.label_kind !== "observed_game_result_and_played_move") {
+      throw new Error("Expected an observed game-result label at row " + (index + 1) + ".");
+    }
+    if (typeof engineVersion !== "string" || !engineVersion.trim()) {
+      throw new Error("Missing Prunex engine version at row " + (index + 1) + ".");
+    }
+    if (typeof engineSha256 !== "string" || !/^[0-9a-f]{64}$/i.test(engineSha256)) {
+      throw new Error("Missing or invalid Prunex engine SHA-256 at row " + (index + 1) + ".");
+    }
+    if (!Number.isInteger(Number(searchBudgetMs)) || Number(searchBudgetMs) < 1) {
+      throw new Error("Missing or invalid fixed search budget at row " + (index + 1) + ".");
     }
     if (searchBudgetMs != null && (!Number.isInteger(Number(searchBudgetMs)) || Number(searchBudgetMs) < 1)) {
       throw new Error("Invalid search budget at row " + (index + 1) + ".");
@@ -110,10 +119,8 @@ function validatePartitions(clean) {
   if (versions.size > 1 || hashes.size > 1 || budgets.size > 1) {
     throw new Error("All calibration splits must use the same engine version, binary, and search budget.");
   }
-  if ((versions.size === 1 && clean.some(row => !row.engineVersion)) ||
-      (hashes.size === 1 && clean.some(row => !row.engineSha256)) ||
-      (budgets.size === 1 && clean.some(row => row.searchBudgetMs == null))) {
-    throw new Error("Engine provenance and search-budget metadata must be present on every row or none.");
+  if (versions.size !== 1 || hashes.size !== 1 || budgets.size !== 1) {
+    throw new Error("Every calibration row must use the same identified Prunex binary and fixed search budget.");
   }
 
   return {
