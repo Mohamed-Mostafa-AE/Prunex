@@ -6,9 +6,8 @@ import {
   scoreToCentipawns,
   expectedPointsFromEvaluation,
   expectedPointLoss,
-  isPieceSacrifice,
   classifyMove,
-  isApexMove,
+  evaluationCalibrationStatus,
   reviewAccuracy
 } from "./review-metrics.js";
 import "./style.css";
@@ -819,49 +818,60 @@ function buildMoveButton(move, ply, currentPly) {
     badge.dataset.grade = grade.grade;
     if (Number.isFinite(grade.expectedPointLoss)) badge.dataset.expectedPointLoss = grade.expectedPointLoss.toFixed(4);
     if (Number.isFinite(grade.depth)) badge.dataset.reviewDepth = String(grade.depth);
-    if (Number.isFinite(grade.uniqueMoveGap)) badge.dataset.uniqueMoveGap = grade.uniqueMoveGap.toFixed(4);
+    if (grade.engineBestMatches !== undefined) badge.dataset.engineBestMatch = String(grade.engineBestMatches);
     if (grade.evaluationSource) badge.dataset.evaluationSource = grade.evaluationSource;
     badge.textContent = grade.grade === "MISSED_WIN" ? "MISS" : grade.grade;
-    badge.title = grade.description || grade.grade.replaceAll("_", " ").toLowerCase();
+    const bestChoiceNote = grade.engineBestMatches ? " Matches Prunex's top move at depth " + grade.depth + "." : "";
+    badge.title = (grade.description || grade.grade.replaceAll("_", " ").toLowerCase()) + bestChoiceNote;
     cell.append(badge);
   }
   return cell;
 }
 
-function renderReviewSummary(analysis, whiteAccuracy = reviewAccuracy("w", analysis), blackAccuracy = reviewAccuracy("b", analysis)) {
+function renderReviewSummary(analysis,
+  whiteAccuracy = reviewAccuracy("w", analysis),
+  blackAccuracy = reviewAccuracy("b", analysis)) {
   reviewSummary.replaceChildren();
+  const calibration = evaluationCalibrationStatus();
   const playerCard = (color, accuracy) => {
     const card = document.createElement("div");
     card.className = "review-player";
     const label = document.createElement("small");
-    label.textContent = color === humanColor ? "YOU · " + (color === "w" ? "WHITE" : "BLACK") :
-      "PRUNEX · " + (color === "w" ? "WHITE" : "BLACK");
+    label.textContent = (color === humanColor ? "YOU · " : "PRUNEX · ") +
+      (color === "w" ? "WHITE" : "BLACK");
     const score = document.createElement("strong");
     score.textContent = accuracy === null ? "—" : accuracy.toFixed(1) + "%";
-    const grade = document.createElement("span");
-    const count = analysis.filter(item => item.color === color).length;
-    grade.textContent = count + " moves reviewed";
-    card.append(label, score, grade);
+    const rated = analysis.filter(item => item.color === color &&
+      Number.isFinite(item.expectedPointLoss)).length;
+    const total = analysis.filter(item => item.color === color).length;
+    const detail = document.createElement("span");
+    detail.textContent = rated + " / " + total + " moves rated";
+    const metricName = document.createElement("span");
+    metricName.className = "review-metric-name";
+    metricName.textContent = calibration.trained
+      ? "Expected points retained"
+      : "Provisional expected points retained";
+    card.append(label, score, metricName, detail);
     return card;
   };
   reviewSummary.append(playerCard("w", whiteAccuracy), playerCard("b", blackAccuracy));
 
   reviewKeyMoments.replaceChildren();
   const moments = [...analysis]
-    .filter(item => ["APEX","BRILLIANT","GREAT","BLUNDER","MISS","MISSED_WIN","MISTAKE","INACCURACY"].includes(item.grade))
-    .sort((a, b) => (b.lossCp || 0) - (a.lossCp || 0))
+    .filter(item => ["BRILLIANT", "BLUNDER", "MISS", "MISSED_WIN", "MISTAKE", "INACCURACY"].includes(item.grade))
+    .sort((a, b) => (b.expectedPointLoss ?? -1) - (a.expectedPointLoss ?? -1))
     .slice(0, 4);
   for (const moment of moments) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "review-moment";
     const label = document.createElement("span");
-    label.textContent = (moment.color === "w" ? "White " : "Black ") + moment.san + " · " + (moment.grade === "MISSED_WIN" ? "MISS" : moment.grade.replaceAll("_", " "));
+    label.textContent = (moment.color === "w" ? "White " : "Black ") +
+      moment.san + " · " + (moment.grade === "MISSED_WIN" ? "MISS" : moment.grade.replaceAll("_", " "));
     const score = document.createElement("small");
-    score.textContent = moment.grade === "APEX" ? "UNIQUE BEST LINE" :
-      moment.grade === "BRILLIANT" ? "SACRIFICE" :
-      Number.isFinite(moment.expectedPointLoss) ? (moment.expectedPointLoss * 100).toFixed(1) + " expected points lost" :
-      Math.round(moment.lossCp) + " cp lost";
+    score.textContent = Number.isFinite(moment.expectedPointLoss)
+      ? (moment.expectedPointLoss * 100).toFixed(1) + " expected points lost"
+      : "Not rated · incomplete search";
     button.append(label, score);
     button.addEventListener("click", () => goToPly(moment.ply));
     reviewKeyMoments.append(button);
@@ -972,61 +982,40 @@ async function completeGameReview(results) {
   for (let index = 0; index < count; index += 1) {
     const beforeResult = results[index];
     const afterResult = results[index + 1] || null;
-    const before = scoreToCentipawns(beforeResult);
-    const afterRaw = scoreToCentipawns(afterResult);
-    const terminalLastMove = index === moves.length - 1 && (game.isGameOver() || game.isCheckmate());
+    const beforeSearchComplete = beforeResult?.searchComplete === true &&
+      Number.isInteger(beforeResult.depth) && beforeResult.depth > 0;
+    const afterSearchComplete = afterResult?.searchComplete === true &&
+      Number.isInteger(afterResult.depth) && afterResult.depth > 0;
+    const terminalLastMove = index === moves.length - 1 &&
+      (game.isGameOver() || game.isCheckmate());
+    const canScoreMove = beforeSearchComplete && (afterSearchComplete || terminalLastMove);
+
+    const before = beforeSearchComplete ? scoreToCentipawns(beforeResult) : null;
+    const afterRaw = afterSearchComplete ? scoreToCentipawns(afterResult) : null;
     const afterFromMoverPerspective = Number.isFinite(afterRaw) ? -afterRaw :
       terminalLastMove && game.isCheckmate() ? 100000 :
       terminalLastMove && game.isDraw() ? 0 : null;
-    const lossCp = Number.isFinite(before) && Number.isFinite(afterFromMoverPerspective)
+    const lossCp = canScoreMove && Number.isFinite(before) &&
+      Number.isFinite(afterFromMoverPerspective)
       ? Math.max(0, before - afterFromMoverPerspective) : null;
 
-    const beforeExpectedPoints = expectedPointsFromEvaluation(beforeResult);
-    const opponentExpectedPoints = expectedPointsFromEvaluation(afterResult);
+    const beforeExpectedPoints = beforeSearchComplete
+      ? expectedPointsFromEvaluation(beforeResult) : null;
+    const opponentExpectedPoints = afterSearchComplete
+      ? expectedPointsFromEvaluation(afterResult) : null;
     const afterMoverExpectedPoints = Number.isFinite(opponentExpectedPoints) ? 1 - opponentExpectedPoints :
       terminalLastMove && game.isCheckmate() ? 1 :
       terminalLastMove && game.isDraw() ? 0.5 : null;
-    const pointLoss = expectedPointLoss(beforeExpectedPoints, afterMoverExpectedPoints);
+    const pointLoss = canScoreMove
+      ? expectedPointLoss(beforeExpectedPoints, afterMoverExpectedPoints) : null;
 
     const classification = classifyMove(
       moves[index], moves[index + 1], before, afterFromMoverPerspective,
       lossCp, index + 1, pointLoss, beforeExpectedPoints, afterMoverExpectedPoints
     );
-    const engineBest = beforeResult?.bestMove;
+    const engineBest = beforeSearchComplete ? beforeResult?.bestMove : null;
     const engineBestMatches = !!engineBest && engineBest !== "(none)" &&
       engineBest === moves[index].from + moves[index].to + (moves[index].promotion || "");
-    const secondBest = beforeResult?.secondBest;
-    const secondBestExpectedPoints = expectedPointsFromEvaluation(secondBest);
-    const uniqueMoveGap = Number.isFinite(beforeExpectedPoints) && Number.isFinite(secondBestExpectedPoints)
-      ? Math.max(0, beforeExpectedPoints - secondBestExpectedPoints) : null;
-    const sacrifice = isPieceSacrifice(moves[index], moves[index + 1]);
-
-    // Apex is deliberately rare: an exact engine-top sacrifice with a large
-    // same-depth expected-points gap over the runner-up.
-    const isApex = isApexMove({
-      engineBestMatches,
-      sacrifice,
-      pointLoss,
-      uniqueMoveGap,
-      beforeExpectedPoints
-    });
-    if (isApex) {
-      classification.grade = "APEX";
-      classification.expectedPointLoss = pointLoss;
-      classification.description = "A rare engine-confirmed sacrifice with a decisive same-depth advantage over the runner-up";
-    } else if (engineBestMatches && classification.grade === "BRILLIANT") {
-      // Preserve Brilliant when the stricter Apex uniqueness test is not met.
-    } else if (engineBestMatches && Number.isFinite(uniqueMoveGap) && uniqueMoveGap >= 0.08 &&
-        Number.isFinite(pointLoss) && pointLoss <= 0.02) {
-      classification.grade = "GREAT";
-      classification.expectedPointLoss = pointLoss;
-      classification.description = "The engine's best move by a clear margin in a critical position";
-    } else if (engineBestMatches && classification.grade !== "MISS") {
-      classification.grade = "BEST";
-      classification.lossCp = 0;
-      classification.expectedPointLoss = 0;
-      classification.description = "Matches Prunex's top move at the selected analysis budget";
-    }
 
     scored.push({
       ply: index + 1,
@@ -1037,34 +1026,47 @@ async function completeGameReview(results) {
       beforeExpectedPoints,
       afterExpectedPoints: afterMoverExpectedPoints,
       expectedPointLoss: classification.expectedPointLoss ?? pointLoss,
-      uniqueMoveGap,
       lossCp: classification.lossCp,
       grade: classification.grade,
-      depth: beforeResult?.depth || 0,
-      selDepth: beforeResult?.selDepth || 0,
-      nodes: beforeResult?.nodes || 0,
+      engineBestMatches,
+      searchComplete: canScoreMove,
+      depth: beforeSearchComplete ? beforeResult.depth : 0,
+      nodes: beforeSearchComplete ? beforeResult.nodes || 0 : 0,
+      searchBudgetMs: beforeResult?.searchBudgetMs ?? reviewBudgetMs,
       evaluationSource: "prunex-0.8.0-wasm",
       description: classification.description
     });
   }
+
   moveAnalysis = scored;
   analyzingGame = false;
   reviewProgress.hidden = false;
   reviewProgressFill.style.width = "100%";
-  const depths = results.map(item => item.depth || 0).filter(value => value > 0);
-  const averageDepth = depths.length ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
+  const depths = scored.map(item => item.depth).filter(value => value > 0);
+  const averageDepth = depths.length
+    ? Math.round(depths.reduce((sum, value) => sum + value, 0) / depths.length) : 0;
   const deepestDepth = depths.length ? Math.max(...depths) : 0;
-  reviewDepth.textContent = "PRUNEX ANALYSIS · " + Math.round(reviewBudgetMs / 1000) + "S / POSITION · AVG DEPTH " + averageDepth;
-  reviewMethodNote.textContent =
-    "Prunex 0.8.0 evaluates each position through its native C++20 engine compiled to WebAssembly. The review layer converts centipawn scores into expected points before applying its own move grading and accuracy metric.";
-  reviewProgressLabel.textContent = "Analysis complete · " + scored.length +
-    " moves graded · deepest depth " + deepestDepth;
+  const ratedMoves = scored.filter(item => Number.isFinite(item.expectedPointLoss)).length;
+  const calibration = evaluationCalibrationStatus();
+
+  reviewDepth.textContent = "PRUNEX ANALYSIS · " + Math.round(reviewBudgetMs / 1000) +
+    "S / POSITION · AVG DEPTH " + averageDepth;
+  reviewMethodNote.textContent = calibration.trained
+    ? "Expected-points estimates use a Prunex-specific calibration trained on " +
+      calibration.trainingGames + " games and checked on separate validation and test games at " +
+      calibration.searchBudgetMs + "ms per position. Move grades use completed searches only."
+    : "Provisional expected-points estimate: no Prunex calibration corpus has been accepted yet. " +
+      "The percentage is an experimental expected-points-retention metric, not verified chess accuracy or an Elo rating. " +
+      "Only moves with completed before-and-after searches are rated.";
+  reviewProgressLabel.textContent = "Analysis complete · " + ratedMoves + " / " + scored.length +
+    " moves rated · deepest completed depth " + deepestDepth;
   renderReviewSummary(scored);
   render();
   await saveReviewedGame();
   stateEl.textContent = "Review complete";
   stateEl.dataset.busy = "false";
 }
+
 function renderMoves() {
   const pageScroller = document.scrollingElement;
   const pageScrollTop = pageScroller?.scrollTop ?? window.scrollY;
@@ -1584,12 +1586,12 @@ async function handleWorkerMessage(event) {
       reviewAnalysisResults.push({
         scoreType: data.scoreType || null,
         score: Number.isFinite(data.score) ? data.score : null,
-        depth: data.depth || 0,
-        selDepth: data.selDepth || 0,
-        nodes: data.nodes || 0,
+        depth: Number.isInteger(data.depth) && data.depth > 0 ? data.depth : 0,
+        nodes: Number.isFinite(data.nodes) ? data.nodes : 0,
         wdl: data.wdl || null,
         bestMove: data.bestMove || null,
-        secondBest: data.secondBest || null
+        searchComplete: data.searchComplete === true && Number.isInteger(data.depth) && data.depth > 0,
+        searchBudgetMs: Number.isInteger(data.searchBudgetMs) ? data.searchBudgetMs : null
       });
 
       reviewAnalysisIndex += 1;
