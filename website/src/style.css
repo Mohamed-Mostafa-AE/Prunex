@@ -23,6 +23,40 @@ a { color: inherit; }
 button, select, textarea { font: inherit; }
 button, a, select { -webkit-tap-highlight-color: transparent; }
 #app { width: min(1240px, calc(100% - 72px)); margin: 0 auto; }
+.skip-link {
+  position: fixed;
+  z-index: 10000;
+  top: 10px;
+  left: 10px;
+  padding: 11px 15px;
+  border: 1px solid #8eb9df;
+  background: #ffffff;
+  color: #14263b;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform .16s ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 3px solid #1872b9;
+  outline-offset: 3px;
+}
+.noscript-notice {
+  position: fixed;
+  z-index: 9999;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.noscript-notice a { color: var(--blue-dark); }
 .topbar { min-height: 78px; display: flex; align-items: center; justify-content: space-between; gap: 28px; border-bottom: 1px solid var(--line); }
 .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; font: 800 13px Manrope, sans-serif; letter-spacing: .19em; }
 .nav-logo { width: 38px; height: 38px; object-fit: contain; display: block; }
@@ -771,12 +805,39 @@ img, svg, video, canvas { max-width: 100%; }
   margin-top: 3px;
   color: #91abc5;
   font-size: 9px;
+}.review-player .review-metric-name {
+  color: #a6c5e6;
+  font-weight: 600;
 }
 .review-key-moments {
   display: grid;
   gap: 6px;
   margin-top: 10px;
 }
+.review-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 6px 0 10px;
+}
+.review-refresh {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid rgba(124, 174, 221, .35);
+  background: rgba(255,255,255,.04);
+  color: #cfe3f7;
+  font: 600 10px var(--mono);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.review-refresh:hover:not(:disabled) {
+  border-color: #8eb9df;
+  background: rgba(72, 138, 197, .14);
+}
+.review-refresh:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
 .review-moment {
   display: grid;
   grid-template-columns: 1fr auto;

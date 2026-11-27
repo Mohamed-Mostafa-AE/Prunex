@@ -52,6 +52,24 @@ page.on("console", message => {
 
 try {
   await page.goto(baseUrl, { waitUntil: "networkidle" });
+  if (await page.locator('link[rel="canonical"]').getAttribute("href") !== "https://prunex-play.vercel.app/") {
+    throw new Error("The production homepage must declare its canonical URL.");
+  }
+  if (await page.locator('meta[name="description"]').count() !== 1 ||
+      await page.locator('meta[property="og:image"]').count() !== 1) {
+    throw new Error("The production homepage must expose search and social preview metadata.");
+  }
+  if (await page.locator(".skip-link[href='#main-content']").count() !== 1 ||
+      await page.locator("#main-content").getAttribute("tabindex") !== "-1") {
+    throw new Error("The production homepage must provide a keyboard skip link to a focusable main landmark.");
+  }
+  for (const path of ["robots.txt", "sitemap.xml"]) {
+    const response = await page.request.get(new URL(path, baseUrl).toString());
+    if (!response.ok()) throw new Error(path + " must be included in the production build.");
+  }
+  if (await page.locator("#rerun-game-review").count() !== 1) {
+    throw new Error("Game review must provide a control to regenerate older saved analyses.");
+  }
   // The primary hero headline must render immediately; it is not gated by scroll animation.
   await page.waitForFunction(() => {
     const heading = document.querySelector("#home .hero-copy h1");
@@ -974,8 +992,13 @@ try {
       !(await page.locator("#review-summary").innerText()).includes("%")) {
     throw new Error("Post-game review should grade the played move and calculate player accuracy.");
   }
-  if (!(await page.locator("#review-method-note").textContent()).includes("expected points")) {
-    throw new Error("The review should disclose its expected-points evaluation method.");
+  const methodDisclosure = await page.locator("#review-method-note").textContent();
+  if (!/expected[- ]points/i.test(methodDisclosure) || !methodDisclosure.includes("Provisional")) {
+    throw new Error("The review must disclose that its expected-points estimate is provisional until calibrated.");
+  }
+  if (!(await page.locator("#review-summary").innerText()).includes("Provisional expected points retained") ||
+      !(await page.locator("#rerun-game-review").isVisible())) {
+    throw new Error("The review must label its retention metric and expose the reanalysis control.");
   }
   const pointLossData = await page.locator("#move-list .move-grade").evaluateAll(nodes =>
     nodes.map(node => Number(node.dataset.expectedPointLoss)).filter(Number.isFinite)

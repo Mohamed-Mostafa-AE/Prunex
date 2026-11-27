@@ -5,16 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#f7faff">
     <meta name="color-scheme" content="light dark">
+    <meta name="robots" content="index, follow, max-image-preview:large">
     <meta property="og:title" content="Prunex — C++20 Chess Engine">
-    <meta property="og:description" content="Prunex 0.8.0 is an original C++20 chess engine created and independently developed from scratch by Mohamed Mostafa. It includes a native Windows interface, UCI support, and a browser application powered by the same engine compiled to WebAssembly.">
+    <meta property="og:description" content="Explore Prunex, an independently developed C++20 chess engine with its own board representation, legal move generation, search, evaluation, and UCI interface. Play and review games in the WebAssembly-powered browser application.">
     <meta property="og:type" content="website">
-    <meta name="description" content="Prunex is Mohamed Mostafa's original C++20 chess engine, independently developed from scratch with its own board representation, legal move generation, search, evaluation, and UCI interface.">
+    <meta property="og:url" content="https://prunex-play.vercel.app/">
+    <meta property="og:image" content="https://prunex-play.vercel.app/prunex-mark.png">
+    <meta property="og:image:alt" content="Prunex chess engine logo">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Prunex — C++20 Chess Engine">
+    <meta name="twitter:description" content="An independently developed C++20 chess engine with a native engine, UCI interface, Windows application, and browser demonstration.">
+    <meta name="description" content="Explore Prunex, an independently developed C++20 chess engine with its own board representation, legal move generation, search, evaluation, UCI interface, Windows application, and browser demonstration.">
+    <link rel="canonical" href="https://prunex-play.vercel.app/">
     <link rel="icon" type="image/png" sizes="any" href="/prunex-mark.png?v=4">
     <link rel="apple-touch-icon" href="/prunex-mark.png?v=3">
     <title>Prunex — C++20 Chess Engine</title>
   </head>
   <body>
     <div id="app">
+      <a class="skip-link" href="#main-content">Skip to main content</a>
       <header class="topbar">
         <a class="brand" href="#home" aria-label="Prunex home">
           <img src="/prunex-mark.png?v=4" class="nav-logo" alt="">
@@ -98,7 +107,7 @@
         </div>
       </dialog>
 
-      <main>
+      <main id="main-content" tabindex="-1">
         <section class="hero" id="home">
           <div class="hero-copy">
             <div class="eyebrow"><span class="eyebrow-line"></span> C++20 CHESS ENGINE · UCI</div>
@@ -222,6 +231,9 @@
                 <div class="review-heading">
                   <div><span class="panel-kicker">POST-GAME ANALYSIS</span><h4>Game review</h4></div>
                   <span id="review-depth" class="review-depth">PRUNEX 0.8.0</span>
+                </div>
+                <div class="review-actions">
+                  <button id="rerun-game-review" class="review-refresh" type="button">Reanalyze game</button>
                 </div>
                 <div class="review-progress" id="review-progress" hidden>
                   <div class="review-progress-track"><span id="review-progress-fill"></span></div>
@@ -403,5 +415,12 @@
 
     </div>
     <script type="module" src="/src/main.js"></script>
+    <noscript>
+      <div class="noscript-notice">
+        Prunex Play needs JavaScript to run the browser chessboard and analysis interface.
+        The native C++20 engine, build instructions, and test documentation remain available
+        in the <a href="https://github.com/Mohamed-Mostafa-AE/Prunex">Prunex source repository</a>.
+      </div>
+    </noscript>
   </body>
 </html>

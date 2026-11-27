@@ -83,14 +83,15 @@ function searchPosition(fen, timeLimitMs) {
       if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove)) {
         throw new Error("Prunex did not return a valid legal-move coordinate.");
       }
+      const depth = api.depth();
       return {
         scoreType: "cp",
         score,
-        depth: api.depth(),
-        selDepth: api.depth(),
+        depth,
         nodes: api.nodes(),
         bestMove,
-        secondBest: null,
+        searchComplete: depth > 0,
+        searchBudgetMs: timeLimitMs,
         wdl: null
       };
     } finally {

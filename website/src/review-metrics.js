@@ -1,5 +1,43 @@
 import { evaluationCalibration } from "./evaluation-calibration.js";
 
+const clamp01 = value => Math.max(0, Math.min(1, value));
+
+export function evaluationCalibrationStatus(searchBudgetMs = null) {
+  const artifactTrained = evaluationCalibration.trained === true &&
+    Number.isFinite(evaluationCalibration.slope) && evaluationCalibration.slope > 0 &&
+    Number.isFinite(evaluationCalibration.intercept) &&
+    Number.isInteger(evaluationCalibration.trainingSamples) && evaluationCalibration.trainingSamples >= 100 &&
+    Number.isInteger(evaluationCalibration.trainingGames) && evaluationCalibration.trainingGames >= 20 &&
+    Number.isInteger(evaluationCalibration.validationSamples) && evaluationCalibration.validationSamples >= 20 &&
+    Number.isInteger(evaluationCalibration.validationGames) && evaluationCalibration.validationGames >= 5 &&
+    Number.isInteger(evaluationCalibration.testSamples) && evaluationCalibration.testSamples >= 20 &&
+    Number.isInteger(evaluationCalibration.testGames) && evaluationCalibration.testGames >= 5 &&
+    Number.isInteger(evaluationCalibration.searchBudgetMs) && evaluationCalibration.searchBudgetMs >= 1 &&
+    evaluationCalibration.scorePerspective === "side_to_move" &&
+    typeof evaluationCalibration.engineVersion === "string" && evaluationCalibration.engineVersion.trim().length > 0 &&
+    typeof evaluationCalibration.engineSha256 === "string" && /^[0-9a-f]{64}$/i.test(evaluationCalibration.engineSha256) &&
+    evaluationCalibration.engineRuntime === "webassembly" &&
+    evaluationCalibration.wasmApiVersion === 800;
+  const budgetMatches = artifactTrained &&
+    Number.isInteger(searchBudgetMs) &&
+    searchBudgetMs === evaluationCalibration.searchBudgetMs;
+  return Object.freeze({
+    trained: budgetMatches,
+    artifactTrained,
+    status: budgetMatches ? "calibrated" :
+      artifactTrained ? "budget-mismatch" : "provisional",
+    model: evaluationCalibration.model,
+    trainingSamples: artifactTrained ? evaluationCalibration.trainingSamples : 0,
+    trainingGames: artifactTrained ? evaluationCalibration.trainingGames : 0,
+    validationSamples: artifactTrained ? evaluationCalibration.validationSamples : 0,
+    validationGames: artifactTrained ? evaluationCalibration.validationGames : 0,
+    testSamples: artifactTrained ? evaluationCalibration.testSamples : 0,
+    testGames: artifactTrained ? evaluationCalibration.testGames : 0,
+    searchBudgetMs: artifactTrained ? evaluationCalibration.searchBudgetMs : null,
+    engineVersion: artifactTrained ? evaluationCalibration.engineVersion : null
+  });
+}
+
 export function scoreToCentipawns(result) {
   if (!result || !Number.isFinite(result.score)) return null;
   if (result.scoreType === "mate") {
@@ -9,29 +47,35 @@ export function scoreToCentipawns(result) {
   return result.score;
 }
 
-export function centipawnsToExpectedPoints(scoreCp) {
+export function centipawnsToExpectedPoints(scoreCp, searchBudgetMs = null) {
   if (!Number.isFinite(scoreCp)) return null;
   if (scoreCp >= 10000) return 0.9999;
   if (scoreCp <= -10000) return 0.0001;
-  // Prunex calibration maps native-engine centipawn scores to expected points.
+
+  const calibration = evaluationCalibrationStatus(searchBudgetMs);
+  const slope = calibration.trained ? evaluationCalibration.slope : 1;
+  const intercept = calibration.trained ? evaluationCalibration.intercept : 0;
   const x = Math.max(-10, Math.min(10, scoreCp / 400));
-  const z = evaluationCalibration.slope * x + evaluationCalibration.intercept;
+  const z = slope * x + intercept;
   return 1 / (1 + Math.exp(-Math.max(-40, Math.min(40, z))));
 }
 
 export function expectedPointsFromEvaluation(result) {
   if (!result) return null;
   const wdl = result.wdl;
-  if (wdl && Number.isFinite(wdl.win) && Number.isFinite(wdl.draw) && Number.isFinite(wdl.loss)) {
+  if (wdl && Number.isFinite(wdl.win) && Number.isFinite(wdl.draw) && Number.isFinite(wdl.loss) &&
+      wdl.win >= 0 && wdl.draw >= 0 && wdl.loss >= 0) {
     const total = wdl.win + wdl.draw + wdl.loss;
-    if (total > 0) return Math.max(0, Math.min(1, (wdl.win + 0.5 * wdl.draw) / total));
+    if (Number.isFinite(total) && total > 0) {
+      return clamp01((wdl.win + 0.5 * wdl.draw) / total);
+    }
   }
-  return centipawnsToExpectedPoints(scoreToCentipawns(result));
+  return centipawnsToExpectedPoints(scoreToCentipawns(result), result.searchBudgetMs ?? null);
 }
 
 export function expectedPointLoss(beforeExpectedPoints, afterMoverExpectedPoints) {
   if (!Number.isFinite(beforeExpectedPoints) || !Number.isFinite(afterMoverExpectedPoints)) return null;
-  return Math.max(0, Math.min(1, beforeExpectedPoints - afterMoverExpectedPoints));
+  return clamp01(beforeExpectedPoints - afterMoverExpectedPoints);
 }
 
 const PIECE_VALUES = { p: 100, n: 320, b: 335, r: 500, q: 900, k: 20000 };
@@ -48,12 +92,12 @@ export function classifyMove(move, nextMove, beforeScore, afterScore, lossCp, pl
   if (move?.san?.includes("#")) {
     return { grade: "BEST", lossCp: 0, expectedPointLoss: 0, description: "Checkmate delivered" };
   }
-  const loss = Number.isFinite(pointLoss) ? Math.max(0, Math.min(1, pointLoss)) :
+  const loss = Number.isFinite(pointLoss) ? clamp01(pointLoss) :
     Number.isFinite(lossCp) && Number.isFinite(beforeScore)
       ? expectedPointLoss(centipawnsToExpectedPoints(beforeScore), centipawnsToExpectedPoints(beforeScore - lossCp))
       : null;
   if (!Number.isFinite(loss)) {
-    return { grade: "UNRATED", lossCp: null, expectedPointLoss: null, description: "Engine score unavailable" };
+    return { grade: "UNRATED", lossCp: null, expectedPointLoss: null, description: "A completed search score was unavailable" };
   }
   if (Number.isFinite(beforeExpectedPoints) && beforeExpectedPoints >= 0.78 &&
       Number.isFinite(afterMoverExpectedPoints) && afterMoverExpectedPoints <= 0.50) {
@@ -79,21 +123,15 @@ export function isApexMove({ engineBestMatches, sacrifice, pointLoss, uniqueMove
     Number.isFinite(beforeExpectedPoints) && beforeExpectedPoints >= 0.20 && beforeExpectedPoints <= 0.80;
 }
 
-export function reviewAccuracy(color, analysis = []) {
+export function expectedPointsRetained(color, analysis = []) {
   const played = analysis.filter(move => move.color === color &&
-    (Number.isFinite(move.expectedPointLoss) || Number.isFinite(move.lossCp)));
+    Number.isFinite(move.expectedPointLoss));
   if (!played.length) return null;
-  const losses = played.map(move => {
-    if (Number.isFinite(move.expectedPointLoss)) return Math.max(0, Math.min(1, move.expectedPointLoss));
-    if (Number.isFinite(move.lossCp) && Number.isFinite(move.beforeScore)) {
-      return expectedPointLoss(
-        centipawnsToExpectedPoints(move.beforeScore),
-        centipawnsToExpectedPoints(move.beforeScore - move.lossCp)
-      ) ?? 0;
-    }
-    return 0;
-  });
+  const losses = played.map(move => clamp01(move.expectedPointLoss));
   const averageExpectedPointLoss = losses.reduce((total, value) => total + value, 0) / losses.length;
-  // Prunex Accuracy v2: average expected points retained, not a copy of CAPS2.
-  return Math.round(Math.max(0, Math.min(100, 100 * (1 - averageExpectedPointLoss))) * 10) / 10;
+  return Math.round(clamp01(1 - averageExpectedPointLoss) * 1000) / 10;
 }
+
+// Keep the legacy name because archived game records store these values under
+// whiteAccuracy/blackAccuracy. The displayed metric is explicitly renamed in UI.
+export const reviewAccuracy = expectedPointsRetained;
