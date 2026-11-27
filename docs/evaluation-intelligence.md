@@ -46,45 +46,57 @@ A PGN's played move and final result are observed game data, not the engine's be
 
 ## Reproducible calibration workflow
 
-Use a licensed corpus prepared with `tools/training/ingest_pgn.py`. Its default split keeps all positions from a game together. If the source contains reliable tournament/event headers, the event split can further reduce event-level leakage. Never put positions from one game in more than one split.
+Use a licensed corpus prepared with `tools/training/ingest_pgn.py`. Its default split keeps all positions from one game together. If the source contains reliable tournament/event headers, the event split can further reduce event-level leakage. Never put positions from one game in more than one split.
 
-Build the native Prunex executable from the exact source revision you intend to calibrate. Annotate each split using that same executable and one fixed search budget. Example from the repository root:
+The browser runs the checked-in Prunex WebAssembly bundle. Calibration annotations must therefore be produced by that **same WebAssembly bundle**, not by the native UCI executable. The annotator below uses the browser C API, records the loader and WASM binary together as one SHA-256 bundle identity, and enforces the same maximum depth and timed-search API used by the website.
+
+From the repository root, annotate every split with the exact same fixed budget and WebAssembly bundle:
 
 ```bash
-python tools/training/annotate_search.py \
-  --engine ./build/prunex \
+node website/scripts/annotate-search-positions.mjs \
   --input /data/prunex-corpus/positions-train.jsonl \
   --output /data/prunex-corpus/positions-train-search-15000ms.jsonl \
   --engine-version "Prunex 0.8.0" \
   --movetime-ms 15000
 
-python tools/training/annotate_search.py \
-  --engine ./build/prunex \
+node website/scripts/annotate-search-positions.mjs \
   --input /data/prunex-corpus/positions-validation.jsonl \
   --output /data/prunex-corpus/positions-validation-search-15000ms.jsonl \
   --engine-version "Prunex 0.8.0" \
   --movetime-ms 15000
 
-python tools/training/annotate_search.py \
-  --engine ./build/prunex \
+node website/scripts/annotate-search-positions.mjs \
   --input /data/prunex-corpus/positions-test.jsonl \
   --output /data/prunex-corpus/positions-test-search-15000ms.jsonl \
   --engine-version "Prunex 0.8.0" \
   --movetime-ms 15000
 ```
 
-Combine the three annotated files without changing their `split` fields. From the website directory, fit and validate the mapping:
+The annotator stores the latest completed iterative-deepening search score, best move, depth, node count, fixed time budget, side-to-move score perspective, WebAssembly API version, engine version, and SHA-256 of the exact `prunex-wasm.js` + `prunex-wasm.wasm` bundle. If no search iteration completes, it rejects that position rather than recording the fallback static score as a search result.
+
+Combine the three annotated files without changing their `split` fields. For example, on Linux:
+
+```bash
+cat /data/prunex-corpus/positions-train-search-15000ms.jsonl \
+    /data/prunex-corpus/positions-validation-search-15000ms.jsonl \
+    /data/prunex-corpus/positions-test-search-15000ms.jsonl \
+    > /data/prunex-corpus/all-search-positions-15000ms.jsonl
+```
+
+From the `website/` directory, fit and validate the expected-points mapping:
 
 ```bash
 node scripts/calibrate-evaluation.mjs /data/prunex-corpus/all-search-positions-15000ms.jsonl
 npm run build
 ```
 
-The trainer requires at least 100 train positions across 20 games, 20 validation positions across 5 games, and 20 test positions across 5 games. It rejects overlapping game IDs, invalid result labels, inconsistent score perspective, different engine builds, or mixed search budgets. Each game receives equal total weight so one unusually long game does not dominate the fit.
+The trainer requires at least 100 training positions across 20 games, 20 validation positions across 5 games, and 20 test positions across 5 games. It rejects overlapping game IDs, invalid result labels, inconsistent score perspective, native rather than WebAssembly annotations, a different WebAssembly API version, mixed bundle hashes, and mixed search budgets. Each game receives equal total weight so one unusually long game does not dominate the fit.
 
-The trainer compares the fitted logistic mapping with the provisional baseline on both validation and test splits. It only writes a production calibration module when both log loss and Brier score improve on both held-out splits. The test split must not be used to repeatedly tune parameters; it is a final confirmation set. The generated module records the score perspective, engine identity, fixed search budget, sample counts, game counts, and held-out metrics.
+The trainer compares the fitted logistic mapping with the provisional baseline on both validation and test splits. It only writes a production calibration module when both log loss and Brier score improve on both held-out splits. The test split must not be used to repeatedly tune parameters; it is a final confirmation set. The generated module records the side-to-move perspective, WebAssembly API version, engine version, bundle hash, fixed search budget, sample counts, game counts, and held-out metrics.
 
-At runtime, the browser uses the fitted mapping only when the review search budget exactly matches the calibrated budget. Other review budgets remain provisional until they have their own independent calibration evidence. A failed calibration leaves the existing provisional artifact untouched.
+At runtime, Prunex Play uses the fitted mapping only when the review search budget exactly matches the calibrated budget. Other review budgets remain provisional until they have their own independent calibration evidence. The same source code compiled for WebAssembly can search different node counts on different devices during a fixed time budget; the calibration therefore estimates outcomes for the measured bundle and sampled device/runtime population, not a universal objective chess value. Calibration is a predictive interpretation of observed game outcomes, not ground-truth position evaluation.
+
+A failed calibration leaves the existing provisional module untouched. A successful calibration changes score interpretation only; it does not modify the native C++ evaluator or prove an Elo improvement.
 
 ## Static evaluator diagnostics are a separate experiment
 
