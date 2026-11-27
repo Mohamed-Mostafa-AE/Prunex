@@ -117,3 +117,55 @@ splits. The held-out test split is evaluated only after fitting. The report is
 diagnostic: it does not modify the C++ evaluator, produce engine weights, or
 change the separate browser review calibration. A better calibration score
 is not evidence of stronger play.
+
+
+## Annotate search scores for browser-review calibration
+
+The browser review uses the score returned by a **completed, time-bounded search**. It does not use the native `eval` command's static score. Use `annotate_search.py` for this workflow; do not substitute files produced by `annotate_native.py`.
+
+First ingest the licensed PGN source into game-disjoint train, validation, and test splits. Then use the exact same compiled Prunex executable, reported version, and fixed time budget for all three annotation passes:
+
+```bash
+python tools/training/annotate_search.py \
+  --engine ./build/prunex \
+  --input /data/prunex-corpus/positions-train.jsonl \
+  --output /data/prunex-corpus/positions-train-search-15000ms.jsonl \
+  --engine-version "Prunex 0.8.0" \
+  --movetime-ms 15000
+
+python tools/training/annotate_search.py \
+  --engine ./build/prunex \
+  --input /data/prunex-corpus/positions-validation.jsonl \
+  --output /data/prunex-corpus/positions-validation-search-15000ms.jsonl \
+  --engine-version "Prunex 0.8.0" \
+  --movetime-ms 15000
+
+python tools/training/annotate_search.py \
+  --engine ./build/prunex \
+  --input /data/prunex-corpus/positions-test.jsonl \
+  --output /data/prunex-corpus/positions-test-search-15000ms.jsonl \
+  --engine-version "Prunex 0.8.0" \
+  --movetime-ms 15000
+```
+
+The annotator records the latest completed iterative-deepening score, depth, node count, fixed budget, score perspective, engine version, and executable SHA-256. If no search iteration completes, it rejects that position rather than recording the fallback static score as a search result. It writes atomically and never overwrites an existing output unless `--overwrite` is supplied.
+
+Combine the annotated files while preserving their original `split` values. For example, on Linux:
+
+```bash
+cat /data/prunex-corpus/positions-train-search-15000ms.jsonl \
+    /data/prunex-corpus/positions-validation-search-15000ms.jsonl \
+    /data/prunex-corpus/positions-test-search-15000ms.jsonl \
+    > /data/prunex-corpus/all-search-positions-15000ms.jsonl
+```
+
+From the `website/` directory, run:
+
+```bash
+node scripts/calibrate-evaluation.mjs /data/prunex-corpus/all-search-positions-15000ms.jsonl
+npm run build
+```
+
+The calibration command requires at least 100 training positions from 20 games, 20 validation positions from 5 games, and 20 test positions from 5 games. It rejects game leakage, invalid labels, mixed score perspectives, mixed engine binaries, and mixed search budgets. Each game receives equal total weight. The fitted mapping is written to `website/src/evaluation-calibration.js` only if both validation and test log loss **and** Brier score improve over the provisional baseline. Otherwise, the current module is left untouched.
+
+A fitted mapping is used in Prunex Play only at the exact search budget recorded in the calibration artifact. For other review budgets, expected-points values remain provisional. Calibration adjusts score interpretation; it does not modify the C++ engine or prove a playing-strength improvement.
