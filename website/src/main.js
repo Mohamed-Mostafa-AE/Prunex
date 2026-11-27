@@ -1070,12 +1070,16 @@ async function completeGameReview(results) {
   reviewDepth.textContent = "PRUNEX ANALYSIS · " + Math.round(reviewBudgetMs / 1000) +
     "S / POSITION · AVG DEPTH " + averageDepth;
   reviewMethodNote.textContent = calibration.trained
-    ? "Expected-points estimates use a Prunex-specific calibration trained on " +
+    ? "Expected-points estimates use a Prunex WebAssembly calibration trained on " +
       calibration.trainingGames + " games and checked on separate validation and test games at " +
       calibration.searchBudgetMs + "ms per position. Move grades use completed searches only."
-    : "Provisional expected-points estimate: no Prunex calibration corpus has been accepted yet. " +
-      "The percentage is an experimental expected-points-retention metric, not verified chess accuracy or an Elo rating. " +
-      "Only moves with completed before-and-after searches are rated.";
+    : calibration.artifactTrained
+      ? "Provisional for this search budget: the accepted Prunex WebAssembly calibration was trained at " +
+        calibration.searchBudgetMs + "ms per position, but this review used " + reviewBudgetMs +
+        "ms. The curve is not extrapolated across budgets. The percentage is experimental, not a verified chess-accuracy or Elo rating."
+      : "Provisional expected-points estimate: no Prunex WebAssembly calibration corpus has been accepted yet. " +
+        "The percentage is an experimental expected-points-retention metric, not verified chess accuracy or an Elo rating. " +
+        "Only moves with completed before-and-after searches are rated.";
   reviewProgressLabel.textContent = "Analysis complete · " + ratedMoves + " / " + scored.length +
     " moves rated · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
