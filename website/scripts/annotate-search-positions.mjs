@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
+import { runInThisContext } from "node:vm";
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, mkdirSync, renameSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -55,10 +56,17 @@ export async function createWasmAnnotator({
 } = {}) {
   const jsPath = resolve(engineJsPath);
   const wasmPath = resolve(engineWasmPath);
-  const require = createRequire(import.meta.url);
-  const createPrunexModule = require(jsPath);
+  const require = createRequire(jsPath);
+  const commonJsModule = { exports: {} };
+  const source = readFileSync(jsPath, "utf8");
+  const evaluateBundle = runInThisContext(
+    "(function(exports, require, module, __filename, __dirname) {\\n" + source + "\\n})",
+    { filename: jsPath }
+  );
+  evaluateBundle(commonJsModule.exports, require, commonJsModule, jsPath, dirname(jsPath));
+  const createPrunexModule = commonJsModule.exports;
   if (typeof createPrunexModule !== "function") {
-    throw new Error("The checked-in Prunex WebAssembly module did not export its factory.");
+    throw new Error("The checked-in Prunex WebAssembly loader did not export its module factory.");
   }
   const wasm = await createPrunexModule({
     locateFile: path => path.endsWith(".wasm") ? wasmPath : path
