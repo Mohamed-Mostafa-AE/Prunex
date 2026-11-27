@@ -814,6 +814,30 @@ img, svg, video, canvas { max-width: 100%; }
   gap: 6px;
   margin-top: 10px;
 }
+.review-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 6px 0 10px;
+}
+.review-refresh {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid rgba(124, 174, 221, .35);
+  background: rgba(255,255,255,.04);
+  color: #cfe3f7;
+  font: 600 10px var(--mono);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.review-refresh:hover:not(:disabled) {
+  border-color: #8eb9df;
+  background: rgba(72, 138, 197, .14);
+}
+.review-refresh:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
 .review-moment {
   display: grid;
   grid-template-columns: 1fr auto;
