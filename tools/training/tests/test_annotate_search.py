@@ -69,7 +69,7 @@ class SearchAnnotationIntegrationTests(unittest.TestCase):
                 output=str(output),
                 engine_version="Prunex test build",
                 movetime_ms=15000,
-                timeout=5.0,
+                timeout=20.0,
                 max_positions=0,
                 overwrite=False,
             )
