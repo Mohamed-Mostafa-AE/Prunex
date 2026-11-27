@@ -60,7 +60,15 @@ assert.throws(() => fitCalibration(badLabel), /result 0, 0.5, or 1/);
 // and the same fixed search budget.
 const mixedBudget = makeDataset();
 mixedBudget[200].searchBudgetMs = 3000;
-assert.throws(() => fitCalibration(mixedBudget), /same engine version, binary, and search budget/);
+assert.throws(() => fitCalibration(mixedBudget), /same WebAssembly bundle, API version, and search budget/);
+
+const nativeRuntime = makeDataset();
+nativeRuntime[0].search_runtime = "native-uci";
+assert.throws(() => fitCalibration(nativeRuntime), /Only Prunex WebAssembly API 800/);
+
+const wrongApi = makeDataset();
+wrongApi[0].prunex_wasm_api_version = 700;
+assert.throws(() => fitCalibration(wrongApi), /Only Prunex WebAssembly API 800/);
 
 const undersized = makeDataset().filter(row => row.split !== "test");
 assert.throws(() => fitCalibration(undersized), /test split has 0 positions across 0 games/);
