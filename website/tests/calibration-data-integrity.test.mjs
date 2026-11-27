@@ -61,6 +61,6 @@ mixedBudget[200].searchBudgetMs = 3000;
 assert.throws(() => fitCalibration(mixedBudget), /same engine version, binary, and search budget/);
 
 const undersized = makeDataset().filter(row => row.split !== "test");
-assert.throws(() => fitCalibration(undersized), /too small for separate train, validation, and test/);
+assert.throws(() => fitCalibration(undersized), /test split has 0 positions across 0 games/);
 
 console.log("Calibration data integrity: disjoint game splits, score perspective, provenance and deterministic fit passed.");
