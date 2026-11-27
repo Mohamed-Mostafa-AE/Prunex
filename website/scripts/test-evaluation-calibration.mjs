@@ -50,4 +50,6 @@ assert.equal(fitted.validationGames, 5);
 assert.equal(fitted.testGames, 5);
 assert.equal(fitted.searchBudgetMs, 15000);
 assert.equal(fitted.scorePerspective, "side_to_move");
+assert.equal(fitted.engineRuntime, "webassembly");
+assert.equal(fitted.wasmApiVersion, 800);
 console.log("Evaluation calibration: game-disjoint fit, baseline comparison, log-loss and Brier checks passed.");
