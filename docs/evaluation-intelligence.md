@@ -37,10 +37,13 @@ The UTF-8 JSONL rows must include these fields:
 - `fen`: legal standard-chess position before the recorded move.
 - `label_kind`: `observed_game_result_and_played_move`.
 - `result_for_side_to_move`: eventual game result for the side to move in the FEN: 1 win, 0.5 draw, 0 loss.
-- `prunex_search_score_cp`: completed Prunex UCI search score from the same position.
+- `prunex_search_score_cp`: completed Prunex WebAssembly search score from the same position.
 - `prunex_search_score_pov`: must be `side_to_move`.
 - `search_budget_ms`: fixed time budget used for every annotation in the dataset.
-- `native_engine_version` and `native_engine_sha256`: identity of the exact engine build used for annotation.
+- `search_runtime`: must be `webassembly`.
+- `prunex_wasm_api_version`: must be `800`.
+- `prunex_engine_version` and `prunex_engine_bundle_sha256`: human-readable engine version and SHA-256 of the exact WebAssembly loader/binary pair.
+- `search_depth`, `search_nodes`, and `search_best_move`: completed search diagnostics recorded alongside the score.
 
 A PGN's played move and final result are observed game data, not the engine's best move and not a trusted evaluation label for each position. The calibration estimates the relationship between Prunex's own time-bounded search scores and eventual game results; it does not train or alter the C++ evaluator.
 
