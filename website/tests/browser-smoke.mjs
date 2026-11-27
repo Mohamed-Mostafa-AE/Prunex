@@ -60,8 +60,8 @@ try {
     throw new Error("The production homepage must expose search and social preview metadata.");
   }
   if (await page.locator(".skip-link[href='#main-content']").count() !== 1 ||
-      await page.locator("#main-content").count() !== 1) {
-    throw new Error("The production homepage must provide a keyboard skip link and main landmark.");
+      await page.locator("#main-content").getAttribute("tabindex") !== "-1") {
+    throw new Error("The production homepage must provide a keyboard skip link to a focusable main landmark.");
   }
   for (const path of ["robots.txt", "sitemap.xml"]) {
     const response = await page.request.get(new URL(path, baseUrl).toString());
