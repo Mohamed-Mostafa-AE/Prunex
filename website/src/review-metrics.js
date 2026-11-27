@@ -15,7 +15,9 @@ export function evaluationCalibrationStatus(searchBudgetMs = null) {
     Number.isInteger(evaluationCalibration.searchBudgetMs) && evaluationCalibration.searchBudgetMs >= 1 &&
     evaluationCalibration.scorePerspective === "side_to_move" &&
     typeof evaluationCalibration.engineVersion === "string" && evaluationCalibration.engineVersion.trim().length > 0 &&
-    typeof evaluationCalibration.engineSha256 === "string" && /^[0-9a-f]{64}$/i.test(evaluationCalibration.engineSha256);
+    typeof evaluationCalibration.engineSha256 === "string" && /^[0-9a-f]{64}$/i.test(evaluationCalibration.engineSha256) &&
+    evaluationCalibration.engineRuntime === "webassembly" &&
+    evaluationCalibration.wasmApiVersion === 800;
   const budgetMatches = artifactTrained &&
     (searchBudgetMs == null || searchBudgetMs === evaluationCalibration.searchBudgetMs);
   return Object.freeze({
