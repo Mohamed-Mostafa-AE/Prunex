@@ -1077,7 +1077,7 @@ async function completeGameReview(results) {
       "The percentage is an experimental expected-points-retention metric, not verified chess accuracy or an Elo rating. " +
       "Only moves with completed before-and-after searches are rated.";
   reviewProgressLabel.textContent = "Analysis complete · " + ratedMoves + " / " + scored.length +
-    " moves rated · deepest completed depth " + deepestDepth;
+    " moves rated · deepest depth " + deepestDepth;
   renderReviewSummary(scored);
   render();
   await saveReviewedGame();
