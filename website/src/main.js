@@ -1695,6 +1695,7 @@ function handleWorkerError(event) {
   thinking = false;
   evaluating = false;
   analyzingGame = false;
+  rerunReviewButton.disabled = false;
   pendingWorkerMessage = null;
   render();
   console.error("The Prunex WebAssembly worker stopped unexpectedly.", event.error || event.message);
