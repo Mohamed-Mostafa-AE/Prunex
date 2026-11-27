@@ -10,7 +10,7 @@
     "test:browser": "node tests/browser-smoke.mjs"
   },
   "dependencies": {
-    "@neondatabase/serverless": "1.2.0",
+    "@neondatabase/serverless": "1.2.1",
     "@supabase/supabase-js": "2.118.0",
     "chess.js": "1.4.0"
   },
